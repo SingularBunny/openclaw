@@ -354,27 +354,27 @@ export async function preserveSessionCatalogHistory(params: {
         preparation: ownerImport
           ? { source: params.commitGuard }
           : {
-          prepareMessage: async (message) => {
-            const wrapped = importedSessionCatalogMessage({
-              catalogId: params.catalogId,
-              item: {
-                ...item,
-                // Normalize wrapper separators without trimming the recorded body.
-                text: wrapExternalContent(
-                  item.text?.trim() ? item.text : "[Unsupported catalog transcript item]",
-                  {
-                    source: "unknown",
-                    includeWarning: false,
+              prepareMessage: async (message) => {
+                const wrapped = importedSessionCatalogMessage({
+                  catalogId: params.catalogId,
+                  item: {
+                    ...item,
+                    // Normalize wrapper separators without trimming the recorded body.
+                    text: wrapExternalContent(
+                      item.text?.trim() ? item.text : "[Unsupported catalog transcript item]",
+                      {
+                        source: "unknown",
+                        includeWarning: false,
+                      },
+                    ).trim(),
                   },
-                ).trim(),
+                  fallbackTimestamp: fallbackTimestamp + index + 1,
+                });
+                return wrapped
+                  ? { ...wrapped, __openclaw: imported["__openclaw"], idempotencyKey }
+                  : message;
               },
-              fallbackTimestamp: fallbackTimestamp + index + 1,
-            });
-            return wrapped
-              ? { ...wrapped, __openclaw: imported["__openclaw"], idempotencyKey }
-              : message;
-          },
-          source: params.commitGuard,
+              source: params.commitGuard,
             },
       });
       if (appended?.appended) {
