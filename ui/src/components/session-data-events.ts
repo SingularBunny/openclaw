@@ -247,7 +247,10 @@ export function refreshSidebarSessionList(
 type SessionGatewayEventOwner = {
   publishPresence(payload: unknown): void;
   handleSessionCatalogHostEvent(payload: unknown): void;
+  handlePluginSessionCatalogChanged(): void;
 };
+
+const PLUGIN_SESSION_CATALOG_CHANGED = /^plugin\.[^.]+\.session-catalog-changed$/u;
 
 export function subscribeSessionDataGatewayEvents(
   gateway: ApplicationContext["gateway"],
@@ -257,6 +260,12 @@ export function subscribeSessionDataGatewayEvents(
     if (event.event === "sessions.catalog.host") {
       if (canCallGatewayMethod(gateway.snapshot, "sessions.catalog.list", "operator.read")) {
         owner.handleSessionCatalogHostEvent(event.payload);
+      }
+      return;
+    }
+    if (PLUGIN_SESSION_CATALOG_CHANGED.test(event.event)) {
+      if (canCallGatewayMethod(gateway.snapshot, "sessions.catalog.list", "operator.read")) {
+        owner.handlePluginSessionCatalogChanged();
       }
       return;
     }
