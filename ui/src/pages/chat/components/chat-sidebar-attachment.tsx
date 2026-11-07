@@ -21,6 +21,7 @@ import type { FileSessionAttachment } from "./chat-file-session-attachment.ts";
 import { FileSessionMenu } from "./chat-file-session-menu.tsx";
 import { openResolvedImage } from "./chat-image-presentation.ts";
 import { releaseChatMediaResourceOwner } from "./chat-message-media.ts";
+import { isOfficeAttachment, officePdfTransform } from "./chat-office-preview.ts";
 import { ChatPdfPreview, isPdfAttachment } from "./chat-pdf-preview.tsx";
 import type {
   AttachmentSidebarRuntime,
@@ -226,6 +227,25 @@ function AttachmentPreview(props: SidebarAttachmentProps) {
             // Existing attachment sources keep their bounded media read, not a full-file download.
             props.content.src || props.content.resolveSource ? undefined : props.content.file
           }
+        />
+      </Match>
+      {/* Office documents read as their PDF rendition; before the text match, which claims text/rtf. */}
+      <Match
+        when={
+          (model().src || model().pending || props.content.file) &&
+          model().kind === "document" &&
+          isOfficeAttachment(model().mimeType, props.content.title) &&
+          !isCrossOriginHttpSource(model().src ?? "")
+        }
+      >
+        <ChatPdfPreview
+          src={model().src ?? ""}
+          sourceIdentity={model().sourceIdentity}
+          label={props.content.title}
+          mimeType={props.content.mimeType ?? ""}
+          sizeBytes={model().source?.sizeBytes ?? props.content.sizeBytes}
+          file={props.content.src || props.content.resolveSource ? undefined : props.content.file}
+          transform={officePdfTransform(props.runtime, props.content.title)}
         />
       </Match>
       <Match

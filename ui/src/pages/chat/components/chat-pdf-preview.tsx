@@ -21,6 +21,8 @@ registerEnglishCatalog(registerChatComposerEnglish);
 
 const PDF_PREVIEW_MAX_BYTES = 16 * 1024 * 1024;
 const PDF_PREVIEW_TIMEOUT_MS = 10_000;
+// Converting a document (e.g. LibreOffice cold start) takes longer than reading a PDF.
+const PDF_PREVIEW_TRANSFORM_TIMEOUT_MS = 60_000;
 
 export function isPdfAttachment(rawMimeType: string, filename: string): boolean {
   const mimeType = rawMimeType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
@@ -38,6 +40,8 @@ export function ChatPdfPreview(props: {
   mimeType: string;
   sizeBytes?: number;
   file?: FilePreviewSource;
+  /** Turns the fetched source (e.g. an Office document) into PDF bytes before display. */
+  transform?: (bytes: Uint8Array, signal: AbortSignal) => Promise<Uint8Array<ArrayBuffer>>;
 }) {
   // A new ticket keeps its reader; a different attachment or missing source retires it.
   const source = createMemo(
@@ -89,8 +93,12 @@ export function ChatPdfPreview(props: {
       async () => {
         const src = props.src;
         const file = props.file;
+        const transform = props.transform;
         const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), PDF_PREVIEW_TIMEOUT_MS);
+        const timeout = setTimeout(
+          () => controller.abort(),
+          transform ? PDF_PREVIEW_TRANSFORM_TIMEOUT_MS : PDF_PREVIEW_TIMEOUT_MS,
+        );
         // This cleanup belongs to the tracked read, so replacement aborts transport immediately.
         onCleanup(() => {
           controller.abort();
@@ -115,9 +123,20 @@ export function ChatPdfPreview(props: {
             await response.body?.cancel().catch(() => undefined);
             throw new Error("PDF attachment unavailable");
           }
-          const bytes = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
-          if (!bytes) {
+          const fetched = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
+          if (!fetched) {
             throw new Error("PDF attachment exceeds preview limit");
+          }
+          let bytes = fetched;
+          if (transform) {
+            const rendition = await transform(new Uint8Array(fetched), controller.signal);
+            if (rendition.byteLength > PDF_PREVIEW_MAX_BYTES) {
+              throw new Error("PDF rendition exceeds preview limit");
+            }
+            bytes = rendition.buffer.slice(
+              rendition.byteOffset,
+              rendition.byteOffset + rendition.byteLength,
+            );
           }
           return { ok: true, bytes };
         } catch (cause) {
