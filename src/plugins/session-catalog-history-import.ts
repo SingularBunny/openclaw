@@ -340,24 +340,24 @@ export async function preserveSessionCatalogHistory(params: {
         preparation: ownerImport
           ? { source: params.commitGuard }
           : {
-          prepareMessage: async (message) => {
-            const wrapped = importedSessionCatalogMessage({
-              catalogId: params.catalogId,
-              item: {
-                ...item,
-                text: wrapExternalContent(
-                  item.text?.trim() || "[Unsupported catalog transcript item]",
-                  {
-                    source: "unknown",
-                    includeWarning: false,
+              prepareMessage: async (message) => {
+                const wrapped = importedSessionCatalogMessage({
+                  catalogId: params.catalogId,
+                  item: {
+                    ...item,
+                    text: wrapExternalContent(
+                      item.text?.trim() || "[Unsupported catalog transcript item]",
+                      {
+                        source: "unknown",
+                        includeWarning: false,
+                      },
+                    ),
                   },
-                ),
+                  fallbackTimestamp: fallbackTimestamp + index + 1,
+                });
+                return wrapped ? { ...wrapped, idempotencyKey } : message;
               },
-              fallbackTimestamp: fallbackTimestamp + index + 1,
-            });
-            return wrapped ? { ...wrapped, idempotencyKey } : message;
-          },
-          source: params.commitGuard,
+              source: params.commitGuard,
             },
       });
       if (appended?.appended) {
