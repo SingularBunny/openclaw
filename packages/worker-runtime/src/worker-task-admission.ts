@@ -1,7 +1,4 @@
-import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  type WorkerComputeCapacity,
-} from "./worker-task-capacity.js";
+import { type WorkerComputeCapacity, workerPendingBytesLimit } from "./worker-task-capacity.js";
 
 /** Owns a pool's admitted inputs and notifies rejected callers when their budget can fit. */
 export class WorkerTaskAdmission {
@@ -59,7 +56,7 @@ export class WorkerTaskAdmission {
   waitForCapacity(inputBytes: number): Promise<void> | undefined {
     if (
       inputBytes > this.maxPendingBytes ||
-      (this.shared && inputBytes > DEFAULT_WORKER_PENDING_BYTES)
+      (this.shared && inputBytes > workerPendingBytesLimit())
     ) {
       return undefined;
     }
