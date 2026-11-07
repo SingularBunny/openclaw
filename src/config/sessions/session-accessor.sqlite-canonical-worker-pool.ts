@@ -1,6 +1,7 @@
 import { AsyncLocalStorage } from "node:async_hooks";
 import { MessageChannel, type MessagePort } from "node:worker_threads";
 import { toStringifiedError } from "@openclaw/normalization-core/error-coercion";
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { runtimeProcessEntrypoints } from "../../infra/runtime-process-entrypoints.js";
 import { resolveRuntimeWorkerUrl } from "../../infra/runtime-worker-url.js";
 import { observeWorkerMessage } from "../../infra/worker-message-metrics.js";
@@ -62,7 +63,7 @@ export async function withSqliteCanonicalValidationWorkerPool<T>(
     >({
       workerUrl: resolveRuntimeWorkerUrl(runtimeProcessEntrypoints.sessionTranscriptArchive),
       workerOptions: {
-        resourceLimits: { maxOldGenerationSizeMb: 512 },
+        resourceLimits: { maxOldGenerationSizeMb: workerHeapLimitMb() },
         workerData: {
           type: "sqlite-transcript-archive-v2",
           operation: "canonical-validation-pool",

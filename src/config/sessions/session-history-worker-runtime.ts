@@ -2,8 +2,8 @@ import path from "node:path";
 import type { PreparedSessionHistoryReadTarget } from "../../gateway/session-history-read.types.js";
 import { prepareGatewaySessionStoreReadSourcesAsync } from "../../gateway/session-utils-store-sources.js";
 import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
+  workerPendingBytesLimit,
+  workerPendingTasksLimit,
 } from "../../infra/worker-task-capacity.js";
 import { WorkerTaskError } from "../../infra/worker-task-pool.js";
 import { normalizeAgentId } from "../../routing/session-key.js";
@@ -259,8 +259,8 @@ export async function readSessionHistoryPageInWorker(
   let inputBytes = JSON.stringify(capturedRequest).length * 2;
   // Retain caller admission across asynchronous target discovery as well as the page read.
   if (
-    pendingHistoryReaders >= DEFAULT_WORKER_PENDING_TASKS ||
-    pendingHistoryBytes + inputBytes > DEFAULT_WORKER_PENDING_BYTES
+    pendingHistoryReaders >= workerPendingTasksLimit() ||
+    pendingHistoryBytes + inputBytes > workerPendingBytesLimit()
   ) {
     throw new WorkerTaskError("worker task capacity reached", "overloaded");
   }
@@ -332,7 +332,7 @@ export async function readSessionHistoryPageInWorker(
       };
       const metadataKey = JSON.stringify(metadataInput);
       const additionalBytes = (key.length + metadataKey.length) * 2 - inputBytes;
-      if (pendingHistoryBytes + additionalBytes > DEFAULT_WORKER_PENDING_BYTES) {
+      if (pendingHistoryBytes + additionalBytes > workerPendingBytesLimit()) {
         throw new WorkerTaskError("worker task capacity reached", "overloaded");
       }
       pendingHistoryBytes += additionalBytes;

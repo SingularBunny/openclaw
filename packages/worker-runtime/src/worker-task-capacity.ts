@@ -1,5 +1,28 @@
 export const DEFAULT_WORKER_PENDING_TASKS = 128;
 export const DEFAULT_WORKER_PENDING_BYTES = 256 * 1024 * 1024;
+export const DEFAULT_WORKER_HEAP_MB = 512;
+
+// Memory indexing of very large chats (tens of thousands of messages) overflows these defaults
+// ("worker task capacity reached", reader heaps). OPENCLAW_WORKER_PENDING_TASKS,
+// OPENCLAW_WORKER_PENDING_BYTES and OPENCLAW_WORKER_HEAP_MB replace them. Read on use rather than
+// on import, so a state-dir .env loaded after the modules still applies.
+function envLimit(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+export function workerPendingTasksLimit(): number {
+  return envLimit("OPENCLAW_WORKER_PENDING_TASKS", DEFAULT_WORKER_PENDING_TASKS);
+}
+
+export function workerPendingBytesLimit(): number {
+  return envLimit("OPENCLAW_WORKER_PENDING_BYTES", DEFAULT_WORKER_PENDING_BYTES);
+}
+
+/** Old-generation heap ceiling of state, transcript and SQLite workers. */
+export function workerHeapLimitMb(): number {
+  return envLimit("OPENCLAW_WORKER_HEAP_MB", DEFAULT_WORKER_HEAP_MB);
+}
 
 export type WorkerComputePermit = { requestCheckpoint: () => boolean };
 
@@ -49,8 +72,8 @@ export function createWorkerComputeCapacity(limit: number) {
     }),
     admit(bytes: number): boolean {
       if (
-        pendingTasks >= DEFAULT_WORKER_PENDING_TASKS ||
-        pendingBytes + bytes > DEFAULT_WORKER_PENDING_BYTES
+        pendingTasks >= workerPendingTasksLimit() ||
+        pendingBytes + bytes > workerPendingBytesLimit()
       ) {
         return false;
       }

@@ -2,6 +2,7 @@ import { addAbortListener } from "node:events";
 import { MessageChannel } from "node:worker_threads";
 import { toStringifiedError } from "@openclaw/normalization-core/error-coercion";
 import type { Result } from "@openclaw/normalization-core/result";
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { racePromiseWithAbortSignal } from "../../infra/abort-signal.js";
 import { runtimeProcessEntrypoints } from "../../infra/runtime-process-entrypoints.js";
 import { resolveRuntimeWorkerUrl } from "../../infra/runtime-worker-url.js";
@@ -260,7 +261,7 @@ async function startReconcileWorkerTask(
   signal?.throwIfAborted();
   const pool = (runtime.pool ??= new WorkerTaskPool<SessionTranscriptReconcileWorkerTask, void>({
     workerUrl: resolveRuntimeWorkerUrl(runtimeProcessEntrypoints.sessionTranscriptReconcile),
-    workerOptions: { resourceLimits: { maxOldGenerationSizeMb: 512 } },
+    workerOptions: { resourceLimits: { maxOldGenerationSizeMb: workerHeapLimitMb() } },
     maxWorkers: MAX_WORKERS,
   }));
   const { port1: port, port2 } = new MessageChannel();

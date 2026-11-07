@@ -1,9 +1,6 @@
 import { WorkerTaskError } from "@openclaw/worker-runtime";
 import { MAX_SESSION_ROW_FACTS_KEYS } from "../config/sessions/session-transcript-worker.types.js";
-import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
-} from "../infra/worker-task-capacity.js";
+import { workerPendingBytesLimit, workerPendingTasksLimit } from "../infra/worker-task-capacity.js";
 import { isIncognitoSessionKey } from "../routing/session-key.js";
 import { createDeferredCore, type Deferred } from "../shared/deferred.js";
 import { yieldSessionListWork } from "./session-projection-work.js";
@@ -136,9 +133,8 @@ export function createSessionRowRefresh(
     const missing = [...selected].filter((id) => !exactReads.has(id) && !bulkReads.has(id));
     const bytes = missing.reduce((total, id) => total + 6 * id.length + 3, 0);
     if (
-      exactReads.size + missing.length >
-        DEFAULT_WORKER_PENDING_TASKS * MAX_SESSION_ROW_FACTS_KEYS ||
-      exactReadBytes + bytes > DEFAULT_WORKER_PENDING_BYTES
+      exactReads.size + missing.length > workerPendingTasksLimit() * MAX_SESSION_ROW_FACTS_KEYS ||
+      exactReadBytes + bytes > workerPendingBytesLimit()
     ) {
       throw new WorkerTaskError("Session row preparation capacity reached", "overloaded");
     }

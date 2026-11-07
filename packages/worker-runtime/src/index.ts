@@ -4,6 +4,10 @@ export {
   createWorkerComputeCapacity,
   DEFAULT_WORKER_PENDING_TASKS,
   DEFAULT_WORKER_PENDING_BYTES,
+  DEFAULT_WORKER_HEAP_MB,
+  workerPendingTasksLimit,
+  workerPendingBytesLimit,
+  workerHeapLimitMb,
   type WorkerComputeCapacity,
 } from "./worker-task-capacity.js";
 export { joinOwnedWorkerTasks } from "./worker-task-pool-owned.js";

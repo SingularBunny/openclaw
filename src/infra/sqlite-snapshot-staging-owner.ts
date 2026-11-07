@@ -33,10 +33,7 @@ import {
   captureRetainedNativeWorkerSource,
   type RetainedNativeWorkerSource,
 } from "./worker-native-lifecycle.js";
-import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
-} from "./worker-task-capacity.js";
+import { workerPendingBytesLimit, workerPendingTasksLimit } from "./worker-task-capacity.js";
 import { createOwnedWorkerTaskPool } from "./worker-task-pool.js";
 import type { RetainedWorkerTask } from "./worker-task-pool.types.js";
 
@@ -61,8 +58,8 @@ function createStagingOwner(workerUrl: URL, nativeSource: RetainedNativeWorkerSo
       workerUrl,
       workerClass: "writer",
       idleTimeoutMs: 0,
-      maxPendingTasks: DEFAULT_WORKER_PENDING_TASKS,
-      maxPendingBytes: DEFAULT_WORKER_PENDING_BYTES,
+      maxPendingTasks: workerPendingTasksLimit(),
+      maxPendingBytes: workerPendingBytesLimit(),
     },
     {
       retainedTransport: true,

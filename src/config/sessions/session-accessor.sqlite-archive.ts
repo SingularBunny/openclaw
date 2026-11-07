@@ -2,6 +2,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isMainThread, threadId, type Worker } from "node:worker_threads";
 import { toStringifiedError } from "@openclaw/normalization-core/error-coercion";
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { runtimeProcessEntrypoints } from "../../infra/runtime-process-entrypoints.js";
 import {
   resolveRuntimeWorkerThreadExecArgv,
@@ -64,7 +65,7 @@ export function createSqliteTranscriptArchiveWorker(
   let worker: Worker;
   try {
     worker = createCpuTrackedWorker(workerUrl, {
-      resourceLimits: { maxOldGenerationSizeMb: 512 },
+      resourceLimits: { maxOldGenerationSizeMb: workerHeapLimitMb() },
       workerData: { ...workerData, databaseAdmissionPort: admission.port },
       transferList: [admission.port],
       execArgv: resolveRuntimeWorkerThreadExecArgv(workerUrl),

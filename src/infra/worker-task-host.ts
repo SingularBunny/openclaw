@@ -1,5 +1,6 @@
 import { MessageChannel } from "node:worker_threads";
 import type { WorkerTaskHost } from "@openclaw/worker-runtime";
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { runInDetachedAsyncContext } from "../shared/detached-async-context.js";
 import { resolveGlobalSingleton } from "../shared/global-singleton.js";
 import { createLazyRuntimeModule } from "../shared/lazy-runtime.js";
@@ -76,7 +77,7 @@ export function createWorkerTaskHost(
       if (boundedHeap) {
         const limits = workerOptions.resourceLimits;
         workerOptions.resourceLimits = {
-          maxOldGenerationSizeMb: limits?.maxOldGenerationSizeMb ?? 512,
+          maxOldGenerationSizeMb: limits?.maxOldGenerationSizeMb ?? workerHeapLimitMb(),
           maxYoungGenerationSizeMb: limits?.maxYoungGenerationSizeMb,
           codeRangeSizeMb: limits?.codeRangeSizeMb,
           stackSizeMb: limits?.stackSizeMb,
