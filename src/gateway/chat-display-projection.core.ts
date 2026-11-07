@@ -1,5 +1,6 @@
 import { GATEWAY_ASSISTANT_ERROR_FALLBACK_TEXT } from "@openclaw/gateway-protocol/gateway-error-details";
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
+import { projectOwnerCatalogImport } from "../../packages/agent-core/src/harness/session/catalog-import.js";
 import { STREAM_ERROR_FALLBACK_TEXT } from "../../packages/ai/src/replay-turn-classification.js";
 import {
   renderAssistantRequestFailureCopy,
@@ -557,7 +558,13 @@ export function projectChatDisplayMessagesWithState(
 ): ChatDisplayProjectionResult {
   options?.subagentCoordination?.assertCurrent?.();
   const recovery = createChatHistoryRecoveryProjection(options);
-  recovery.append(messages);
+  // The owner's own imported chats read as in the native client (OPENCLAW_CATALOG_IMPORT_OWNER).
+  recovery.append(
+    messages.flatMap((message) => {
+      const projected = projectOwnerCatalogImport(message);
+      return projected === undefined ? [] : [projected];
+    }),
+  );
   const recoveredErrors = recovery.result();
   const projectedErrors = projectEmptyAssistantErrorMessages(
     projectRunFailureNotices(recoveredErrors.messages),
