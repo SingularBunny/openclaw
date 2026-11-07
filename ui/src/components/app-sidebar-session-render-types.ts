@@ -1,4 +1,5 @@
 import type { JSX as SolidJSX } from "@solidjs/web";
+import type { SessionsCatalogReorderParams } from "../../../packages/gateway-protocol/src/schema/sessions-catalog.js";
 import type { SessionObserverDigest } from "../../../packages/gateway-protocol/src/schema/sessions.js";
 import type { GatewaySessionRow } from "../api/types.ts";
 import type { NavigationRouteId } from "../app-navigation.ts";
@@ -58,16 +59,20 @@ export interface SessionListHost {
   readonly connected: boolean;
   readonly sessionData: Pick<
     SessionDataController,
+    | "beginSessionMutation"
     | "childSessionErrorsByParent"
     | "dismissSessionMutationError"
+    | "isSessionMutationScopeCurrent"
     | "loadMoreSessionCatalog"
     | "loadMoreSidebarSessions"
     | "presenceInstanceId"
     | "presencePayload"
     | "refreshSessionCatalogs"
+    | "reorderSessionCatalog"
     | "retryChildSessions"
     | "sessionCatalogRefreshStatus"
     | "sessionMutationError"
+    | "sessionScopeGeneration"
     | "visibleSessionLimits"
   >;
   readonly sessionsGrouping: SidebarSessionsGrouping;
@@ -174,6 +179,8 @@ export type SessionCatalogGroupsParams = {
   onStartSectionDrag: (sectionId: string) => void;
   onFinishSectionDrag: () => void;
   onReorderSection: (source: string, target: string, position: "before" | "after") => Promise<void>;
+  /** Persists a new folder or row order for catalogs advertising `capabilities.reorder`. */
+  onReorderCatalog: (params: SessionsCatalogReorderParams) => void;
   viewMenuOpenCatalogId: string | null;
   ownerFilterActive: boolean;
   onOpenViewMenu: (

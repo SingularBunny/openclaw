@@ -20,6 +20,8 @@ export type {
   SessionsCatalogHostEvent,
   SessionsCatalogReadParams,
   SessionsCatalogReadResult,
+  SessionsCatalogReorderParams,
+  SessionsCatalogReorderResult,
   SessionsCatalogStartTerminalParams,
   SessionsCatalogStartTerminalResult,
 } from "./schema/sessions-catalog.js";

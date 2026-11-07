@@ -2506,16 +2506,21 @@ openclaw-settings-save-indicator:empty {
 
 .sidebar-recent-sessions__group--dragging,
 .sidebar-recent-session--dragging,
+.sidebar-session-catalog-project--dragging,
 .sidebar-zone-entry--dragging {
   opacity: 0.45;
 }
 
 .sidebar-recent-sessions__group--section-drop-before,
+.sidebar-session-catalog-project--drop-before,
+.sidebar-recent-session--catalog-drop-before,
 .sidebar-zone-entry--drop-before {
   box-shadow: inset 0 2px 0 color-mix(in srgb, var(--accent) 75%, transparent);
 }
 
 .sidebar-recent-sessions__group--section-drop-after,
+.sidebar-session-catalog-project--drop-after,
+.sidebar-recent-session--catalog-drop-after,
 .sidebar-zone-entry--drop-after {
   box-shadow: inset 0 -2px 0 color-mix(in srgb, var(--accent) 75%, transparent);
 }

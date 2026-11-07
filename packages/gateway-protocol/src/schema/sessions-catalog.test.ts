@@ -1,5 +1,6 @@
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
+import { validateSessionsCatalogReorderParams } from "../validator-registry.js";
 import {
   SessionCatalogShareRouteSchema,
   SessionsCatalogHostEventSchema,
@@ -121,6 +122,52 @@ describe("SessionsCatalogStartTerminal schemas", () => {
     expect(Value.Check(SessionsCatalogStartTerminalResultSchema, result)).toBe(true);
     expect(
       Value.Check(SessionsCatalogStartTerminalResultSchema, { ...result, unexpected: true }),
+    ).toBe(false);
+  });
+});
+
+describe("SessionsCatalogReorder params", () => {
+  const base = { catalogId: "claude", hostId: "gateway:local", agentId: "main" };
+
+  it("accepts folder and row reorders", () => {
+    expect(
+      validateSessionsCatalogReorderParams({
+        ...base,
+        target: { kind: "groups", order: ["Work", "Personal"] },
+      }),
+    ).toBe(true);
+    expect(
+      validateSessionsCatalogReorderParams({
+        ...base,
+        sourceHomeId: "home-1",
+        target: { kind: "sessions", group: "Work", threadIds: ["thread-2", "thread-1"] },
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects unknown kinds, empty or duplicate orders and unknown fields", () => {
+    for (const target of [
+      { kind: "rows", order: ["Work"] },
+      { kind: "groups", order: [] },
+      { kind: "groups", order: ["Work", "Work"] },
+      { kind: "groups", order: ["Work"], group: "Work" },
+      { kind: "sessions", threadIds: ["thread-1"] },
+      { kind: "sessions", group: "Work", threadIds: ["thread-1", "thread-1"] },
+    ]) {
+      expect(validateSessionsCatalogReorderParams({ ...base, target })).toBe(false);
+    }
+    expect(
+      validateSessionsCatalogReorderParams({
+        ...base,
+        target: { kind: "groups", order: ["Work"] },
+        unexpected: true,
+      }),
+    ).toBe(false);
+    expect(
+      validateSessionsCatalogReorderParams({
+        catalogId: "claude",
+        target: { kind: "groups", order: ["Work"] },
+      }),
     ).toBe(false);
   });
 });
