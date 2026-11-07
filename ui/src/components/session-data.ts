@@ -31,6 +31,7 @@ import {
   archiveSessionCatalog as archiveSessionCatalogData,
   importSessionCatalog as importSessionCatalogData,
   applySessionCatalogHostEvent as applySessionCatalogHostEventToData,
+  applyPluginSessionCatalogChanged as applyPluginSessionCatalogChangedToData,
   invalidateSessionCatalogs as invalidateSessionCatalogData,
   loadMoreSessionCatalog as loadMoreSessionCatalogData,
   refreshSessionCatalogs as refreshSessionCatalogData,
@@ -416,6 +417,8 @@ export class SessionDataOwner implements SessionCatalogDataOwner {
   handleSessionCatalogHostEvent = applySessionCatalogHostEventToData.bind(null, this);
 
   private readonly handleSessionCatalogPageActivation = () => scheduleSessionCatalogRefresh(this);
+
+  handlePluginSessionCatalogChanged = applyPluginSessionCatalogChangedToData.bind(null, this);
 
   invalidateSessionCatalogs = invalidateSessionCatalogData.bind(null, this);
 
