@@ -62,7 +62,11 @@ it("omits metadata without changing other native conversation rows", async () =>
     { role: "assistant" },
     { content: "transcript-only context" },
     { content: "compacted context" },
-    { content: "run the review", __openclaw: { mirrorOrigin: "claude-catalog-import" } },
+    // senderIsOwner: the owner imports their own chats, so backfill and Dreaming keep them.
+    {
+      content: "run the review",
+      __openclaw: { mirrorOrigin: "claude-catalog-import", senderIsOwner: true },
+    },
   ]);
   expect(appended[3]?.provenance).toBeUndefined();
   expect(appended[0]?.["__openclaw"]).toBeUndefined();

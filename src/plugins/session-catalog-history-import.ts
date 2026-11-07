@@ -45,12 +45,15 @@ function importedSessionCatalogMessage(params: {
   if (params.item.type === "userMessage") {
     // Imported native rows are not OpenClaw-authored; mirrorOrigin excludes them
     // from self-echo provenance so a repeated external prompt stays observable.
+    // The owner imports their own chats (operator.admin), so the rows are the owner's:
+    // without senderIsOwner session-backfill and Dreaming skip the imported history.
     return {
       role: "user",
       content: text,
       timestamp,
       __openclaw: {
         mirrorOrigin: `${params.catalogId}-catalog-import`,
+        senderIsOwner: true,
         catalogDisplay: catalogDisplayFacts(params.item),
       },
     };
