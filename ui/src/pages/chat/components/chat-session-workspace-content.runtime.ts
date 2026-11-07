@@ -26,6 +26,7 @@ import {
   resolveAttachmentSidebarSource,
 } from "./chat-message-attachment-source.ts";
 import { loadManagedImageBlob } from "./chat-message-image-loading.ts";
+import { isOfficeAttachment } from "./chat-office-preview.ts";
 import { releaseChatMediaResourceOwner, type AttachmentItem } from "./chat-message-media.ts";
 import {
   readWorkspaceFileText,
@@ -153,7 +154,8 @@ function createSessionWorkspaceFileContent(
       root: result.root,
       download,
     };
-    if (file.mimeType === "application/pdf") {
+    // Office documents open like PDFs and read as the converter plugin's PDF rendition.
+    if (file.mimeType === "application/pdf" || isOfficeAttachment(file.mimeType ?? "", name)) {
       return {
         kind: "attachment",
         attachmentKind: "document",

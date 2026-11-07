@@ -40,6 +40,7 @@ import type { FileViewControls } from "./chat-file-reader-controls.ts";
 import { FileSessionMenu } from "./chat-file-session-menu.tsx";
 import { openInlineChatImage } from "./chat-image-lightbox.ts";
 import { openResolvedImage } from "./chat-image-presentation.ts";
+import { isOfficeAttachment } from "./chat-office-preview.ts";
 import { isPdfAttachment } from "./chat-pdf-preview.tsx";
 import { SidebarAttachment } from "./chat-sidebar-attachment.tsx";
 import type {
@@ -364,7 +365,11 @@ export function SidebarPanel(props: SidebarPanelProps) {
                       !props.content.src &&
                       !props.content.resolveSource &&
                       (props.content.download ||
-                        !isPdfAttachment(props.content.mimeType ?? "", props.content.title)))) &&
+                        // Office documents read as their PDF rendition, like PDFs.
+                        !(
+                          isPdfAttachment(props.content.mimeType ?? "", props.content.title) ||
+                          isOfficeAttachment(props.content.mimeType ?? "", props.content.title)
+                        )))) &&
                   props.content.file
                     ? props.content.file
                     : undefined
