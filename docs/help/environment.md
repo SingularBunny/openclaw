@@ -150,6 +150,23 @@ Installed third-party plugins may declare additional credential variables in the
 | `OPENCLAW_SKIP_CHANNELS`             | Start the Gateway without channel transports for troubleshooting.                            |
 | `OPENCLAW_THEME`                     | Force the TUI palette to `light` or `dark`.                                                  |
 
+### Worker and catalog limits
+
+These variables replace compiled-in limits. They are read when the limit is used, so setting them
+through config `env.vars` (`openclaw config set env.vars.<NAME> '"<value>"' --strict-json` or the
+`config.patch` Gateway method) applies them without restarting the Gateway. A value that is not a
+positive integer falls back to the default. Values from the process environment or the state-dir
+`.env` take precedence over config `env.vars`.
+
+| Variable                                  | Default     | Purpose                                                                                                           |
+| ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
+| `OPENCLAW_WORKER_PENDING_TASKS`           | `128`       | Pending tasks per worker queue. Memory indexing of very large chats can fail with "worker task capacity reached". |
+| `OPENCLAW_WORKER_PENDING_BYTES`           | `268435456` | Pending bytes per worker queue, including the SQLite worker broker.                                               |
+| `OPENCLAW_WORKER_HEAP_MB`                 | `512`       | Old-generation heap ceiling of state, transcript, and SQLite workers.                                             |
+| `OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS` | `200`       | Items that continuing a native catalog session carries over.                                                      |
+| `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES` | `524288`    | Bytes that continuing a native catalog session carries over.                                                      |
+| `OPENCLAW_CATALOG_IMPORT_OWNER`           | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).  |
+
 ### Filesystem observation
 
 Config hot reload, skills refresh, memory indexing, and the development watch
