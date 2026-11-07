@@ -17,6 +17,8 @@ import {
   importSessionCatalogHistory,
   preserveSessionCatalogHistory,
   readBoundedSessionCatalogHistory,
+  sessionCatalogContinuationLimits,
+  sessionCatalogImportMarksOwner,
 } from "./session-catalog-history-import.js";
 
 describe("session catalog history import store selection", () => {
@@ -275,5 +277,23 @@ describe("catalog history paging", () => {
     });
     expect(history).toMatchObject({ totalItems: 120, complete: true });
     expect(history.items.map((item) => item.id)).toEqual(source.map((item) => item.id));
+  });
+});
+
+describe("catalog import settings from the environment", () => {
+  it("keeps OpenClaw defaults and reads overrides on use", () => {
+    try {
+      expect(sessionCatalogContinuationLimits()).toEqual({ maxItems: 200, maxBytes: 512 * 1024 });
+      expect(sessionCatalogImportMarksOwner()).toBe(false);
+      vi.stubEnv("OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS", "5000");
+      vi.stubEnv("OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES", "lots");
+      vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
+      expect(sessionCatalogContinuationLimits()).toEqual({ maxItems: 5000, maxBytes: 512 * 1024 });
+      expect(sessionCatalogImportMarksOwner()).toBe(true);
+      vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "0");
+      expect(sessionCatalogImportMarksOwner()).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

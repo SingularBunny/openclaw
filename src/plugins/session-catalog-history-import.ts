@@ -11,6 +11,31 @@ import { withSessionTranscriptWrite } from "../plugin-sdk/session-transcript-run
 import { wrapExternalContent } from "../security/external-content.js";
 
 const SESSION_CATALOG_CONTINUATION_LIMITS = { maxItems: 200, maxBytes: 512 * 1024 };
+
+function envPositiveInt(name: string, fallback: number): number {
+  const value = Number(process.env[name]);
+  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
+}
+
+// How much of a native chat "continue" carries over. OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS and
+// OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES (e.g. config env.vars) replace the defaults; read on use.
+export function sessionCatalogContinuationLimits() {
+  return {
+    maxItems: envPositiveInt(
+      "OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS",
+      SESSION_CATALOG_CONTINUATION_LIMITS.maxItems,
+    ),
+    maxBytes: envPositiveInt(
+      "OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES",
+      SESSION_CATALOG_CONTINUATION_LIMITS.maxBytes,
+    ),
+  };
+}
+
+/** OPENCLAW_CATALOG_IMPORT_OWNER=1: imported user rows are the owner's (off by default). */
+export function sessionCatalogImportMarksOwner(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.OPENCLAW_CATALOG_IMPORT_OWNER?.trim() ?? "");
+}
 export const SESSION_CATALOG_TRANSCRIPT_IMPORT_LIMITS = {
   maxItems: 50_000,
   maxBytes: 64 * 1024 * 1024,
@@ -40,13 +65,16 @@ function importedSessionCatalogMessage(params: {
   if (params.item.type === "userMessage") {
     // Imported native rows are not OpenClaw-authored; mirrorOrigin excludes them
     // from self-echo provenance so a repeated external prompt stays observable.
-    // The owner imports their own chats (operator.admin), so the rows are the owner's:
-    // without senderIsOwner session-backfill and Dreaming skip the imported history.
+    // When the owner imports their own chats (operator.admin) and opts in, the rows are the
+    // owner's: without senderIsOwner session-backfill and Dreaming skip the imported history.
     return {
       role: "user",
       content: text,
       timestamp,
-      __openclaw: { mirrorOrigin: `${params.catalogId}-catalog-import`, senderIsOwner: true },
+      __openclaw: {
+        mirrorOrigin: `${params.catalogId}-catalog-import`,
+        ...(sessionCatalogImportMarksOwner() ? { senderIsOwner: true } : {}),
+      },
     } as AgentMessage;
   }
   const prefix =
@@ -189,7 +217,7 @@ export async function importSessionCatalogHistory(params: {
 }): Promise<void> {
   const { items } = await readBoundedSessionCatalogHistory({
     read: params.read,
-    limits: SESSION_CATALOG_CONTINUATION_LIMITS,
+    limits: sessionCatalogContinuationLimits(),
   });
   const fallbackTimestamp = Date.now();
   await withSessionTranscriptWrite(params, async (transcript) => {

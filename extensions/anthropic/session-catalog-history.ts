@@ -19,13 +19,18 @@ function importedClaudeMessage(
   if (item.type === "userMessage") {
     // Imported native rows are not OpenClaw-authored; mirrorOrigin excludes them
     // from self-echo provenance so a repeated native prompt stays observable.
-    // The owner imports their own chats, so the rows are the owner's (senderIsOwner):
-    // without it session-backfill and Dreaming skip the imported history.
+    // OPENCLAW_CATALOG_IMPORT_OWNER=1: the owner imports their own chats, so the rows are the
+    // owner's (senderIsOwner); without it session-backfill and Dreaming skip the imported history.
     return {
       role: "user",
       content: text,
       timestamp,
-      __openclaw: { mirrorOrigin: "claude-catalog-import", senderIsOwner: true },
+      __openclaw: {
+        mirrorOrigin: "claude-catalog-import",
+        ...(/^(1|true|yes)$/i.test(process.env.OPENCLAW_CATALOG_IMPORT_OWNER?.trim() ?? "")
+          ? { senderIsOwner: true }
+          : {}),
+      },
     } as AgentMessage;
   }
   const prefix =
