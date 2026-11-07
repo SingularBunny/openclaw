@@ -19,6 +19,7 @@ import { pathDisplayName } from "../../../lib/path-display.ts";
 import { resolveSessionDisplayName } from "../../../lib/session-display.ts";
 import { parseAgentSessionKey } from "../../../lib/sessions/session-key.ts";
 import { sessionWorkspaceFileKey } from "../../../lib/sessions/workspace.ts";
+import { isOfficeAttachment, officeWorkspaceFileSidebarContent } from "./chat-office-preview.ts";
 import { openWorkspaceItem } from "./chat-session-workspace-preview.ts";
 import {
   clearWorkspaceTimer,
@@ -215,6 +216,16 @@ function openFile(
           mimeType: file.mimeType,
           rawText: filePath,
         };
+      }
+      if (file.previewKind === "unsupported" && isOfficeAttachment(file.mimeType ?? "", name)) {
+        return officeWorkspaceFileSidebarContent({
+          name,
+          path: filePath,
+          mimeType: file.mimeType,
+          size: file.size,
+          updatedAtMs: file.updatedAtMs,
+          sessionKey: result.sessionKey,
+        });
       }
       if (file.previewKind === "unsupported") {
         return {

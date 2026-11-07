@@ -11,6 +11,8 @@ import { readResponseBytesWithinLimit } from "./chat-response-bytes.ts";
 
 const PDF_PREVIEW_MAX_BYTES = 16 * 1024 * 1024;
 const PDF_PREVIEW_TIMEOUT_MS = 10_000;
+// Converting a document (e.g. LibreOffice cold start) takes longer than reading a PDF.
+const PDF_PREVIEW_TRANSFORM_TIMEOUT_MS = 60_000;
 
 export function isPdfAttachment(rawMimeType: string, filename: string): boolean {
   const mimeType = rawMimeType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
@@ -27,6 +29,10 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
   @property() label = "";
   @property() mimeType = "";
   @property({ type: Number }) sizeBytes: number | undefined;
+  /** Turns the fetched source (e.g. an Office document) into PDF bytes before display. */
+  @property({ attribute: false }) transform:
+    | ((bytes: Uint8Array, signal: AbortSignal) => Promise<Uint8Array<ArrayBuffer>>)
+    | undefined;
 
   @state() private status: "loading" | "ready" | "error" = "loading";
   @state() private previewUrl: string | null = null;
@@ -86,7 +92,10 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
 
     const controller = new AbortController();
     this.abortController = controller;
-    const timeout = setTimeout(() => controller.abort(), PDF_PREVIEW_TIMEOUT_MS);
+    const timeout = setTimeout(
+      () => controller.abort(),
+      this.transform ? PDF_PREVIEW_TRANSFORM_TIMEOUT_MS : PDF_PREVIEW_TIMEOUT_MS,
+    );
     try {
       const response = await fetch(this.src, {
         credentials: "same-origin",
@@ -97,9 +106,15 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
         await response.body?.cancel().catch(() => undefined);
         throw new Error("PDF attachment unavailable");
       }
-      const bytes = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
-      if (!bytes) {
+      const fetched = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
+      if (!fetched) {
         throw new Error("PDF attachment exceeds preview limit");
+      }
+      const bytes = this.transform
+        ? await this.transform(new Uint8Array(fetched), controller.signal)
+        : fetched;
+      if (bytes.byteLength > PDF_PREVIEW_MAX_BYTES) {
+        throw new Error("PDF rendition exceeds preview limit");
       }
       if (this.abortController !== controller || !this.isConnected) {
         return;
