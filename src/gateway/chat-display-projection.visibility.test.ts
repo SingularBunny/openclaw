@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { HEARTBEAT_PROMPT, INTERNAL_WAKE_TRANSCRIPT_PROMPTS } from "../auto-reply/heartbeat.js";
 import { MESSAGE_TOOL_DELIVERY_HINTS } from "../plugin-sdk/message-tool-delivery-hints.js";
 import { annotateInterSessionPromptText } from "../sessions/input-provenance.js";
@@ -376,3 +376,33 @@ it.each(["state_contention", "unknown"])(
     expect(JSON.stringify(result)).not.toContain("PRIVATE_");
   },
 );
+
+describe("owner catalog import display projection", () => {
+  it("shows the owner's imported chat without the import notice and boundaries", () => {
+    const boundary = (text: string) =>
+      `\n<<<EXTERNAL_UNTRUSTED_CONTENT id="0123456789abcdef">>>\nSource: External\n---\n${text}\n<<<END_EXTERNAL_UNTRUSTED_CONTENT id="0123456789abcdef">>>`;
+    const messages = [
+      {
+        ...assistantTextMessage("This session contains imported transcript content."),
+        idempotencyKey: "catalog-preservation:notice",
+      },
+      {
+        role: "user",
+        content: boundary("Always answer in Russian"),
+        idempotencyKey: 'catalog-preservation:["claude","t",["id","u"]]',
+      },
+    ];
+    vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
+    try {
+      const shown = JSON.stringify(projectChatDisplayMessages(messages));
+      expect(shown).toContain("Always answer in Russian");
+      expect(shown).not.toContain("EXTERNAL_UNTRUSTED_CONTENT");
+      expect(shown).not.toContain("imported transcript content");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    expect(JSON.stringify(projectChatDisplayMessages(messages))).toContain(
+      "imported transcript content",
+    );
+  });
+});

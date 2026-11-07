@@ -8,6 +8,7 @@ import {
   createCustomMessage,
 } from "../messages.js";
 import type { SessionContext, SessionTreeEntry } from "../types.js";
+import { projectOwnerCatalogImport } from "./catalog-import.js";
 import { selectResetKeptEntries } from "./tool-result-pairing.js";
 import { isTranscriptArtifactProvider } from "./transcript-model.js";
 
@@ -42,7 +43,7 @@ export function projectSessionEntryMessage(entry: SessionTreeEntry): AgentMessag
       // Display-only history stays persisted but never enters replay or summarization.
       return "excludeFromContext" in entry.message && entry.message.excludeFromContext === true
         ? undefined
-        : entry.message;
+        : projectOwnerCatalogImport(entry.message);
     case "custom_message":
       if (isExcludedCustomMessage(entry)) {
         return undefined;
@@ -134,7 +135,7 @@ export function* iterateSessionContextMessages<T extends SessionTreeEntry>(
     // Explicit reset retention can include otherwise excluded user/assistant messages.
     let message =
       context === "reset-retained" && hydrated.type === "message"
-        ? hydrated.message
+        ? projectOwnerCatalogImport(hydrated.message)
         : projectSessionEntryMessage(hydrated);
     if (!message) {
       continue;
