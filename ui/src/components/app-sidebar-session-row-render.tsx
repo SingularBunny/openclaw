@@ -3,7 +3,7 @@ import { createMemo, createProjection, For, onSettled, Show } from "solid-js";
 import { normalizeSessionColorValue } from "../../../packages/gateway-protocol/src/session-agent-status.js";
 import { handleContextMenuEvent } from "../lib/keyboard-shortcuts.ts";
 import { t } from "../lib/reactive/i18n.ts";
-import { writeSessionDragData } from "../lib/sessions/drag.ts";
+import { writeCatalogReorderDragData, writeSessionDragData } from "../lib/sessions/drag.ts";
 import { canArchiveSessionRow, resolveUiConfiguredMainKey } from "../lib/sessions/session-key.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
 import type {
@@ -159,7 +159,9 @@ function renderRecentSessionRow(params: RecentSessionParams) {
     }),
   );
   // Personal pins and rail shortcuts do not mutate shared session groups.
-  const rowDraggable = createMemo(() => pinnable() || groupWriteAccess().allowed);
+  const rowDraggable = createMemo(
+    () => pinnable() || groupWriteAccess().allowed || display()?.catalogReorder !== undefined,
+  );
   const marqueeLabelTemplate = () => {
     const teamValue = team();
     const labelValue = label();
@@ -236,11 +238,21 @@ function renderRecentSessionRow(params: RecentSessionParams) {
           return;
         }
         if (event.dataTransfer) {
-          writeSessionDragData(event.dataTransfer, session().key);
-          host().sessionOrganizer.startSessionDrag(actionSession());
+          // A row adopted from a catalog folder also reorders inside that folder.
+          const catalogReorder = display()?.catalogReorder;
+          if (catalogReorder) {
+            writeCatalogReorderDragData(event.dataTransfer, catalogReorder.payload);
+          }
+          if (pinnable() || groupWriteAccess().allowed) {
+            writeSessionDragData(event.dataTransfer, session().key);
+            host().sessionOrganizer.startSessionDrag(actionSession());
+          }
         }
       }}
-      onDragEnd={() => host().sessionOrganizer.finishSessionDrag()}
+      onDragEnd={() => {
+        display()?.catalogReorder?.onFinish();
+        host().sessionOrganizer.finishSessionDrag();
+      }}
       onDragOver={(event: DragEvent) => {
         if (params.pinReorder) {
           host().sessionOrganizer.sectionDragOver(event, "pinned", undefined, session().key);

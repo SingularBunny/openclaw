@@ -756,4 +756,5 @@ export const CORE_GATEWAY_METHOD_SPECS = [
     "2026.10",
     { startup: true, ...OBSERVATION },
   ],
+  ["sessions.catalog.reorder", "session-catalog", "operator.write", "2026.10"],
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];
