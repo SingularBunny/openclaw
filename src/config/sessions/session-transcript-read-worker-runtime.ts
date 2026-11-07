@@ -21,7 +21,7 @@ import {
   resolveUnsuffixedSqliteTargetFromSessionStorePath,
 } from "./session-sqlite-target-paths.js";
 import { resolveSessionTranscriptReadFence } from "./session-transcript-read-fence.js";
-import { SESSION_TRANSCRIPT_WORKER_LIMITS } from "./session-transcript-read-pools.js";
+import { sessionTranscriptWorkerLimits } from "./session-transcript-read-pools.js";
 import type {
   SessionEntriesWorkerInput,
   SessionEntriesWorkerUpdate,
@@ -59,7 +59,7 @@ export function createSessionTranscriptReadPool<Input extends SessionTranscriptW
             options: { workerData: { databaseEngineSelection: getDatabaseEngineSelection() } },
           };
         },
-        workerOptions: { resourceLimits: SESSION_TRANSCRIPT_WORKER_LIMITS },
+        workerOptions: { resourceLimits: sessionTranscriptWorkerLimits() },
         maxWorkers,
         sharedCompute,
         onRotationComplete,
