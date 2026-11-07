@@ -130,14 +130,37 @@ describe("importClaudeHistory", () => {
     const userRow = appended.find((message) => message.role === "user");
     // mirrorOrigin keeps imported native prompts out of ownRecentUserTexts; without
     // it a repeated external prompt like "continue" is swallowed as self-echo.
-    // senderIsOwner: the owner imports their own chats, so backfill and Dreaming keep them.
-    expect(userRow?.["__openclaw"]).toMatchObject({
-      mirrorOrigin: "claude-catalog-import",
-      senderIsOwner: true,
-    });
+    expect(userRow?.["__openclaw"]).toEqual({ mirrorOrigin: "claude-catalog-import" });
     const assistantRow = appended.find((message) => message.role === "assistant");
     expect(assistantRow).toBeDefined();
     expect(assistantRow?.["__openclaw"]).toBeUndefined();
+  });
+
+  it("marks imported user rows as the owner's when OPENCLAW_CATALOG_IMPORT_OWNER is set", async () => {
+    appended.length = 0;
+    vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
+    try {
+      await importClaudeHistory({
+        items: [
+          { type: "userMessage", text: "continue", uuid: "u-1" },
+          { type: "assistantMessage", text: "done", uuid: "a-1" },
+        ],
+        threadId: "thread-1",
+        storePath: "/tmp/sessions.json",
+        sessionId: "session-1",
+        sessionKey: "agent:main:catalog-adopt",
+        agentId: "main",
+        config: {} as OpenClawConfig,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    const userRow = appended.find((message) => message.role === "user");
+    expect(userRow?.["__openclaw"]).toEqual({
+      mirrorOrigin: "claude-catalog-import",
+      senderIsOwner: true,
+    });
   });
 
   it("omits empty native reasoning records instead of rendering a placeholder", async () => {
