@@ -62,16 +62,20 @@ export interface SessionListHost {
   readonly connected: boolean;
   readonly sessionData: Pick<
     SessionDataOwner,
+    | "beginSessionMutation"
     | "childSessionErrorsByParent"
     | "dismissSessionMutationError"
+    | "isSessionMutationScopeCurrent"
     | "loadMoreSessionCatalog"
     | "loadMoreSidebarSessions"
     | "presenceInstanceId"
     | "presencePayload"
     | "refreshSessionCatalogs"
+    | "reorderSessionCatalog"
     | "retryChildSessions"
     | "sessionCatalogRefreshStatus"
     | "sessionMutationError"
+    | "sessionScopeGeneration"
     | "visibleSessionLimits"
   >;
   readonly sessionsGrouping: SidebarSessionsGrouping;

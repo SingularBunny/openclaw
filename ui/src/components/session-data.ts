@@ -29,6 +29,7 @@ import { createPanelRefreshStatus, type PanelRefreshStatus } from "./panel-refre
 import {
   applySessionCatalogContinuation,
   archiveSessionCatalog as archiveSessionCatalogData,
+  reorderSessionCatalog as reorderSessionCatalogData,
   importSessionCatalog as importSessionCatalogData,
   applySessionCatalogHostEvent as applySessionCatalogHostEventToData,
   applyPluginSessionCatalogChanged as applyPluginSessionCatalogChangedToData,
@@ -423,6 +424,8 @@ export class SessionDataOwner implements SessionCatalogDataOwner {
   invalidateSessionCatalogs = invalidateSessionCatalogData.bind(null, this);
 
   archiveSessionCatalog = archiveSessionCatalogData.bind(null, this);
+
+  reorderSessionCatalog = reorderSessionCatalogData.bind(null, this);
 
   importSessionCatalog = importSessionCatalogData.bind(null, this);
 

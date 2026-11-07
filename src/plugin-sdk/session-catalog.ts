@@ -7,6 +7,7 @@ export type {
   SessionCatalogListProviderParams,
   SessionCatalogProvider,
   SessionCatalogReadProviderParams,
+  SessionCatalogReorderProviderParams,
   SessionCatalogStartTerminalProviderParams,
   SessionCatalogTerminalPlan,
   SessionUpstreamActivity,
@@ -41,6 +42,8 @@ export type {
   SessionsCatalogListResult,
   SessionsCatalogReadParams,
   SessionsCatalogReadResult,
+  SessionsCatalogReorderParams,
+  SessionsCatalogReorderResult,
   SessionsCatalogStartTerminalParams,
   SessionsCatalogStartTerminalResult,
 } from "../../packages/gateway-protocol/src/schema/sessions-catalog.js";
