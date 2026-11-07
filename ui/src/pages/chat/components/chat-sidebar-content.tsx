@@ -47,6 +47,7 @@ import "./chat-audio-player.tsx";
 import { openInlineChatImage } from "./chat-image-lightbox.ts";
 import "./chat-video-player.tsx";
 import { openResolvedImage } from "./chat-message-image-open.ts";
+import { isOfficeAttachment, officePdfTransform } from "./chat-office-preview.ts";
 import { isPdfAttachment } from "./chat-pdf-preview.ts";
 import type {
   AttachmentSidebarRuntime,
@@ -174,6 +175,24 @@ function AttachmentPreview(props: SidebarAttachmentProps) {
           prop:label={props.content.title}
           prop:mimeType={props.content.mimeType ?? ""}
           prop:sizeBytes={model().source?.sizeBytes ?? props.content.sizeBytes}
+        />
+      </Match>
+      {/* Office documents read as their PDF rendition; before the text match, which claims text/rtf. */}
+      <Match
+        when={
+          (model().src || model().pending) &&
+          model().kind === "document" &&
+          isOfficeAttachment(model().mimeType, props.content.title) &&
+          !isCrossOriginHttpSource(model().src ?? "")
+        }
+      >
+        <openclaw-chat-pdf-preview
+          prop:src={model().src ?? ""}
+          prop:sourceIdentity={model().sourceIdentity}
+          prop:label={props.content.title}
+          prop:mimeType={props.content.mimeType ?? ""}
+          prop:sizeBytes={model().source?.sizeBytes ?? props.content.sizeBytes}
+          prop:transform={officePdfTransform(props.runtime, props.content.title)}
         />
       </Match>
       <Match

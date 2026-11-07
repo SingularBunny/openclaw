@@ -211,3 +211,48 @@ it.each(["unchanged", "changed", "failed", "identity", "oversized"] as const)(
     }
   },
 );
+
+it("shows an Office document as its PDF rendition from the converter plugin", async () => {
+  const objectUrls = stubObjectUrls();
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(new Response("PK-docx-bytes"))
+    .mockResolvedValueOnce(
+      new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf" } }),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const panel = await mountAttachment({
+    title: "Договор.docx",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    src: "/__openclaw__/assistant-media?mediaTicket=docx-preview",
+  });
+
+  await vi.waitFor(() => expect(panel.querySelector("iframe")).not.toBeNull());
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(String(fetchMock.mock.calls[1]?.[0])).toContain(
+    "/api/office-preview/convert?name=%D0%94%D0%BE%D0%B3%D0%BE%D0%B2%D0%BE%D1%80.docx",
+  );
+  expect(fetchMock.mock.calls[1]?.[1]).toMatchObject({ method: "POST" });
+  expect(objectUrls.createObjectURL).toHaveBeenCalledOnce();
+  expect(panel.querySelector("iframe")?.getAttribute("src")).toBe("blob:pdf-preview");
+});
+
+it("offers the Office document for download when no converter answers", async () => {
+  stubObjectUrls();
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(new Response("PK-xlsx-bytes"))
+    .mockResolvedValueOnce(new Response("{}", { status: 404 }));
+  vi.stubGlobal("fetch", fetchMock);
+  const panel = await mountAttachment({
+    title: "report.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    src: "/__openclaw__/assistant-media?mediaTicket=xlsx-preview",
+  });
+
+  await vi.waitFor(() => expect(panel.querySelector('[role="alert"]')).not.toBeNull());
+  expect(panel.querySelector("iframe")).toBeNull();
+  expect(panel.querySelector("a[href]")?.getAttribute("href")).toBe(
+    "/__openclaw__/assistant-media?mediaTicket=xlsx-preview",
+  );
+});
