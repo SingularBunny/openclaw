@@ -7,8 +7,8 @@ import { createRetainedOperation, type RetainedOperation } from "./retained-oper
 import type { WorkerLifecycle } from "./worker-lifecycle.js";
 import { enqueueWorkerTask, WorkerTaskAdmission } from "./worker-task-admission.js";
 import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
+  workerPendingBytesLimit,
+  workerPendingTasksLimit,
   type WorkerComputeCapacity,
 } from "./worker-task-capacity.js";
 import { captureWorkerTaskContext } from "./worker-task-context.js";
@@ -128,8 +128,8 @@ export class WorkerTaskPoolCore<Input, Output> {
     }
     this.computeCapacity = options.sharedCompute ? host.computeCapacity : undefined;
     this.admission = new WorkerTaskAdmission(
-      options.maxPendingTasks ?? DEFAULT_WORKER_PENDING_TASKS,
-      options.maxPendingBytes ?? DEFAULT_WORKER_PENDING_BYTES,
+      options.maxPendingTasks ?? workerPendingTasksLimit(),
+      options.maxPendingBytes ?? workerPendingBytesLimit(),
       this.computeCapacity,
     );
     this.retirement = createWorkerTaskPoolRetirement({

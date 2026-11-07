@@ -1,3 +1,4 @@
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { raceWithTimeout } from "../../packages/retry/src/index.js";
 import { createDeferredCore } from "../shared/deferred.js";
 import { runInDetachedAsyncContext } from "../shared/detached-async-context.js";
@@ -213,7 +214,10 @@ export function createSqliteWorkerLifecycle({
         carrierUrl,
         {
           // V8's default young generation lets each carrier keep ~60 MiB of idle nursery.
-          resourceLimits: { maxOldGenerationSizeMb: 512, maxYoungGenerationSizeMb: 32 },
+          resourceLimits: {
+            maxOldGenerationSizeMb: workerHeapLimitMb(),
+            maxYoungGenerationSizeMb: 32,
+          },
           env: resolveNodeCompileCacheEnv(),
           execArgv: resolveRuntimeWorkerThreadExecArgv(carrierUrl),
           workerData: { postgresPool },
