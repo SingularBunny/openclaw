@@ -62,14 +62,29 @@ it("omits metadata without changing other native conversation rows", async () =>
     { role: "assistant" },
     { content: "transcript-only context" },
     { content: "compacted context" },
-    // senderIsOwner: the owner imports their own chats, so backfill and Dreaming keep them.
-    {
-      content: "run the review",
-      __openclaw: { mirrorOrigin: "claude-catalog-import", senderIsOwner: true },
-    },
+    { content: "run the review" },
   ]);
+  expect(appended[3]?.["__openclaw"]).toEqual({ mirrorOrigin: "claude-catalog-import" });
   expect(appended[3]?.provenance).toBeUndefined();
   expect(appended[0]?.["__openclaw"]).toBeUndefined();
+});
+
+it("marks imported user rows as the owner's when OPENCLAW_CATALOG_IMPORT_OWNER is set", async () => {
+  vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
+  try {
+    await importItems([
+      { type: "userMessage", text: "continue", uuid: "u-1" },
+      { type: "assistantMessage", text: "done", uuid: "a-1" },
+    ]);
+  } finally {
+    vi.unstubAllEnvs();
+  }
+  const userRow = appended.find((message) => message.role === "user");
+  // senderIsOwner: the owner imports their own chats, so backfill and Dreaming keep them.
+  expect(userRow?.["__openclaw"]).toEqual({
+    mirrorOrigin: "claude-catalog-import",
+    senderIsOwner: true,
+  });
 });
 
 it("keeps parsed timestamps and offsets invalid ones in import order", async () => {
