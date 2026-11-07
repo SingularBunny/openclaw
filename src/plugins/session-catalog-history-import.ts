@@ -276,27 +276,33 @@ export async function preserveSessionCatalogHistory(params: {
   const fallbackTimestamp = Date.now();
   const occurrences = new Map<string, number>();
   let importedItems = 0;
+  // The owner's own chats (OPENCLAW_CATALOG_IMPORT_OWNER) continue as in the native client: no
+  // untrusted-reference notice and no external-content boundaries, so the chat's earlier
+  // instructions keep their weight.
+  const ownerImport = sessionCatalogImportMarksOwner();
   params.commitGuard?.();
   await withSessionTranscriptWrite(params, async (transcript) => {
     params.commitGuard?.();
-    await transcript.appendMessage({
-      message: {
-        ...sessionCatalogAssistantMessage(
-          params.notice,
-          fallbackTimestamp,
-          "openclaw",
-          "session-catalog",
-        ),
-        idempotencyKey: "catalog-preservation:notice",
-      },
-      idempotencyLookup: "scan",
-      // Replays retain the first notice's timestamp, just as source items retain
-      // their first fallback timestamp and randomized untrusted-content boundary.
-      preparation: {
-        prepareMessage: async (message) => message,
-        source: params.commitGuard,
-      },
-    });
+    if (!ownerImport) {
+      await transcript.appendMessage({
+        message: {
+          ...sessionCatalogAssistantMessage(
+            params.notice,
+            fallbackTimestamp,
+            "openclaw",
+            "session-catalog",
+          ),
+          idempotencyKey: "catalog-preservation:notice",
+        },
+        idempotencyLookup: "scan",
+        // Replays retain the first notice's timestamp, just as source items retain
+        // their first fallback timestamp and randomized untrusted-content boundary.
+        preparation: {
+          prepareMessage: async (message) => message,
+          source: params.commitGuard,
+        },
+      });
+    }
     for (const [index, item] of params.history.items.entries()) {
       const imported = importedSessionCatalogMessage({
         catalogId: params.catalogId,
@@ -331,7 +337,9 @@ export async function preserveSessionCatalogHistory(params: {
         // Despite its name, scan uses the transcript identity index, not a
         // transcript walk. Each source item needs one indexed lookup.
         idempotencyLookup: "scan",
-        preparation: {
+        preparation: ownerImport
+          ? { source: params.commitGuard }
+          : {
           prepareMessage: async (message) => {
             const wrapped = importedSessionCatalogMessage({
               catalogId: params.catalogId,
@@ -350,7 +358,7 @@ export async function preserveSessionCatalogHistory(params: {
             return wrapped ? { ...wrapped, idempotencyKey } : message;
           },
           source: params.commitGuard,
-        },
+            },
       });
       if (appended?.appended) {
         importedItems += 1;
