@@ -130,7 +130,11 @@ describe("importClaudeHistory", () => {
     const userRow = appended.find((message) => message.role === "user");
     // mirrorOrigin keeps imported native prompts out of ownRecentUserTexts; without
     // it a repeated external prompt like "continue" is swallowed as self-echo.
-    expect(userRow?.["__openclaw"]).toMatchObject({ mirrorOrigin: "claude-catalog-import" });
+    // senderIsOwner: the owner imports their own chats, so backfill and Dreaming keep them.
+    expect(userRow?.["__openclaw"]).toMatchObject({
+      mirrorOrigin: "claude-catalog-import",
+      senderIsOwner: true,
+    });
     const assistantRow = appended.find((message) => message.role === "assistant");
     expect(assistantRow).toBeDefined();
     expect(assistantRow?.["__openclaw"]).toBeUndefined();
