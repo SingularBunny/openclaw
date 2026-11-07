@@ -1,3 +1,4 @@
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import {
   captureSqliteWorkerClosePolicy,
   ensureSqliteLibrarySelected,
@@ -20,10 +21,10 @@ import type {
 
 const workerUrl = resolveRuntimeWorkerUrl(runtimeProcessEntrypoints.sessionTranscript);
 // V8's default young generation lets each idle reader keep ~60 MiB of nursery.
-export const SESSION_TRANSCRIPT_WORKER_LIMITS = {
-  maxOldGenerationSizeMb: 512,
+export const sessionTranscriptWorkerLimits = () => ({
+  maxOldGenerationSizeMb: workerHeapLimitMb(),
   maxYoungGenerationSizeMb: 32,
-};
+});
 
 export function createSessionTranscriptHistoryPool(
   maxWorkers = resolveWorkerPoolSize("singleton"),
@@ -37,7 +38,7 @@ export function createSessionTranscriptHistoryPool(
   >(
     {
       workerUrl,
-      workerOptions: { resourceLimits: SESSION_TRANSCRIPT_WORKER_LIMITS },
+      workerOptions: { resourceLimits: sessionTranscriptWorkerLimits() },
       maxWorkers,
       idleTimeoutMs: 0,
       burstIdleTimeoutMs: 30_000,
@@ -75,7 +76,7 @@ export function createUsageCostPool(
 ) {
   return new WorkerTaskPool<UsageCostWorkerInput, UsageCostWorkerReply>({
     workerUrl,
-    workerOptions: { resourceLimits: SESSION_TRANSCRIPT_WORKER_LIMITS },
+    workerOptions: { resourceLimits: sessionTranscriptWorkerLimits() },
     // Usage host writes and reader cleanup use one native worker per lane.
     workerClass: kind === "refresh" ? "writer" : "singleton",
     // Host writes can wait for a writer-held shared-compute reader; neither usage lane may hold its permit.

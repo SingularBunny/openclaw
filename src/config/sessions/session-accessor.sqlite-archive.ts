@@ -2,7 +2,7 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isMainThread, threadId, type Worker } from "node:worker_threads";
 import { toStringifiedError } from "@openclaw/normalization-core/error-coercion";
-import { DEFAULT_WORKER_PENDING_TASKS, WorkerTaskError } from "@openclaw/worker-runtime";
+import { WorkerTaskError, workerHeapLimitMb, workerPendingTasksLimit } from "@openclaw/worker-runtime";
 import { getDatabaseEngineSelection } from "../../infra/database-engine/context.js";
 import { captureStateDatabaseAccess } from "../../infra/gateway-state-owner.js";
 import {
@@ -83,7 +83,7 @@ export function createSqliteTranscriptArchiveWorker(
   const postgresPool = createPostgresPoolEndpoints();
   try {
     worker = createCpuTrackedWorker(workerUrl, {
-      resourceLimits: { maxOldGenerationSizeMb: 512 },
+      resourceLimits: { maxOldGenerationSizeMb: workerHeapLimitMb() },
       workerData: {
         ...workerData,
         postgresPool,
@@ -301,7 +301,7 @@ export function runExclusiveSqliteTranscriptArchiveWorker<T>(
   if (signal?.aborted) {
     return Promise.reject(toStringifiedError(signal.reason));
   }
-  if (sqliteTranscriptArchiveWorkerQueue.pending >= DEFAULT_WORKER_PENDING_TASKS) {
+  if (sqliteTranscriptArchiveWorkerQueue.pending >= workerPendingTasksLimit()) {
     return Promise.reject(
       new WorkerTaskError(
         "Session archiving is busy. Wait for pending archive operations to finish, then retry.",
