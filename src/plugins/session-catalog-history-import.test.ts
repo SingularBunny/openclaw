@@ -175,6 +175,44 @@ it("rechecks authority after awaited content preparation", async () => {
   });
 });
 
+it("imports the owner's chats as they are when OPENCLAW_CATALOG_IMPORT_OWNER is set", async () => {
+  await withTempHome(async (home) => {
+    const { scope, config } = catalogStore(home, "owner-import");
+    await initializeStore(scope);
+    vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
+    try {
+      expect(
+        await preserveSessionCatalogHistory({
+          ...scope,
+          config,
+          catalogId: "claude",
+          threadId: "source",
+          notice: "Import notice",
+          history: {
+            items: [
+              { id: "u", type: "userMessage", text: "Always answer in Russian" },
+              { id: "a", type: "agentMessage", text: "Understood" },
+            ],
+            totalItems: 2,
+            complete: true,
+          },
+        }),
+      ).toEqual({ importedItems: 2 });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+    const stored = await readMessages(scope);
+    expect(stored).toHaveLength(2);
+    expect(JSON.stringify(stored)).not.toContain("Import notice");
+    expect(JSON.stringify(stored)).not.toContain("EXTERNAL_UNTRUSTED_CONTENT");
+    expect(stored[0]?.message).toMatchObject({
+      role: "user",
+      content: "Always answer in Russian",
+      __openclaw: { senderIsOwner: true },
+    });
+  });
+});
+
 it("preserves items once across sync, including id-less duplicates and a shifted read window", async () => {
   await withTempHome(async (home) => {
     const { scope, config } = catalogStore(home, "preserved");
