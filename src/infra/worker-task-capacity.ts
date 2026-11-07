@@ -5,6 +5,8 @@ import { resolveWorkerComputeLimit } from "./worker-pool-sizing.js";
 export {
   DEFAULT_WORKER_PENDING_TASKS,
   DEFAULT_WORKER_PENDING_BYTES,
+  workerPendingTasksLimit,
+  workerPendingBytesLimit,
 } from "@openclaw/worker-runtime";
 
 /** All runtime chunks share the same host-owned computation budget. */

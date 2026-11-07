@@ -1,4 +1,5 @@
 import { toErrorObject } from "@openclaw/normalization-core/error-coercion";
+import { workerPendingBytesLimit } from "@openclaw/worker-runtime";
 import { createDeferredCore } from "../shared/deferred.js";
 import { racePromiseWithAbortSignal } from "./abort-signal.js";
 import { captureSqliteWorkerClosePolicy } from "./bun-sqlite-library.js";
@@ -63,7 +64,6 @@ import { trackWorkerRequest, type WorkerRequestObservation } from "./worker-requ
 const MAX_STORES = 64;
 const MAX_QUEUED_COMMAND_BYTES = 64 * 1024 * 1024;
 export const SQLITE_WORKER_MAX_REQUESTS_PER_WORKER = 128;
-const SQLITE_WORKER_MAX_QUEUED_BYTES = 256 * 1024 * 1024;
 
 function waitForSqliteOpen<T>(pending: Promise<T>, signal?: AbortSignal) {
   return racePromiseWithAbortSignal(pending, signal, (aborted) => aborted.reason);
@@ -98,7 +98,7 @@ export class SqliteWorkerBroker {
   private readonly inputAdmission = new SqliteWorkerInputAdmission({
     queuedBytes: () => this.bytes,
     isClosing: () => this.draining !== undefined,
-    maxQueuedBytes: SQLITE_WORKER_MAX_QUEUED_BYTES,
+    maxQueuedBytes: workerPendingBytesLimit(),
     maxQueuedInputBytes: MAX_QUEUED_COMMAND_BYTES,
     maxMessageBytes: SQLITE_WORKER_MAX_MESSAGE_BYTES,
   });
@@ -486,8 +486,7 @@ export class SqliteWorkerBroker {
       body.type !== "close" &&
       ((body.type !== "execute" && bytes > SQLITE_WORKER_MAX_MESSAGE_BYTES) ||
         (activeInput && (slot.current || slot.queue.length > 0 || slot.pendingOpens > 0)) ||
-        this.bytes + this.inputAdmission.retainedBytes + reservedBytes >
-          SQLITE_WORKER_MAX_QUEUED_BYTES)
+        this.bytes + this.inputAdmission.retainedBytes + reservedBytes > workerPendingBytesLimit())
     ) {
       return reject(new SqliteWorkerError("SQLite worker queue capacity reached", "overloaded"));
     }

@@ -6,8 +6,8 @@ import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { createRetainedOperation, type RetainedOperation } from "./retained-operation.js";
 import type { WorkerLifecycle } from "./worker-lifecycle.js";
 import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
+  workerPendingBytesLimit,
+  workerPendingTasksLimit,
   type WorkerComputeCapacity,
 } from "./worker-task-capacity.js";
 import { captureWorkerTaskContext } from "./worker-task-context.js";
@@ -120,8 +120,8 @@ export class WorkerTaskPoolCore<Input, Output> {
   ) {
     this.observeTask = host.createTaskObserver?.(options.workerUrl);
     this.maxWorkers = host.maxWorkers ?? options.maxWorkers ?? availableParallelism();
-    this.maxPendingTasks = options.maxPendingTasks ?? DEFAULT_WORKER_PENDING_TASKS;
-    this.maxPendingBytes = options.maxPendingBytes ?? DEFAULT_WORKER_PENDING_BYTES;
+    this.maxPendingTasks = options.maxPendingTasks ?? workerPendingTasksLimit();
+    this.maxPendingBytes = options.maxPendingBytes ?? workerPendingBytesLimit();
     for (const [name, value] of Object.entries({
       maxWorkers: this.maxWorkers,
       maxPendingTasks: this.maxPendingTasks,

@@ -6,10 +6,7 @@ import {
 } from "../config/sessions/session-actor-storage-binding.js";
 import { captureSessionTranscriptStorageEnvironment } from "../config/sessions/transcript-target-binding.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
-import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
-} from "../infra/worker-task-capacity.js";
+import { workerPendingBytesLimit, workerPendingTasksLimit } from "../infra/worker-task-capacity.js";
 import type { SessionRowChange } from "../sessions/session-row-changes.js";
 import { getAsyncWorkSignal } from "../shared/async-work-scope.js";
 import { createDeferredCore, type Deferred } from "../shared/deferred.js";
@@ -157,18 +154,18 @@ export function createSessionRowPlacementProjection(
     }
     if (!read) {
       // A large caller keeps one snapshot. Capacity counts batches, never joined consumers.
-      if (reads.size >= DEFAULT_WORKER_PENDING_TASKS) {
+      if (reads.size >= workerPendingTasksLimit()) {
         throw new WorkerTaskError("Placement read capacity reached", "overloaded");
       }
       addedBytes = 2;
       for (const id of ids) {
         addedBytes += 6 * id.length + 3;
-        if (retainedInputBytes + addedBytes > DEFAULT_WORKER_PENDING_BYTES) {
+        if (retainedInputBytes + addedBytes > workerPendingBytesLimit()) {
           throw new WorkerTaskError("Placement read capacity reached", "overloaded");
         }
       }
     }
-    if (retainedInputBytes + addedBytes > DEFAULT_WORKER_PENDING_BYTES) {
+    if (retainedInputBytes + addedBytes > workerPendingBytesLimit()) {
       throw new WorkerTaskError("Placement read capacity reached", "overloaded");
     }
     if (!read) {

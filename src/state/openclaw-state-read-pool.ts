@@ -1,3 +1,4 @@
+import { workerHeapLimitMb } from "@openclaw/worker-runtime";
 import { createRetainedOperation } from "@openclaw/worker-runtime/lifecycle";
 import {
   ensureSqliteLibrarySelected,
@@ -6,10 +7,7 @@ import {
 import { SQLITE_IDLE_HANDLE_TTL_MS } from "../infra/sqlite-handle-lifecycle.js";
 import type { RetainedNativeWorkerSource } from "../infra/worker-native-lifecycle.js";
 import { resolveStateReadWorkerCount } from "../infra/worker-pool-sizing.js";
-import {
-  DEFAULT_WORKER_PENDING_BYTES,
-  DEFAULT_WORKER_PENDING_TASKS,
-} from "../infra/worker-task-capacity.js";
+import { workerPendingBytesLimit, workerPendingTasksLimit } from "../infra/worker-task-capacity.js";
 import { createOwnedWorkerTaskPool } from "../infra/worker-task-pool.js";
 import { assertOpenClawAgentWriterReleased } from "./openclaw-agent-write-admission-state.js";
 import type {
@@ -34,13 +32,13 @@ export function createStateReadPool(
   const pool = createOwnedWorkerTaskPool<OpenClawStateReadRequest, OpenClawStateReadReply>(
     {
       workerUrl,
-      workerOptions: { resourceLimits: { maxOldGenerationSizeMb: 512 } },
+      workerOptions: { resourceLimits: { maxOldGenerationSizeMb: workerHeapLimitMb() } },
       maxWorkers: resolveStateReadWorkerCount(),
       idleTimeoutMs: SQLITE_IDLE_HANDLE_TTL_MS,
       // Keep one reader warm; release surplus isolates after a short idle period.
       burstIdleTimeoutMs: 30_000,
-      maxPendingTasks: DEFAULT_WORKER_PENDING_TASKS,
-      maxPendingBytes: DEFAULT_WORKER_PENDING_BYTES,
+      maxPendingTasks: workerPendingTasksLimit(),
+      maxPendingBytes: workerPendingBytesLimit(),
     },
     nativeSource
       ? { retainedTransport: true, nativeSource, databaseAccess: "read-only" }
