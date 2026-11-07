@@ -250,6 +250,15 @@ export function applySessionCatalogChanged(owner: SessionCatalogDataOwner, paylo
   }
 }
 
+/**
+ * A plugin catalog signals its own change (plugin.<id>.session-catalog-changed), e.g. a run started
+ * or finished in one of its rows. Its rows may belong to any agent, so refresh regardless of the
+ * selected agent; periodic polling of other catalogs is unchanged.
+ */
+export function applyPluginSessionCatalogChanged(owner: SessionCatalogDataOwner): void {
+  scheduleSessionCatalogRefresh(owner);
+}
+
 export function applySessionCatalogHostEvent(
   owner: SessionCatalogDataOwner,
   payload: unknown,

@@ -32,6 +32,7 @@ import {
   importSessionCatalog as importSessionCatalogData,
   applySessionCatalogHostEvent as applySessionCatalogHostEventToData,
   applySessionCatalogChanged as applySessionCatalogChangedToData,
+  applyPluginSessionCatalogChanged as applyPluginSessionCatalogChangedToData,
   invalidateSessionCatalogs as invalidateSessionCatalogData,
   loadMoreSessionCatalog as loadMoreSessionCatalogData,
   refreshSessionCatalogs as refreshSessionCatalogData,
@@ -340,6 +341,10 @@ export class SessionDataController implements SolidController, SessionCatalogDat
 
   handleSessionCatalogChanged(payload: unknown): void {
     applySessionCatalogChangedToData(this, payload);
+  }
+
+  handlePluginSessionCatalogChanged(): void {
+    applyPluginSessionCatalogChangedToData(this);
   }
 
   private readonly handleCatalogSessionContinued = (

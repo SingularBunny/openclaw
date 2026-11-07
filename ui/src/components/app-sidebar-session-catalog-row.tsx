@@ -12,6 +12,7 @@ import { shouldHandleNavigationClick } from "../lib/navigation-click.ts";
 import { t } from "../lib/reactive/i18n.ts";
 import type { CatalogSessionKey } from "../lib/sessions/catalog-key.ts";
 import { buildCatalogSessionKey } from "../lib/sessions/catalog-key.ts";
+import { isSessionRunActive } from "../lib/session-run-state.ts";
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
 import {
@@ -151,9 +152,15 @@ export function renderCatalogSessionRow(
   });
   const color = createMemo(() => normalizeSessionColorValue(readSession().color ?? ""));
   const active = createMemo(() => key() === params.routeSessionKey);
-  const running = createMemo(
-    () => readSession().status === "active" || readSession().status === "running",
-  );
+  // An adopted row follows its live session, as the catalog group does: catalog status only
+  // refreshes with the catalog, so a run started or finished elsewhere would show late.
+  const running = createMemo(() => {
+    const live = adoptedRow();
+    if (live) {
+      return live.archived !== true && isSessionRunActive(live);
+    }
+    return readSession().status === "active" || readSession().status === "running";
+  });
   const canOpenTerminal = createMemo(
     () => readSession().canOpenTerminal === true && params.terminalAvailable,
   );
