@@ -5,6 +5,7 @@ import type {
   SessionsCatalogImportParams,
   SessionsCatalogImportResult,
   SessionsCatalogListResult,
+  SessionsCatalogReorderParams,
 } from "../../../packages/gateway-protocol/src/index.ts";
 import type { GatewayBrowserClient } from "../api/gateway.ts";
 import type { ApplicationContext } from "../app/context.ts";
@@ -14,6 +15,7 @@ import {
   buildCatalogSessionKey,
   type CatalogSessionContinuedDetail,
 } from "../lib/sessions/catalog-key.ts";
+import { reorderSessionCatalogs } from "../lib/sessions/catalog-reorder.ts";
 import { normalizeAgentId } from "../lib/sessions/session-key.ts";
 import type { SolidControllerHost } from "../lit/solid-controller-host.ts";
 import {
@@ -541,6 +543,43 @@ export async function archiveSessionCatalog(
       );
       owner.requestSessionDataUpdate();
     }
+  }
+}
+
+/**
+ * Shows the new folder or row order at once, persists it through the catalog
+ * provider, and restores the previous rows when the Gateway rejects it.
+ */
+export async function reorderSessionCatalog(
+  owner: SessionCatalogDataOwner & {
+    isSessionMutationScopeCurrent(scope: SidebarSessionMutationScope): boolean;
+    invalidateSessionCatalogs(): void;
+  },
+  scope: SidebarCatalogSessionMutationScope,
+  params: SessionsCatalogReorderParams,
+): Promise<void> {
+  const generation = scope.catalogGeneration;
+  const isCurrent = () =>
+    generation === owner.sessionScopeGeneration && owner.isSessionMutationScopeCurrent(scope);
+  if (!isCurrent()) {
+    return;
+  }
+  const previous = owner.sessionCatalogs;
+  owner.sessionCatalogs = reorderSessionCatalogs(previous, params);
+  owner.sessionCatalogRevision += 1;
+  owner.requestSessionDataUpdate();
+  try {
+    await scope.client.request("sessions.catalog.reorder", params);
+  } catch (error) {
+    if (isCurrent()) {
+      owner.sessionCatalogs = previous;
+      owner.sessionCatalogRevision += 1;
+      owner.requestSessionDataUpdate();
+    }
+    throw error;
+  }
+  if (isCurrent()) {
+    owner.invalidateSessionCatalogs();
   }
 }
 

@@ -301,6 +301,7 @@ export const validateSessionsCatalogReadParams = compile(S.SessionsCatalogReadPa
 export const validateSessionsCatalogContinueParams = compile(S.SessionsCatalogContinueParamsSchema);
 export const validateSessionsCatalogImportParams = compile(S.SessionsCatalogImportParamsSchema);
 export const validateSessionsCatalogArchiveParams = compile(S.SessionsCatalogArchiveParamsSchema);
+export const validateSessionsCatalogReorderParams = compile(S.SessionsCatalogReorderParamsSchema);
 export const validateSessionsCatalogStartTerminalParams = compile(
   S.SessionsCatalogStartTerminalParamsSchema,
 );

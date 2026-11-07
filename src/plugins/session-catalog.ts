@@ -6,6 +6,7 @@ import type {
   SessionsCatalogContinueParams,
   SessionsCatalogReadParams,
   SessionsCatalogReadResult,
+  SessionsCatalogReorderParams,
 } from "../../packages/gateway-protocol/src/schema/sessions-catalog.js";
 import type { TerminalUploadPathStyle } from "../../packages/gateway-protocol/src/schema/terminal.js";
 import { listAgentIds, resolveSessionAgentIds } from "../agents/agent-scope.js";
@@ -70,6 +71,16 @@ export type SessionCatalogArchiveProviderParams = Omit<
   /** Gateway always supplies this; optional only for pre-existing external provider types. */
   agentId?: string;
   /** False when Gateway-local archive must not inherit a root from process HOME. */
+  allowProcessHomeFallback?: boolean;
+};
+/** Full new order of one host's folders (`groups`) or one folder's rows (`sessions`). */
+export type SessionCatalogReorderProviderParams = Omit<
+  SessionsCatalogReorderParams,
+  "catalogId"
+> & {
+  /** Gateway always supplies this; optional only for pre-existing external provider types. */
+  agentId?: string;
+  /** False when Gateway-local reorder must not inherit a root from process HOME. */
   allowProcessHomeFallback?: boolean;
 };
 
@@ -214,6 +225,12 @@ export type SessionCatalogProvider = {
     policy?: { allowProcessHomeFallback?: boolean },
   ) => Promise<SessionUpstreamActivity[]>;
   archive?: (params: SessionCatalogArchiveProviderParams) => Promise<{ ok: true }>;
+  /**
+   * Persists a user-chosen display order. Later `list` results must return
+   * folders (first occurrence of `customGroup`) and rows in that order; names
+   * missing from the order keep their relative place after the listed ones.
+   */
+  reorder?: (params: SessionCatalogReorderProviderParams) => Promise<{ ok: true }>;
   openTerminal?: (request: {
     allowProcessHomeFallback?: boolean;
     /** Gateway always supplies this; optional only for pre-existing external provider types. */

@@ -10,9 +10,11 @@ import type { GatewaySessionRow } from "../api/types.ts";
 import { handleContextMenuEvent } from "../lib/keyboard-shortcuts.ts";
 import { shouldHandleNavigationClick } from "../lib/navigation-click.ts";
 import { t } from "../lib/reactive/i18n.ts";
+import { isSessionRunActive } from "../lib/session-run-state.ts";
 import type { CatalogSessionKey } from "../lib/sessions/catalog-key.ts";
 import { buildCatalogSessionKey } from "../lib/sessions/catalog-key.ts";
-import { isSessionRunActive } from "../lib/session-run-state.ts";
+import type { CatalogReorderDragPayload } from "../lib/sessions/drag.ts";
+import { writeCatalogReorderDragData } from "../lib/sessions/drag.ts";
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
 import {
@@ -86,7 +88,21 @@ export function renderCatalogSessionRow(
   readLiveRowsByKey: () => ReadonlyMap<string, GatewaySessionRow>,
   params: SessionCatalogGroupsParams,
   projectChild = false,
+  reorder?: {
+    /** Custom folder that owns this row; rows reorder only within it. */
+    group: string;
+    enabled: () => boolean;
+    onFinish: () => void;
+  },
 ) {
+  const reorderable = createMemo(() => reorder?.enabled() === true);
+  const reorderPayload = (group: string): CatalogReorderDragPayload => ({
+    kind: "row",
+    catalogId: catalogKey().catalogId,
+    hostId: catalogKey().hostId,
+    group,
+    threadId: catalogKey().threadId,
+  });
   const timestamp = createMemo(() =>
     normalizeCatalogTimestamp(
       readSession().recencyAt ?? readSession().updatedAt ?? readSession().createdAt,
@@ -196,12 +212,22 @@ export function renderCatalogSessionRow(
       data-catalog-session-key={identityKey()}
       data-session-row-action-count="1"
       role="listitem"
+      draggable={reorderable() ? "true" : undefined}
+      onDragStart={(event: DragEvent) => {
+        if (!reorder || !reorderable() || !event.dataTransfer) {
+          return;
+        }
+        event.stopPropagation();
+        writeCatalogReorderDragData(event.dataTransfer, reorderPayload(reorder.group));
+      }}
+      onDragEnd={() => reorder?.onFinish()}
       onContextMenu={openMenuFromEvent}
       onKeyDown={openMenuFromEvent}
     >
       <a
         href={href()}
         class="sidebar-recent-session__link"
+        draggable={reorderable() ? "false" : undefined}
         aria-current={active() ? "page" : undefined}
         onClick={(event: MouseEvent) => {
           if (!shouldHandleNavigationClick(event)) {
@@ -271,6 +297,11 @@ export function renderCatalogSessionRow(
           },
           get pullRequest() {
             return readSession().pullRequest;
+          },
+          get catalogReorder() {
+            return reorder && reorderable()
+              ? { payload: reorderPayload(reorder.group), onFinish: reorder.onFinish }
+              : undefined;
           },
         })
       }

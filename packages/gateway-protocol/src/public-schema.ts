@@ -165,6 +165,8 @@ export {
   SessionsCatalogImportResultSchema,
   SessionsCatalogArchiveParamsSchema,
   SessionsCatalogArchiveResultSchema,
+  SessionsCatalogReorderParamsSchema,
+  SessionsCatalogReorderResultSchema,
   SessionsCatalogStartTerminalParamsSchema,
   SessionsCatalogStartTerminalResultSchema,
   SessionsSearchHitSchema,

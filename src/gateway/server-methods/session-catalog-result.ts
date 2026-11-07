@@ -31,6 +31,7 @@ export function catalogResult(
           }
         : {}),
       ...(provider.startTerminalSession ? { startTerminal: true } : {}),
+      ...(provider.reorder ? { reorder: true } : {}),
     },
     ...(shareRoute ? { shareRoute } : {}),
     hosts,

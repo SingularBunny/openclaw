@@ -1,9 +1,11 @@
 import type { JSX } from "@solidjs/web";
 import { createMemo, For, Show, untrack } from "solid-js";
+import type { SessionsCatalogReorderParams } from "../../../packages/gateway-protocol/src/index.ts";
 import type { GatewaySessionRow } from "../api/types.ts";
 import type { CatalogOpenTarget } from "../app/settings.ts";
 import { readPresenceEntries, resolveCurrentSelfUser } from "../app/user-profile.ts";
 import { registerSessionOrganizationEnglish } from "../i18n/locales/en-session-organization.ts";
+import { formatUiError } from "../lib/format-error.ts";
 import {
   presenceViewerActivity,
   type PresenceActivity,
@@ -12,6 +14,7 @@ import {
 import { registerEnglishCatalog, t } from "../lib/reactive/i18n.ts";
 import type { CatalogProjectGrouping } from "../lib/sessions/catalog-project-grouping.ts";
 import { openCatalogSessionInTerminal } from "../lib/sessions/catalog-terminal.ts";
+import { showToast } from "../lib/toast.ts";
 import type { SessionCatalogGroupsRenderer } from "./app-sidebar-session-catalog-render.tsx";
 import type { SidebarSessionCatalog } from "./app-sidebar-session-catalogs.ts";
 import {
@@ -90,6 +93,27 @@ function renderRosterLoadMore(
   );
 }
 
+async function reorderCatalog(
+  host: SessionListHost,
+  params: SessionsCatalogReorderParams,
+): Promise<void> {
+  const mutation = host.sessionData.beginSessionMutation();
+  if (!mutation) {
+    return;
+  }
+  const scope = { ...mutation, catalogGeneration: host.sessionData.sessionScopeGeneration };
+  try {
+    await host.sessionData.reorderSessionCatalog(scope, params);
+  } catch (error) {
+    if (
+      host.sessionData.isSessionMutationScopeCurrent(scope) &&
+      scope.catalogGeneration === host.sessionData.sessionScopeGeneration
+    ) {
+      showToast({ message: formatUiError(error) });
+    }
+  }
+}
+
 function renderSessionCatalog(params: {
   host: SessionListHost;
   snapshot: SessionCatalogRenderSnapshot;
@@ -143,6 +167,7 @@ function renderSessionCatalog(params: {
       onReorderSection={(source, target, position) =>
         host().sessionOrganizer.reorderSidebarSection(source, target, position)
       }
+      onReorderCatalog={(request) => void reorderCatalog(host(), request)}
       viewMenuOpenCatalogId={host().sidebarMenus.catalogViewMenuPosition?.catalogId ?? null}
       ownerFilterActive={host().sessionOwnerFilterActive}
       onOpenViewMenu={(catalogId, trigger, position) => {

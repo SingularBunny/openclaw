@@ -29,6 +29,7 @@ import { createPanelRefreshStatus, type PanelRefreshStatus } from "./panel-refre
 import {
   applySessionCatalogContinuation,
   archiveSessionCatalog as archiveSessionCatalogData,
+  reorderSessionCatalog as reorderSessionCatalogData,
   importSessionCatalog as importSessionCatalogData,
   applySessionCatalogHostEvent as applySessionCatalogHostEventToData,
   applySessionCatalogChanged as applySessionCatalogChangedToData,
@@ -360,6 +361,8 @@ export class SessionDataController implements SolidController, SessionCatalogDat
   invalidateSessionCatalogs = () => invalidateSessionCatalogData(this);
 
   archiveSessionCatalog = archiveSessionCatalogData.bind(null, this);
+
+  reorderSessionCatalog = reorderSessionCatalogData.bind(null, this);
 
   importSessionCatalog = importSessionCatalogData.bind(null, this);
 

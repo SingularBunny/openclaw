@@ -27,6 +27,7 @@ export const SessionCatalogCapabilitiesSchema = closedObject({
   ),
   openTerminal: Type.Optional(Type.Boolean()),
   startTerminal: Type.Optional(Type.Boolean()),
+  reorder: Type.Optional(Type.Boolean()),
 });
 
 export const SessionCatalogShareRouteSchema = closedObject({
@@ -203,6 +204,28 @@ export const SessionsCatalogArchiveParamsSchema = closedObject({
 
 export const SessionsCatalogArchiveResultSchema = closedObject({ ok: Type.Literal(true) });
 
+// Carries the full new order of one host's folders or of one folder's rows; the
+// provider persists it and returns rows in that order from the next list.
+export const SessionsCatalogReorderParamsSchema = closedObject({
+  catalogId: NonEmptyString,
+  hostId: NonEmptyString,
+  agentId: Type.Optional(NonEmptyString),
+  sourceHomeId: Type.Optional(NonEmptyString),
+  target: Type.Union([
+    closedObject({
+      kind: Type.Literal("groups"),
+      order: Type.Array(NonEmptyString, { minItems: 1, maxItems: 500, uniqueItems: true }),
+    }),
+    closedObject({
+      kind: Type.Literal("sessions"),
+      group: NonEmptyString,
+      threadIds: Type.Array(NonEmptyString, { minItems: 1, maxItems: 1000, uniqueItems: true }),
+    }),
+  ]),
+});
+
+export const SessionsCatalogReorderResultSchema = closedObject({ ok: Type.Literal(true) });
+
 export const SessionsCatalogStartTerminalParamsSchema = closedObject({
   catalogId: NonEmptyString,
   hostId: Type.Optional(NonEmptyString),
@@ -243,6 +266,8 @@ export type SessionsCatalogImportParams = Static<typeof SessionsCatalogImportPar
 export type SessionsCatalogImportResult = Static<typeof SessionsCatalogImportResultSchema>;
 export type SessionsCatalogArchiveParams = Static<typeof SessionsCatalogArchiveParamsSchema>;
 export type SessionsCatalogArchiveResult = Static<typeof SessionsCatalogArchiveResultSchema>;
+export type SessionsCatalogReorderParams = Static<typeof SessionsCatalogReorderParamsSchema>;
+export type SessionsCatalogReorderResult = Static<typeof SessionsCatalogReorderResultSchema>;
 export type SessionsCatalogStartTerminalParams = Static<
   typeof SessionsCatalogStartTerminalParamsSchema
 >;

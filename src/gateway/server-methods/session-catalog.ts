@@ -7,6 +7,7 @@ import {
   validateSessionsCatalogContinueParams,
   validateSessionsCatalogImportParams,
   validateSessionsCatalogReadParams,
+  validateSessionsCatalogReorderParams,
   validateSessionsCatalogStartTerminalParams,
   type SessionCatalogLocator,
 } from "../../../packages/gateway-protocol/src/index.js";
@@ -494,6 +495,44 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
           ...providerRequest,
           agentId: authorization.agentId,
           allowProcessHomeFallback: authorization.allowProcessHomeFallback,
+        });
+        retireSessionCatalogLists(context.getRuntimeConfig());
+        respond(true, result);
+      } catch (error) {
+        respondCatalogError(error, respond);
+      }
+    },
+  ),
+
+  "sessions.catalog.reorder": defineValidatedGatewayHandler(
+    "sessions.catalog.reorder",
+    validateSessionsCatalogReorderParams,
+    async (options) => {
+      const { params: request, respond, context } = options;
+      const provider = registrationOrRespond(request.catalogId, respond)?.provider;
+      if (!provider) {
+        return;
+      }
+      if (!provider.reorder) {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "catalog cannot reorder"));
+        return;
+      }
+      // Reordering touches the host's display order, not one thread, so it is
+      // authorized at host level: the provider owns which folders and rows exist.
+      const resolvedAgent = resolveAgentIdOrRespondError({
+        rawAgentId: request.agentId,
+        respond,
+        cfg: context.getRuntimeConfig(),
+      });
+      if (!resolvedAgent) {
+        return;
+      }
+      try {
+        const { catalogId: _catalogId, ...providerRequest } = request;
+        const result = await provider.reorder({
+          ...providerRequest,
+          agentId: resolvedAgent.agentId,
+          allowProcessHomeFallback: allowProcessHomeFallback(context.logGateway),
         });
         retireSessionCatalogLists(context.getRuntimeConfig());
         respond(true, result);

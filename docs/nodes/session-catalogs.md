@@ -199,7 +199,24 @@ Gateway response.
 
 Catalog RPCs keep their normal method scopes: `sessions.catalog.list` and
 `sessions.catalog.read` require `operator.read`; `sessions.catalog.continue`,
-`sessions.catalog.import`, and `sessions.catalog.archive` require `operator.write`.
+`sessions.catalog.import`, `sessions.catalog.archive`, and
+`sessions.catalog.reorder` require `operator.write`.
+
+### Reordering
+
+A plugin catalog provider can implement the optional `reorder` hook. Such
+catalogs advertise `capabilities.reorder: true`, and the Control UI then lets
+operators with write access drag custom folders (rows' `customGroup`) and drag
+rows within one folder. The UI applies the new order immediately and calls
+`sessions.catalog.reorder` with the full new order:
+`{ catalogId, hostId, agentId?, sourceHomeId?, target }`, where `target` is
+either `{ kind: "groups", order }` (folder names, 1–500, unique) or
+`{ kind: "sessions", group, threadIds }` (thread IDs of that folder's loaded
+rows, 1–1000, unique). The provider persists the order and returns folders
+(by first occurrence) and rows in that order from later `list` calls; names it
+does not receive keep their place after the listed ones. The Gateway resolves
+the caller's agent, passes it with `allowProcessHomeFallback`, and refreshes
+catalog lists after a successful reorder.
 
 Catalog visibility also follows the authenticated caller. An `operator.admin`
 connection sees every discovered row. When the Gateway has durable profiles for
