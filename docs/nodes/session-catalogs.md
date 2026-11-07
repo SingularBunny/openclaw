@@ -90,7 +90,27 @@ items read during this import, including items already preserved. Claude and
 Codex supply stable item IDs; for catalogs whose items lack IDs, re-import
 identifies items by content, so an identical repeated item can be skipped once
 a transcript exceeds the history ceiling. The smaller
-continuation seed remains limited to 200 items and 512 KiB.
+continuation seed is limited to 200 items and 512 KiB by default;
+`OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS` and `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES`
+change it ([environment variables](/help/environment#worker-and-catalog-limits)).
+
+### Owner imports
+
+By default an import treats the native transcript as untrusted reference material: it starts
+the session with a notice that only the operator's new messages can authorize actions and wraps
+every imported item in external-content boundaries. When the operator imports their own chats,
+set `OPENCLAW_CATALOG_IMPORT_OWNER=1` (for example through config `env.vars`):
+
+- imported user items are marked as the owner's (`senderIsOwner`), so `openclaw memory
+session-backfill` and Dreaming include the imported history;
+- the import writes no untrusted-reference notice and no boundaries, so earlier instructions in
+  the chat keep their weight, as in the native client;
+- sessions imported before the switch read the same way: the model context (session replay, CLI
+  reseed, compaction) and the chat history (`chat.history`, `sessions_history`) drop their notice
+  and unwrap the import's own boundaries. The stored transcript is not rewritten, and other
+  external content (attachments, web pages) keeps its boundaries.
+
+Copies from another Gateway host keep the untrusted-reference treatment.
 
 Import requires `operator.write` and the same row visibility as reading a
 catalog transcript. In multi-user mode, non-admin callers can import only rows
