@@ -26,6 +26,8 @@ export type SessionMessageCutIntent = {
   entryId: string;
   expectedState: SessionMessageCutExpectedState | undefined;
   mode: "fork" | "rewind" | "switch";
+  /** CLI backends that can resume a native session at a checkpoint with a fork. */
+  cliForkProviders?: string[];
   repositoryWorkspaceId?: string;
   sourceKey: string;
   targetKey: string;

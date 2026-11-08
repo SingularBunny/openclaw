@@ -14,6 +14,7 @@ import {
   rebindCliSessionReseedReceiptsForReset,
 } from "../config/sessions/cli-session-binding.js";
 import {
+  buildCliSessionDriftNote,
   clearAllCliSessions,
   clearCliSession,
   getCliSessionBinding,
@@ -23,6 +24,7 @@ import {
   resolveCliSessionReuse,
   setCliSessionBinding,
   shouldClearFailedCliSessionBinding,
+  stripCliSessionDriftNote,
 } from "./cli-session.js";
 import { FailoverError } from "./failover-error.js";
 
@@ -761,4 +763,76 @@ describe("cli-session helpers", () => {
       );
     },
   );
+});
+
+describe("MCP server set drift for backends that reload MCP on resume", () => {
+  const binding = {
+    sessionId: "cli-session-1",
+    authProfileId: "anthropic:work",
+    authEpoch: "auth-epoch-a",
+    authEpochVersion: 2,
+    extraSystemPromptHash: "prompt-a",
+    promptToolNamesHash: "tools-a",
+    cwdHash: "cwd-a",
+    mcpConfigHash: "mcp-config-a",
+    mcpResumeHash: "mcp-resume-a",
+  };
+  const current = {
+    binding,
+    authProfileId: "anthropic:work",
+    authEpoch: "auth-epoch-a",
+    authEpochVersion: 2,
+    extraSystemPromptHash: "prompt-a",
+    promptToolNamesHash: "tools-a",
+    cwdHash: "cwd-a",
+    mcpConfigHash: "mcp-config-b",
+    mcpResumeHash: "mcp-resume-b",
+    resumeAcrossMcpChanges: true,
+  };
+
+  it("resumes with an mcp drift note instead of starting fresh", () => {
+    expect(resolveCliSessionReuse(current)).toEqual({
+      mode: "reuse-with-drift",
+      sessionId: "cli-session-1",
+      drift: { reasons: ["mcp"] },
+    });
+    expect(resolveCliSessionReuse({ ...current, extraSystemPromptHash: "prompt-b" })).toEqual({
+      mode: "reuse-with-drift",
+      sessionId: "cli-session-1",
+      drift: { reasons: ["system-prompt", "mcp"] },
+    });
+    // Legacy bindings without a resume hash compare raw config hashes.
+    expect(
+      resolveCliSessionReuse({
+        ...current,
+        binding: { ...binding, mcpResumeHash: undefined },
+        mcpResumeHash: undefined,
+      }),
+    ).toMatchObject({ mode: "reuse-with-drift", drift: { reasons: ["mcp"] } });
+    expect(resolveCliSessionReuse({ ...current, resumeAcrossMcpChanges: false })).toEqual({
+      mode: "invalidate",
+      invalidatedReason: "mcp",
+    });
+  });
+
+  it.each([
+    ["auth-profile", { authProfileId: "anthropic:personal", authEpoch: "auth-epoch-b" }],
+    ["auth-epoch", { authEpoch: "auth-epoch-b" }],
+    ["message-policy", { messageToolPolicyHash: "other-policy" }],
+    ["cwd", { cwdHash: "cwd-b" }],
+    ["prompt-tools", { promptToolNamesHash: "tools-b" }],
+  ] as const)("keeps the %s boundary when MCP also changed", (reason, changed) => {
+    expect(resolveCliSessionReuse({ ...current, ...changed })).toEqual({
+      mode: "invalidate",
+      invalidatedReason: reason,
+    });
+  });
+
+  it("strips the mcp drift notes from displayed native history", () => {
+    for (const reasons of [["mcp"], ["system-prompt", "mcp"]] as const) {
+      expect(stripCliSessionDriftNote(`${buildCliSessionDriftNote(reasons)}\n\nhello`)).toBe(
+        "hello",
+      );
+    }
+  });
 });

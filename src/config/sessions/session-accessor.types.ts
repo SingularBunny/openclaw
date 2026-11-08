@@ -742,6 +742,11 @@ export type SessionMessageCutMutationParams = {
   };
   entryId: string;
   env?: NodeJS.ProcessEnv;
+  /**
+   * Normalized CLI backend ids that support checkpoint fork-resume. A cut keeps such a native
+   * session (forked at the kept branch's last recorded checkpoint) instead of dropping it.
+   */
+  cliForkProviders?: readonly string[];
   sessionKey: string;
   sessionStoreKey?: string;
   storePath?: string;

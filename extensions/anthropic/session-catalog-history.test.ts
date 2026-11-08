@@ -73,6 +73,48 @@ describe("importClaudeHistory", () => {
     expect(appended.find((message) => message.role === "assistant")).toBeDefined();
   });
 
+  it("marks native assistant text rows as resume points of the adopted thread", async () => {
+    appended.length = 0;
+    const parse = (entry: Record<string, unknown>) =>
+      parseTranscriptLine(Buffer.from(JSON.stringify(entry)));
+    const items = [
+      parse({
+        type: "assistant",
+        uuid: "native-tool-call",
+        message: { role: "assistant", content: [{ type: "tool_use", name: "Read", input: {} }] },
+      }),
+      parse({
+        type: "assistant",
+        uuid: "native-answer",
+        message: { role: "assistant", content: [{ type: "text", text: "done" }] },
+      }),
+    ].filter((item) => item !== undefined);
+
+    await importClaudeHistory({
+      items,
+      threadId: "thread-1",
+      storePath: "/tmp/sessions.json",
+      sessionId: "session-1",
+      sessionKey: "agent:main:catalog-adopt",
+      agentId: "main",
+      config: {} as OpenClawConfig,
+    });
+
+    const points = appended.map((message) => message["__openclaw"]);
+    expect(points).toEqual(
+      expect.arrayContaining([
+        {
+          cliResume: {
+            provider: "claude-cli",
+            sessionId: "thread-1",
+            checkpointId: "native-answer",
+          },
+        },
+      ]),
+    );
+    expect(points.filter(Boolean)).toHaveLength(1);
+  });
+
   it("preserves Date.parse semantics for valid strings and falls back for invalid values", async () => {
     appended.length = 0;
     const fallbackTimestamp = new Date("2026-07-18T12:00:00.000Z").getTime();
