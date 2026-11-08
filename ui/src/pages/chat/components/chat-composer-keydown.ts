@@ -30,6 +30,10 @@ type ComposerKeyDownDeps = {
   showAbortableUi: boolean;
   alternateFollowUpMode?: ChatFollowUpMode;
   goalComposer: GoalComposerController;
+  /** Ghost text shown in the empty composer; Tab accepts it and Escape dismisses it. */
+  promptSuggestion?: string | null;
+  acceptPromptSuggestion?: (target: HTMLTextAreaElement) => void;
+  dismissPromptSuggestion?: () => void;
 };
 
 export function createComposerKeyDownHandler({
@@ -45,6 +49,9 @@ export function createComposerKeyDownHandler({
   showAbortableUi,
   alternateFollowUpMode,
   goalComposer,
+  promptSuggestion,
+  acceptPromptSuggestion,
+  dismissPromptSuggestion,
 }: ComposerKeyDownDeps): (event: KeyboardEvent) => void {
   return (event) => {
     // The handler only ever binds to the composer textarea; narrowing here
@@ -88,6 +95,25 @@ export function createComposerKeyDownHandler({
         handleSlashMenuKeydown(event, state, slashMenuHost, requestUpdate))
     ) {
       return;
+    }
+
+    if (promptSuggestion && !target.value) {
+      if (
+        event.key === "Tab" &&
+        !event.shiftKey &&
+        !event.ctrlKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        event.preventDefault();
+        acceptPromptSuggestion?.(target);
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        dismissPromptSuggestion?.();
+        return;
+      }
     }
 
     if ((event.key === "ArrowUp" || event.key === "ArrowDown") && props.onHistoryKeydown) {

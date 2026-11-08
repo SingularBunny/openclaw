@@ -17,6 +17,7 @@ import { BROWSER_ANNOTATION_EVENT } from "../../components/browser/browser-annot
 import { matchesShortcutCombo } from "../../lib/keyboard-shortcut-contract.ts";
 import { parseCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
 import { resolveSessionKey } from "../../lib/sessions/index.ts";
+import { visibleSessionMatches } from "../../lib/sessions/navigation.ts";
 import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import { takeCreatedComposer } from "../new-session/creation-composer.ts";
 import * as chatAvatars from "./chat-avatar.ts";
@@ -51,6 +52,7 @@ import {
   subscribeChatPaneStartup,
 } from "./chat-pane-startup-subscriptions.ts";
 import { getChatPendingInputs } from "./chat-pending-inputs.ts";
+import { handleChatPromptSuggestionEvent } from "./chat-prompt-suggestion.ts";
 import { cancelChatModelRecovery } from "./chat-session.ts";
 import { handlePageGatewayEvent } from "./chat-state-events.ts";
 import { createPageState } from "./chat-state-page.ts";
@@ -464,6 +466,12 @@ export abstract class ChatPaneLifecycle extends ChatPaneSessionObservation {
           state.mediaPolicyEpoch = (state.mediaPolicyEpoch ?? 0) + 1;
           this.invalidateSessionSharing(event.payload);
           state.requestUpdate?.();
+        }
+        if (state) {
+          // Imported (catalog) chats run on the same Claude CLI backend, so no key exclusion here.
+          handleChatPromptSuggestionEvent(state, event, (sessionKey, agentId) =>
+            visibleSessionMatches(state, sessionKey, agentId),
+          );
         }
         if (event.event === "sessions.changed" || event.event === "session.message") {
           return;

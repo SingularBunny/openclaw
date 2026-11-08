@@ -17,6 +17,12 @@ import {
 } from "../infra/agent-run-registry.js";
 import { createGatewayActiveWorkSnapshot } from "../infra/gateway-active-work.js";
 import {
+  clearPromptSuggestion,
+  emitPromptSuggestion,
+  getPromptSuggestion,
+  resetPromptSuggestionEventsForTest,
+} from "../infra/prompt-suggestion-events.js";
+import {
   resetGatewayWorkAdmission,
   tryBeginGatewaySuspendAdmission,
 } from "../process/gateway-work-admission.js";
@@ -970,6 +976,57 @@ describe("startGatewayEventSubscriptions", () => {
     start: (params) => {
       unsubs = startGatewayEventSubscriptions(params);
     },
+  });
+
+  it("broadcasts prompt suggestions to session readers and clears them when a run starts", () => {
+    agentEventHandlerMocks.create.mockReturnValue(
+      Object.assign(vi.fn(), { dispose: vi.fn(), retireTranscript: vi.fn() }),
+    );
+    const params = createParams();
+    unsubs = startGatewayEventSubscriptions(params);
+    try {
+      clearPromptSuggestion("agent:main:main", "run-suggest");
+      emitPromptSuggestion({
+        sessionKey: "agent:main:main",
+        agentId: "main",
+        runId: "run-suggest",
+        text: "run the tests",
+      });
+      emitPromptSuggestion({ sessionKey: "global", agentId: "work", text: "check the inbox" });
+      expect(
+        vi
+          .mocked(params.broadcast)
+          .mock.calls.filter(([event]) => event === "chat.prompt_suggestion"),
+      ).toEqual([
+        [
+          "chat.prompt_suggestion",
+          { sessionKey: "agent:main:main", runId: "run-suggest", text: "run the tests" },
+          { sessionKeys: ["agent:main:main"], agentId: "main", dropIfSlow: true },
+        ],
+        [
+          "chat.prompt_suggestion",
+          { sessionKey: "global", text: "check the inbox" },
+          { sessionKeys: ["agent:work:global", "global"], agentId: "work", dropIfSlow: true },
+        ],
+      ]);
+      expect(getPromptSuggestion("agent:main:main")?.text).toBe("run the tests");
+
+      emitAgentEvent({
+        runId: "run-next",
+        sessionKey: "agent:main:main",
+        stream: "lifecycle",
+        data: { phase: "start", startedAt: Date.now() },
+      });
+      expect(getPromptSuggestion("agent:main:main")).toBeUndefined();
+      expect(getPromptSuggestion("global")?.text).toBe("check the inbox");
+
+      unsubs.lifecycleUnsub();
+      vi.mocked(params.broadcast).mockClear();
+      emitPromptSuggestion({ sessionKey: "agent:main:main", text: "after stop" });
+      expect(params.broadcast).not.toHaveBeenCalled();
+    } finally {
+      resetPromptSuggestionEventsForTest();
+    }
   });
 
   it("broadcasts progress-card retirement without session-list subscribers", () => {

@@ -151,6 +151,8 @@ export type CliJsonlStreamingParserOptions = {
   onSessionId?: (sessionId: string) => void;
   /** Parent initialization fact; its authority owner validates the raw tool list. */
   onNativeTools?: (tools: unknown) => void;
+  /** Claude `prompt_suggestion` record: a predicted next user prompt, never reply content. */
+  onPromptSuggestion?: (text: string) => void;
   onAssistantMessage?: (message: unknown) => void;
   onUsage?: (usage: CliUsage, terminal: boolean) => void;
   /** Semantic subagent work for an active parent Agent call. Not a parent-lane event. */

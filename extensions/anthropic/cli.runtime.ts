@@ -95,6 +95,8 @@ type ClaudeCliSession = {
   runningDescendants: Map<string, string | undefined>;
   notifiedTasks: Set<string>;
   hasInputLifecycle: boolean;
+  /** The latest turn's prediction sink; native sends the prediction after that turn's result. */
+  reportPromptSuggestion?: (text: string) => void;
   closed: boolean;
 };
 const sessions = new WeakMap<CliBackendLiveSessionHandle, ClaudeCliSession>();
@@ -344,6 +346,18 @@ async function emitHeldInterimResult(turn: ClaudeCliTurn) {
 }
 
 async function acceptMessage(session: ClaudeCliSession, message: Record<string, unknown>) {
+  if (message.type === "prompt_suggestion") {
+    // A forked side request predicts the next prompt after the result. It is never turn
+    // output, and once another turn has started the prediction is stale.
+    if (!session.currentTurn && typeof message.suggestion === "string") {
+      try {
+        session.reportPromptSuggestion?.(message.suggestion);
+      } catch {
+        // Presentation only; a failed sink must not close the warm process.
+      }
+    }
+    return;
+  }
   if (message.type === "system" && message.subtype === "init") {
     session.hasInputLifecycle =
       Array.isArray(message.capabilities) && message.capabilities.includes("msg_lifecycle_v1");
@@ -654,6 +668,7 @@ export async function* executeClaudeCli(
     taskNotifications: new Map(),
   };
   session.currentTurn = turn;
+  session.reportPromptSuggestion = context.onPromptSuggestion;
   const abort = () => session.handle.close("abort", context.abortSignal?.reason);
   context.abortSignal?.addEventListener("abort", abort, { once: true });
   try {

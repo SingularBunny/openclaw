@@ -279,6 +279,15 @@ for await (const line of createInterface({ input: process.stdin })) {
       result();
       continue;
     }
+    if (scenario === "prompt-suggestion") {
+      // An in-turn prediction is stale; the real one is forked after the result.
+      send({ type: "prompt_suggestion", suggestion: "stale in-turn prediction", session_id: "fixture-session" });
+      result();
+      await delay(20);
+      send({ type: "prompt_suggestion", suggestion: "suggested follow-up " + turn,
+        uuid: "fixture-suggestion-" + turn, session_id: "fixture-session" });
+      continue;
+    }
     if (scenario === "large-split-record") {
       const record = JSON.stringify({ type: "assistant", message: { role: "assistant",
         content: [{ type: "text", text: "🦞" + "x".repeat(300_000) + "🦞" }] } });
