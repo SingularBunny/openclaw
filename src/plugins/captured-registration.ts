@@ -16,6 +16,7 @@ import {
 import { buildPluginApi, createUnavailableRuntime } from "./api-builder.js";
 import { resolveCapabilityProviderRegistration } from "./capability-catalog.js";
 import type { CodexAppServerExtensionFactory } from "./codex-app-server-extension-types.js";
+import type { DocumentExtractorPlugin } from "./document-extractor-types.js";
 import type { EmbeddingProviderAdapter } from "./embedding-providers.js";
 import type {
   PluginAgentEventSubscriptionRegistration,
@@ -108,6 +109,7 @@ export function createCapturedPluginRegistration(params?: {
     musicGenerationProviders: new Array<MusicGenerationProviderPlugin>(),
     webFetchProviders: new Array<WebFetchProviderPlugin>(),
     webSearchProviders: new Array<WebSearchProviderPlugin>(),
+    documentExtractors: new Array<DocumentExtractorPlugin>(),
     workerProviders: new Array<WorkerProvider>(),
     storageProviders: new Array<StorageProvider>(),
     migrationProviders: new Array<MigrationProviderPlugin>(),
@@ -243,6 +245,7 @@ export function createCapturedPluginRegistration(params?: {
         registerMusicGenerationProvider: captureInto(captured.musicGenerationProviders),
         registerWebFetchProvider: captureInto(captured.webFetchProviders),
         registerWebSearchProvider: captureInto(captured.webSearchProviders),
+        registerDocumentExtractor: captureInto(captured.documentExtractors),
         registerWorkerProvider: captureInto(captured.workerProviders),
         registerStorageProvider: captureInto(captured.storageProviders),
         registerMigrationProvider: captureInto(captured.migrationProviders),

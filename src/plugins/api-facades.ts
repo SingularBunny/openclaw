@@ -19,6 +19,7 @@ type PluginApiFacadeSource = OpenClawPluginApi["session"]["state"] &
 const identitySensitiveRegistrations = new Set([
   "registerCompactionProvider",
   "registerDecisionProvider",
+  "registerDocumentExtractor",
   "registerGatewayAccessPolicy",
   "registerHttpRoute",
   "registerImageGenerationProvider",

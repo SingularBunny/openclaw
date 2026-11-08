@@ -401,6 +401,12 @@ export function createProviderRegistrars(state: PluginRegistryState) {
       registrations: registry.webSearchProviders,
       ownedIds: (record) => record.webSearchProviderIds,
     }),
+    registerDocumentExtractor: createProviderLikeRegistrar({
+      kindLabel: "document extractor",
+      factory: (extractor) => extractor.extract,
+      registrations: registry.documentExtractors,
+      ownedIds: (record) => (record.documentExtractorIds ??= []),
+    }),
     registerMigrationProvider: createProviderLikeRegistrar({
       kindLabel: "migration provider",
       factory: (provider) => provider.prepareApply,

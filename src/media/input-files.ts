@@ -16,6 +16,7 @@ import { cancelUnreadResponseBody, readResponseWithLimit } from "../infra/http-b
 import { fetchWithSsrFGuard } from "../infra/net/fetch-guard.js";
 import { logWarn } from "../logger.js";
 import type { DocumentExtractionMetadata } from "../plugins/document-extractor-types.js";
+import { extractDocumentContent } from "./document-extractors.runtime.js";
 import { convertHeicToJpeg } from "./media-services.js";
 import { extractPdfContent, type PdfExtractedImage } from "./pdf-extract.js";
 
@@ -322,6 +323,91 @@ export async function extractFileContentFromSource(params: {
   return extracted;
 }
 
+async function runDocumentExtraction<T>(params: {
+  label: string;
+  timeoutMs: number;
+  signal?: AbortSignal;
+  extract: (signal: AbortSignal) => Promise<T>;
+}): Promise<T> {
+  const timeoutMs = resolveTimerTimeoutMs(params.timeoutMs, 1);
+  const controller = new AbortController();
+  const signal = params.signal
+    ? AbortSignal.any([params.signal, controller.signal])
+    : controller.signal;
+  signal.throwIfAborted();
+  const timeout = setTimeout(
+    () => controller.abort(new Error(`${params.label} timed out after ${timeoutMs}ms`)),
+    timeoutMs,
+  );
+  try {
+    return await racePromiseWithAbortSignal(
+      () => params.extract(signal),
+      signal,
+      (abortedSignal) => toErrorObject(abortedSignal.reason, "Input file extraction aborted"),
+    );
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function toBoundedDocumentResult(
+  filename: string,
+  extracted: { text: string; images: PdfExtractedImage[]; metadata?: DocumentExtractionMetadata },
+  maxChars: number,
+): InputFileExtractResult {
+  const text = truncateUtf16Safe(extracted.text, maxChars);
+  const metadata: DocumentExtractionMetadata = {
+    ...extracted.metadata,
+    textTruncated:
+      extracted.metadata?.textTruncated === true || text.length < extracted.text.length,
+    imagesTruncated: extracted.metadata?.imagesTruncated === true,
+  };
+  return {
+    filename,
+    text,
+    images: extracted.images.length > 0 ? extracted.images : undefined,
+    metadata,
+  };
+}
+
+/**
+ * Extracts a non-PDF document through the first enabled plugin extractor that declares one of
+ * the candidate MIME types, under the same timeout and text limits as PDFs. Returns null when
+ * no extractor declares them or the matching extractor declines the bytes.
+ */
+export async function extractPluginDocumentFromBuffer(params: {
+  buffer: Buffer;
+  filename?: string;
+  mimeTypes: readonly string[];
+  limits: InputFileLimits;
+  config?: OpenClawConfig;
+  signal?: AbortSignal;
+}): Promise<InputFileExtractResult | null> {
+  const { buffer, limits } = params;
+  for (const mimeType of new Set(params.mimeTypes)) {
+    const extracted = await runDocumentExtraction({
+      label: "Document extraction",
+      timeoutMs: limits.timeoutMs,
+      signal: params.signal,
+      extract: (signal) =>
+        extractDocumentContent({
+          buffer,
+          mimeType,
+          signal,
+          maxPages: limits.pdf.maxPages,
+          maxPixels: limits.pdf.maxPixels,
+          minTextChars: limits.pdf.minTextChars,
+          ...(params.config ? { config: params.config } : {}),
+        }),
+    });
+    if (extracted) {
+      const { extractor: _extractor, ...content } = extracted;
+      return toBoundedDocumentResult(params.filename || "file", content, limits.maxChars);
+    }
+  }
+  return null;
+}
+
 /** Extracts text from borrowed bytes or PDFs from owned bytes after shared size and MIME checks. */
 export async function extractFileContentFromBuffer(params: {
   buffer: Buffer;
@@ -358,51 +444,25 @@ export async function extractFileContentFromBuffer(params: {
   }
 
   if (mimeType === "application/pdf") {
-    const timeoutMs = resolveTimerTimeoutMs(limits.timeoutMs, 1);
-    const controller = new AbortController();
-    const signal = params.signal
-      ? AbortSignal.any([params.signal, controller.signal])
-      : controller.signal;
-    signal.throwIfAborted();
-    const timeout = setTimeout(
-      () => controller.abort(new Error(`PDF extraction timed out after ${timeoutMs}ms`)),
-      timeoutMs,
-    );
-    let extracted: Awaited<ReturnType<typeof extractPdfContent>>;
-    try {
+    const extracted = await runDocumentExtraction({
+      label: "PDF extraction",
+      timeoutMs: limits.timeoutMs,
+      signal: params.signal,
       // Legacy extractors may not cooperate, but the worker receives the same cancellation.
-      extracted = await racePromiseWithAbortSignal(
-        () =>
-          extractPdfContent({
-            buffer,
-            signal,
-            maxPages: limits.pdf.maxPages,
-            maxPixels: limits.pdf.maxPixels,
-            minTextChars: limits.pdf.minTextChars,
-            ...(params.config ? { config: params.config } : {}),
-            onImageExtractionError: (err) => {
-              logWarn(`media: PDF image extraction skipped, ${String(err)}`);
-            },
-          }),
-        signal,
-        (abortedSignal) => toErrorObject(abortedSignal.reason, "Input file extraction aborted"),
-      );
-    } finally {
-      clearTimeout(timeout);
-    }
-    const text = truncateUtf16Safe(extracted.text, limits.maxChars);
-    const metadata: DocumentExtractionMetadata = {
-      ...extracted.metadata,
-      textTruncated:
-        extracted.metadata?.textTruncated === true || text.length < extracted.text.length,
-      imagesTruncated: extracted.metadata?.imagesTruncated === true,
-    };
-    return {
-      filename,
-      text,
-      images: extracted.images.length > 0 ? extracted.images : undefined,
-      metadata,
-    };
+      extract: (signal) =>
+        extractPdfContent({
+          buffer,
+          signal,
+          maxPages: limits.pdf.maxPages,
+          maxPixels: limits.pdf.maxPixels,
+          minTextChars: limits.pdf.minTextChars,
+          ...(params.config ? { config: params.config } : {}),
+          onImageExtractionError: (err) => {
+            logWarn(`media: PDF image extraction skipped, ${String(err)}`);
+          },
+        }),
+    });
+    return toBoundedDocumentResult(filename, extracted, limits.maxChars);
   }
 
   return { filename, ...decodeTextContent(buffer, charset, limits.maxChars) };

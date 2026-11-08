@@ -97,6 +97,7 @@ type SpeechProviderPlugin = import("./types.js").SpeechProviderPlugin;
 type VideoGenerationProviderPlugin = import("./types.js").VideoGenerationProviderPlugin;
 type WebFetchProviderPlugin = import("./types.js").WebFetchProviderPlugin;
 type WebSearchProviderPlugin = import("./types.js").WebSearchProviderPlugin;
+type DocumentExtractorPlugin = import("./document-extractor-types.js").DocumentExtractorPlugin;
 type WorkerProvider = import("./types.js").WorkerProvider;
 type StorageProvider = import("../storage/types.js").StorageProvider;
 type UnifiedModelCatalogProviderPlugin = import("./types.js").UnifiedModelCatalogProviderPlugin;
@@ -354,6 +355,7 @@ export type PluginRecord = {
   webFetchProviderIds: string[];
   webSearchProviderIds: string[];
   migrationProviderIds: string[];
+  documentExtractorIds?: string[];
   contextEngineIds?: string[];
   agentHarnessIds: string[];
   cliCommands: string[];
@@ -404,6 +406,7 @@ export type PluginRegistry = {
   musicGenerationProviders: PluginOwnedProviderRegistration<MusicGenerationProviderPlugin>[];
   webFetchProviders: PluginOwnedProviderRegistration<WebFetchProviderPlugin>[];
   webSearchProviders: PluginOwnedProviderRegistration<WebSearchProviderPlugin>[];
+  documentExtractors: PluginOwnedProviderRegistration<DocumentExtractorPlugin>[];
   workerProviders: Map<string, PluginOwnedProviderRegistration<WorkerProvider>>;
   storageProviders: Map<string, PluginOwnedProviderRegistration<StorageProvider>>;
   migrationProviders: PluginOwnedProviderRegistration<MigrationProviderPlugin>[];

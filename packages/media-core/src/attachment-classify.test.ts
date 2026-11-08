@@ -5,6 +5,7 @@ import { normalizeMimeType } from "./mime.js";
 describe("attachmentClassFromMime", () => {
   it.each([
     ["application/pdf", "document"],
+    ["application/rtf", "document"],
     ["audio/mpeg", "audio"],
     ["video/mp4", "video"],
   ] as const)("classifies %s as %s", (mime, expected) => {
