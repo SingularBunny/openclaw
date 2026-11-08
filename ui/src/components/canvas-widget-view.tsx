@@ -8,6 +8,7 @@ import { registerEnglishCatalog, t } from "../lib/reactive/i18n.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../lib/solid-bridge.ts";
 import { createCanvasWidget, type CanvasWidgetViewProps } from "./canvas-widget-view-owner.ts";
 import { resolveSandboxHostUrl } from "./sandbox-host.ts";
+import { WidgetStorageNoticeLine } from "./widget-storage-notice.tsx";
 
 registerEnglishCatalog(registerBoardEnglish);
 
@@ -181,6 +182,10 @@ export const CanvasWidgetView = defineSolidBridge<CanvasWidgetViewProps, CanvasW
                 />
               )}
             </Show>
+            <WidgetStorageNoticeLine
+              message={read().storageMessage}
+              onDismiss={() => widget.storageNotice.dismiss()}
+            />
           </Show>
         </Show>
       </Show>
