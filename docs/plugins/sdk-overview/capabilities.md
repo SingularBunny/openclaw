@@ -35,6 +35,7 @@ worker, storage, or embedding provider must satisfy. Part of the
 | `api.registerVideoGenerationProvider(...)`       | Video generation                                                                  |
 | `api.registerWebFetchProvider(...)`              | Web fetch / scrape provider                                                       |
 | `api.registerWebSearchProvider(...)`             | Web search                                                                        |
+| `api.registerDocumentExtractor(...)`             | Text from inbound document attachments (for example Office files)                 |
 | `api.registerCompactionProvider(...)`            | Pluggable transcript-compaction backend                                           |
 
 Transcript source providers that share an account namespace with an inbound
@@ -49,6 +50,30 @@ account exists. Configured auto-start must supply a nonempty source account or
 resolve one with this descriptor. OpenClaw rejects ambiguous or unresolved ownership before it
 persists the start or invokes the provider. Provider aliases are lookup names
 only and must not be used for this declaration.
+
+### Document extractors
+
+`api.registerDocumentExtractor(...)` turns inbound document attachments into
+model-visible text. OpenClaw calls the first enabled extractor whose
+`mimeTypes` include the attachment type, with the same timeout, page, and
+`maxChars` limits as PDF extraction, and wraps the result as untrusted
+attachment content. Returning `null` or throwing keeps the unsupported-format
+marker. Bundled plugins can also ship a `document-extractor.js` public artifact
+declared through `contracts.documentExtractors`.
+
+```ts
+api.registerDocumentExtractor({
+  id: "example-office",
+  label: "Office documents",
+  mimeTypes: ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+  async extract({ buffer, signal }) {
+    const text = await convertToText(buffer, signal);
+    return text
+      ? { text, images: [], metadata: { textTruncated: false, imagesTruncated: false } }
+      : null;
+  },
+});
+```
 
 ### Storage providers
 

@@ -237,6 +237,7 @@ export type PluginRecord = {
   webFetchProviderIds: string[];
   webSearchProviderIds: string[];
   migrationProviderIds: string[];
+  documentExtractorIds?: string[];
   contextEngineIds?: string[];
   declaredContextEngineIds?: readonly string[];
   /** Manifest `reload.turnHandover`: a reload hands this generation's running turns to the next one. */
@@ -325,6 +326,9 @@ export type PluginRegistry = {
   >;
   migrationProviders: PluginOwnedProviderRegistration<
     import("./types.js").MigrationProviderPlugin
+  >[];
+  documentExtractors: PluginOwnedProviderRegistration<
+    import("./document-extractor-types.js").DocumentExtractorPlugin
   >[];
   agentToolResultMiddlewareOwners: PluginAgentToolResultMiddlewareOwner[];
   agentToolResultMiddlewares: PluginAgentToolResultMiddlewareRegistration[];
