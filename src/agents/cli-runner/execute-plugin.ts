@@ -402,6 +402,8 @@ export async function executePluginOwnedProcess(params: {
   setOnActiveLoopbackAskUserDeadlineChange?: (listener: (() => void) | undefined) => void;
   onNoOutputTimeout?: (error: FailoverError) => void;
   onInterrupted?: (reason: CliTerminalInterruption["reason"]) => boolean;
+  /** Late-arriving next-prompt prediction; outlives the run like the warm process. */
+  onPromptSuggestion?: (text: string) => void;
   mcpCapture?: {
     captureKey?: string;
     beginCapture: (captureKey: string | undefined, assertCurrent: () => void) => void;
@@ -627,6 +629,7 @@ export async function executePluginOwnedProcess(params: {
               },
             }
           : {}),
+        ...(params.onPromptSuggestion ? { onPromptSuggestion: params.onPromptSuggestion } : {}),
         // Warm transports retain their first turn's async context across plugin refreshes.
         requestToolPermission: AsyncLocalStorage.bind(requestToolPermission),
         requestUserInput: createPluginUserInputHandler({

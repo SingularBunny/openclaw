@@ -45,6 +45,7 @@ import {
 } from "./chat-history-stream.ts";
 import { loadChatLiveTools } from "./chat-live-tools.ts";
 import { applyChatPendingInputs } from "./chat-pending-inputs.ts";
+import { adoptChatPromptSuggestion } from "./chat-prompt-suggestion.ts";
 import { isChatRunRecoveryStatus, reconcileChatRunStartup } from "./chat-run-startup.ts";
 import type { ChatHistoryHost, ChatHistorySessions, ChatState } from "./chat-state-contract.ts";
 import {
@@ -269,6 +270,7 @@ export async function hydrateChatHistory(
         response.sessionInfo,
         historyState,
       );
+      adoptHistoryPromptSuggestion(state, sessionKey, response.promptSuggestion);
       return {
         messages: state.chatMessages,
         deltaCursor: response.deltaCursor,
@@ -459,6 +461,7 @@ export async function hydrateChatHistory(
       currentRunProjections: historyProjection.runs,
       resetStream,
     });
+    adoptHistoryPromptSuggestion(state, sessionKey, res.promptSuggestion);
 
     return res;
   } catch (err) {
@@ -492,4 +495,15 @@ export async function hydrateChatHistory(
     }
   }
   return undefined;
+}
+
+/** A (re)loaded idle session replays the gateway's latest next-prompt prediction. */
+function adoptHistoryPromptSuggestion(
+  state: ChatState,
+  sessionKey: string,
+  suggestion: { text: string } | undefined,
+): void {
+  if (suggestion && state.sessionKey === sessionKey && !state.chatRunId) {
+    adoptChatPromptSuggestion(state, suggestion.text);
+  }
 }

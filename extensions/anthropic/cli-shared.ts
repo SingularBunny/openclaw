@@ -463,6 +463,34 @@ export function resolveClaudeCliExecutionArgs(
     : resolvedArgs;
 }
 
+const CLAUDE_PROMPT_SUGGESTIONS_ARG = "--prompt-suggestions";
+
+/**
+ * OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS=0|false turns off Claude Code's next-prompt
+ * predictions (on by default). Read on use so config env.vars reloads apply to the next run.
+ */
+export function isClaudeCliPromptSuggestionsEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  const value = env.OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS?.trim().toLowerCase();
+  return value !== "0" && value !== "false";
+}
+
+/** Agent turns ask Claude Code to emit a `prompt_suggestion` record after each result. */
+export function appendClaudeCliPromptSuggestionArgs(
+  args: readonly string[],
+  context: Pick<CliBackendResolveExecutionArgsContext, "executionMode">,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  const configured = args.some(
+    (arg) =>
+      arg === CLAUDE_PROMPT_SUGGESTIONS_ARG || arg.startsWith(`${CLAUDE_PROMPT_SUGGESTIONS_ARG}=`),
+  );
+  return context.executionMode === "side-question" ||
+    configured ||
+    !isClaudeCliPromptSuggestionsEnabled(env)
+    ? [...args]
+    : [...args, CLAUDE_PROMPT_SUGGESTIONS_ARG, "true"];
+}
+
 export function normalizeClaudeBackendConfig(config: CliBackendConfig): CliBackendConfig {
   const output = config.output ?? "jsonl";
   const input = config.input ?? "stdin";

@@ -214,6 +214,10 @@ export const validateChatHistoryParams = createProtocolValidator(
   S.ChatHistoryParamsSchema,
   Checks.isChatHistoryParams,
 );
+export const validateChatPromptSuggestion = createProtocolValidator(
+  S.ChatPromptSuggestionSchema,
+  Checks.isChatPromptSuggestion,
+);
 export const validateChatStartupParams = createProtocolValidator(
   S.ChatStartupParamsSchema,
   Checks.isChatStartupParams,

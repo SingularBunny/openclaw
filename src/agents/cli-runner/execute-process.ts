@@ -12,6 +12,10 @@ import {
   resolveEventSessionKeyForPolicy,
   resolveEventSessionRoutingPolicy,
 } from "../../infra/event-session-routing.js";
+import {
+  clearPromptSuggestion,
+  emitPromptSuggestion,
+} from "../../infra/prompt-suggestion-events.js";
 import { createModelCallStreamProgressReporter } from "../../logging/diagnostic-model-stream-progress.js";
 import { beginDiagnosticBackendActivity } from "../../logging/diagnostic-run-activity.js";
 import type { CliBackendConfig } from "../../plugins/cli-backend.types.js";
@@ -172,6 +176,29 @@ export async function executeCliProcess(params: {
         agentId: runParams.agentId,
       })
     : undefined;
+  // Claude Code predicts the operator's next prompt after each turn (composer ghost text).
+  // This run supersedes any earlier prediction; its own may arrive after the run closes.
+  const promptSuggestionSessionKey =
+    eventSessionKey &&
+    eventDelivery !== false &&
+    runParams.executionMode !== "side-question" &&
+    !runParams.isolatedCompletion &&
+    getAgentRunContext(runParams.runId)?.isControlUiVisible !== false
+      ? eventSessionKey
+      : undefined;
+  if (promptSuggestionSessionKey) {
+    clearPromptSuggestion(promptSuggestionSessionKey, runParams.runId);
+  }
+  const reportPromptSuggestion = promptSuggestionSessionKey
+    ? (text: string) => {
+        emitPromptSuggestion({
+          sessionKey: promptSuggestionSessionKey,
+          ...(eventAgentId ? { agentId: eventAgentId } : {}),
+          runId: runParams.runId,
+          text,
+        });
+      }
+    : undefined;
   let eventTarget: SessionEventTarget | undefined;
   if (eventSessionKey && eventAgentId && params.events.emitLiveEvents) {
     try {
@@ -209,6 +236,7 @@ export async function executeCliProcess(params: {
         onNativeTools: context.preparedBackend.mcpClientGrantCapture?.captureNativeTools,
         onAssistantMessage: params.diagnostics?.observeAssistantMessage,
         onUsage: params.diagnostics?.observeUsage,
+        onPromptSuggestion: reportPromptSuggestion,
         onAttributedSubagentProgress: (parentToolUseId) => {
           if (!params.events.isActiveForegroundAgentTool(parentToolUseId)) {
             return;
@@ -365,6 +393,7 @@ export async function executeCliProcess(params: {
           terminalInterruption = { reason };
           return true;
         },
+        ...(reportPromptSuggestion ? { onPromptSuggestion: reportPromptSuggestion } : {}),
         mcpCapture: {
           captureKey: params.initialGatewayCaptureKey,
           beginCapture: params.toolTracking.beginGatewayCapture,

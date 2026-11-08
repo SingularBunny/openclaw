@@ -18,6 +18,7 @@ import {
   parseClaudeCliJsonlLifecycleEvent,
 } from "./cli-output.js";
 import {
+  appendClaudeCliPromptSuggestionArgs,
   normalizeClaudeBackendConfig,
   resolveClaudeCliAutoCompactEnv,
   resolveClaudeCliExecutionArgs,
@@ -339,8 +340,11 @@ export function buildAnthropicCliBackend(
     classifyErrorCode: classifyClaudeCliErrorCode,
     parseJsonlLifecycleEvent: parseClaudeCliJsonlLifecycleEvent,
     resolveExecutionArgs: (context) =>
-      resolveClaudeCliExecutionArgs(context, {
-        excludeDynamicSystemPromptSections: options.supportsDynamicSystemPromptSections?.(),
-      }),
+      appendClaudeCliPromptSuggestionArgs(
+        resolveClaudeCliExecutionArgs(context, {
+          excludeDynamicSystemPromptSections: options.supportsDynamicSystemPromptSections?.(),
+        }),
+        context,
+      ),
   };
 }

@@ -74,6 +74,8 @@ describe("Claude CLI instruction isolation", () => {
       "mcp__openclaw__message",
       "--disallowedTools",
       "ScheduleWakeup,mcp__other__*",
+      "--prompt-suggestions",
+      "true",
     ]);
   });
 });
