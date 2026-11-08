@@ -27,8 +27,8 @@ function harness() {
 describe("plugin session catalog change events", () => {
   it("refreshes catalogs on plugin.<id>.session-catalog-changed only", () => {
     const { emit, owner } = harness();
-    emit("plugin.aiwb-projects.session-catalog-changed");
-    emit("plugin.aiwb-projects.something-else");
+    emit("plugin.aiwb-claude-bridge.session-catalog-changed");
+    emit("plugin.aiwb-claude-bridge.something-else");
     emit("plugin.session-catalog-changed");
     expect(owner.handlePluginSessionCatalogChanged).toHaveBeenCalledTimes(1);
     expect(owner.handleSessionCatalogChanged).not.toHaveBeenCalled();

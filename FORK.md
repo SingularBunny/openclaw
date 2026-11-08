@@ -12,5 +12,5 @@ handled by [ai-workbench](https://github.com/SingularBunny/ai-workbench) (`tools
 | Office documents open in the chat PDF reader through a converter route                                                                          | Control UI (`chat-office-preview.ts`, PDF reader, Files panel)                 | [Chat](docs/web/control-ui/chat.md)                                         |
 | Claude Code prompt suggestions (`--prompt-suggestions`, `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`) as composer ghost text, also in imported chats    | Anthropic CLI backend, `chat.prompt_suggestion` event, Control UI composer     | [Chat](docs/web/control-ui/chat.md#prompt-suggestions)                      |
 
-The converter (`aiwb-office`) and the plugin that reports the effective settings (`aiwb-settings`)
+The converter (`aiwb-office`) and the plugin that reports the effective settings (`aiwb-fork-settings`)
 live in [aiwb-plugins](https://github.com/SingularBunny/aiwb-plugins).
