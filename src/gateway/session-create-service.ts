@@ -130,6 +130,7 @@ import {
 } from "./session-utils-store-worker.js";
 import type { GatewaySessionStoreTarget } from "./session-utils-store.types.js";
 import { projectSessionsPatchEntry } from "./sessions-patch.js";
+import { copyForkedWidgetStorage } from "./widget-storage-fork.js";
 
 export function createGatewaySession(
   params: CreateGatewaySessionParams,
@@ -401,6 +402,7 @@ async function createGatewaySessionInScope(
 
   let createdContext: CreatedGatewaySession | undefined;
   let createdNewEntry = false;
+  let forkedTranscriptEvents: readonly unknown[] | undefined;
   let preparedLifecycle: PreparedGatewaySessionLifecycle | undefined;
   let lifecyclePreparationCommitted = false;
   const holdParentLifecycle =
@@ -967,6 +969,9 @@ async function createGatewaySessionInScope(
           withCommit: preparedLifecycle?.withCommit,
           creationOperation,
         });
+        if (forkResult.ok) {
+          forkedTranscriptEvents = forkResult.transcriptEvents;
+        }
         return forkResult.ok ? { ...patched, ...forkResult } : forkResult;
       },
       {
@@ -1047,6 +1052,14 @@ async function createGatewaySessionInScope(
         sessionKey: createdContext.key,
         agentId: createdContext.agentId,
         entry: createdContext.entry,
+      });
+    }
+    if (forkedTranscriptEvents && canonicalParentSessionKey && parentSessionTarget) {
+      const copiedHistory = forkedTranscriptEvents;
+      await copyForkedWidgetStorage({
+        source: { sessionKey: canonicalParentSessionKey, agentId: parentSessionTarget.agentId },
+        target: { sessionKey: target.canonicalKey, agentId: target.agentId },
+        loadHistory: async () => copiedHistory,
       });
     }
 

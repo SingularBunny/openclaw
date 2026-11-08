@@ -1,4 +1,4 @@
-import { createMemo, Match, onSettled, Show, Switch } from "solid-js";
+import { createMemo, createSignal, Match, onSettled, Show, Switch } from "solid-js";
 import type { ApplicationContext } from "../../app/context.ts";
 import { registerBoardEnglish } from "../../i18n/locales/en-board.ts";
 import { EventStream } from "../../lib/board/provider-signals.ts";
@@ -20,6 +20,7 @@ import { McpAppConfirmation } from "../mcp-app-confirm-solid.tsx";
 import { createMcpAppConfirm } from "../mcp-app-confirm.ts";
 import { resolveGatewayHttpOrigin, resolveSandboxHostUrl } from "../sandbox-host.ts";
 import { PanelLoadingSkeleton } from "../solid/panel-loading-skeleton.tsx";
+import { createWidgetStorageNotice, WidgetStorageNoticeLine } from "../widget-storage-notice.tsx";
 import { BoardWidgetTicketRefresh, type FrameRefresh } from "./board-widget-ticket-refresh.ts";
 
 registerEnglishCatalog(registerBoardEnglish);
@@ -89,6 +90,11 @@ export function createBoardWidgetFrame(host: {
   let contentVisible = false;
   let initialPaint = true;
   const confirmation = createMcpAppConfirm();
+  const [storageRevision, setStorageRevision] = createSignal(0);
+  const storageNotice = createWidgetStorageNotice(() => {
+    setStorageRevision((value) => value + 1);
+    changes.emit();
+  });
   const ticketRefresh = new BoardWidgetTicketRefresh(
     () => host.widget()?.viewTicket,
     () => host.active() && !documentHidden() && gatewayAvailable(),
@@ -320,6 +326,8 @@ export function createBoardWidgetFrame(host: {
       onFrameUrl: (url) => {
         lastFrameUrl = url;
       },
+      onStorageFailure: (operation, reason) =>
+        storageNotice.record(operation, { ok: false, error: reason }),
       onLoadFailed: () => waitForConnection(),
       onUnauthorized: (currentWidget) => api.refreshFailedFrame(currentWidget),
       onReadyTimeout: () => waitForConnection(),
@@ -564,6 +572,11 @@ export function createBoardWidgetFrame(host: {
     // Forward the widget owner's event stream to its projection subscribers.
     subscribe: (listener: () => void) => changes.subscribe(listener),
     confirmation,
+    storageNotice,
+    storageMessage: () => {
+      storageRevision();
+      return storageNotice.message;
+    },
     bindFrame(frame: HTMLIFrameElement) {
       releaseTheme?.();
       releaseTheme = undefined;
@@ -662,6 +675,10 @@ export function BoardWidgetFrame(props: {
     >
       <div class="board-widget__frame-pane">
         <McpAppConfirmation confirmation={props.state().confirmation} />
+        <WidgetStorageNoticeLine
+          message={props.state().storageMessage()}
+          onDismiss={() => props.state().storageNotice.dismiss()}
+        />
         <Show when={!view().visible && !view().covered}>
           <Switch
             fallback={

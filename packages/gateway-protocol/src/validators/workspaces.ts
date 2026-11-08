@@ -90,6 +90,22 @@ export const validateCanvasDocumentPreviewParams = createProtocolValidator(
   S.CanvasDocumentPreviewParamsSchema,
   Checks.isCanvasDocumentPreviewParams,
 );
+export const validateCanvasStorageGetParams = createProtocolValidator(
+  S.CanvasStorageGetParamsSchema,
+  Checks.isCanvasStorageGetParams,
+);
+export const validateCanvasStorageListParams = createProtocolValidator(
+  S.CanvasStorageListParamsSchema,
+  Checks.isCanvasStorageListParams,
+);
+export const validateCanvasStorageSetParams = createProtocolValidator(
+  S.CanvasStorageSetParamsSchema,
+  Checks.isCanvasStorageSetParams,
+);
+export const validateCanvasStorageDeleteParams = createProtocolValidator(
+  S.CanvasStorageDeleteParamsSchema,
+  Checks.isCanvasStorageDeleteParams,
+);
 export const validateCanvasDocumentViewParams = createProtocolValidator(
   S.CanvasDocumentViewParamsSchema,
   Checks.isCanvasDocumentViewParams,

@@ -263,3 +263,16 @@
 .chat-dashboard-menu__panel .board-widget__menu-danger .oc-menu-item__icon {
   color: var(--danger);
 }
+
+.board-widget__notice--dismissible {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-widget__notice--dismissible > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
