@@ -117,6 +117,10 @@ with `sessionKey`: the Gateway verifies a successful saved `show_widget` result
 for that document in a conversation the caller can currently read. Inaccessible
 conversations and unbound documents remain denied. Broad `operator.read` callers
 retain document-ID-only access.
+Inline widget storage (`canvas.storage.get` and
+`canvas.storage.list` with `operator.read`, `canvas.storage.set` and
+`canvas.storage.delete` with `operator.write`) is scoped to a session the caller
+can access and one widget document in it.
 
 In the Control UI, session writers can use **New Session**, send messages in
 their own conversations, fork from a persisted user message in an owned settled

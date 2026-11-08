@@ -11,6 +11,7 @@ import type { GatewayEventFrame } from "../api/gateway.ts";
 import type { ApplicationContext } from "../app/context.ts";
 import { hasOperatorReadAccess, hasOperatorSelfReadAccess } from "../app/operator-access.ts";
 import { getCanvasWidgetFrameConnectionGeneration } from "../lib/chat/canvas-widget-frame-generation.ts";
+import { serveWidgetStorageRequest } from "../lib/chat/widget-storage-bridge.ts";
 import { formatUiError } from "../lib/format-error.ts";
 import { isAwaitingGatewayFailure, isGatewayAvailable } from "../lib/gateway-availability.ts";
 import { t } from "../lib/reactive/i18n.ts";
@@ -25,6 +26,7 @@ import {
 import { registerWidgetThemeFrame, postWidgetTheme } from "../lib/widget-theme.ts";
 import { forwardChatWheelToTranscript } from "../pages/chat/chat-scroll-input.ts";
 import { allowWidgetPrompt, dispatchWidgetPrompt } from "./mcp-app-security.ts";
+import { createWidgetStorageNotice } from "./widget-storage-notice.tsx";
 
 type WidgetClient = NonNullable<ApplicationContext["gateway"]["snapshot"]["client"]>;
 
@@ -198,6 +200,7 @@ export function createCanvasWidget(
     awaitingResult: boolean;
     runtimeError: string;
     resourceError: boolean;
+    storageMessage: string;
     contentHeight?: number;
     sandboxGeneration: number;
     pending: boolean;
@@ -207,9 +210,14 @@ export function createCanvasWidget(
     awaitingResult: false,
     runtimeError: "",
     resourceError: false,
+    storageMessage: "",
     sandboxGeneration: 0,
     pending: false,
   };
+  const storageNotice = createWidgetStorageNotice(() => {
+    state.storageMessage = storageNotice.message;
+    notify();
+  });
   let reportedHeight: number | undefined;
   let activeBinding: ViewBinding | undefined;
   let sandboxHost: WidgetSandboxHost | undefined;
@@ -304,6 +312,7 @@ export function createCanvasWidget(
     state.sandboxGeneration += 1;
     state.runtimeError = "";
     state.resourceError = false;
+    storageNotice.reset();
     activeBinding = undefined;
     state.view = undefined;
     clearSandbox();
@@ -670,6 +679,19 @@ export function createCanvasWidget(
     // adopt its prompt channel only; pinning never lends them dashboard grants.
     promptPort = port;
     releasePromptPort = listen(port, "message", (message) => {
+      // Storage serves this document whether or not its row is on screen. The
+      // session and document come from the validated binding, never the widget.
+      if (message instanceof MessageEvent) {
+        const validated = validatedBinding;
+        const current = isCurrent(validated) && sandboxHost === host && promptPort === port;
+        serveWidgetStorageRequest(message.data, {
+          scope: current ? validated : undefined,
+          hasSession: Boolean(props.sessionKey),
+          connected: isGatewayAvailable(context.gateway.snapshot),
+          notice: storageNotice,
+          reply: (response) => promptPort === port && port.postMessage(response),
+        });
+      }
       if (
         message instanceof MessageEvent &&
         props.presentationActive &&
@@ -686,11 +708,14 @@ export function createCanvasWidget(
       }
     });
     port.start();
-    port.postMessage({ type: "openclaw:widget-prompt-host-ready" });
+    // This host answers every storage request, failures included, so the user
+    // sees why a widget without a session cannot keep its state.
+    port.postMessage({ type: "openclaw:widget-prompt-host-ready", storage: true });
   };
   return {
     state,
     notify,
+    storageNotice,
     reconcile,
     retireScriptPolicy,
     clearView,

@@ -17,6 +17,7 @@ import {
   runWithSessionActorStorage,
 } from "../../config/sessions/session-actor-storage-binding.js";
 import type { SessionMessageCutResult as MessageCutMutationResult } from "../../config/sessions/session-message-cut.types.js";
+import { loadSessionTranscriptEvents } from "../../config/sessions/session-transcript-events.js";
 import type { SessionEntry } from "../../config/sessions/types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { SqliteJsonlReadBudgetExceededError } from "../../infra/sqlite-jsonl-budget-error.js";
@@ -52,6 +53,7 @@ import { getSessionRowProjection } from "../session-row-projection-access.js";
 import { SessionMutationAuthorizationChangedError } from "../session-sharing.js";
 import { withGatewaySessionEntryReadOnly } from "../session-utils-read-lifetime.js";
 import type { GatewaySessionEntryRead } from "../session-utils-store.js";
+import { copyForkedWidgetStorage } from "../widget-storage-fork.js";
 import { getWorkerInferenceSessionControl } from "../worker-environments/inference-control-internal.js";
 import { LocalWorkspaceConflictError } from "../worker-environments/local-workspace-conflict-error.js";
 import {
@@ -653,6 +655,18 @@ async function mutatePreparedSessionAtMessage({
             sessionKey: committedResult.key,
             agentId: current.agentId,
             entry: committedResult.entry,
+          });
+          // Before the response, so the child's widgets never load an empty state first.
+          await copyForkedWidgetStorage({
+            source: { sessionKey: current.canonicalKey, agentId: current.agentId },
+            target: { sessionKey: committedResult.key, agentId: current.agentId },
+            loadHistory: () =>
+              loadSessionTranscriptEvents({
+                agentId: current.agentId,
+                sessionKey: committedResult.key,
+                sessionId: committedResult.entry.sessionId,
+                storePath: current.storePath,
+              }),
           });
         }
         respond(

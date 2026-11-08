@@ -27,6 +27,8 @@ const enBoard = {
       accessDenied: "You don’t have access to this widget in this conversation.",
       waitingForResult: "Waiting for the widget result.",
       runtimeError: "Script error: {message}",
+      storageSaveFailed: "Widget state was not saved: {reason}",
+      storageLoadFailed: "Widget state could not be loaded: {reason}",
       waitingForConnection: "Waiting for the connection. This view will recover automatically.",
       resourceUnavailable:
         "A widget resource could not load. Retry when the connection is available.",
