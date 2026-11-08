@@ -405,6 +405,48 @@ describe("BoardWidgetSandboxHost", () => {
     );
   });
 
+  it("reports rejected dashboard storage requests so the frame can show a notice", async () => {
+    const frame = document.createElement("iframe");
+    document.body.append(frame);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("<!doctype html><p>state</p>")),
+    );
+    const onStorageFailure = vi.fn();
+    const client = { request: vi.fn(async () => ({ ok: true })) };
+    const host = new BoardWidgetSandboxHost(hostOptions(frame, { client, onStorageFailure }));
+    notifyProxyReady(host, frame);
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    const bridgePort = await offerBridgePort(host, frame);
+
+    const response = await sendBridgeRequest(bridgePort, {
+      type: "openclaw:widget-bridge-request",
+      id: "storage-request",
+      method: "storage.set",
+      params: { key: "count", value: "1" },
+      ticket: "ticket",
+    });
+    await sendBridgeRequest(bridgePort, {
+      type: "openclaw:widget-bridge-request",
+      id: "state-request",
+      method: "state.emit",
+      params: { payload: { ok: true } },
+      ticket: "ticket",
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      error: expect.stringContaining("not available on dashboards"),
+    });
+    expect(onStorageFailure.mock.calls).toEqual([
+      ["set", expect.stringContaining("widget storage is not available on dashboards")],
+    ]);
+    expect(client.request).not.toHaveBeenCalledWith(
+      expect.stringContaining("storage"),
+      expect.anything(),
+    );
+  });
+
   it("scopes prompt rate limits to the board source and view generation", async () => {
     const sessionPrefix = `session-${crypto.randomUUID()}`;
     let activeFrame: HTMLIFrameElement | null = null;

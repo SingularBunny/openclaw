@@ -94,7 +94,10 @@ ownership, sharing-role, agent, and sandbox checks. Such previews are read-only.
 `canvas.document.preview` also accepts session read access: it returns the
 caller's HTML and isolated sandbox location without reading session data.
 Stored Canvas documents still require broader read access through
-`canvas.document.view`.
+`canvas.document.view`. Inline widget storage (`canvas.storage.get` and
+`canvas.storage.list` with `operator.read`, `canvas.storage.set` and
+`canvas.storage.delete` with `operator.write`) is scoped to a session the caller
+can access and one widget document in it.
 
 In the Control UI, session writers can use **New Session**, send messages in
 their own conversations, fork from a persisted user message in an owned settled

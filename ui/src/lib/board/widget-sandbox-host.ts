@@ -30,6 +30,8 @@ type BoardWidgetSandboxHostOptions = {
   onLoaded: () => void;
   onRendered?: () => void;
   onError: (error: unknown) => void;
+  /** A widget storage request failed; widget code may never surface the rejection. */
+  onStorageFailure?: (operation: string, reason: string) => void;
 };
 
 class WidgetDocumentError extends Error {
@@ -219,6 +221,7 @@ export class BoardWidgetSandboxHost {
     }
     if (!this.active) {
       if (isBoardWidgetBridgeRequest(data)) {
+        this.reportStorageFailure(data.method, "Widget inactive");
         this.postResponse(data.id, false, undefined, "Widget inactive");
       }
       return;
@@ -233,6 +236,7 @@ export class BoardWidgetSandboxHost {
     const client = this.options.client;
     const ticket = this.adoptedTicket;
     if (!client || !ticket || ticket === this.retiredTicket || this.options.connected === false) {
+      this.reportStorageFailure(data.method, "Gateway unavailable");
       this.postResponse(data.id, false, undefined, "Gateway unavailable");
       return;
     }
@@ -265,8 +269,18 @@ export class BoardWidgetSandboxHost {
         this.completeRequest(data.id, generation, true, result);
       })
       .catch((error: unknown) => {
-        this.completeRequest(data.id, generation, false, undefined, formatUiError(error));
+        const message = formatUiError(error);
+        if (generation === this.requestGeneration) {
+          this.reportStorageFailure(data.method, message);
+        }
+        this.completeRequest(data.id, generation, false, undefined, message);
       });
+  }
+
+  private reportStorageFailure(method: string, reason: string): void {
+    if (method.startsWith("storage.")) {
+      this.options.onStorageFailure?.(method.slice("storage.".length), reason);
+    }
   }
 
   private completeRequest(

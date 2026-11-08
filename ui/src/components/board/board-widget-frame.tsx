@@ -17,6 +17,7 @@ import { McpAppConfirmation } from "../mcp-app-confirm-solid.tsx";
 import { McpAppConfirm } from "../mcp-app-confirm.ts";
 import { resolveGatewayHttpOrigin, resolveSandboxHostUrl } from "../sandbox-host.ts";
 import { PanelLoadingSkeleton } from "../solid/panel-loading-skeleton.tsx";
+import { createWidgetStorageNotice, WidgetStorageNoticeLine } from "../widget-storage-notice.tsx";
 
 // Keep in sync with the identical literal in chat widget-card.ts: a shared
 // module is not worth its startup-bundle cost for one string.
@@ -159,6 +160,7 @@ export class BoardWidgetFrameLifecycle {
   private contentVisible = false;
   private revealFrame = 0;
   private readonly confirmation = new McpAppConfirm(() => this.host.requestUpdate());
+  readonly storageNotice = createWidgetStorageNotice(() => this.host.requestUpdate());
   private readonly ticketRefresh = new BoardWidgetTicketRefresh(
     () => this.host.widget()?.viewTicket,
     () => this.host.active() && !documentHidden() && this.gatewayAvailable(),
@@ -250,6 +252,10 @@ export class BoardWidgetFrameLifecycle {
     revision: () => number = () => 0,
   ): SolidJSX.Element {
     const current = () => (typeof widget === "function" ? widget() : widget);
+    const storageMessage = () => {
+      revision();
+      return this.storageNotice.message;
+    };
     const view = createMemo(() => {
       revision();
       const value = current();
@@ -294,6 +300,10 @@ export class BoardWidgetFrameLifecycle {
       >
         <div class="board-widget__frame-pane">
           <McpAppConfirmation confirmation={this.confirmation} revision={revision()} />
+          <WidgetStorageNoticeLine
+            message={storageMessage()}
+            onDismiss={() => this.storageNotice.dismiss()}
+          />
           <Show when={!view().visible && !view().covered}>
             <Show
               when={view().stalled}
@@ -572,6 +582,8 @@ export class BoardWidgetFrameLifecycle {
       onFrameUrl: (url) => {
         this.lastFrameUrl = url;
       },
+      onStorageFailure: (operation, reason) =>
+        this.storageNotice.record(operation, { ok: false, error: reason }),
       onLoadFailed: () => this.waitForConnection(),
       onUnauthorized: (currentWidget) => this.refreshFailedFrame(currentWidget),
       onReadyTimeout: () => this.waitForConnection(),

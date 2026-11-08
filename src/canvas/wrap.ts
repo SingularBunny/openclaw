@@ -109,9 +109,12 @@ export function buildWidgetDocument(
     "const c=new MessageChannel();" +
     "const promptPost=c.port1.postMessage.bind(c.port1);" +
     "const b=new MessageChannel();const bridgePost=b.port1.postMessage.bind(b.port1);" +
-    "const promptWaiting=[];let inlinePromptReady=false;" +
-    'c.port1.addEventListener("message",event=>{if(event.data?.type!=="openclaw:widget-prompt-host-ready"||inlinePromptReady)return;' +
-    "inlinePromptReady=true;while(promptWaiting.length){const entry=shift.call(promptWaiting);if(entry)entry.inline();}});c.port1.start();" +
+    "const promptWaiting=[];let inlinePromptReady=false;let inlineStorage=false;const storagePending=new Map();" +
+    'c.port1.addEventListener("message",event=>{const data=event.data;' +
+    'if(data?.type==="openclaw:widget-storage-response"&&typeof data.id==="string"){const entry=storagePending.get(data.id);if(!entry)return;storagePending.delete(data.id);' +
+    'if(data.ok===true)entry.resolve(data.result);else entry.reject(new ErrorCtor(typeof data.error==="string"?data.error:"widget storage request failed"));return;}' +
+    'if(data?.type!=="openclaw:widget-prompt-host-ready"||inlinePromptReady)return;' +
+    "inlinePromptReady=true;inlineStorage=data.storage===true;while(promptWaiting.length){const entry=shift.call(promptWaiting);if(entry)entry.inline();}});c.port1.start();" +
     "let act=null;" +
     "try{const ua=navigator.userActivation;" +
     'const d=ua&&Object.getOwnPropertyDescriptor(Object.getPrototypeOf(ua),"isActive");' +
@@ -150,13 +153,36 @@ export function buildWidgetDocument(
     'const inline=()=>{promptPost({type:"openclaw:widget-prompt",prompt:value});resolve(true);};' +
     'if(inlinePromptReady)inline();else if(hostInitExpired)reject(new ErrorCtor("widget prompt host unavailable"));' +
     "else push.call(promptWaiting,{send,inline,reject});});};" +
+    // Storage mirrors the Claude artifact `window.storage` shapes (personal
+    // scope only). Inline chat answers on the private prompt port; a board
+    // widget routes the same calls through its ticketed request channel.
+    "const storageCall=(method,params)=>new P((resolve,reject)=>{" +
+    'if(params.shared===true){reject(new ErrorCtor("shared widget storage is not supported"));return;}' +
+    'const send=()=>{then.call(request("storage."+method,params.body),resolve,reject);};' +
+    'const inline=()=>{if(!inlineStorage){reject(new ErrorCtor("widget storage unavailable"));return;}' +
+    'const id="storage-"+(++sequence);storagePending.set(id,{resolve,reject});' +
+    'try{promptPost({type:"openclaw:widget-storage-request",id,method,params:params.body});}catch(error){storagePending.delete(id);reject(error);}};' +
+    'if(ticket)send();else if(inlinePromptReady)inline();else if(hostInitExpired)reject(new ErrorCtor("widget storage unavailable"));' +
+    "else push.call(promptWaiting,{send,inline,reject});});" +
+    "const shape=(promise,map)=>new P((resolve,reject)=>{then.call(promise,value=>resolve(map(value)),reject);});" +
+    "const storage=freeze({" +
+    'get:(key,shared)=>shape(storageCall("get",{shared,body:{key:stringify(key)}}),result=>typeof result?.value==="string"?{key:stringify(key),value:result.value,shared:false}:null),' +
+    // A non-string value still reaches the host, which rejects it where the
+    // user can see the failure even if widget code ignores the rejection.
+    'set:(key,value,shared)=>shape(storageCall("set",{shared,body:{key:stringify(key),value:typeof value==="string"?value:null}}),()=>({key:stringify(key),value,shared:false})),' +
+    'delete:(key,shared)=>shape(storageCall("delete",{shared,body:{key:stringify(key)}}),result=>({key:stringify(key),deleted:result?.deleted===true,shared:false})),' +
+    "list:(prefix,shared)=>{const body=prefix===undefined||prefix===null?{}:{prefix:stringify(prefix)};" +
+    'return shape(storageCall("list",{shared,body}),result=>({keys:result?.keys,...(body.prefix===undefined?{}:{prefix:body.prefix}),shared:false}));}});' +
     'const host={};define(host,"controlUiBaseUrl",{enumerable:true,get:()=>controlUiBaseUrl});freeze(host);' +
     "const api=freeze({host," +
     'prompt:freeze({send:sendPrompt}),state:freeze({emit:payload=>request("state.emit",{payload})}),' +
     'data:freeze({read:(bindingId,params)=>request("data.read",{bindingId:stringify(bindingId),params})}),' +
     'action:freeze({run:(action,params)=>request("action.run",{action:stringify(action),params:params===undefined?{}:params})}),' +
-    'cron:freeze({trigger:jobId=>request("cron.trigger",{jobId:stringify(jobId)})})});' +
+    'cron:freeze({trigger:jobId=>request("cron.trigger",{jobId:stringify(jobId)})}),storage});' +
     'define(window,"openclaw",{value:api,writable:false,configurable:false});' +
+    // The `window.storage` alias stays configurable: a widget's own top-level
+    // `let storage` must not collide with a non-configurable global.
+    'define(window,"storage",{value:storage,writable:true,configurable:true});' +
     "window.sendPrompt=text=>{void sendPrompt(text);};" +
     'define(window,"sendPrompt",{value:window.sendPrompt,writable:false,configurable:false});' +
     'post({type:"openclaw:widget-bridge-ready"},"*");})();</script>';

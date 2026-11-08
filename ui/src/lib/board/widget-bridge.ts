@@ -189,6 +189,14 @@ export class BoardWidgetBridgeController {
           action: "cron.trigger",
           jobId: requiredString(params, "jobId"),
         });
+      // Storage namespaces follow inline document lifetimes; board widgets are
+      // renamed, replaced, and regranted in the board store, which has no
+      // storage lifecycle yet. Fail clearly rather than hang or share state.
+      case "storage.get":
+      case "storage.set":
+      case "storage.delete":
+      case "storage.list":
+        throw new Error("widget storage is not available on dashboards");
       default:
         throw new Error(`widget host method is not supported: ${request.method}`);
     }

@@ -72,3 +72,16 @@
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+
+.board-widget__notice--dismissible {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.board-widget__notice--dismissible > span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
