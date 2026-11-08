@@ -157,6 +157,8 @@ through config `env.vars` (`openclaw config set env.vars.<NAME> '"<value>"' --st
 `config.patch` Gateway method) applies them without restarting the Gateway. A value that is not a
 positive integer falls back to the default. Values from the process environment or the state-dir
 `.env` take precedence over config `env.vars`.
+`OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS` is a switch rather than a limit; it is read when each Claude
+CLI run builds its arguments, so a change applies from the next run.
 
 | Variable                                  | Default     | Purpose                                                                                                           |
 | ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -166,6 +168,7 @@ positive integer falls back to the default. Values from the process environment 
 | `OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS` | `200`       | Items that continuing a native catalog session carries over.                                                      |
 | `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES` | `524288`    | Bytes that continuing a native catalog session carries over.                                                      |
 | `OPENCLAW_CATALOG_IMPORT_OWNER`           | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).  |
+| `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`      | on          | `0` or `false` stops passing `--prompt-suggestions true` to Claude CLI runs (composer ghost-text predictions).    |
 
 ### Filesystem observation
 

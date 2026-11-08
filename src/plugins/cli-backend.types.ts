@@ -250,6 +250,11 @@ export type CliBackendExecuteContext = {
   liveSession?: CliBackendLiveSessionCapability;
   /** Offers same-turn input for this run; the host drops it when the run closes. */
   registerMessageInjection?: (injection: CliBackendMessageInjection) => void;
+  /**
+   * Reports the backend's predicted next user prompt for this session. Native
+   * runtimes emit it after the turn's result, so it stays callable after the run closes.
+   */
+  onPromptSuggestion?: (text: string) => void;
   /** Closure-bound approval capability; retained copies fail after the run closes. */
   requestToolPermission: (
     request: CliBackendToolPermissionRequest,

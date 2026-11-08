@@ -784,6 +784,26 @@ describe("Claude native stdio boundary", () => {
     );
   });
 
+  it("reports the prompt suggestion that arrives after the result without yielding it", async () => {
+    const liveSession = createLiveSession();
+    const suggestions: string[] = [];
+    const delivered = createDeferred<void>();
+    const context = await createContext("prompt-suggestion", {
+      liveSession,
+      onPromptSuggestion: (text) => {
+        suggestions.push(text);
+        delivered.resolve();
+      },
+    });
+    const records = await collect(context);
+    expect(records.some((record) => record.type === "prompt_suggestion")).toBe(false);
+    expect(resultDetail(records)).toMatchObject({ turn: 1 });
+
+    await withinTest(delivered.promise, AbortSignal.timeout(5_000));
+    expect(suggestions).toEqual(["suggested follow-up 1"]);
+    expect(liveSession.current()?.isIdle()).toBe(true);
+  });
+
   it("answers a native user question once when both hook and permission callbacks request it", async () => {
     const requestUserInput = vi.fn(async () => ({
       status: "answered" as const,

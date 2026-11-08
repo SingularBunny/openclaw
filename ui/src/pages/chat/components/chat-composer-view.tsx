@@ -66,12 +66,15 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
   const composerLeadControl = (
     <Show when={props.permissionPicker}>{(picker) => <ChatPermissionPicker {...picker()} />}</Show>
   );
+  // A predicted next prompt replaces the placeholder as grey ghost text (Tab accepts it).
   const placeholder = createMemo(() =>
-    context.goalComposer.active
-      ? t("chat.goals.objectivePlaceholder")
-      : (props.attachments ?? []).some((attachment) => !isPastedTextAttachment(attachment))
-        ? t("chat.composer.placeholderWithAttachments")
-        : t("chat.composer.placeholder", { name: props.assistantName || "agent" }),
+    context.promptSuggestion
+      ? context.promptSuggestion
+      : context.goalComposer.active
+        ? t("chat.goals.objectivePlaceholder")
+        : (props.attachments ?? []).some((attachment) => !isPastedTextAttachment(attachment))
+          ? t("chat.composer.placeholderWithAttachments")
+          : t("chat.composer.placeholder", { name: props.assistantName || "agent" }),
   );
   const mirrorCameraPreview = createMemo(
     () =>
@@ -417,7 +420,14 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
                       />
                     )}
                   </Show>
-                  <span class="agent-chat__composer-placeholder" aria-hidden="true">
+                  <span
+                    class={`agent-chat__composer-placeholder${
+                      context.promptSuggestion
+                        ? " agent-chat__composer-placeholder--suggestion"
+                        : ""
+                    }`}
+                    aria-hidden="true"
+                  >
                     {context.dictation?.active ? "" : placeholder()}
                   </span>
                   <span

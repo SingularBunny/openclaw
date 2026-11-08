@@ -579,6 +579,7 @@ export const validateExecApprovalsNodeSnapshot = compile(S.ExecApprovalsNodeSnap
 export const validateLogsTailParams = compile(S.LogsTailParamsSchema);
 export const validateModelsProbeParams = compile(S.ModelsProbeParamsSchema);
 export const validateChatHistoryParams = compile(S.ChatHistoryParamsSchema);
+export const validateChatPromptSuggestion = compile(S.ChatPromptSuggestionSchema);
 export const validateChatStartupParams = compile(S.ChatStartupParamsSchema);
 export const validateChatMetadataParams = compile(S.ChatMetadataParamsSchema);
 export const validateChatMessageGetParams = compile(S.ChatMessageGetParamsSchema);

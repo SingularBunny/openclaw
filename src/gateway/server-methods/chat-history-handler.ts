@@ -20,6 +20,7 @@ import {
   measureDiagnosticsTimelineSpanSync,
 } from "../../infra/diagnostics-timeline.js";
 import { formatErrorMessage } from "../../infra/errors.js";
+import { getPromptSuggestion } from "../../infra/prompt-suggestion-events.js";
 import { resolveInFlightRunSnapshot } from "../chat-abort.js";
 import { resolveEffectiveChatHistoryMaxChars } from "../chat-display-projection.js";
 import { isQueuedChatTurnForSession } from "../chat-queued-turns.js";
@@ -472,6 +473,17 @@ export async function handleChatHistoryRequest({
           agentId: sessionAgentId,
           defaultAgentId: compatibilityOwnerAgentId,
         }) ?? embeddedRecovery;
+      // Idle sessions replay the latest next-prompt prediction to a (re)loading client.
+      const storedPromptSuggestion = inFlightRun
+        ? undefined
+        : (getPromptSuggestion(canonicalKey) ?? getPromptSuggestion(sessionKey));
+      const promptSuggestion = storedPromptSuggestion
+        ? {
+            sessionKey: storedPromptSuggestion.sessionKey,
+            ...(storedPromptSuggestion.runId ? { runId: storedPromptSuggestion.runId } : {}),
+            text: storedPromptSuggestion.text,
+          }
+        : undefined;
       if (deltaCursor !== undefined) {
         return async () => {
           if (!sessionInfo || !sessionId || !storePath || resolveClaudeCliBindingSessionId(entry)) {
@@ -547,6 +559,7 @@ export async function handleChatHistoryRequest({
               ...(inputReceipts ? { inputReceipts, inputConsumptions } : {}),
               sessionInfo,
               ...(boundedInFlightRun ? { inFlightRun: boundedInFlightRun } : {}),
+              ...(promptSuggestion ? { promptSuggestion } : {}),
               ...(startupMetadata ? { metadata: startupMetadata } : {}),
             };
             respond(true, projectOperatorModelRead(modelReadScope, payload));
@@ -577,6 +590,7 @@ export async function handleChatHistoryRequest({
         toolOverrides: entry?.toolOverrides,
         verboseLevel,
         ...(boundedInFlightRun ? { inFlightRun: boundedInFlightRun } : {}),
+        ...(promptSuggestion ? { promptSuggestion } : {}),
         ...(startupMetadata ? { metadata: startupMetadata } : {}),
       };
       if (retainedTranscript) {

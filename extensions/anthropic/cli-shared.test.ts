@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { buildAnthropicCliBackend } from "./cli-backend.js";
 import { CLAUDE_CLI_CLEAR_ENV } from "./cli-constants.js";
 import {
+  appendClaudeCliPromptSuggestionArgs,
+  isClaudeCliPromptSuggestionsEnabled,
   normalizeClaudeBackendConfig,
   resolveClaudeCliExecutionArgs,
   supportsClaudeDynamicSystemPromptSections,
@@ -147,6 +149,80 @@ it.each([
   ["--setting-sources=local,user", "--setting-sources=user"],
 ])("normalizes Claude permission and setting args: %s", (input, expected) => {
   expect(executionArgs({ baseArgs: argv("-p", input) })).toEqual(argv("-p", expected));
+});
+
+describe("Claude CLI prompt suggestions", () => {
+  const context = {
+    workspaceDir: "/tmp",
+    provider: "claude-cli",
+    modelId: "claude-sonnet-4-6",
+  };
+
+  it("asks agent turns for prompt suggestions unless the environment turns them off", () => {
+    expect(isClaudeCliPromptSuggestionsEnabled({})).toBe(true);
+    expect(isClaudeCliPromptSuggestionsEnabled({ OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS: "1" })).toBe(
+      true,
+    );
+    for (const value of ["0", "false", " FALSE "]) {
+      expect(
+        isClaudeCliPromptSuggestionsEnabled({ OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS: value }),
+      ).toBe(false);
+    }
+    expect(appendClaudeCliPromptSuggestionArgs(["-p"], {}, {})).toEqual([
+      "-p",
+      "--prompt-suggestions",
+      "true",
+    ]);
+    expect(
+      appendClaudeCliPromptSuggestionArgs(["-p"], {}, { OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS: "0" }),
+    ).toEqual(["-p"]);
+  });
+
+  it("leaves side questions and operator-configured values alone", () => {
+    expect(
+      appendClaudeCliPromptSuggestionArgs(["-p"], { executionMode: "side-question" }, {}),
+    ).toEqual(["-p"]);
+    expect(
+      appendClaudeCliPromptSuggestionArgs(["-p", "--prompt-suggestions", "false"], {}, {}),
+    ).toEqual(["-p", "--prompt-suggestions", "false"]);
+    expect(
+      appendClaudeCliPromptSuggestionArgs(["-p", "--prompt-suggestions=false"], {}, {}),
+    ).toEqual(["-p", "--prompt-suggestions=false"]);
+  });
+
+  it("reads the environment on use for fresh and resumed backend args", () => {
+    const backend = buildAnthropicCliBackend();
+    const fresh = backend.config.args ?? [];
+    const resumed = (backend.config.resumeArgs ?? []).map((arg) =>
+      arg.replaceAll("{sessionId}", "native-session"),
+    );
+    vi.stubEnv("OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS", "");
+    try {
+      for (const [useResume, baseArgs] of [
+        [false, fresh],
+        [true, resumed],
+      ] as const) {
+        const args = backend.resolveExecutionArgs?.({ ...context, useResume, baseArgs }) ?? [];
+        expect(args.slice(-2)).toEqual(["--prompt-suggestions", "true"]);
+        expect(args.filter((arg) => arg === "--prompt-suggestions")).toHaveLength(1);
+      }
+      expect(
+        backend.resolveExecutionArgs?.({
+          ...context,
+          useResume: false,
+          baseArgs: fresh,
+          executionMode: "side-question",
+        }),
+      ).not.toContain("--prompt-suggestions");
+
+      vi.stubEnv("OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS", "false");
+      expect(
+        backend.resolveExecutionArgs?.({ ...context, useResume: true, baseArgs: resumed }),
+      ).not.toContain("--prompt-suggestions");
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
 });
 
 describe("resolveClaudeCliExecutionArgs", () => {

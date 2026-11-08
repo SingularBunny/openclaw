@@ -113,6 +113,32 @@ describe("createCliJsonlStreamingParser", () => {
     expect(snapshots).toEqual(expected);
   });
 
+  it("reports Claude prompt suggestions, including after the result, without reply text", () => {
+    const onPromptSuggestion = vi.fn();
+    const onAssistantDelta = vi.fn();
+    const parser = createParser({ onPromptSuggestion, onAssistantDelta });
+    finishFrames(
+      parser,
+      init("suggestion-session"),
+      messageStart,
+      claudeTextDelta("Done."),
+      messageStop,
+      result("Done."),
+      {
+        type: "prompt_suggestion",
+        suggestion: "run the tests",
+        uuid: "suggestion-1",
+        session_id: "suggestion-session",
+      },
+      { type: "prompt_suggestion", suggestion: 42 },
+    );
+    expect(onPromptSuggestion.mock.calls).toEqual([["run the tests"]]);
+    expect(parser.getOutput()).toMatchObject({ text: "Done.", sessionId: "suggestion-session" });
+    expect(
+      onAssistantDelta.mock.calls.some((call) => JSON.stringify(call).includes("run the tests")),
+    ).toBe(false);
+  });
+
   it("normalizes usage while incrementally streaming CLI JSONL", () => {
     const parser = createParser();
     finishFrames(

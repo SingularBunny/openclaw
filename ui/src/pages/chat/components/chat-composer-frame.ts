@@ -15,6 +15,7 @@ import {
 import { updateHumanMentions } from "../../../lib/chat/human-mentions.ts";
 import { clearCompositionEnd, recordCompositionEnd } from "../../../lib/ime.ts";
 import { detectTextDirection } from "../../../lib/text-direction.ts";
+import { insertChatPromptSuggestion } from "../chat-prompt-suggestion.ts";
 import { ComposerDictationController, insertComposerDictation } from "../composer-dictation.ts";
 import { normalizeChatComposerDraft } from "../composer-draft.ts";
 import { ComposerMicrophonePicker } from "../composer-microphone-picker.ts";
@@ -287,6 +288,7 @@ export function createChatComposerContext(props: ChatComposerProps) {
     }
     state.composerComposing = false;
     state.composingDraft = null;
+    dismissPromptSuggestion();
     commitComposerDraft(props, draft);
     props.onTypingChange?.(false);
     if (goalComposer.activateDraft(draft, true)) {
@@ -305,6 +307,34 @@ export function createChatComposerContext(props: ChatComposerProps) {
     }
   };
 
+  // Claude Code's predicted next prompt: ghost text only while the idle composer is empty.
+  const promptSuggestion =
+    props.promptSuggestion &&
+    canCompose &&
+    !visibleDraft &&
+    !isBusy &&
+    !runWorking &&
+    props.queue.length === 0 &&
+    !props.replyTarget &&
+    !props.suggestionComposer &&
+    !goalComposer.active &&
+    !state.dictation?.active &&
+    (props.getAttachments?.() ?? props.attachments ?? []).length === 0
+      ? props.promptSuggestion
+      : null;
+  const dismissPromptSuggestion = () => {
+    if (props.promptSuggestion) {
+      props.onDismissPromptSuggestion?.();
+    }
+  };
+  const acceptPromptSuggestion = (target: HTMLTextAreaElement) => {
+    if (!promptSuggestion || target.value) {
+      return;
+    }
+    insertChatPromptSuggestion(target, promptSuggestion);
+    dismissPromptSuggestion();
+  };
+
   const handleKeyDown = createComposerKeyDownHandler({
     state,
     props,
@@ -318,6 +348,9 @@ export function createChatComposerContext(props: ChatComposerProps) {
     showAbortableUi,
     alternateFollowUpMode,
     goalComposer,
+    promptSuggestion,
+    acceptPromptSuggestion,
+    dismissPromptSuggestion,
   });
 
   const updateEmojiMenu = (target: HTMLTextAreaElement) =>
@@ -406,6 +439,8 @@ export function createChatComposerContext(props: ChatComposerProps) {
     ) {
       return;
     }
+    // Any edit replaces the prediction, including the insertion that accepts it.
+    dismissPromptSuggestion();
     const typedAtSign = event.inputType === "insertText" && event.data?.includes("@") === true;
     if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
       state.mentionMenu.close();
@@ -704,6 +739,7 @@ export function createChatComposerContext(props: ChatComposerProps) {
     canCompose,
     showAbortableUi,
     visibleDraft,
+    promptSuggestion,
     runStatusAnnouncement,
     requestUpdate,
     sendShortcut,

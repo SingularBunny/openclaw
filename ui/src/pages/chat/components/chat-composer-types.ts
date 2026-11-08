@@ -148,6 +148,9 @@ export type ChatComposerProps = ChatAttachmentControlsProps & {
   onOpenTalkSettings?: () => void;
   onOpenDictationSettings?: () => void;
   suggestionComposer?: boolean;
+  /** Predicted next prompt; shown as ghost text in the empty idle composer, Tab accepts it. */
+  promptSuggestion?: string | null;
+  onDismissPromptSuggestion?: () => void;
   onTypingChange?: (typing: boolean, preview?: string, cursor?: number) => void;
   composerControls?: TemplateResult | typeof nothing;
   footerContent?: JSX.Element;

@@ -19,6 +19,7 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import {
   type AgentEventRuntimePayload,
   onAgentAuditEvent,
+  onAgentEvent,
   onAgentRuntimeEvent,
 } from "../infra/agent-events.js";
 import {
@@ -30,10 +31,12 @@ import { captureAgentRunTerminalPersistence } from "../infra/agent-run-terminal-
 import { onTrustedToolExecutionEvent } from "../infra/diagnostic-events.js";
 import { notifyGatewayWorkMetricsChanged } from "../infra/gateway-work-metrics-events.js";
 import { onHeartbeatEvent } from "../infra/heartbeat-events.js";
+import { clearPromptSuggestion, onPromptSuggestion } from "../infra/prompt-suggestion-events.js";
 import {
   onGatewaySuspendAdmissionChange,
   runWithRetainedGatewayRootWork,
 } from "../process/gateway-work-admission.js";
+import { normalizeAgentId, parseAgentSessionKey } from "../routing/session-key.js";
 import {
   onSessionIdentityMutation,
   onSessionLifecycleEvent,
@@ -75,6 +78,13 @@ import {
 import type { SessionRowProjection } from "./session-row-projection.js";
 
 /** Register gateway runtime event subscriptions and return unsubscribe handles. */
+/** Session subscribers may hold the bare or the agent-scoped form of an unscoped key. */
+function promptSuggestionDeliveryKeys(sessionKey: string, agentId?: string): string[] {
+  return agentId && !parseAgentSessionKey(sessionKey)
+    ? [`agent:${normalizeAgentId(agentId)}:${sessionKey}`, sessionKey]
+    : [sessionKey];
+}
+
 export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionParams) {
   // Collection changes gate new work; the writer retains accepted work and maintenance.
   const auditRecorder = createAuditEventRecorder({
@@ -710,6 +720,28 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
   const unsubscribeSuspension = onGatewaySuspendAdmissionChange((phase) => {
     params.broadcast("gateway.suspension", { phase });
   });
+  // Claude Code's next-prompt prediction is composer presentation only; it is never persisted.
+  const unsubscribePromptSuggestions = onPromptSuggestion((evt) => {
+    params.broadcast(
+      "chat.prompt_suggestion",
+      {
+        sessionKey: evt.sessionKey,
+        ...(evt.runId ? { runId: evt.runId } : {}),
+        text: evt.text,
+      },
+      {
+        sessionKeys: promptSuggestionDeliveryKeys(evt.sessionKey, evt.agentId),
+        ...(evt.agentId ? { agentId: evt.agentId } : {}),
+        dropIfSlow: true,
+      },
+    );
+  });
+  // Any new run on the session, whatever its backend, retires the previous prediction.
+  const unsubscribePromptSuggestionRuns = onAgentEvent((evt) => {
+    if (evt.stream === "lifecycle" && evt.data?.phase === "start" && evt.sessionKey) {
+      clearPromptSuggestion(evt.sessionKey);
+    }
+  });
 
   return {
     channelAdmissionAudit,
@@ -721,6 +753,8 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
     heartbeatUnsub,
     transcriptUnsub,
     lifecycleUnsub() {
+      unsubscribePromptSuggestions();
+      unsubscribePromptSuggestionRuns();
       unsubscribeSessionIdentity();
       unsubscribeSuspension();
       unsubscribeProfileChanges();

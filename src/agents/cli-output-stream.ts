@@ -319,6 +319,13 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
     if (parseErrorText) {
       return;
     }
+    if (claudeStreamJson && parsed.type === "prompt_suggestion") {
+      // Native forks this prediction after the turn's result; it is not assistant output.
+      if (typeof parsed.suggestion === "string") {
+        params.onPromptSuggestion?.(parsed.suggestion);
+      }
+      return;
+    }
     const attributedParentToolUseId = readClaudeAttributedSubagentProgressId(parsed);
     if (attributedParentToolUseId) {
       params.onAttributedSubagentProgress?.(attributedParentToolUseId);

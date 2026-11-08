@@ -48,6 +48,7 @@ const SESSION_SUBSCRIPTION_EVENTS = new Set([
   "agent",
   "chat",
   "chat.side_result",
+  "chat.prompt_suggestion",
   "session.observer",
   "session.narration",
   // Mirrors the raw agent tool event (full args/result snapshots) onto
