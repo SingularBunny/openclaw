@@ -1170,6 +1170,39 @@ describe("loadGatewayPlugins", () => {
     expect(handleGatewayRequest).not.toHaveBeenCalled();
   });
 
+  test("dispatches only operator-granted methods for other plugins, without admin", async () => {
+    vi.stubEnv(
+      "OPENCLAW_PLUGIN_GATEWAY_METHODS",
+      "community-plugin=sessions.list, sessions.patch;other-plugin=sessions.delete",
+    );
+    try {
+      loadOpenClawPlugins.mockReturnValue(
+        addLoadedPlugin(createRegistry([]), { id: "community-plugin", origin: "global" }),
+      );
+      await loadStartupPluginFixture();
+      serverPluginsModule.setFallbackGatewayContext(createTestContext("plugin-gateway-granted"));
+      const runtime = createRuntimeFromLastGatewayLoad();
+      const asPlugin = (method: string) =>
+        gatewayRequestScopeModule.withPluginRuntimePluginScope(
+          { pluginId: "community-plugin", pluginOrigin: "global" },
+          () => runtime.gateway.request(method, { limit: 1 }, { scopes: ["operator.admin"] }),
+        );
+
+      await asPlugin("sessions.list");
+      expect(getLastDispatchedParams()).toEqual({ limit: 1 });
+      expect(getLastDispatchedClientScopes()).toEqual(["operator.write"]);
+      expect(getLastDispatchedClientInternal().pluginRuntimeOwnerId).toBe("community-plugin");
+
+      handleGatewayRequest.mockClear();
+      await expect(asPlugin("sessions.delete")).rejects.toThrow(
+        /Plugin "community-plugin" is neither\./,
+      );
+      expect(handleGatewayRequest).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   test("preserves structured errors from trusted plugin gateway requests", async () => {
     loadOpenClawPlugins.mockReturnValue(addLoadedPlugin(createRegistry([]), { id: "google-meet" }));
     await loadStartupPluginFixture();

@@ -169,6 +169,16 @@ CLI run builds its arguments, so a change applies from the next run.
 | `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES` | `524288`    | Bytes that continuing a native catalog session carries over.                                                      |
 | `OPENCLAW_CATALOG_IMPORT_OWNER`           | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).  |
 | `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`      | on          | `0` or `false` stops passing `--prompt-suggestions true` to Claude CLI runs (composer ghost-text predictions).    |
+| `OPENCLAW_PLUGIN_GATEWAY_METHODS`         | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                          |
+
+`OPENCLAW_PLUGIN_GATEWAY_METHODS` grants a plugin that is neither bundled nor a trusted official install
+exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#api-runtime-gateway):
+`<plugin id>=<method>,<method>;<plugin id>=<method>`, for example
+`aiwb-claude-bridge=sessions.catalog.list,sessions.catalog.import,sessions.patch,session.visibility.set`.
+Wildcards are ignored. Granted requests run with `operator.write` (scopes the plugin requests are
+ignored), so admin-only methods stay out of reach. A native plugin already runs inside the Gateway
+process; the grant opens a documented call path rather than a sandbox boundary, and lists exactly
+what the operator agreed to.
 
 ### Filesystem observation
 

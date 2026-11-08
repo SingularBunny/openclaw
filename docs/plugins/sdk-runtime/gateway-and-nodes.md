@@ -227,7 +227,9 @@ applicable policy also requires fresh publication admission.
     ```
 
     Requests use `operator.write` scope and do not grant admin scope. Calls from arbitrary external
-    plugins are rejected. Failed methods throw a `GatewayClientRequestError`, preserving structured
+    plugins are rejected, unless the operator grants that plugin the exact method with
+    [`OPENCLAW_PLUGIN_GATEWAY_METHODS`](/help/environment#worker-and-catalog-limits) (fork setting;
+    such requests always use `operator.write`). Failed methods throw a `GatewayClientRequestError`, preserving structured
     `details`, retry metadata, and the Gateway error code for recovery flows. Use `isAvailable()`
     before choosing this path from tools that can also run in standalone agent processes.
 
