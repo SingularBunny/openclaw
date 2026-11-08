@@ -47,6 +47,7 @@ const noops = {
   registerMusicGenerationProvider: () => {},
   registerWebFetchProvider: () => {},
   registerWebSearchProvider: () => {},
+  registerDocumentExtractor: () => {},
   registerInteractiveHandler: () => {},
   onConversationBindingResolved: () => {},
   registerCommand: () => {},
