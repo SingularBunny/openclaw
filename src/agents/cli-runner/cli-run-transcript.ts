@@ -1,5 +1,11 @@
+import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
 import { cloneEnvWithPlatformSemantics } from "../../config/config-env-vars.js";
 import { getCliHistoryWriter } from "../../config/sessions/cli-history-boundary.js";
+import {
+  CLI_SESSION_RESUME_POINT_KEY,
+  hashCliSessionResumeCompat,
+  type CliSessionResumePoint,
+} from "../../config/sessions/cli-session-binding.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import {
   patchSessionEntryCore,
@@ -149,6 +155,48 @@ function buildCliAssistantTranscriptUsage(
   return usage?.contextUsage ? { ...counters, contextUsage: usage.contextUsage } : counters;
 }
 
+/**
+ * The native checkpoint a completed turn leaves behind. Recorded only when the turn's binding
+ * will be kept and the backend can fork-resume at a checkpoint.
+ */
+export function resolveCliTranscriptResumePoint(params: {
+  context: Pick<
+    PreparedCliRunContext,
+    "authEpoch" | "authEpochVersion" | "cwdHash" | "effectiveAuthProfileId" | "preparedBackend"
+  > & { params: Pick<RunCliAgentParams, "provider"> };
+  output: Pick<CliOutput, "resumeCheckpointId" | "terminalInterruption" | "yielded">;
+  cliSessionId?: string;
+  bindingKept: boolean;
+}): CliSessionResumePoint | undefined {
+  const { context, output } = params;
+  const backend = context.preparedBackend.backend;
+  const sessionId = params.cliSessionId?.trim();
+  const checkpointId = output.resumeCheckpointId?.trim();
+  if (
+    !params.bindingKept ||
+    !sessionId ||
+    !checkpointId ||
+    output.terminalInterruption ||
+    output.yielded ||
+    backend.sessionMode === "none" ||
+    !backend.forkArg ||
+    !backend.resumeAtArg
+  ) {
+    return undefined;
+  }
+  return {
+    provider: normalizeProviderId(context.params.provider),
+    sessionId,
+    checkpointId,
+    compat: hashCliSessionResumeCompat({
+      authProfileId: context.effectiveAuthProfileId,
+      authEpoch: context.authEpoch,
+      authEpochVersion: context.authEpochVersion,
+      cwdHash: context.cwdHash,
+    }),
+  };
+}
+
 export async function persistCliAssistantTranscript(params: {
   runParams: RunCliAgentParams;
   text: string;
@@ -164,6 +212,8 @@ export async function persistCliAssistantTranscript(params: {
   /** Held answers commit before the final run-owned row and retain their own retry identity. */
   interim?: true;
   interimReplies?: CliOutput["interimNativeReplies"];
+  /** Native checkpoint after this reply, so a later history cut can fork the session here. */
+  resumePoint?: CliSessionResumePoint;
 }): Promise<{
   owned: boolean;
   idempotencyKey?: string;
@@ -242,9 +292,6 @@ export async function persistCliAssistantTranscript(params: {
           : null;
       },
       message: {
-        ...(params.nativeIdentity
-          ? { __openclaw: { importedFrom: "claude-cli", ...params.nativeIdentity } }
-          : {}),
         ...buildAssistantMessage({
           model: {
             api: "cli",
@@ -255,6 +302,19 @@ export async function persistCliAssistantTranscript(params: {
           stopReason: params.stopReason,
           usage: buildCliAssistantTranscriptUsage(params.usage, params.turnUsage),
         }),
+        // The native identity and the resume checkpoint share one metadata envelope.
+        ...(params.nativeIdentity || params.resumePoint
+          ? {
+              __openclaw: {
+                ...(params.nativeIdentity
+                  ? { importedFrom: "claude-cli", ...params.nativeIdentity }
+                  : {}),
+                ...(params.resumePoint
+                  ? { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint }
+                  : {}),
+              },
+            }
+          : {}),
         // A paused turn owns visible progress, not a final answer. Keep the
         // existing keyed-segment contract without hiding narration or media.
         ...(params.yielded && params.stopReason === "stop"
