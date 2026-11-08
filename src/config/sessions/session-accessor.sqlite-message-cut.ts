@@ -119,6 +119,7 @@ export async function mutateSqliteSessionAtMessage(
     mode === "fork" ? normalizeStoreSessionKey(params.targetKey ?? params.sessionKey) : sourceKey;
   const intent: SessionMessageCutIntent = {
     canonicalSourceKey,
+    ...(params.cliForkProviders?.length ? { cliForkProviders: [...params.cliForkProviders] } : {}),
     creation: params.creation ? structuredClone(params.creation) : undefined,
     forkWorkspace: params.forkWorkspace ? structuredClone(params.forkWorkspace) : undefined,
     entryId: params.entryId,

@@ -38,6 +38,7 @@ import {
   finalizeCliContextEngineTurn,
   persistApprovedCliUserTurnTranscript,
   persistCliAssistantTranscript,
+  resolveCliTranscriptResumePoint,
   persistCliRunBlock,
   resolveCliAssistantStopReason,
   runCliAgentEndHook,
@@ -613,6 +614,12 @@ async function runPreparedCliAgentOwned(
           turnUsage: output.diagnosticUsage,
           stopReason: resolveCliAssistantStopReason(output),
           yielded: output.yielded,
+          resumePoint: resolveCliTranscriptResumePoint({
+            context,
+            output,
+            cliSessionId: effectiveCliSessionId,
+            bindingKept: !sessionBindingDisabled && bindingFlushOk,
+          }),
         });
         const runResult = buildCliRunResult({
           ...resultContext,

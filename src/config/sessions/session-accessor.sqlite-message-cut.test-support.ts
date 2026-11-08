@@ -64,7 +64,9 @@ export function useSessionMessageCutFixtures() {
     return scope;
   }
 
-  async function createSession(options: { activeLeafTarget?: string; incognito?: boolean } = {}) {
+  async function createSession(
+    options: { activeLeafTarget?: string; incognito?: boolean; cliResumePoints?: boolean } = {},
+  ) {
     const stateDir = tempDirs.make("openclaw-message-cut-");
     const env = { ...process.env, OPENCLAW_STATE_DIR: stateDir };
     const sessionId = "message-cut-source";
@@ -104,7 +106,21 @@ export function useSessionMessageCutFixtures() {
     await appendTranscriptEvent(scope, sessionHeader(sessionId, new Date(startedAt).toISOString()));
     const messages = [
       message("user-1", null, { role: "user", content: "first prompt" }),
-      message("assistant-1", "user-1", { role: "assistant", content: "first answer" }),
+      message("assistant-1", "user-1", {
+        role: "assistant",
+        content: "first answer",
+        ...(options.cliResumePoints
+          ? {
+              __openclaw: {
+                cliResume: {
+                  provider: "claude-cli",
+                  sessionId: "claude-conversation",
+                  checkpointId: "native-assistant-1",
+                },
+              },
+            }
+          : {}),
+      }),
       message("user-2", "assistant-1", {
         role: "user",
         content: [
