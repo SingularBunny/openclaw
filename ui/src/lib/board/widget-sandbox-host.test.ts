@@ -227,6 +227,25 @@ describe("BoardWidgetSandboxHost", () => {
     rendered();
     expect(f.onRendered).toHaveBeenCalledOnce();
   });
+  it("reports rejected dashboard storage requests so the frame can show a notice", async () => {
+    const onStorageFailure = vi.fn();
+    const c = client();
+    const f = await readyHost({ client: c, onStorageFailure });
+    const port = await f.port();
+    await rejectRequest(
+      port,
+      request("storage-request", "storage.set", { key: "count", value: "1" }),
+      expect.stringContaining("not available on dashboards") as unknown as string,
+    );
+    await reply(port, state("state-request", "ok"));
+    expect(onStorageFailure.mock.calls).toEqual([
+      ["set", expect.stringContaining("widget storage is not available on dashboards")],
+    ]);
+    expect(c.request).not.toHaveBeenCalledWith(
+      expect.stringContaining("storage"),
+      expect.anything(),
+    );
+  });
   it("reports transient document failures separately from authorization", async () => {
     const f = createHost({ client: client() }, htmlFetch("unavailable", { status: 503 }));
     f.ready();

@@ -93,7 +93,10 @@ describe("renderInboundDocumentContext with plugin document extractors", () => {
   });
 
   it("extracts a docx through a registered extractor", async () => {
-    const extract = vi.fn(async () => ({ text: "Quarterly plan: ship F20.", images: [] }));
+    const extract = vi.fn<PluginDocumentExtractorEntry["extract"]>(async () => ({
+      text: "Quarterly plan: ship F20.",
+      images: [],
+    }));
     mocks.extractors = [officeExtractor(extract)];
 
     const context = await renderDocx();
