@@ -98,6 +98,7 @@ export function createPluginRecord(params: {
     cliBackendIds: [],
     providerIds: [...(params.providerIds ?? [])],
     ...createManifestProviderIdLists(params.contracts),
+    documentExtractorIds: [...(params.contracts?.documentExtractors ?? [])],
     contextEngineIds: [],
     declaredContextEngineIds: params.declaredContextEngineIds,
     ...(params.turnHandover ? { turnHandover: true } : {}),
