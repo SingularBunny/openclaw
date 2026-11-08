@@ -168,6 +168,17 @@ export const ChatHistoryActivitySchema = closedObject({
 export type ChatHistoryActivity = Static<typeof ChatHistoryActivitySchema>;
 
 /**
+ * `chat.prompt_suggestion` event and latest-per-session history field: the backend's
+ * predicted next user prompt (Claude Code `--prompt-suggestions`). Presentation only;
+ * it is never part of the transcript.
+ */
+export const ChatPromptSuggestionSchema = closedObject({
+  sessionKey: NonEmptyString,
+  runId: Type.Optional(NonEmptyString),
+  text: Type.String({ minLength: 1, maxLength: 2_000 }),
+});
+
+/**
  * Bounded forward catch-up response. Clients replay `messages` as `session.message`
  * payloads. There is no continuation loop: more than 200 raw events or the byte
  * budget returns `reset`, and the client fetches a fresh tail page.
@@ -182,6 +193,7 @@ export const ChatHistoryDeltaResultSchema = closedObject({
   stateRevision: Type.Optional(ChatHistoryParamsSchema.properties.knownState),
   agentsList: Type.Optional(Type.Unknown()),
   inFlightRun: Type.Optional(Type.Unknown()),
+  promptSuggestion: Type.Optional(ChatPromptSuggestionSchema),
   metadata: Type.Optional(Type.Unknown()),
   pendingInputs: Type.Optional(ChatPendingInputsPageSchema),
   inputReceipts: Type.Optional(ChatInputReceiptsSchema),
@@ -599,6 +611,7 @@ export const ChatEventSchema = Type.Union([
 export type ChatHistoryParams = Static<typeof ChatHistoryParamsSchema>;
 export type ChatStartupParams = Static<typeof ChatStartupParamsSchema>;
 export type ChatHistoryDeltaResult = Static<typeof ChatHistoryDeltaResultSchema>;
+export type ChatPromptSuggestion = Static<typeof ChatPromptSuggestionSchema>;
 export type ChatHistoryResetResult = Static<typeof ChatHistoryResetResultSchema>;
 export type ChatHistoryCursorResult = Static<typeof ChatHistoryCursorResultSchema>;
 export type ChatMetadataParams = Static<typeof ChatMetadataParamsSchema>;
