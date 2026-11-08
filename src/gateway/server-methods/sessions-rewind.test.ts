@@ -510,6 +510,67 @@ describe("session message-cut methods", () => {
     });
   });
 
+  it("keeps a fork-capable native CLI session at the rewound checkpoint", async () => {
+    const registry = createEmptyPluginRegistry();
+    registry.cliBackends.push({
+      pluginId: "anthropic",
+      source: "test",
+      backend: {
+        id: "claude-cli",
+        config: {
+          command: "claude",
+          forkArg: "--fork-session",
+          resumeAtArg: "--resume-session-at",
+        },
+      },
+    });
+    setActivePluginRegistry(registry);
+    await patchSessionEntryCore({ agentId: "main", sessionKey }, () => ({
+      cliSessionBindings: { "claude-cli": { sessionId: "native-session", authEpochVersion: 2 } },
+    }));
+    const scope = { agentId: "main", sessionId: sourceSessionId, sessionKey };
+    await appendTranscriptMessage(scope, {
+      eventId: "checkpoint-entry",
+      parentId: "assistant-entry",
+      message: {
+        role: "assistant",
+        content: "native answer",
+        __openclaw: {
+          cliResume: {
+            provider: "claude-cli",
+            sessionId: "native-session",
+            checkpointId: "native-assistant-uuid",
+          },
+        },
+      },
+    });
+    await appendTranscriptMessage(scope, {
+      eventId: "edited-entry",
+      parentId: "checkpoint-entry",
+      message: { role: "user", content: "edit this instead" },
+    });
+    await appendTranscriptEvent(scope, {
+      type: "leaf",
+      id: "edited-leaf",
+      parentId: "edited-entry",
+      targetId: "edited-entry",
+    });
+    await waitForSessionTranscriptIndexReconcile({ agentId: "main" });
+
+    const rewind = await invoke("sessions.rewind", "edited-entry");
+
+    expect(rewind).toHaveBeenCalledWith(true, { editorText: "edit this instead" }, undefined);
+    const entry = await readSessionEntryReadOnlyInWorker({ agentId: "main", sessionKey });
+    expect(entry?.cliSessionBindings).toEqual({
+      "claude-cli": expect.objectContaining({
+        sessionId: "native-session",
+        resumeCheckpointId: "native-assistant-uuid",
+        forkNextResume: true,
+        authEpochVersion: 2,
+      }),
+    });
+  });
+
   it("returns a typed validation error for a missing message", async () => {
     invalid(await invoke("sessions.rewind", "missing"), "message entry not found");
   });

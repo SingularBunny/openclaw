@@ -1,6 +1,6 @@
 import { readInterSessionPromptEnvelope } from "../sessions/input-provenance.js";
 
-type CliSessionContentDriftReason = "system-prompt" | "prompt-tools";
+type CliSessionContentDriftReason = "system-prompt" | "prompt-tools" | "mcp";
 
 const CLI_SESSION_DRIFT_NOTE_PREFIX =
   "OpenClaw resumed this CLI session after prompt content changed.";
@@ -14,6 +14,8 @@ const CLI_SESSION_DRIFT_NOTES = [
   // Older native transcripts still contain tool-drift notes; strip them on display.
   buildCliSessionDriftNote(["prompt-tools"]),
   buildCliSessionDriftNote(["system-prompt", "prompt-tools"]),
+  buildCliSessionDriftNote(["mcp"]),
+  buildCliSessionDriftNote(["system-prompt", "mcp"]),
 ];
 
 // Match only complete notes the producer emits; similar native user text is not context.
