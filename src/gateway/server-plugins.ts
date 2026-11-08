@@ -43,6 +43,7 @@ import { APPROVALS_SCOPE, normalizeOperatorScopeList } from "./operator-scopes.j
 import type { GatewayNodeInvokeStream } from "./server-methods/shared-types.js";
 import type { GatewayContextResolver, GatewayRequestHandler } from "./server-methods/types.js";
 import { appendTrustedPluginAgentMessage } from "./server-plugin-agent-message.js";
+import { isPluginGatewayMethodGranted } from "./server-plugin-gateway-grants.js";
 import { resolveTrustedPluginGitHubAccount } from "./server-plugin-github-account.js";
 import {
   dispatchGatewayMethodInProcess,
@@ -94,14 +95,17 @@ export async function dispatchTrustedPluginGatewayMethod<T>(
 ): Promise<T> {
   const scope = getPluginRuntimeGatewayRequestScope();
   const pluginId = scope?.pluginId?.trim();
-  if (!canTrustedOfficialPluginRequestScopes(scope ?? {})) {
+  const trusted = canTrustedOfficialPluginRequestScopes(scope ?? {});
+  // Fork: the operator may grant other plugins exact methods (OPENCLAW_PLUGIN_GATEWAY_METHODS).
+  if (!trusted && !isPluginGatewayMethodGranted(pluginId, method)) {
     throw new Error(
       `Gateway requests are only available to bundled or trusted official plugins. ${
         pluginId ? `Plugin "${pluginId}" is neither.` : "This call carries no plugin identity."
       } See https://docs.openclaw.ai/plugins/sdk-runtime#api-runtime-gateway`,
     );
   }
-  const syntheticScopes = normalizeOperatorScopeList(options?.scopes);
+  // Granted plugins keep the default operator.write ceiling: requested scopes are ignored.
+  const syntheticScopes = trusted ? normalizeOperatorScopeList(options?.scopes) : undefined;
   let requestParams = params;
   const expectedSession = options?.sessionDeliveryGeneration;
   if (expectedSession) {
