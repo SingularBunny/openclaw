@@ -9,6 +9,7 @@ import {
   type SessionsRewindParams,
 } from "../../../packages/gateway-protocol/src/index.js";
 import type { ErrorCode } from "../../../packages/gateway-protocol/src/schema/error-codes.js";
+import { cliBackendSupportsSessionFork } from "../../agents/cli-backends.js";
 import type {
   SessionBranchSwitchMutationResult,
   SessionMessageCutMutationResult,
@@ -19,6 +20,7 @@ import {
   getSessionActorStorageBinding,
   runWithSessionActorStorage,
 } from "../../config/sessions/session-actor-storage-binding.js";
+import type { SessionEntry } from "../../config/sessions/types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { isIncognitoSessionKey } from "../../routing/session-key.js";
 import { ModelSelectionLockedError } from "../../sessions/model-overrides.js";
@@ -496,6 +498,7 @@ async function mutatePreparedSessionAtMessage({
           : undefined;
       const mutationParams = {
         agentId: current.agentId,
+        cliForkProviders: resolveCliForkProviders(current.entry, cfg),
         commitGuard: assertMutationCurrent,
         sessionKey: current.canonicalKey,
         sessionStoreKey: current.canonicalKey,
@@ -707,4 +710,14 @@ async function mutatePreparedSessionAtMessage({
       }
     },
   });
+}
+
+/** Bound native CLI sessions that a message cut can fork at an earlier checkpoint. */
+function resolveCliForkProviders(
+  entry: Pick<SessionEntry, "cliSessionBindings">,
+  cfg: OpenClawConfig,
+): string[] {
+  return Object.keys(entry.cliSessionBindings ?? {}).filter((provider) =>
+    cliBackendSupportsSessionFork(provider, cfg),
+  );
 }

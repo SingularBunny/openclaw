@@ -107,3 +107,42 @@ it.each([
   await importItems([{ type }]);
   expect(appended.map((message) => message.content)).toEqual(content);
 });
+
+it("marks native assistant text rows as resume points of the adopted thread", async () => {
+  const items = [
+    parseTranscriptLine(
+      Buffer.from(
+        JSON.stringify({
+          type: "assistant",
+          uuid: "native-tool-call",
+          message: { role: "assistant", content: [{ type: "tool_use", name: "Read", input: {} }] },
+        }),
+      ),
+    ),
+    parseTranscriptLine(
+      Buffer.from(
+        JSON.stringify({
+          type: "assistant",
+          uuid: "native-answer",
+          message: { role: "assistant", content: [{ type: "text", text: "done" }] },
+        }),
+      ),
+    ),
+  ].filter((item) => item !== undefined);
+
+  await importItems(items);
+
+  const points = appended.map((message) => message["__openclaw"]);
+  expect(points).toEqual(
+    expect.arrayContaining([
+      {
+        cliResume: {
+          provider: "claude-cli",
+          sessionId: "thread-1",
+          checkpointId: "native-answer",
+        },
+      },
+    ]),
+  );
+  expect(points.filter(Boolean)).toHaveLength(1);
+});

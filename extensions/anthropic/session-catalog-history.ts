@@ -9,6 +9,7 @@ import type { ClaudeTranscriptItem } from "./session-catalog-transcript.js";
 function importedClaudeMessage(
   item: ClaudeTranscriptItem,
   fallbackTimestamp: number,
+  threadId: string,
 ): AgentMessage | undefined {
   const timestamp = parseDateStringTimestampMs(item.timestamp) ?? fallbackTimestamp;
   const importedText = item.text?.trim();
@@ -50,6 +51,20 @@ function importedClaudeMessage(
     model: "native-history",
     usage: createEmptyTransportUsage(),
     stopReason: "stop",
+    // A native assistant text row is a valid `--resume-session-at` point of the adopted thread.
+    // Core reads `__openclaw.cliResume` when a rewind or branch switch ends at this row; it is
+    // honored only while the chat is still bound to this same native session.
+    ...(item.type === "agentMessage" && item.uuid
+      ? {
+          __openclaw: {
+            cliResume: {
+              provider: CLAUDE_CLI_BACKEND_ID,
+              sessionId: threadId,
+              checkpointId: item.uuid,
+            },
+          },
+        }
+      : {}),
   } as AgentMessage;
 }
 
@@ -66,7 +81,7 @@ export async function importClaudeHistory(params: {
   const items = params.items.toReversed();
   await withSessionTranscriptWrite(params, async (transcript) => {
     for (const [index, item] of items.entries()) {
-      const imported = importedClaudeMessage(item, Date.now() + index);
+      const imported = importedClaudeMessage(item, Date.now() + index, params.threadId);
       if (!imported) {
         continue;
       }
