@@ -24,6 +24,7 @@ export const pluginArrays = [
   "musicGenerationProviders",
   "webFetchProviders",
   "webSearchProviders",
+  "documentExtractors",
   "migrationProviders",
   "codexAppServerExtensionFactories",
   "agentToolResultMiddlewareOwners",

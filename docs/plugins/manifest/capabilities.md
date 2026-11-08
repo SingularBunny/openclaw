@@ -57,33 +57,33 @@ model tools or replace host tool authorization. See [Code Mode executors](/tools
 
 Each list is optional. For `speechProviders` and `realtimeVoiceProviders`, list the primary provider ID first, followed by any aliases scoped to that capability:
 
-| Field                            | Type       | What it means                                                                                                                        |
-| -------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `embeddedExtensionFactories`     | `string[]` | Codex app-server extension factory ids. `codex-app-server` is the only accepted id.                                                  |
-| `agentToolResultMiddleware`      | `string[]` | Runtime ids this plugin may register tool-result middleware for.                                                                     |
-| `trustedToolPolicies`            | `string[]` | Plugin-local trusted pre-tool policy ids an installed plugin may register. Bundled plugins may register policies without this field. |
-| `externalAuthProviders`          | `string[]` | Provider ids whose external auth profile hook this plugin owns.                                                                      |
-| `embeddingProviders`             | `string[]` | General embedding provider ids this plugin owns for reusable vector embedding use, including memory.                                 |
-| `decisionProviders`              | `string[]` | Typed decision providers registered with `api.registerDecisionProvider`; selected through `decisionModel`.                           |
-| `speechProviders`                | `string[]` | Speech provider ids this plugin owns.                                                                                                |
-| `realtimeTranscriptionProviders` | `string[]` | Realtime-transcription provider ids this plugin owns.                                                                                |
-| `realtimeVoiceProviders`         | `string[]` | Realtime-voice provider ids this plugin owns.                                                                                        |
-| `mediaUnderstandingProviders`    | `string[]` | Media-understanding provider ids this plugin owns.                                                                                   |
-| `transcriptSourceProviders`      | `string[]` | Transcript source provider ids this plugin owns.                                                                                     |
-| `documentExtractors`             | `string[]` | Document (for example PDF) extractor provider ids this plugin owns.                                                                  |
-| `imageGenerationProviders`       | `string[]` | Image-generation provider ids this plugin owns.                                                                                      |
-| `videoGenerationProviders`       | `string[]` | Video-generation provider ids this plugin owns.                                                                                      |
-| `musicGenerationProviders`       | `string[]` | Music-generation provider ids this plugin owns.                                                                                      |
-| `webContentExtractors`           | `string[]` | Web-page content-extraction provider ids this plugin owns.                                                                           |
-| `webFetchProviders`              | `string[]` | Web-fetch provider ids this plugin owns.                                                                                             |
-| `webSearchProviders`             | `string[]` | Web-search provider ids this plugin owns.                                                                                            |
-| `workerProviders`                | `string[]` | Cloud-worker provider ids this plugin owns for provisioning and profile-backed lease lifecycle.                                      |
-| `workerProfileSuggestions`       | `string[]` | Worker provider ids with a lightweight [profile suggestion artifact](/plugins/manifest#cloud-worker-profile-suggestions).            |
-| `storageProviders`               | `string[]` | Storage transport ids registered with `api.registerStorageProvider`; selected by named storage locations.                            |
-| `usageProviders`                 | `string[]` | Provider ids whose usage-auth and usage-snapshot hooks this plugin owns.                                                             |
-| `migrationProviders`             | `string[]` | Import provider ids this plugin owns for [`openclaw migrate`](/cli/migrate).                                                         |
-| `gatewayMethodDispatch`          | `string[]` | Reserved entitlement for authenticated plugin HTTP routes that dispatch Gateway methods in-process.                                  |
-| `tools`                          | `string[]` | Agent tool names this plugin owns.                                                                                                   |
+| Field                            | Type       | What it means                                                                                                                             |
+| -------------------------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `embeddedExtensionFactories`     | `string[]` | Codex app-server extension factory ids. `codex-app-server` is the only accepted id.                                                       |
+| `agentToolResultMiddleware`      | `string[]` | Runtime ids this plugin may register tool-result middleware for.                                                                          |
+| `trustedToolPolicies`            | `string[]` | Plugin-local trusted pre-tool policy ids an installed plugin may register. Bundled plugins may register policies without this field.      |
+| `externalAuthProviders`          | `string[]` | Provider ids whose external auth profile hook this plugin owns.                                                                           |
+| `embeddingProviders`             | `string[]` | General embedding provider ids this plugin owns for reusable vector embedding use, including memory.                                      |
+| `decisionProviders`              | `string[]` | Typed decision providers registered with `api.registerDecisionProvider`; selected through `decisionModel`.                                |
+| `speechProviders`                | `string[]` | Speech provider ids this plugin owns.                                                                                                     |
+| `realtimeTranscriptionProviders` | `string[]` | Realtime-transcription provider ids this plugin owns.                                                                                     |
+| `realtimeVoiceProviders`         | `string[]` | Realtime-voice provider ids this plugin owns.                                                                                             |
+| `mediaUnderstandingProviders`    | `string[]` | Media-understanding provider ids this plugin owns.                                                                                        |
+| `transcriptSourceProviders`      | `string[]` | Transcript source provider ids this plugin owns.                                                                                          |
+| `documentExtractors`             | `string[]` | Document (for example PDF) extractor provider ids this plugin owns. Installed plugins register them with `api.registerDocumentExtractor`. |
+| `imageGenerationProviders`       | `string[]` | Image-generation provider ids this plugin owns.                                                                                           |
+| `videoGenerationProviders`       | `string[]` | Video-generation provider ids this plugin owns.                                                                                           |
+| `musicGenerationProviders`       | `string[]` | Music-generation provider ids this plugin owns.                                                                                           |
+| `webContentExtractors`           | `string[]` | Web-page content-extraction provider ids this plugin owns.                                                                                |
+| `webFetchProviders`              | `string[]` | Web-fetch provider ids this plugin owns.                                                                                                  |
+| `webSearchProviders`             | `string[]` | Web-search provider ids this plugin owns.                                                                                                 |
+| `workerProviders`                | `string[]` | Cloud-worker provider ids this plugin owns for provisioning and profile-backed lease lifecycle.                                           |
+| `workerProfileSuggestions`       | `string[]` | Worker provider ids with a lightweight [profile suggestion artifact](/plugins/manifest#cloud-worker-profile-suggestions).                 |
+| `storageProviders`               | `string[]` | Storage transport ids registered with `api.registerStorageProvider`; selected by named storage locations.                                 |
+| `usageProviders`                 | `string[]` | Provider ids whose usage-auth and usage-snapshot hooks this plugin owns.                                                                  |
+| `migrationProviders`             | `string[]` | Import provider ids this plugin owns for [`openclaw migrate`](/cli/migrate).                                                              |
+| `gatewayMethodDispatch`          | `string[]` | Reserved entitlement for authenticated plugin HTTP routes that dispatch Gateway methods in-process.                                       |
+| `tools`                          | `string[]` | Agent tool names this plugin owns.                                                                                                        |
 
 Document extractors may return optional completeness metadata with their text and images. `pages.processed` is a bounded list of 1-based pages actually processed; `pages.total` is the document page count; `pages.selection` distinguishes automatic limits from an explicit request; and `pages.truncated`, `textTruncated`, and `imagesTruncated` report known omissions. `maxPages` is a count cap; automatic page choice remains extractor-owned, while `pageNumbers` restricts an explicit selection. Omit `metadata` when the extractor cannot establish these facts; do not infer completeness downstream.
 

@@ -102,6 +102,7 @@ export function createPluginRecord(params: {
     webFetchProviderIds: [...(params.contracts?.webFetchProviders ?? [])],
     webSearchProviderIds: [...(params.contracts?.webSearchProviders ?? [])],
     migrationProviderIds: [...(params.contracts?.migrationProviders ?? [])],
+    documentExtractorIds: [...(params.contracts?.documentExtractors ?? [])],
     contextEngineIds: [],
     agentHarnessIds: [],
     cliCommands: [],

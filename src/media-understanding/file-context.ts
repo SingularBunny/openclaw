@@ -8,7 +8,10 @@ import type { MsgContext } from "../auto-reply/templating.js";
 import type { OpenClawConfig } from "../config/types.js";
 import { logVerbose, shouldLogVerbose } from "../globals.js";
 import { renderFileContextBlock } from "../media/file-context.js";
-import { extractFileContentFromBuffer } from "../media/input-files.js";
+import {
+  extractFileContentFromBuffer,
+  extractPluginDocumentFromBuffer,
+} from "../media/input-files.js";
 import type { MediaFact } from "../media/media-facts.js";
 import { classifyMediaReferenceSource } from "../media/media-reference.js";
 import { resolveAttachmentKind } from "./attachments.js";
@@ -133,6 +136,34 @@ async function classifyFileAttachment(params: {
         filename,
         mimeType: mimeType ?? binaryMime,
       };
+    }
+    // Office and other non-PDF documents reach the model as text when an enabled
+    // plugin extractor declares their MIME; otherwise the self-serve marker stays.
+    if (classification.class === "document") {
+      const extracted = await extractPluginDocumentFromBuffer({
+        buffer: Buffer.from(bufferResult.buffer),
+        filename: bufferResult.fileName,
+        mimeTypes: [binaryMime, mimeType].filter((entry): entry is string => Boolean(entry)),
+        limits,
+        config: cfg,
+      }).catch((err: unknown) => {
+        if (shouldLogVerbose()) {
+          logVerbose(`media: document extractor failed index=${attachment.index}: ${String(err)}`);
+        }
+        return null;
+      });
+      params.assertCurrent?.();
+      if (extracted) {
+        return {
+          outcome: resolveFileExtractionOutcome({
+            text: extracted.text?.trim(),
+            images: extracted.images,
+            metadata: extracted.metadata,
+          }),
+          filename,
+          mimeType: binaryMime,
+        };
+      }
     }
     return {
       outcome: {
