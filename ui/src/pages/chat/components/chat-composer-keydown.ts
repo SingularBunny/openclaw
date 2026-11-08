@@ -28,6 +28,9 @@ type ComposerKeyDownDeps = {
   showAbortableUi: boolean;
   alternateFollowUpMode?: ChatFollowUpMode;
   goalComposer: GoalComposer;
+  /** Claude Code's predicted next prompt (fork); Tab accepts it and Escape dismisses it. */
+  promptSuggestion?: string | null;
+  dismissPromptSuggestion?: () => void;
 };
 
 export function createComposerKeyDownHandler({
@@ -44,6 +47,8 @@ export function createComposerKeyDownHandler({
   showAbortableUi,
   alternateFollowUpMode,
   goalComposer,
+  promptSuggestion,
+  dismissPromptSuggestion,
 }: ComposerKeyDownDeps): (event: KeyboardEvent) => void {
   return (event) => {
     // The handler only ever binds to the composer textarea; narrowing here
@@ -91,7 +96,7 @@ export function createComposerKeyDownHandler({
       return;
     }
 
-    if (prediction?.text && !target.value) {
+    if ((prediction?.text || promptSuggestion) && !target.value) {
       if (
         event.key === "Tab" &&
         !event.shiftKey &&
@@ -105,7 +110,11 @@ export function createComposerKeyDownHandler({
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        prediction.dismiss();
+        if (prediction?.text) {
+          prediction.dismiss();
+        } else {
+          dismissPromptSuggestion?.();
+        }
         return;
       }
     }

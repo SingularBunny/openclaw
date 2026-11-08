@@ -474,6 +474,19 @@ unavailable selected model skips the suggestion rather than silently switching
 to another model. Enabling the experiment can add model usage and cost; existing
 model configuration, provider credentials, and session access rules still apply.
 
+## Prompt suggestions
+
+Sessions that run on the Claude CLI backend (`claude-cli`), including chats imported from Claude
+Desktop or Claude Code, show Claude Code's prediction of your next prompt in the
+empty composer once the turn finishes, using the same surface as composer predictions (a Labs
+prediction, when one is showing, takes precedence). Press **Tab** or **Use suggestion** to insert it
+as your draft (one undo step removes it again), or **Escape** to dismiss it. Typing, sending, or a new run in the session also
+dismisses it. The prediction arrives a moment after the reply and may not arrive at all; it is
+never added to the transcript. The Gateway keeps the latest prediction per idle session in memory,
+so reloading the chat shows it again until a new run starts. Set
+`OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS=0` to turn predictions off (see
+[Environment variables](/help/environment#worker-and-catalog-limits)).
+
 ## Composer capability menu
 
 Select **+** beside the chat composer to open attachments and session capabilities in one menu:

@@ -267,6 +267,11 @@ export type CliBackendExecuteContext = {
   registerTurnInterrupt?: (interrupt: CliBackendTurnInterrupt) => void;
   /** Optional read-only assessment outside the prompt queue; the host owns its time bound. */
   registerTurnStatus?: (status: CliBackendTurnStatus) => void;
+  /**
+   * Reports the backend's predicted next user prompt for this session. Native
+   * runtimes emit it after the turn's result, so it stays callable after the run closes.
+   */
+  onPromptSuggestion?: (text: string) => void;
   /** Closure-bound approval capability; retained copies fail after the run closes. */
   requestToolPermission: (
     request: CliBackendToolPermissionRequest,
