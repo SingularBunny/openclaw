@@ -14,6 +14,7 @@ import type {
 import type { SessionCapability, SessionMessageSubscription } from "../../lib/sessions/index.ts";
 import type { ChatHistoryCursor, ChatHistoryPagination } from "./chat-history-pagination.ts";
 import type { ChatPendingInputView } from "./chat-pending-inputs.types.ts";
+import type { ChatPromptSuggestionState } from "./chat-prompt-suggestion.ts";
 import type { ChatRunStartupState } from "./chat-run-startup.ts";
 import type { ChatRunError, LocalTerminalReconcile } from "./run-lifecycle.ts";
 import type { ChatMessageCache } from "./session-message-cache.ts";
@@ -95,6 +96,8 @@ export type ChatState = StreamCausalBoundaryState & {
   chatRunError?: ChatRunError | null;
   lastLocalTerminalReconcile?: LocalTerminalReconcile | null;
   chatReplyTarget?: ChatReplyTarget | null;
+  /** Claude Code's next-prompt prediction, shown as composer ghost text while idle. */
+  chatPromptSuggestion?: ChatPromptSuggestionState | null;
   agentsError?: string | null;
   resetChatInputHistoryNavigation?: () => void;
   assistantAgentId?: string | null;

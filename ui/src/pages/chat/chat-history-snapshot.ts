@@ -6,6 +6,7 @@ import type {
   ChatHistoryActivity,
   ChatHistoryDeltaResult as ProtocolChatHistoryDeltaResult,
   ChatHistoryResetResult,
+  ChatPromptSuggestion,
 } from "../../../../packages/gateway-protocol/src/schema/logs-chat.js";
 import type { GatewaySessionRow, GatewaySessionsDefaults } from "../../api/types.ts";
 import { t } from "../../i18n/index.ts";
@@ -53,6 +54,7 @@ export type ChatHistoryResult = {
   sessionInfo?: GatewaySessionRow;
   sessionInfoSnapshotAt?: number;
   metadata?: Partial<ChatMetadataResult>;
+  promptSuggestion?: ChatPromptSuggestion;
   inFlightRun?: {
     runId: string;
     text?: string;

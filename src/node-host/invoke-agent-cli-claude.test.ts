@@ -286,6 +286,20 @@ describe("Claude CLI node command", () => {
     await expect(decode({ argv })).rejects.toThrow(error);
   });
 
+  it("accepts the gateway's prompt-suggestions argument", async () => {
+    await expect(
+      decodeClaudeCliNodeRunParams(
+        JSON.stringify({
+          argv: ["-p", "--output-format", "stream-json", "--prompt-suggestions", "true"],
+          idleTimeoutMs: 1_000,
+          timeoutMs: 2_000,
+        }),
+      ),
+    ).resolves.toMatchObject({
+      argv: ["-p", "--output-format", "stream-json", "--prompt-suggestions", "true"],
+    });
+  });
+
   it("rejects missing cwd and non-allowlisted environment", async () => {
     const forbiddenKey = ["OPENCLAW", "GATEWAY", "TOKEN"].join("_");
     for (const [params, error] of [

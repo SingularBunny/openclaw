@@ -43,6 +43,10 @@ import {
   dismissChatError,
   resolveChatPaneFollowUpMode,
 } from "./chat-pane-state.ts";
+import {
+  activeChatPromptSuggestion,
+  dismissChatPromptSuggestion,
+} from "./chat-prompt-suggestion.ts";
 import type { ChatProviderReviewOwner } from "./chat-provider-review-controller.tsx";
 import { createChatQuestionActions } from "./chat-question-actions.ts";
 import { dismissRealtimeTalkError } from "./chat-realtime.ts";
@@ -623,6 +627,8 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
         resolveChatAgentId(state) === currentAgentId &&
         this.stageSessionCompanionAttachment(attachment, sessionKey),
       replyTarget: state.chatReplyTarget ?? null,
+      promptSuggestion: activeChatPromptSuggestion(state),
+      onDismissPromptSuggestion: () => dismissChatPromptSuggestion(state),
       onClearReply: () => setReply(null),
       onSetReply: sessionDisabledBanner ? undefined : setReply,
       replyMessageAccess: catalogKey || selectedSessionArchived ? undefined : replyMessageAccess,
