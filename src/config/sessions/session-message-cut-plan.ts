@@ -3,6 +3,7 @@ import { asOptionalRecord as asRecord } from "@openclaw/normalization-core/recor
 import { readMessageWorkContext } from "../../chat/work-context.js";
 import { assertModelSelectionUnlocked } from "../../sessions/model-overrides.js";
 import { isIncognitoSessionKey } from "../../shared/incognito-session-key.js";
+import { readCliSessionResumePoint, resumeCliSessionBindingsAt } from "./cli-session-binding.js";
 import type { TranscriptEvent } from "./session-accessor.sqlite-contract.js";
 import type { SessionMessageCutMutationResult } from "./session-accessor.types.js";
 import { findSessionTranscriptHeader } from "./session-entry-codec.js";
@@ -89,6 +90,14 @@ export function planSessionMessageCut(
     throw new Error("Repository session fork requires its own prepared workspace");
   }
 
+  const resumedCliSessionBindings = resumeCliSessionBindingsAt(
+    currentEntry,
+    readCliResumePointAtLeaf(
+      events,
+      params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
+    ),
+    (provider) => params.cliForkProviders?.includes(provider) === true,
+  );
   const nextSessionId = randomUUID();
   const header = createSessionTranscriptHeader({
     cwd: readTranscriptHeaderCwd(events),
@@ -142,8 +151,17 @@ export function planSessionMessageCut(
     compactionCount: undefined,
     transcriptByteCompactionLatch: undefined,
     memoryFlush: undefined,
-    cliSessionBindings: undefined,
-    cliSessionIds: undefined,
+    // A cut normally starts a fresh native session. When the kept branch ends at an assistant
+    // turn with a recorded native checkpoint, the next turn forks the native session there.
+    cliSessionBindings: resumedCliSessionBindings,
+    cliSessionIds: resumedCliSessionBindings
+      ? Object.fromEntries(
+          Object.entries(resumedCliSessionBindings).map(([provider, binding]) => [
+            provider,
+            binding.sessionId,
+          ]),
+        )
+      : undefined,
     claudeCliSessionId: undefined,
     agentHarnessId: undefined,
     modelSelectionLocked: undefined,
@@ -190,6 +208,21 @@ export function planSessionMessageCut(
       ...(cut?.editorMediaRefs ? { editorMediaRefs: cut.editorMediaRefs } : {}),
     },
   };
+}
+
+/** The native checkpoint of the last assistant turn on the branch ending at `leafId`. */
+function readCliResumePointAtLeaf(events: readonly TranscriptEvent[], leafId: string | null) {
+  if (!leafId) {
+    return undefined;
+  }
+  const tree = scanSessionTranscriptTree(events);
+  const lastAssistant = selectSessionTranscriptTreePathNodes(tree, leafId).findLast((node) => {
+    const record = asRecord(node.entry);
+    return record?.type === "message" && asRecord(record.message)?.role === "assistant";
+  });
+  return lastAssistant
+    ? readCliSessionResumePoint(asRecord(lastAssistant.entry)?.message)
+    : undefined;
 }
 
 function validateBranchTip(

@@ -1310,6 +1310,8 @@ async function prepareCliRunContextWithinReadFence(
               cwdHash,
               mcpConfigHash: preparedBackendFinal.mcpConfigHash,
               mcpResumeHash: preparedBackendFinal.mcpResumeHash,
+              // Claude Code reconnects to the current MCP config on every `--resume` start.
+              resumeAcrossMcpChanges: isClaudeCliBackendId(params.provider),
             })
           : params.cliSessionId
             ? { mode: "reuse", sessionId: params.cliSessionId }
@@ -1317,7 +1319,12 @@ async function prepareCliRunContextWithinReadFence(
     const backendReusableCliSession: CliReusableSession =
       reusableCliSessionCandidate.mode === "reuse-with-drift" &&
       !canTransportSystemPrompt(preparedBackendFinal.backend)
-        ? { mode: "invalidate", invalidatedReason: "system-prompt" }
+        ? {
+            mode: "invalidate",
+            invalidatedReason: reusableCliSessionCandidate.drift.reasons.includes("system-prompt")
+              ? "system-prompt"
+              : "mcp",
+          }
         : reusableCliSessionCandidate;
     const candidateClaudeCliSessionId =
       resolveCliSessionId(backendReusableCliSession)?.trim() || undefined;

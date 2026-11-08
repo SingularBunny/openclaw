@@ -316,6 +316,46 @@ describe("SQLite session message cuts", () => {
     });
   });
 
+  it("keeps the native CLI session forked at the kept branch's checkpoint", async () => {
+    const { env } = await createSession({ cliResumePoints: true });
+
+    // Without fork support the cut keeps today's fresh-session behavior.
+    const forked = await forkSessionAtMessage({
+      agentId,
+      env,
+      entryId: "user-2",
+      sessionKey,
+      targetKey: "agent:main:dashboard:message-cut-cli-fork",
+    });
+    if (forked.status !== "created") {
+      throw new Error("expected fork result");
+    }
+    expect(forked.entry.cliSessionBindings).toBeUndefined();
+
+    const rewound = await rewindSessionToMessage({
+      agentId,
+      cliForkProviders: ["claude-cli"],
+      env,
+      entryId: "user-2",
+      sessionKey,
+    });
+    if (rewound.status !== "created") {
+      throw new Error("expected rewind result");
+    }
+    const expectedBinding = {
+      sessionId: "claude-conversation",
+      resumeCheckpointId: "native-assistant-1",
+      forkNextResume: true,
+    };
+    expect(rewound.entry.cliSessionBindings).toEqual({
+      "claude-cli": expect.objectContaining(expectedBinding),
+    });
+    expect(loadSessionEntry({ agentId, env, sessionKey })?.cliSessionBindings).toEqual({
+      "claude-cli": expect.objectContaining(expectedBinding),
+    });
+    expect(rewound.entry.claudeCliSessionId).toBeUndefined();
+  });
+
   it("defers an oversized rewind projection until the reconcile worker finishes", async () => {
     const { env, scope } = await createSession();
     await appendTranscriptEvent(scope, {

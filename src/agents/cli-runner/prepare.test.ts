@@ -3760,6 +3760,42 @@ describe("prepareCliRunContext", () => {
     expect(context.reusableCliSession).toEqual(testCase.expected);
   });
 
+  it.each([
+    { provider: "claude-cli", expected: "reuse-with-drift" },
+    { provider: "other-cli", expected: "invalidate" },
+  ])("treats an MCP server set change for $provider as $expected", async (testCase) => {
+    const { dir } = fixture.session;
+    setCliBackendForPrepareTest({ id: testCase.provider });
+    setCliRunnerPrepareTestDeps({
+      claudeCliSessionTranscriptHasContent: vi.fn(async () => true),
+      claudeCliSessionTranscriptHasOrphanedToolUse: vi.fn(async () => false),
+    });
+
+    const context = await fixture.prepare({
+      sessionKey: "agent:main:telegram:direct:peer",
+      prompt: "follow-up",
+      provider: testCase.provider,
+      model: "opus",
+      cliSessionBinding: {
+        sessionId: "native-session",
+        cwdHash: hashCliSessionText(dir),
+        mcpConfigHash: "plugin-set-before-reinstall",
+        mcpResumeHash: "plugin-set-before-reinstall",
+      },
+      cliSessionId: "native-session",
+    });
+
+    expect(context.reusableCliSession).toEqual(
+      testCase.expected === "invalidate"
+        ? { mode: "invalidate", invalidatedReason: "mcp" }
+        : {
+            mode: "reuse-with-drift",
+            sessionId: "native-session",
+            drift: { reasons: expect.arrayContaining(["mcp"]) },
+          },
+    );
+  });
+
   it("preserves a Claude native-control resume when the local transcript is absent", async () => {
     setActiveNodeContexts([{ nodeId: "active-mac" }]);
     setCliBackendForPrepareTest();

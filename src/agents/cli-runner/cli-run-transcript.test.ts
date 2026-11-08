@@ -1,5 +1,9 @@
 import path from "node:path";
 import { afterAll, afterEach, expect, it, vi } from "vitest";
+import {
+  hashCliSessionResumeCompat,
+  readCliSessionResumePoint,
+} from "../../config/sessions/cli-session-binding.js";
 import { loadTranscriptEvents } from "../../config/sessions/session-accessor.js";
 import { applyAssistantDeliveryDirectives } from "../../config/sessions/transcript-assistant-delivery.js";
 import { sanitizeChatHistoryMessages } from "../../gateway/chat-display-projection.sanitize.js";
@@ -18,7 +22,10 @@ import {
 } from "../../sessions/transcript-events.js";
 import { useSessionStoreTempDirs } from "../../test-utils/session-state-cleanup.js";
 import { isIntermediateAssistantTranscriptMessage } from "../embedded-agent-runner/message-visibility.js";
-import { persistCliAssistantTranscript } from "./cli-run-transcript.js";
+import {
+  persistCliAssistantTranscript,
+  resolveCliTranscriptResumePoint,
+} from "./cli-run-transcript.js";
 
 const sessionDirs = useSessionStoreTempDirs(afterAll, "openclaw-cli-coordination-transcript-");
 afterEach(() => resetGlobalHookRunner());
@@ -172,3 +179,103 @@ it.each([
     }
   },
 );
+
+it("records the native resume point beside the CLI assistant reply", async () => {
+  const root = sessionDirs.make();
+  const target = {
+    agentId: "main",
+    sessionId: "cli-resume-point-session",
+    sessionKey: "agent:main:cli-resume-point",
+    storePath: path.join(root, "agents", "main", "agent", "openclaw-agent.sqlite"),
+  };
+  await upsertSessionEntry({
+    ...target,
+    entry: { sessionId: target.sessionId, updatedAt: Date.now() },
+  });
+  const context = {
+    params: { provider: "claude-cli" },
+    effectiveAuthProfileId: "anthropic:work",
+    authEpoch: "auth-epoch-a",
+    authEpochVersion: 2,
+    cwdHash: "cwd-a",
+    preparedBackend: {
+      backend: {
+        command: "claude",
+        forkArg: "--fork-session",
+        resumeAtArg: "--resume-session-at",
+      },
+    },
+  } as unknown as Parameters<typeof resolveCliTranscriptResumePoint>[0]["context"];
+  const resumePoint = resolveCliTranscriptResumePoint({
+    context,
+    output: { resumeCheckpointId: "native-assistant-uuid" },
+    cliSessionId: "native-session",
+    bindingKept: true,
+  });
+  expect(resumePoint).toEqual({
+    provider: "claude-cli",
+    sessionId: "native-session",
+    checkpointId: "native-assistant-uuid",
+    // Same digest the settled binding produces, so later cuts can match it.
+    compat: hashCliSessionResumeCompat({
+      authProfileId: "anthropic:work",
+      authEpoch: "auth-epoch-a",
+      authEpochVersion: 2,
+      cwdHash: "cwd-a",
+    }),
+  });
+
+  await persistCliAssistantTranscript({
+    runParams: {
+      ...target,
+      config: {},
+      sessionFile: `sqlite://agents/main/${target.sessionId}`,
+      workspaceDir: root,
+      prompt: "hello",
+      provider: "claude-cli",
+      runId: "cli-resume-point-run",
+      timeoutMs: 1_000,
+      persistAssistantTranscript: true,
+    },
+    text: "hi",
+    modelId: "claude-sonnet-4-6",
+    stopReason: "stop",
+    resumePoint,
+  });
+  const [message] = (await loadTranscriptEvents(target)).flatMap((event) =>
+    typeof event === "object" && event !== null && "message" in event ? [event.message] : [],
+  );
+  expect(readCliSessionResumePoint(message)).toEqual(resumePoint);
+  expect(readSessionTranscriptRunId(message)).toBe("cli-resume-point-run");
+});
+
+it.each([
+  { name: "an unsaved binding", bindingKept: false },
+  { name: "a missing checkpoint", output: { resumeCheckpointId: undefined } },
+  { name: "an interrupted turn", output: { terminalInterruption: { reason: "timeout" } } },
+  { name: "a yielded turn", output: { yielded: true } },
+  { name: "a backend without fork-at-checkpoint", backend: { resumeAtArg: undefined } },
+  { name: "a stateless backend", backend: { sessionMode: "none" } },
+])("records no native resume point for $name", ({ bindingKept, output, backend }) => {
+  expect(
+    resolveCliTranscriptResumePoint({
+      context: {
+        params: { provider: "claude-cli" },
+        authEpochVersion: 2,
+        preparedBackend: {
+          backend: {
+            command: "claude",
+            forkArg: "--fork-session",
+            resumeAtArg: "--resume-session-at",
+            ...backend,
+          },
+        },
+      } as unknown as Parameters<typeof resolveCliTranscriptResumePoint>[0]["context"],
+      output: { resumeCheckpointId: "checkpoint", ...output } as Parameters<
+        typeof resolveCliTranscriptResumePoint
+      >[0]["output"],
+      cliSessionId: "native-session",
+      bindingKept: bindingKept ?? true,
+    }),
+  ).toBeUndefined();
+});

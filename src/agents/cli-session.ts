@@ -181,7 +181,8 @@ type CliSessionInvalidatedReason =
   | "mcp"
   | "prompt-tools";
 
-type CliSessionContentDriftReason = "system-prompt" | "prompt-tools";
+type CliSessionContentDriftReason = "system-prompt" | "prompt-tools" | "mcp";
+type CliSessionResumeDriftReason = "system-prompt" | "mcp";
 
 export type CliSessionReuseResult =
   | { mode: "none" }
@@ -189,7 +190,7 @@ export type CliSessionReuseResult =
   | {
       mode: "reuse-with-drift";
       sessionId: string;
-      drift: { reasons: "system-prompt"[] };
+      drift: { reasons: CliSessionResumeDriftReason[] };
     }
   | { mode: "invalidate"; invalidatedReason: CliSessionInvalidatedReason };
 
@@ -205,6 +206,8 @@ const CLI_SESSION_DRIFT_NOTES = [
   // Older native transcripts still contain tool-drift notes; strip them on display.
   buildCliSessionDriftNote(["prompt-tools"]),
   buildCliSessionDriftNote(["system-prompt", "prompt-tools"]),
+  buildCliSessionDriftNote(["mcp"]),
+  buildCliSessionDriftNote(["system-prompt", "mcp"]),
 ];
 
 // Match only complete notes the producer emits; similar native user text is not context.
@@ -248,6 +251,12 @@ export function resolveCliSessionReuse(params: {
   cwdHash?: string;
   mcpConfigHash?: string;
   mcpResumeHash?: string;
+  /**
+   * The backend re-reads its MCP configuration whenever it starts a resumed process, so a changed
+   * MCP server set is soft drift rather than a session boundary. Warm processes still restart
+   * because the live-session fingerprint includes the MCP hash.
+   */
+  resumeAcrossMcpChanges?: boolean;
 }): CliSessionReuseResult {
   const binding = params.binding;
   const sessionId = normalizeOptionalString(binding?.sessionId);
@@ -294,17 +303,14 @@ export function resolveCliSessionReuse(params: {
     return { mode: "invalidate", invalidatedReason: "cwd" };
   }
   const storedMcpResumeHash = normalizeOptionalString(binding?.mcpResumeHash);
-  if (storedMcpResumeHash && currentMcpResumeHash) {
-    // Resume hashes are stricter than raw MCP config hashes: a match proves the
-    // exact resumed CLI tool topology still belongs to this session.
-    if (storedMcpResumeHash !== currentMcpResumeHash) {
-      return { mode: "invalidate", invalidatedReason: "mcp" };
-    }
-  } else {
-    const storedMcpConfigHash = normalizeOptionalString(binding?.mcpConfigHash);
-    if (storedMcpConfigHash !== currentMcpConfigHash) {
-      return { mode: "invalidate", invalidatedReason: "mcp" };
-    }
+  // Resume hashes are stricter than raw MCP config hashes: a match proves the
+  // exact resumed CLI tool topology still belongs to this session.
+  const mcpChanged =
+    storedMcpResumeHash && currentMcpResumeHash
+      ? storedMcpResumeHash !== currentMcpResumeHash
+      : normalizeOptionalString(binding?.mcpConfigHash) !== currentMcpConfigHash;
+  if (mcpChanged && params.resumeAcrossMcpChanges !== true) {
+    return { mode: "invalidate", invalidatedReason: "mcp" };
   }
 
   const storedPromptToolNamesHash = normalizeOptionalString(binding?.promptToolNamesHash);
@@ -312,9 +318,15 @@ export function resolveCliSessionReuse(params: {
     // The loopback bridge cannot notify a resumed CLI to refresh its cached tool catalog.
     return { mode: "invalidate", invalidatedReason: "prompt-tools" };
   }
+  const driftReasons: CliSessionResumeDriftReason[] = [];
   const storedExtraSystemPromptHash = normalizeOptionalString(binding?.extraSystemPromptHash);
   if (storedExtraSystemPromptHash !== currentExtraSystemPromptHash) {
-    return { mode: "reuse-with-drift", sessionId, drift: { reasons: ["system-prompt"] } };
+    driftReasons.push("system-prompt");
   }
-  return { mode: "reuse", sessionId };
+  if (mcpChanged) {
+    driftReasons.push("mcp");
+  }
+  return driftReasons.length > 0
+    ? { mode: "reuse-with-drift", sessionId, drift: { reasons: driftReasons } }
+    : { mode: "reuse", sessionId };
 }

@@ -12,6 +12,7 @@ import {
   setRuntimeConfigSnapshot,
 } from "../../config/runtime-snapshot.js";
 import type { SessionEntry } from "../../config/sessions.js";
+import { resumeCliSessionBindingsAt } from "../../config/sessions/cli-session-binding.js";
 import {
   formatSqliteSessionFileMarker,
   parseSqliteSessionFileMarker,
@@ -1246,6 +1247,45 @@ describe("CLI attempt execution", () => {
 
     expect(claudeBinding(sessionStore[sessionKey])).toBeUndefined();
     expect(claudeBinding(readSessionStore()[sessionKey])).toBeUndefined();
+  });
+
+  it("continues a rewound chat in a fork of its native session at the kept checkpoint", async () => {
+    const sessionKey = "agent:main:direct:cli-rewind-fork";
+    const cliSessionId = "rewind-source-session";
+    await writeClaudeCliAssistantTranscript(cliSessionId);
+    const sessionEntry = makeClaudeCliSessionEntry("session-cli-rewind", cliSessionId);
+    // The binding a history cut leaves behind when its kept branch ends at a recorded checkpoint.
+    sessionEntry.cliSessionBindings = resumeCliSessionBindingsAt(
+      sessionEntry,
+      { provider: "claude-cli", sessionId: cliSessionId, checkpointId: "kept-checkpoint" },
+      () => true,
+    );
+    const { sessionStore, runCli } = await createCliSession(sessionKey, sessionEntry);
+    runCliAgentMock.mockImplementationOnce(async (runArgs: RunCliAgentParams) => {
+      expect(runArgs).toMatchObject({
+        cliSessionId,
+        forkCliSessionOnResume: true,
+        cliSessionBinding: { sessionId: cliSessionId, resumeCheckpointId: "kept-checkpoint" },
+      });
+      expect(await expectDefined(runArgs.claimCliSessionFork, "fork claim")()).toBe(true);
+      await expectDefined(
+        runArgs.persistCliSessionForkSuccessor,
+        "fork successor persistence",
+      )("rewind-fork-successor");
+      expect(claudeBinding(readSessionStore()[sessionKey])).toMatchObject({
+        sessionId: "rewind-fork-successor",
+        resumeCheckpointId: "kept-checkpoint",
+      });
+      return makeCliResult("continued after rewind", "rewind-fork-successor");
+    });
+
+    await runCli();
+
+    expect(claudeBinding(sessionStore[sessionKey])?.sessionId).toBe("rewind-fork-successor");
+    expect(claudeBinding(readSessionStore()[sessionKey])).toMatchObject({
+      sessionId: "rewind-fork-successor",
+    });
+    expect(claudeBinding(readSessionStore()[sessionKey])?.forkNextResume).toBeUndefined();
   });
 
   it("preserves a restored fork marker before a successor after catalog cancellation", async () => {
