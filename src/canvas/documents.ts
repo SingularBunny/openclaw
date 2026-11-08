@@ -72,6 +72,24 @@ export function resolveCanvasDocumentsDir(stateDir = resolveStateDir()): string 
   return path.resolve(stateDir, "canvas", "documents");
 }
 
+/**
+ * Widget storage lives beside, not inside, the document directory: the
+ * document host serves every file under a document over HTTP, while widget
+ * state stays reachable only through the session-authorized Gateway API.
+ */
+export function resolveWidgetStorageDir(stateDir = resolveStateDir()): string {
+  return path.resolve(stateDir, "canvas", "widget-storage");
+}
+
+async function removeCanvasDocumentDirs(id: string, stateDir?: string): Promise<void> {
+  // Storage is retired with its document, so a recreated id starts empty.
+  await Promise.all(
+    [resolveCanvasDocumentsDir(stateDir), resolveWidgetStorageDir(stateDir)].map((dir) =>
+      fs.rm(path.join(dir, id), { recursive: true, force: true }),
+    ),
+  );
+}
+
 export async function readCanvasDocumentHtmlSource(
   documentId: string,
   options?: { stateDir?: string; maxBytes?: number },
@@ -99,6 +117,7 @@ export async function readCanvasDocumentHtmlSource(
 
 async function pruneCanvasDocumentsForScope(params: {
   documentsDir: string;
+  stateDir?: string;
   retentionScope: string;
   maxDocuments: number;
 }): Promise<void> {
@@ -135,11 +154,7 @@ async function pruneCanvasDocumentsForScope(params: {
         left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id),
     )
     .slice(0, deleteCount);
-  await Promise.all(
-    oldest.map((entry) =>
-      fs.rm(path.join(params.documentsDir, entry.id), { recursive: true, force: true }),
-    ),
-  );
+  await Promise.all(oldest.map((entry) => removeCanvasDocumentDirs(entry.id, params.stateDir)));
 }
 
 export function resolveCanvasHttpPathToLocalPath(
@@ -185,7 +200,7 @@ export async function createCanvasDocument(
     ? normalizeCanvasDocumentId(input.id)
     : `cv_${randomUUID().replaceAll("-", "")}`;
   const rootDir = path.join(resolveCanvasDocumentsDir(options?.stateDir), id);
-  await fs.rm(rootDir, { recursive: true, force: true });
+  await removeCanvasDocumentDirs(id, options?.stateDir);
   await fs.mkdir(rootDir, { recursive: true });
   const root = await fsRoot(rootDir);
   await root.write("index.html", input.html);
@@ -206,6 +221,7 @@ export async function createCanvasDocument(
     // Bounded transcript widgets cannot grow managed Canvas storage without limit.
     await pruneCanvasDocumentsForScope({
       documentsDir: resolveCanvasDocumentsDir(options.stateDir),
+      stateDir: options.stateDir,
       retentionScope: input.retentionScope,
       maxDocuments: options.maxDocumentsPerScope,
     });

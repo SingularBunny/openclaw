@@ -293,7 +293,7 @@ describe("owner catalog import display projection", () => {
       `\n<<<EXTERNAL_UNTRUSTED_CONTENT id="0123456789abcdef">>>\nSource: External\n---\n${text}\n<<<END_EXTERNAL_UNTRUSTED_CONTENT id="0123456789abcdef">>>`;
     const messages = [
       {
-        ...assistantTextMessage("This session contains imported transcript content."),
+        ...assistantTextMessage("This session contains imported transcript content.", 1),
         idempotencyKey: "catalog-preservation:notice",
       },
       {

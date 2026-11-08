@@ -731,6 +731,127 @@ describe("Canvas widget view", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
+  it("serves storage on the adopted prompt port for its own session and document", async () => {
+    const client = {
+      request: vi.fn(async (method: string) =>
+        method === "canvas.document.view" ? documentView : { value: "5" },
+      ),
+    };
+    const view = mount(client, "cv_storage");
+    const frame = await frameFor(view);
+    message(frame, {
+      method: "ui/notifications/sandbox-proxy-ready",
+      params: { sandboxUrl: frame.src },
+    });
+    await Promise.resolve();
+    let onMessage!: (event: MessageEvent) => void;
+    const postMessage = vi.fn();
+    const port = {
+      addEventListener: vi.fn((_type, handler) => {
+        onMessage = handler;
+      }),
+      start: vi.fn(),
+      postMessage,
+      close: vi.fn(),
+    } as unknown as MessagePort;
+    message(frame, { type: "openclaw:widget-prompt-offer" }, [port]);
+    // Storage does not require focus or visibility, unlike prompts.
+    view.presentationActive = false;
+    await settle(view);
+    onMessage(
+      new MessageEvent("message", {
+        data: {
+          type: "openclaw:widget-storage-request",
+          id: "storage-1",
+          method: "get",
+          params: { key: "count", docId: "cv_other" },
+        },
+      }),
+    );
+    await expect
+      .poll(() => postMessage.mock.calls.at(-1)?.[0])
+      .toEqual({
+        type: "openclaw:widget-storage-response",
+        id: "storage-1",
+        ok: true,
+        result: { value: "5" },
+      });
+    expect(client.request).toHaveBeenLastCalledWith("canvas.storage.get", {
+      sessionKey: "agent:main:widget-test",
+      docId: "cv_storage",
+      key: "count",
+    });
+    // A forged window message never reaches storage.
+    message(frame, {
+      type: "openclaw:widget-storage-request",
+      id: "forged",
+      method: "get",
+      params: { key: "count" },
+    });
+    expect(
+      client.request.mock.calls.filter(([method]) => method === "canvas.storage.get"),
+    ).toHaveLength(1);
+  });
+
+  it("shows one dismissible notice when widget storage fails", async () => {
+    const client = {
+      request: vi.fn(async (method: string) => {
+        if (method === "canvas.document.view") {
+          return documentView;
+        }
+        throw new Error("widget storage is limited to 1000 keys");
+      }),
+    };
+    const view = mount(client, "cv_storage_failure");
+    const frame = await frameFor(view);
+    message(frame, {
+      method: "ui/notifications/sandbox-proxy-ready",
+      params: { sandboxUrl: frame.src },
+    });
+    await Promise.resolve();
+    let onMessage!: (event: MessageEvent) => void;
+    const postMessage = vi.fn();
+    const port = {
+      addEventListener: vi.fn((_type, handler) => {
+        onMessage = handler;
+      }),
+      start: vi.fn(),
+      postMessage,
+      close: vi.fn(),
+    } as unknown as MessagePort;
+    message(frame, { type: "openclaw:widget-prompt-offer" }, [port]);
+    await settle(view);
+    const set = (id: string) =>
+      onMessage(
+        new MessageEvent("message", {
+          data: {
+            type: "openclaw:widget-storage-request",
+            id,
+            method: "set",
+            params: { key: "count", value: "1" },
+          },
+        }),
+      );
+    set("storage-1");
+    set("storage-2");
+    await expect.poll(() => postMessage.mock.calls.length).toBe(3);
+    await settle(view);
+    const notices = () =>
+      [...view.querySelectorAll(".board-widget__notice--dismissible")].map(
+        (node) => node.querySelector("span")?.textContent,
+      );
+    expect(notices()).toEqual([
+      "Widget state was not saved: widget storage is limited to 1000 keys",
+    ]);
+    view.querySelector<HTMLButtonElement>(".board-widget__notice--dismissible button")!.click();
+    await settle(view);
+    expect(notices()).toEqual([]);
+    set("storage-3");
+    await expect.poll(() => postMessage.mock.calls.length).toBe(4);
+    await settle(view);
+    expect(notices()).toEqual([]);
+  });
+
   it.each([
     "disconnect",
     "strict mode",
@@ -762,7 +883,10 @@ describe("Canvas widget view", () => {
     const received = vi.fn();
     view.addEventListener(WIDGET_PROMPT_EVENT, received);
     message(frame, { type: "openclaw:widget-prompt-offer" }, [port]);
-    expect(postMessage).toHaveBeenCalledWith({ type: "openclaw:widget-prompt-host-ready" });
+    expect(postMessage).toHaveBeenCalledWith({
+      type: "openclaw:widget-prompt-host-ready",
+      storage: true,
+    });
     onMessage(
       new MessageEvent("message", {
         data: { type: "openclaw:widget-prompt", prompt: "Background" },

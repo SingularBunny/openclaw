@@ -2472,6 +2472,8 @@ export const en: TranslationMap & {
       frameResolverMissing: "Widget content is unavailable.",
       sandboxUnavailable: "Widget sandbox host is unavailable.",
       runtimeError: "Script error: {message}",
+      storageSaveFailed: "Widget state was not saved: {reason}",
+      storageLoadFailed: "Widget state could not be loaded: {reason}",
       waitingForConnection: "Waiting for the connection. This view will recover automatically.",
       resourceUnavailable:
         "A widget resource could not load. Retry when the connection is available.",

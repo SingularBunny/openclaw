@@ -197,7 +197,11 @@ describe("CLI resume points", () => {
     const imported = { provider: "claude-cli", sessionId: "native-thread", checkpointId: "uuid-1" };
     const attached = {
       cliSessionBindings: {
-        "claude-cli": { sessionId: "native-thread", forceReuse: true, forkNextResume: true },
+        "claude-cli": {
+          sessionId: "native-thread",
+          forceReuse: true,
+          forkNextResume: true as const,
+        },
       },
     };
     expect(resumeCliSessionBindingsAt(attached, imported, () => true)).toEqual({

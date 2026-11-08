@@ -8,6 +8,7 @@ read_when:
   - You want widget buttons to send follow-up prompts into the chat
   - You want to theme widgets with the shared design tokens
   - You need the show_widget input, security, or retention contract
+  - You want an inline widget to keep its state across page reloads
 ---
 
 `show_widget` is a core tool that shows a self-contained HTML widget on the user's current surface. OpenClaw renders it inline in the Control UI and in iOS, Android, macOS, and Linux Quick Chat transcripts. The Linux dashboard uses the browser Control UI. In a Discord session with [Activities](/channels/discord-activities) enabled, the Discord plugin posts an **Open widget** button that launches it as an Activity.
@@ -33,7 +34,7 @@ In Control UI sessions, a Canvas widget can also be pinned to the session dashbo
 For browser embedding, the wrapper document injects six small host bridges around the widget code:
 
 - A size reporter posts the rendered content height, including child margins and floats, to the embedding chat. The chat clamps that height and fits the iframe (48 to 8000 pixels).
-- A host bridge defines a global `sendPrompt(text)` helper plus the structured `openclaw.prompt`, `openclaw.state`, `openclaw.data`, and `openclaw.cron` APIs. `sendPrompt(text)` is the fire-and-forget form of `openclaw.prompt.send`. Inline chat prompts retain their private message channel. Dashboard APIs use a view-ticket-bound request channel. See [Interactive widgets](#interactive-widgets) and [Dashboard capabilities](#dashboard-capabilities).
+- A host bridge defines a global `sendPrompt(text)` helper plus the structured `openclaw.prompt`, `openclaw.state`, `openclaw.storage`, `openclaw.data`, and `openclaw.cron` APIs. `sendPrompt(text)` is the fire-and-forget form of `openclaw.prompt.send`. Inline chat prompts and storage use their private message channel. Dashboard APIs use a view-ticket-bound request channel. See [Interactive widgets](#interactive-widgets), [Persistent widget storage](#persistent-widget-storage), and [Dashboard capabilities](#dashboard-capabilities).
 - An error reporter captures uncaught script and event-handler exceptions and unhandled promise rejections. It sends at most three distinct messages per document load, with messages capped at 500 UTF-16 units, source basenames at 200, and optional integer line and column numbers. The Control UI shows a notice and forwards one report per document and chat session per page load to the Gateway as a session wake event, with an additional shared limit of 10 reports per key per 60 seconds (up to 100 tracked keys). Reports are forwarded to the agent only for widgets rendered within ten minutes of their message. Older restored history shows the notice without waking the agent. If the session already has an active run, the event stays queued and the immediate wake retries until the session lane is free, so the model sees it on its next available turn. The wake turn runs without the originating client capabilities, so `show_widget` can be unavailable there. The report asks the model to reply with the corrected code and show it on the next turn. Native apps do not report runtime errors yet.
 - A theme bridge listens for the Control UI's current design tokens and applies them as CSS variables. It does this on load and again on every theme change.
 - A snapshot bridge renders the current widget document as a PNG when the embedding chat requests an export.
@@ -307,6 +308,50 @@ Every prompt is validated on both sides of the frame boundary:
 
 Accepted prompts appear in the transcript as regular user messages and start a normal agent turn in the session that owns the widget. There is no feedback channel into the widget: a dropped prompt fails silently, and the widget cannot read the agent's reply.
 
+## Persistent widget storage
+
+Inline Control UI widgets keep key-value state across page reloads, reconnects, and history restores through `openclaw.storage`. The API follows the shapes of the Claude artifact `window.storage` API, and the bridge also exposes it as `window.storage`, so artifact code that uses personal storage runs unchanged. Every method is asynchronous:
+
+| Method                    | Result                                                       |
+| ------------------------- | ------------------------------------------------------------ |
+| `storage.get(key)`        | `{ key, value, shared: false }`, or `null` for a missing key |
+| `storage.set(key, value)` | `{ key, value, shared: false }`                              |
+| `storage.delete(key)`     | `{ key, deleted, shared: false }`                            |
+| `storage.list(prefix?)`   | `{ keys, prefix?, shared: false }` with keys sorted          |
+
+```html
+<button id="count">0</button>
+<script>
+  const button = document.getElementById("count");
+  let count = 0;
+  openclaw.storage.get("count").then((entry) => {
+    count = Number(entry?.value ?? 0);
+    button.textContent = String(count);
+  });
+  button.onclick = () => {
+    count += 1;
+    button.textContent = String(count);
+    void openclaw.storage.set("count", String(count));
+  };
+</script>
+```
+
+- Values are strings. Store structured data with `JSON.stringify`.
+- Keys have 1 to 200 characters without whitespace, control characters, slashes, backslashes, or quotes, matching the artifact storage key rules.
+- One value is at most 256 KiB of UTF-8, and one widget stores at most 1 MiB and 1,000 keys; with 32 retained widgets per session the worst case is 32 MiB per session. [Claude artifacts](https://support.claude.com/en/articles/9487310-what-are-artifacts-and-how-do-i-use-them) allow up to 20 MB per artifact. Widget storage is smaller on purpose: it holds the UI state of one widget, not the source of truth for business data (the same split as the [OpenAI Apps SDK state guidance](https://developers.openai.com/apps-sdk/build/state-management)), and the Gateway rewrites a widget's whole namespace on each change.
+- Only personal storage exists. Passing `shared: true` rejects, because widget state never crosses sessions.
+- Each widget document may make at most 600 storage requests per rolling minute. Excess requests reject.
+- A missing key resolves to `null` instead of throwing, as Web Storage `getItem` does. Artifact code that wraps calls in `try`/`catch` and checks for `null` works either way.
+- Real failures reject: an exceeded limit, an invalid key or value, the rate limit, a disconnected Gateway, or a surface without storage. Because widget code often ignores a rejected promise, the Control UI also shows a dismissible notice under the widget, such as "Widget state was not saved: …". Repeats of the same failure show one notice, and a dismissed notice stays hidden until a later save succeeds.
+
+The [MCP Apps extension](https://modelcontextprotocol.io/extensions/apps) defines no view-state persistence; its [patterns guide](https://github.com/modelcontextprotocol/ext-apps/blob/main/docs/patterns.md) keys durable state by a per-view id on the server, which is the model used here with the widget document as that id.
+
+State belongs to one widget in one session. The Control UI binds the session and the widget document from the transcript row that hosts the frame; widget code supplies only keys and values and cannot name another widget or session. Requests travel over the same private message channel as inline prompts, and the Gateway checks the caller's access to that session before reading or writing (`canvas.storage.get` and `canvas.storage.list` need `operator.read`; `canvas.storage.set` and `canvas.storage.delete` need `operator.write`). Forking a session into a new one (**Fork from here**, `sessions.fork`, or `sessions.create` with `fork: true`) copies the parent's state for the widgets in the copied history into the child at fork time; afterwards the two sessions change it independently. If a widget document already holds state for its maximum of 8 sessions, the child starts empty for that widget. Rewind and branch switch stay in the same session and keep its state.
+
+Storage follows the widget document's lifetime. A new `show_widget` call, including one made after a rewind or edit, creates a new document with empty storage. When Canvas retires a document under its per-session retention limit, its storage is deleted with it. The data lives in the Gateway state directory under `canvas/widget-storage/`, outside the Canvas document directory that the document host serves.
+
+Storage requires a widget document created by a Gateway with this bridge. Widgets stored before it keep their original bridge and cannot use storage; ask the agent to show the widget again. Native apps, Discord Activities, and pinned dashboard widgets reject storage calls; on a dashboard the Control UI shows the same notice with the reason "widget storage is not available on dashboards". A pinned widget is a separate copy with its own identity, and the board store does not yet retire storage when a dashboard widget is replaced, renamed, or removed.
+
 ## Dashboard capabilities
 
 Pinned HTML and registered-source widgets expose one ticket-bound host API. An explicit [session permission mode](/gateway/permission-modes) determines how declared capabilities are approved: **Full access** grants them immediately. **Workspace** uses an AI reviewer and rejects anything it does not allow. **Guarded** shows an **Allow** / **Reject** card. **Read only** rejects them. Without an explicit session mode, the equivalent configured exec approval policy applies.
@@ -419,7 +464,7 @@ The iframe also follows [`gateway.controlUi.embedSandbox`](/web/control-ui/chat#
 
 The accepted WebRTC data-channel egress residual is documented in [Dashboard Architecture](/web/dashboard-architecture#modeled-residual-webrtc-data-channels).
 
-Canvas retains at most 32 widgets per session (or per agent when no session is available). Creating another widget removes the oldest document in that scope.
+Canvas retains at most 32 widgets per session (or per agent when no session is available). Creating another widget removes the oldest document in that scope, together with its [persistent storage](#persistent-widget-storage).
 
 ## Related
 

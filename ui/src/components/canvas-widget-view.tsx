@@ -18,6 +18,7 @@ import {
 import type { ApplicationContext } from "../app/context.ts";
 import { hasOperatorReadAccess } from "../app/operator-access.ts";
 import { getCanvasWidgetFrameConnectionGeneration } from "../lib/chat/canvas-widget-frame-generation.ts";
+import { serveWidgetStorageRequest } from "../lib/chat/widget-storage-bridge.ts";
 import { formatUiError } from "../lib/format-error.ts";
 import { isAwaitingGatewayFailure, isGatewayAvailable } from "../lib/gateway-availability.ts";
 import { projectGateway } from "../lib/reactive/application.ts";
@@ -34,6 +35,7 @@ import { defineSolidBridge, type SolidBridgeElement } from "../lit/solid-bridge.
 import { forwardChatWheelToTranscript } from "../pages/chat/chat-scroll-input.ts";
 import { allowWidgetPrompt, dispatchWidgetPrompt } from "./mcp-app-security.ts";
 import { resolveSandboxHostUrl } from "./sandbox-host.ts";
+import { createWidgetStorageNotice, WidgetStorageNoticeLine } from "./widget-storage-notice.tsx";
 
 type WidgetClient = NonNullable<ApplicationContext["gateway"]["snapshot"]["client"]>;
 type ViewBinding = {
@@ -118,6 +120,7 @@ class CanvasWidgetController {
   private retryTimer?: number;
   private slowTimer?: number;
   private retryDelayMs = 1_000;
+  readonly storageNotice = createWidgetStorageNotice(() => this.notify());
 
   constructor(
     private readonly props: CanvasWidgetViewProps,
@@ -180,6 +183,7 @@ class CanvasWidgetController {
     this.sandboxGeneration += 1;
     this.runtimeError = "";
     this.resourceError = false;
+    this.storageNotice.reset();
     this.binding = undefined;
     this.view = undefined;
     this.clearSandbox();
@@ -521,6 +525,18 @@ class CanvasWidgetController {
     // adopt its prompt channel only; pinning never lends them dashboard grants.
     this.promptPort = port;
     port.addEventListener("message", (message: MessageEvent) => {
+      // Storage serves this document whether or not its row is on screen. The
+      // session and document come from the validated binding, never the widget.
+      const validated = this.validated;
+      const current =
+        this.isCurrent(validated) && this.sandboxHost === host && this.promptPort === port;
+      serveWidgetStorageRequest(message.data, {
+        scope: current ? validated : undefined,
+        hasSession: Boolean(this.props.sessionKey),
+        connected: Boolean(this.context && isGatewayAvailable(this.context.gateway.snapshot)),
+        notice: this.storageNotice,
+        reply: (response) => this.promptPort === port && port.postMessage(response),
+      });
       if (
         this.props.presentationActive &&
         this.isCurrent(this.validated) &&
@@ -536,7 +552,9 @@ class CanvasWidgetController {
       }
     });
     port.start();
-    port.postMessage({ type: "openclaw:widget-prompt-host-ready" });
+    // This host answers every storage request, failures included, so the user
+    // sees why a widget without a session cannot keep its state.
+    port.postMessage({ type: "openclaw:widget-prompt-host-ready", storage: true });
   };
 }
 
@@ -694,6 +712,10 @@ export const CanvasWidgetView = defineSolidBridge<CanvasWidgetViewProps>(
                 />
               )}
             </Show>
+            <WidgetStorageNoticeLine
+              message={read().storageNotice.message}
+              onDismiss={() => controller.storageNotice.dismiss()}
+            />
           </Show>
         </Show>
       </Show>
