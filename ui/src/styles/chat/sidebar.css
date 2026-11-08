@@ -659,6 +659,11 @@ openclaw-chat-html-preview {
   overflow: auto;
 }
 
+.chat-html-preview--markdown {
+  display: block;
+  padding: 0 16px 16px;
+}
+
 .chat-html-preview__frame,
 .sidebar-pdf-preview__frame {
   display: block;

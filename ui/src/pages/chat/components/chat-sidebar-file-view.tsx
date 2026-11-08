@@ -12,6 +12,7 @@ import { LitContent } from "../../../lit/solid-content.tsx";
 import { getSafeLocalStorage } from "../../../local-storage.ts";
 import type { FileCopyAction, FileCopyFeedback } from "./chat-file-copy-controller.ts";
 import type { FileHtmlPreviewControls } from "./chat-html-preview.ts";
+import { MarkdownReader } from "./chat-markdown-reader.tsx";
 import type { FileSidebarContent, AttachmentSidebarRuntime } from "./chat-sidebar-content-types.ts";
 import { ChatSidebarEditorMenu } from "./chat-sidebar-editor-menu.tsx";
 
@@ -317,8 +318,19 @@ export function SidebarFile(props: {
       </Show>
       <Show when={props.controls?.htmlPreview}>
         {(preview) => (
-          <div class="chat-html-preview" hidden={preview().source}>
-            <LitContent value={preview().presentation} />
+          <div
+            class={{
+              "chat-html-preview": true,
+              "chat-html-preview--markdown": preview().markdown !== undefined,
+            }}
+            hidden={preview().source}
+          >
+            <Show
+              when={preview().markdown}
+              fallback={<LitContent value={preview().presentation} />}
+            >
+              {(text) => <MarkdownReader text={text()} label={props.content.name} />}
+            </Show>
           </div>
         )}
       </Show>
