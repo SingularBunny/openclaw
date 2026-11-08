@@ -13,6 +13,8 @@ import type {
 export type FileHtmlPreviewControls = {
   source: boolean;
   presentation: TemplateResult | typeof nothing;
+  /** Markdown text for the rich-text reader; the HTML frame stays empty then. */
+  markdown?: string;
   sourceFallback?: TemplateResult;
   onToggle: () => void;
 };
@@ -22,6 +24,13 @@ registerFilePreviewEnglish();
 export function isHtmlDocument(mimeType: string, filename: string): boolean {
   return (
     mimeType.split(";", 1)[0]?.trim().toLowerCase() === "text/html" || /\.html?$/i.test(filename)
+  );
+}
+
+export function isMarkdownDocument(mimeType: string, filename: string): boolean {
+  const type = mimeType.split(";", 1)[0]?.trim().toLowerCase();
+  return (
+    type === "text/markdown" || type === "text/x-markdown" || /\.(?:md|markdown)$/i.test(filename)
   );
 }
 
@@ -67,7 +76,7 @@ function renderHtmlPreview(
   `;
 }
 
-/** Owns file HTML presentation while the detail panel owns its editor and draft. */
+/** Owns file HTML and Markdown presentation while the detail panel owns its editor and draft. */
 export class FileHtmlPreviewController {
   private source = false;
   private preview: string | null = null;
@@ -83,7 +92,16 @@ export class FileHtmlPreviewController {
 
   get file() {
     const file = this.content();
-    return file?.kind === "file" && isHtmlDocument(file.mimeType ?? "", file.name) ? file : null;
+    return file?.kind === "file" &&
+      (isHtmlDocument(file.mimeType ?? "", file.name) ||
+        isMarkdownDocument(file.mimeType ?? "", file.name))
+      ? file
+      : null;
+  }
+
+  private get markdown(): boolean {
+    const file = this.file;
+    return file !== null && !isHtmlDocument(file.mimeType ?? "", file.name);
   }
 
   get showing(): boolean {
@@ -132,6 +150,14 @@ export class FileHtmlPreviewController {
     const file = this.file;
     if (!file) {
       return undefined;
+    }
+    if (this.markdown) {
+      return {
+        source: this.source,
+        onToggle: options.onToggle,
+        presentation: nothing,
+        markdown: this.preview ?? undefined,
+      };
     }
     return {
       source: this.source,

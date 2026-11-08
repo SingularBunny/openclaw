@@ -1,8 +1,5 @@
-import { createEffect, createMemo, createSignal, onCleanup, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { LazyCustomElementRequestController } from "../../../app/lazy-custom-element.ts";
-import { MarkdownBlocks } from "../../../components/markdown-blocks-owner.ts";
-import { createMarkdownRef } from "../../../components/markdown-dom-ref.ts";
-import { toSanitizedMarkdownHtml } from "../../../components/markdown.ts";
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
 import { LazyViewError } from "../../../components/solid/lazy-view-error.tsx";
@@ -10,7 +7,6 @@ import { registerFilePreviewEnglish } from "../../../i18n/locales/en-file-previe
 import { formatBytes } from "../../../lib/agents/display.ts";
 import type { EmbedSandboxMode } from "../../../lib/chat/tool-display.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
-import { detectTextDirection } from "../../../lib/text-direction.ts";
 import {
   defineSolidBridge,
   LitContent,
@@ -18,7 +14,8 @@ import {
 } from "../../../lit/solid-bridge.ts";
 import { AttachmentPreviewSkeleton } from "./chat-attachment-card-solid.tsx";
 import { readAttachmentText } from "./chat-attachment-text-reader.ts";
-import { htmlPreviewElement, isHtmlDocument } from "./chat-html-preview.ts";
+import { htmlPreviewElement, isHtmlDocument, isMarkdownDocument } from "./chat-html-preview.ts";
+import { MarkdownReader } from "./chat-markdown-reader.tsx";
 
 registerEnglishCatalog(registerFilePreviewEnglish);
 
@@ -31,33 +28,6 @@ declare module "@solidjs/web" {
         Properties<HTMLElementTagNameMap["openclaw-chat-html-preview"]>;
     }
   }
-}
-
-function MarkdownAttachment(props: { text: string; label: string }) {
-  let article!: HTMLElement;
-  const markdown = createMarkdownRef(() => ({
-    content: toSanitizedMarkdownHtml(props.text, {
-      mode: "document",
-      remoteImages: false,
-      codeBlockInteraction: "interactive",
-    }),
-  }));
-  onSettled(() => {
-    const blocks = new MarkdownBlocks(article);
-    blocks.update(true);
-    return () => blocks.dispose();
-  });
-  return (
-    <article
-      ref={(element) => {
-        article = element;
-        markdown(element);
-      }}
-      class="sidebar-attachment-preview__markdown sidebar-markdown-reader sidebar-markdown"
-      dir={detectTextDirection(props.text)}
-      aria-label={props.label}
-    />
-  );
 }
 
 type TextAttachmentProps = {
@@ -108,15 +78,7 @@ function TextAttachment(props: TextAttachmentProps, host: SolidBridgeElement<Tex
     },
   });
   const htmlDocument = () => !props.plainText && isHtmlDocument(props.mimeType, props.label);
-  const markdown = () => {
-    const mimeType = props.mimeType.split(";", 1)[0]?.trim().toLowerCase();
-    return (
-      !props.plainText &&
-      (mimeType === "text/markdown" ||
-        mimeType === "text/x-markdown" ||
-        /\.(?:md|markdown)$/i.test(props.label))
-    );
-  };
+  const markdown = () => !props.plainText && isMarkdownDocument(props.mimeType, props.label);
   const sourceInput = createMemo(
     () => ({
       src: props.src,
@@ -297,7 +259,7 @@ function TextAttachment(props: TextAttachmentProps, host: SolidBridgeElement<Tex
                 </div>
               </Show>
               {markdown() && !htmlDocument() && !source() ? (
-                <MarkdownAttachment text={content.text} label={props.label} />
+                <MarkdownReader text={content.text} label={props.label} />
               ) : (
                 <pre
                   class="sidebar-attachment-preview__text"
