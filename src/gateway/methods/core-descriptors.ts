@@ -743,6 +743,7 @@ export const CORE_GATEWAY_METHOD_SPECS = [
   ["mcp.events.list", "mcp-events", "operator.read", "2026.10"],
   ["projects.checkoutOptions", "projects", "operator.read", "2026.10"],
   ["sessions.catalog.reorder", "session-catalog", "operator.write", "2026.10"],
+  ["sessions.catalog.move", "session-catalog", "operator.write", "2026.10"],
   ["canvas.storage.get", "canvas", "operator.read", "2026.10"],
   ["canvas.storage.list", "canvas", "operator.read", "2026.10"],
   ["canvas.storage.set", "canvas", "operator.write", "2026.10"],

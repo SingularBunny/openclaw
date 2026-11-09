@@ -46,6 +46,7 @@ import {
   finalizeCliContextEngineTurn,
   persistApprovedCliUserTurnTranscript,
   persistCliAssistantTranscript,
+  resolveCliNativeFinalTranscript,
   resolveCliTranscriptResumePoint,
   persistCliRunBlock,
   resolveCliAssistantStopReason,
@@ -540,11 +541,19 @@ async function runPreparedCliAgentOwned(
               context.cwd ?? context.workspaceDir,
               { skipTranscriptProbe: acceptsCliLiveSession(context) },
             );
+        // The canonical row holds the final message alone; narration stays in Claude's
+        // native rows. Delivery still uses the cumulative text.
+        const nativeFinal = resolveCliNativeFinalTranscript({
+          output,
+          cliSessionId: effectiveCliSessionId,
+          textTransforms: context.backendResolved.textTransforms?.output,
+        });
         const assistantTranscript = await persistCliAssistantTranscript({
           runParams: params,
           // Dispatch owns source-reply transcript mirrors and their idempotency keys.
           // Persisting them here would duplicate the same visible assistant reply.
-          text: sourceReplyWasDelivered ? "" : assistantText,
+          text: sourceReplyWasDelivered ? "" : (nativeFinal?.text ?? assistantText),
+          ...(nativeFinal ? { nativeIdentity: nativeFinal.identity } : {}),
           modelId: context.modelId,
           usage: output.usage,
           stopReason: resolveCliAssistantStopReason(output),

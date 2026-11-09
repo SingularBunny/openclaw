@@ -4,6 +4,8 @@ import type {
   SessionCatalogShareRoute,
   SessionsCatalogArchiveParams,
   SessionsCatalogContinueParams,
+  SessionsCatalogMoveParams,
+  SessionsCatalogMoveResult,
   SessionsCatalogReadParams,
   SessionsCatalogReadResult,
   SessionsCatalogReorderParams,
@@ -81,6 +83,26 @@ export type SessionCatalogReorderProviderParams = Omit<
   /** Gateway always supplies this; optional only for pre-existing external provider types. */
   agentId?: string;
   /** False when Gateway-local reorder must not inherit a root from process HOME. */
+  allowProcessHomeFallback?: boolean;
+};
+
+/**
+ * A provider's move result. `archive` names a Gateway session the move superseded: the
+ * Gateway archives it as the operator who moved the row (a plugin may patch only sessions
+ * it created) and reports a failure as the result's `warning`.
+ */
+export type SessionCatalogMoveProviderResult = Omit<SessionsCatalogMoveResult, "warning"> & {
+  archive?: SessionCatalogSessionArchive;
+};
+
+/** A Gateway session the Gateway archives as the caller of a catalog request. */
+export type SessionCatalogSessionArchive = { key: string; expectedSessionId?: string };
+
+/** One row moved into another custom folder (`group`), optionally at a position. */
+export type SessionCatalogMoveProviderParams = Omit<SessionsCatalogMoveParams, "catalogId"> & {
+  /** Gateway always supplies this; optional only for pre-existing external provider types. */
+  agentId?: string;
+  /** False when Gateway-local moves must not inherit a root from process HOME. */
   allowProcessHomeFallback?: boolean;
 };
 
@@ -224,13 +246,25 @@ export type SessionCatalogProvider = {
     probes: SessionUpstreamProbe[],
     policy?: { allowProcessHomeFallback?: boolean },
   ) => Promise<SessionUpstreamActivity[]>;
-  archive?: (params: SessionCatalogArchiveProviderParams) => Promise<{ ok: true }>;
+  /**
+   * Archives a row. A row that stands for a Gateway session the provider did not create may
+   * return that session as `archive`: the Gateway archives it as the caller (a plugin may patch
+   * only sessions it created).
+   */
+  archive?: (
+    params: SessionCatalogArchiveProviderParams,
+  ) => Promise<{ ok: true; archive?: SessionCatalogSessionArchive }>;
   /**
    * Persists a user-chosen display order. Later `list` results must return
    * folders (first occurrence of `customGroup`) and rows in that order; names
    * missing from the order keep their relative place after the listed ones.
    */
   reorder?: (params: SessionCatalogReorderProviderParams) => Promise<{ ok: true }>;
+  /**
+   * Moves one row into another custom folder. Later `list` results must show the
+   * row (or the row that replaces it, returned as `threadId`) in that folder.
+   */
+  move?: (params: SessionCatalogMoveProviderParams) => Promise<SessionCatalogMoveProviderResult>;
   openTerminal?: (request: {
     allowProcessHomeFallback?: boolean;
     /** Gateway always supplies this; optional only for pre-existing external provider types. */

@@ -199,8 +199,8 @@ Gateway response.
 
 Catalog RPCs keep their normal method scopes: `sessions.catalog.list` and
 `sessions.catalog.read` require `operator.read`; `sessions.catalog.continue`,
-`sessions.catalog.import`, `sessions.catalog.archive`, and
-`sessions.catalog.reorder` require `operator.write`.
+`sessions.catalog.import`, `sessions.catalog.archive`,
+`sessions.catalog.reorder`, and `sessions.catalog.move` require `operator.write`.
 
 ### Reordering
 
@@ -217,6 +217,45 @@ rows, 1–1000, unique). The provider persists the order and returns folders
 does not receive keep their place after the listed ones. The Gateway resolves
 the caller's agent, passes it with `allowProcessHomeFallback`, and refreshes
 catalog lists after a successful reorder.
+
+A row adopted as a Gateway session of the open agent is dragged the same way.
+Such a drag carries the catalog row and the session (for the rail and split
+panes) but does not start a session-group drag: that drag shows the empty
+session sections as drop targets, and showing them during `dragstart` moved the
+folders under the pointer, which made Chrome end the drag at once.
+
+### Rows that are Gateway sessions
+
+A row whose `source` is `"openclaw"` and that carries a `sessionKey` is an
+ordinary Gateway session listed by the provider (not a native thread adopted into
+one). When it belongs to the open agent, the Control UI renders it as that
+session's row with the regular session menu (rename, archive with Undo, delete
+with confirmation; a main session stays protected). Otherwise its catalog menu
+offers **Delete session** when the row has `canArchive`; the provider's
+`archive` hook may then return `archive: { key, expectedSessionId? }`, and the
+Gateway archives that session with `sessions.patch` as the caller, because a
+plugin may patch only sessions it created. A failed archive fails the request.
+
+### Moving rows between folders
+
+A provider that also implements the optional `move` hook advertises
+`capabilities.move: true`. The Control UI then accepts a row dropped on a row of
+another custom folder (placed before or after it) or on another folder's header
+(also when that folder is collapsed), shows it in the target folder at once, and
+calls `sessions.catalog.move` with
+`{ catalogId, hostId, agentId?, sourceHomeId?, threadId, group, threadIds? }`:
+the row, the target folder, and, for a drop on a row, the target folder's new
+row order with the moved row in it. The provider decides what a move means and
+which rows may move; the result is `{ ok: true, threadId?, sessionKey?, warning? }`,
+where `threadId` names the row that now represents the moved one when the provider
+replaced it, and `sessionKey` the Gateway session that holds it. A provider whose
+move supersedes a Gateway session returns it as `archive: { key, expectedSessionId? }`
+(not part of the RPC result): the Gateway archives that session with
+`sessions.patch` as the caller who moved the row, since a plugin may patch only
+sessions it created. If that archive fails, the move still stands and the result
+carries a `warning`, which the Control UI shows. A rejected move puts the row back
+and shows the error. The Gateway resolves the caller's agent
+like a reorder and refreshes catalog lists after a successful move.
 
 Catalog visibility also follows the authenticated caller. An `operator.admin`
 connection sees every discovered row. When the Gateway has durable profiles for

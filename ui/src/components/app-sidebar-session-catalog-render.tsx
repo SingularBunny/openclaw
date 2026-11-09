@@ -3,6 +3,7 @@ import type {
   SessionCatalog,
   SessionCatalogHost,
   SessionCatalogSession,
+  SessionsCatalogMoveParams,
   SessionsCatalogReorderParams,
 } from "../../../packages/gateway-protocol/src/index.ts";
 import type { GatewaySessionRow } from "../api/types.ts";
@@ -23,6 +24,16 @@ import {
   type CatalogReorderDragPayload,
 } from "../lib/sessions/drag.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
+import {
+  catalogFolderMoveDragOver,
+  catalogFolderMoveDrop,
+  catalogRowDragOver,
+  catalogRowDrop,
+  dropPosition,
+  ROW_DROP_CLASSES,
+  type CatalogFolderRowDrop,
+  type DropPosition,
+} from "./app-sidebar-session-catalog-drag.ts";
 import { renderCatalogSessionRow } from "./app-sidebar-session-catalog-row.tsx";
 import {
   catalogErrorMessages,
@@ -35,16 +46,6 @@ import { Icon } from "./solid/icon.tsx";
 import { renderNewSessionLink } from "./solid/new-session-link.tsx";
 import { ProviderBrandIcon } from "./solid/provider-icon.tsx";
 const CATALOG_SESSION_GROUP_LIMIT = 5;
-type DropPosition = "before" | "after";
-const ROW_DROP_CLASSES = {
-  before: "sidebar-recent-session--catalog-drop-before",
-  after: "sidebar-recent-session--catalog-drop-after",
-} as const;
-
-function dropPosition(event: DragEvent, element: Element): DropPosition {
-  const bounds = element.getBoundingClientRect();
-  return event.clientY < bounds.top + bounds.height / 2 ? "before" : "after";
-}
 
 export function renderSessionCatalogGroups(params: SessionCatalogGroupsParams) {
   // Adopted rows use canonical local labels and title snapshots; native catalog
@@ -77,6 +78,12 @@ function renderCatalogHostGroup(
   const canReorder = createMemo(
     () => readCatalog().capabilities.reorder === true && !params.sectionDragDisabledReason,
   );
+  // A provider that can move rows takes a row dropped on another custom folder.
+  const canMove = createMemo(
+    () => readCatalog().capabilities.move === true && !params.sectionDragDisabledReason,
+  );
+  const canDragRows = () => canReorder() || canMove();
+  const [moveDropFolder, setMoveDropFolder] = createSignal<string | null>(null);
   const [draggingFolder, setDraggingFolder] = createSignal<string | null>(null);
   const [folderDropTarget, setFolderDropTarget] = createSignal<{
     group: string;
@@ -97,7 +104,7 @@ function renderCatalogHostGroup(
     payload: CatalogReorderDragPayload | null,
     kind: CatalogReorderDragPayload["kind"],
   ): payload is CatalogReorderDragPayload =>
-    canReorder() &&
+    (kind === "row" ? canDragRows() : canReorder()) &&
     payload?.kind === kind &&
     payload.catalogId === identity.catalogId &&
     payload.hostId === identity.hostId;
@@ -109,6 +116,7 @@ function renderCatalogHostGroup(
     finishCatalogReorderDrag();
     setDraggingFolder(null);
     setFolderDropTarget(null);
+    setMoveDropFolder(null);
     setRowDropTarget(null);
   };
   const reorder = (target: SessionsCatalogReorderParams["target"]) =>
@@ -117,6 +125,13 @@ function renderCatalogHostGroup(
       hostId: identity.hostId,
       agentId: params.newSessionAgentId,
       target,
+    });
+  const move = (request: Pick<SessionsCatalogMoveParams, "threadId" | "group" | "threadIds">) =>
+    params.onMoveCatalog({
+      catalogId: identity.catalogId,
+      hostId: identity.hostId,
+      agentId: params.newSessionAgentId,
+      ...request,
     });
   const errorHelp = createMemo(() => {
     const readHostValue = readHost();
@@ -141,7 +156,7 @@ function renderCatalogHostGroup(
     const projectChild = untrack(() => rowProps.projectChild === true);
     const reorderGroup = untrack(() => rowProps.reorderGroup);
     const rowReorder = reorderGroup
-      ? { group: reorderGroup, enabled: canReorder, onFinish: finishReorderDrag }
+      ? { group: reorderGroup, enabled: canDragRows, onFinish: finishReorderDrag }
       : undefined;
     const expanded = () =>
       (params.visibleSessionLimits.get(rowProps.sectionId) ?? CATALOG_SESSION_GROUP_LIMIT) >
@@ -271,28 +286,25 @@ function renderCatalogHostGroup(
                   customFolder !== undefined && dropTarget?.group === customFolder
                     ? `sidebar-session-catalog-project--drop-${dropTarget.position}`
                     : "",
+                  customFolder !== undefined && moveDropFolder() === customFolder
+                    ? "sidebar-session-catalog-project--drop-into"
+                    : "",
                 ]
                   .filter(Boolean)
                   .join(" ");
               });
-              const rowDropTarget = (event: DragEvent) => {
-                const element = (event.target as Element | null)?.closest<HTMLElement>(
-                  "[data-catalog-session-key]",
-                );
-                if (!element || !event.currentTarget) {
-                  return null;
-                }
-                const key = element.dataset.catalogSessionKey;
-                const session = group().sessions.find(
-                  (candidate) =>
-                    buildCatalogSessionKey({
-                      catalogId: identity.catalogId,
-                      hostId: identity.hostId,
-                      threadId: candidate.threadId,
-                      ...(candidate.sourceHomeId ? { sourceHomeId: candidate.sourceHomeId } : {}),
-                    }) === key,
-                );
-                return session ? { element, threadId: session.threadId } : null;
+              const rowDrop: CatalogFolderRowDrop = {
+                identity,
+                folder: customFolder,
+                rows: () => group().sessions,
+                accepts: (payload) => acceptsDrag(payload, "row"),
+                canReorder,
+                canMove,
+                setRowDropTarget,
+                setMoveDropFolder,
+                finish: finishReorderDrag,
+                reorder,
+                move,
               };
               return (
                 <div
@@ -334,6 +346,9 @@ function renderCatalogHostGroup(
                     }
                   }}
                   onDragOver={(event: DragEvent) => {
+                    if (catalogFolderMoveDragOver(rowDrop, event)) {
+                      return;
+                    }
                     const payload = activeCatalogReorderDragData(event.dataTransfer);
                     if (!acceptsDrag(payload, "group") || !customFolder) {
                       return;
@@ -363,8 +378,14 @@ function renderCatalogHostGroup(
                     if (folderDropTarget()?.group === customFolder) {
                       setFolderDropTarget(null);
                     }
+                    if (moveDropFolder() === customFolder) {
+                      setMoveDropFolder(null);
+                    }
                   }}
                   onDrop={(event: DragEvent) => {
+                    if (catalogFolderMoveDrop(rowDrop, event)) {
+                      return;
+                    }
                     const payload = readCatalogReorderDragData(event.dataTransfer);
                     if (!acceptsDrag(payload, "group") || !customFolder) {
                       return;
@@ -405,27 +426,7 @@ function renderCatalogHostGroup(
                         class="sidebar-session-catalog-project__sessions"
                         role="list"
                         aria-label={`${readHost().label}: ${group().label}`}
-                        onDragOver={(event: DragEvent) => {
-                          const payload = activeCatalogReorderDragData(event.dataTransfer);
-                          if (!acceptsDrag(payload, "row")) {
-                            return;
-                          }
-                          event.stopPropagation();
-                          const target = rowDropTarget(event);
-                          if (
-                            payload.group !== customFolder ||
-                            !target ||
-                            target.threadId === payload.threadId
-                          ) {
-                            setRowDropTarget(null);
-                            return;
-                          }
-                          event.preventDefault();
-                          if (event.dataTransfer) {
-                            event.dataTransfer.dropEffect = "move";
-                          }
-                          setRowDropTarget(target.element, dropPosition(event, target.element));
-                        }}
+                        onDragOver={(event: DragEvent) => catalogRowDragOver(rowDrop, event)}
                         onDragLeave={(event: DragEvent) => {
                           const current = event.currentTarget as HTMLElement;
                           if (
@@ -435,28 +436,7 @@ function renderCatalogHostGroup(
                             setRowDropTarget(null);
                           }
                         }}
-                        onDrop={(event: DragEvent) => {
-                          const payload = readCatalogReorderDragData(event.dataTransfer);
-                          if (!acceptsDrag(payload, "row") || payload.group !== customFolder) {
-                            return;
-                          }
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const target = rowDropTarget(event);
-                          const order =
-                            target && payload.threadId
-                              ? moveCatalogOrderEntry(
-                                  [...new Set(group().sessions.map((session) => session.threadId))],
-                                  payload.threadId,
-                                  target.threadId,
-                                  dropPosition(event, target.element),
-                                )
-                              : null;
-                          finishReorderDrag();
-                          if (order && customFolder) {
-                            reorder({ kind: "sessions", group: customFolder, threadIds: order });
-                          }
-                        }}
+                        onDrop={(event: DragEvent) => catalogRowDrop(rowDrop, event)}
                       >
                         <CatalogRows
                           sessions={group().sessions}

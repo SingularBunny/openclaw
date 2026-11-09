@@ -5,6 +5,8 @@ import type {
   SessionsCatalogImportParams,
   SessionsCatalogImportResult,
   SessionsCatalogListResult,
+  SessionsCatalogMoveParams,
+  SessionsCatalogMoveResult,
   SessionsCatalogReorderParams,
 } from "../../../packages/gateway-protocol/src/index.ts";
 import type { GatewayBrowserClient } from "../api/gateway.ts";
@@ -15,7 +17,7 @@ import {
   buildCatalogSessionKey,
   type CatalogSessionContinuedDetail,
 } from "../lib/sessions/catalog-key.ts";
-import { reorderSessionCatalogs } from "../lib/sessions/catalog-reorder.ts";
+import { moveSessionCatalogs, reorderSessionCatalogs } from "../lib/sessions/catalog-reorder.ts";
 import { normalizeAgentId } from "../lib/sessions/session-key.ts";
 import type { SolidControllerHost } from "../lit/solid-controller-host.ts";
 import {
@@ -581,6 +583,45 @@ export async function reorderSessionCatalog(
   if (isCurrent()) {
     owner.invalidateSessionCatalogs();
   }
+}
+
+/**
+ * Shows a row in its new folder at once, asks the catalog provider to move it,
+ * and restores the previous rows when the Gateway rejects the move.
+ */
+export async function moveSessionCatalog(
+  owner: SessionCatalogDataOwner & {
+    isSessionMutationScopeCurrent(scope: SidebarSessionMutationScope): boolean;
+    invalidateSessionCatalogs(): void;
+  },
+  scope: SidebarCatalogSessionMutationScope,
+  params: SessionsCatalogMoveParams,
+): Promise<SessionsCatalogMoveResult | null> {
+  const generation = scope.catalogGeneration;
+  const isCurrent = () =>
+    generation === owner.sessionScopeGeneration && owner.isSessionMutationScopeCurrent(scope);
+  if (!isCurrent()) {
+    return null;
+  }
+  const previous = owner.sessionCatalogs;
+  owner.sessionCatalogs = moveSessionCatalogs(previous, params);
+  owner.sessionCatalogRevision += 1;
+  owner.requestSessionDataUpdate();
+  let result: SessionsCatalogMoveResult;
+  try {
+    result = await scope.client.request<SessionsCatalogMoveResult>("sessions.catalog.move", params);
+  } catch (error) {
+    if (isCurrent()) {
+      owner.sessionCatalogs = previous;
+      owner.sessionCatalogRevision += 1;
+      owner.requestSessionDataUpdate();
+    }
+    throw error;
+  }
+  if (isCurrent()) {
+    owner.invalidateSessionCatalogs();
+  }
+  return result;
 }
 
 export async function importSessionCatalog(

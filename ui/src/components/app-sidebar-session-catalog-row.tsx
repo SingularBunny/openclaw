@@ -290,7 +290,9 @@ export function renderCatalogSessionRow(
             return identityKey();
           },
           get catalogMenu() {
-            return catalogMenu();
+            // A row that is a Gateway session of its own (not a native thread adopted into one)
+            // is managed like any session: archive, delete, rename from the session menu.
+            return readSession().source === "openclaw" ? undefined : catalogMenu();
           },
           get rowRef() {
             return rowRef();

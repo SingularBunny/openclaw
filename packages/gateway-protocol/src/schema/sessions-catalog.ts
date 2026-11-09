@@ -28,6 +28,7 @@ export const SessionCatalogCapabilitiesSchema = closedObject({
   openTerminal: Type.Optional(Type.Boolean()),
   startTerminal: Type.Optional(Type.Boolean()),
   reorder: Type.Optional(Type.Boolean()),
+  move: Type.Optional(Type.Boolean()),
 });
 
 export const SessionCatalogShareRouteSchema = closedObject({
@@ -226,6 +227,32 @@ export const SessionsCatalogReorderParamsSchema = closedObject({
 
 export const SessionsCatalogReorderResultSchema = closedObject({ ok: Type.Literal(true) });
 
+// Moves one row into another custom folder. The provider owns what a move means
+// (for example handing the conversation to the folder's agent) and returns the
+// row in the target folder from the next list. `threadIds` is the target folder's
+// new row order with the moved row at its drop position, when the drop had one.
+export const SessionsCatalogMoveParamsSchema = closedObject({
+  catalogId: NonEmptyString,
+  hostId: NonEmptyString,
+  agentId: Type.Optional(NonEmptyString),
+  sourceHomeId: Type.Optional(NonEmptyString),
+  threadId: NonEmptyString,
+  group: NonEmptyString,
+  threadIds: Type.Optional(
+    Type.Array(NonEmptyString, { minItems: 1, maxItems: 1000, uniqueItems: true }),
+  ),
+});
+
+export const SessionsCatalogMoveResultSchema = closedObject({
+  ok: Type.Literal(true),
+  /** Thread ID of the row in the target folder when it differs from the moved one. */
+  threadId: Type.Optional(NonEmptyString),
+  /** Gateway session that now holds the conversation, when the move created one. */
+  sessionKey: Type.Optional(NonEmptyString),
+  /** The move happened, but a follow-up step (archiving the superseded session) did not. */
+  warning: Type.Optional(NonEmptyString),
+});
+
 export const SessionsCatalogStartTerminalParamsSchema = closedObject({
   catalogId: NonEmptyString,
   hostId: Type.Optional(NonEmptyString),
@@ -268,6 +295,8 @@ export type SessionsCatalogArchiveParams = Static<typeof SessionsCatalogArchiveP
 export type SessionsCatalogArchiveResult = Static<typeof SessionsCatalogArchiveResultSchema>;
 export type SessionsCatalogReorderParams = Static<typeof SessionsCatalogReorderParamsSchema>;
 export type SessionsCatalogReorderResult = Static<typeof SessionsCatalogReorderResultSchema>;
+export type SessionsCatalogMoveParams = Static<typeof SessionsCatalogMoveParamsSchema>;
+export type SessionsCatalogMoveResult = Static<typeof SessionsCatalogMoveResultSchema>;
 export type SessionsCatalogStartTerminalParams = Static<
   typeof SessionsCatalogStartTerminalParamsSchema
 >;

@@ -333,7 +333,7 @@ and sandboxing. Use a [paired node](/nodes) or the embedded runtime with
 
 ### Claude browser tools and 1Password sign-in
 
-Claude Code can drive a Chrome browser through the [Claude in Chrome extension](https://code.claude.com/docs/en/chrome), including [1Password for Claude](/gateway/1password#browser-sign-in-with-1password-for-claude) credential autofill. The bundled backend does not enable it. Register a [CLI backend plugin](/plugins/cli-backend-plugins) that appends `--chrome` to the launch args of a `claude-stream-json`-dialect backend. OpenClaw preserves a configured `--chrome` on normal runs and always forces `--no-chrome` on runs with a restricted tool policy, such as side questions. The Chrome window, the extension, and any 1Password approval prompts live on the Gateway host. Someone must be at that machine to approve credential use.
+Claude Code can drive a Chrome browser through the [Claude in Chrome extension](https://code.claude.com/docs/en/chrome), including [1Password for Claude](/gateway/1password#browser-sign-in-with-1password-for-claude) credential autofill. The bundled backend does not enable it. Register a [CLI backend plugin](/plugins/cli-backend-plugins) that appends `--chrome` to the launch args of a `claude-stream-json`-dialect backend. OpenClaw preserves a configured `--chrome` on normal runs and always forces `--no-chrome` on runs with a restricted tool policy, such as side questions. The Chrome window, the extension, and any 1Password approval prompts live on the Gateway host. Someone must be at that machine to approve credential use. In this fork, `OPENCLAW_CLAUDE_CHROME=1` (for example in `env.vars`) appends `--chrome` to normal agent turns of the bundled backend without a separate plugin; it is read on use.
 
 The backend maps OpenClaw `/think` levels to Claude Code's native `--effort` flag: `minimal`/`low` -> `low`, `medium` -> `medium`, and `high`/`xhigh`/`max` pass through directly. For models that allow fixed thinking budgets, it also launches Claude Code with `MAX_THINKING_TOKENS`: `off=0`, `minimal=1024`, `low=2048`, `medium=8192`, `high`/`xhigh=16384`, and `max=32768`. Positive fixed budgets disable adaptive thinking. Models that require adaptive thinking omit the fixed budget and continue to use `--effort`. `adaptive` removes configured effort flags and fixed-budget environment overrides, so Claude Code resolves effective thinking from its own environment, settings, and model defaults. Other CLI backends need their owning plugin to map the selected level before `/think` affects the spawned CLI.
 
@@ -399,7 +399,11 @@ guidance remain unchanged.
 Recognized runtime prompts, such as default heartbeat, exec-completion, restart
 recovery, and native compaction prompts, are hidden rather than shown as human
 messages. Matching canonical user turns and quoted text in later content blocks
-remain unchanged. Native and OpenClaw history share bounded pages and
+remain unchanged. A completed Claude turn saves only its final message in the
+OpenClaw transcript, tagged with that message's native id, so chat history joins it
+with Claude's native row. Narration written before tool calls appears once, from
+the native rows, ahead of the final answer; delivery still sends the whole reply.
+Native and OpenClaw history share bounded pages and
 message-anchor lookups. The history worker prepares a temporary merged index
 without modifying the stored transcript. A cold index scans bounded source pages to preserve
 global deduplication; subsequent reads select only their requested window. The

@@ -1,4 +1,5 @@
 import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
+import { isSilentReplyPayloadText } from "../../auto-reply/tokens.js";
 import { cloneEnvWithPlatformSemantics } from "../../config/config-env-vars.js";
 import { getCliHistoryWriter } from "../../config/sessions/cli-history-boundary.js";
 import {
@@ -39,6 +40,7 @@ import { buildGenericCliContextEngineHostSupport } from "../../context-engine/ho
 import { formatErrorMessage } from "../../infra/errors.js";
 import type { StopReason } from "../../llm/types.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import type { PluginTextReplacement } from "../../plugins/cli-backend.types.js";
 import { parseAgentSessionKey } from "../../routing/session-key.js";
 import { resolveSessionAgentId } from "../agent-scope.js";
 import { isHeartbeatLifecycleRunKind } from "../bootstrap-mode.js";
@@ -54,6 +56,7 @@ import {
 } from "../harness/context-engine-lifecycle.js";
 import { runAgentHarnessBeforeMessageWriteHook } from "../harness/hook-helpers.js";
 import { projectAgentHarnessTranscriptMessageForDisplay } from "../harness/transcript-visibility.js";
+import { applyPluginTextReplacements } from "../plugin-text-transforms.js";
 import type { AgentMessage } from "../runtime/index.js";
 import { withSessionManagerWrite } from "../sessions/session-manager-write-admission.js";
 import { SessionManager } from "../sessions/session-manager.js";
@@ -186,6 +189,42 @@ export function resolveCliTranscriptResumePoint(params: {
   };
 }
 
+/** The native Claude row a canonical assistant message mirrors. */
+export type CliNativeMessageIdentity = { cliSessionId: string; externalId: string };
+
+/**
+ * Claude saves each narration and the final answer of a turn as its own native row.
+ * A completed turn keeps only its final message in the canonical row, keyed to that
+ * native row, so the imported history joins them and shows each message once.
+ * Yielded, interrupted, and silent turns keep the cumulative reply without identity.
+ */
+export function resolveCliNativeFinalTranscript(params: {
+  output: Pick<
+    CliOutput,
+    "text" | "rawFinalText" | "resumeCheckpointId" | "terminalInterruption" | "yielded"
+  >;
+  cliSessionId?: string;
+  textTransforms?: PluginTextReplacement[];
+}): { text: string; identity: CliNativeMessageIdentity } | undefined {
+  const { output } = params;
+  const cliSessionId = params.cliSessionId?.trim();
+  const externalId = output.resumeCheckpointId?.trim();
+  if (output.yielded || output.terminalInterruption || !cliSessionId || !externalId) {
+    return undefined;
+  }
+  // `rawFinalText` is set only when the final message differs from the cumulative
+  // text, and it is never transformed; `text` already carries the output transforms.
+  const text = (
+    output.rawFinalText === undefined
+      ? output.text
+      : applyPluginTextReplacements(output.rawFinalText, params.textTransforms)
+  ).trim();
+  if (!text || isSilentReplyPayloadText(text)) {
+    return undefined;
+  }
+  return { text, identity: { cliSessionId, externalId } };
+}
+
 export async function persistCliAssistantTranscript(params: {
   runParams: RunCliAgentParams;
   text: string;
@@ -195,6 +234,8 @@ export async function persistCliAssistantTranscript(params: {
   yielded?: true;
   /** Native checkpoint after this reply, so a later history cut can fork the session here. */
   resumePoint?: CliSessionResumePoint;
+  /** The native Claude row this message mirrors; the history merge joins them by it. */
+  nativeIdentity?: CliNativeMessageIdentity;
 }): Promise<{
   owned: boolean;
   idempotencyKey?: string;
@@ -266,8 +307,17 @@ export async function persistCliAssistantTranscript(params: {
             totalTokens: params.usage?.total,
           }),
         }),
-        ...(params.resumePoint
-          ? { __openclaw: { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint } }
+        ...(params.resumePoint || params.nativeIdentity
+          ? {
+              __openclaw: {
+                ...(params.nativeIdentity
+                  ? { importedFrom: "claude-cli", ...params.nativeIdentity }
+                  : {}),
+                ...(params.resumePoint
+                  ? { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint }
+                  : {}),
+              },
+            }
           : {}),
         // A paused turn owns visible progress, not a final answer. Keep the
         // existing keyed-segment contract without hiding narration or media.

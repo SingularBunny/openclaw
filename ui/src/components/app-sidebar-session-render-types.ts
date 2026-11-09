@@ -1,5 +1,8 @@
 import type { JSX as SolidJSX } from "@solidjs/web";
-import type { SessionsCatalogReorderParams } from "../../../packages/gateway-protocol/src/schema/sessions-catalog.js";
+import type {
+  SessionsCatalogMoveParams,
+  SessionsCatalogReorderParams,
+} from "../../../packages/gateway-protocol/src/schema/sessions-catalog.js";
 import type { SessionObserverDigest } from "../../../packages/gateway-protocol/src/schema/sessions.js";
 import type { GatewaySessionRow } from "../api/types.ts";
 import type { NavigationRouteId } from "../app-navigation.ts";
@@ -65,6 +68,7 @@ export interface SessionListHost {
     | "isSessionMutationScopeCurrent"
     | "loadMoreSessionCatalog"
     | "loadMoreSidebarSessions"
+    | "moveSessionCatalog"
     | "presenceInstanceId"
     | "presencePayload"
     | "refreshSessionCatalogs"
@@ -181,6 +185,8 @@ export type SessionCatalogGroupsParams = {
   onReorderSection: (source: string, target: string, position: "before" | "after") => Promise<void>;
   /** Persists a new folder or row order for catalogs advertising `capabilities.reorder`. */
   onReorderCatalog: (params: SessionsCatalogReorderParams) => void;
+  /** Moves a row into another folder for catalogs advertising `capabilities.move`. */
+  onMoveCatalog: (params: SessionsCatalogMoveParams) => void;
   viewMenuOpenCatalogId: string | null;
   ownerFilterActive: boolean;
   onOpenViewMenu: (

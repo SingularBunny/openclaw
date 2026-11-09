@@ -6,6 +6,7 @@ import {
   validateSessionsCatalogArchiveParams,
   validateSessionsCatalogContinueParams,
   validateSessionsCatalogImportParams,
+  validateSessionsCatalogMoveParams,
   validateSessionsCatalogReadParams,
   validateSessionsCatalogReorderParams,
   validateSessionsCatalogStartTerminalParams,
@@ -27,6 +28,10 @@ import { copySessionCatalogToGateway } from "./session-catalog-gateway-copy.js";
 import { importAuthorizedSessionCatalog } from "./session-catalog-import.js";
 import { retireSessionCatalogLists } from "./session-catalog-list-operations.js";
 import { listSessionCatalogHandler } from "./session-catalog-list.js";
+import {
+  archiveCatalogSessionAsCaller,
+  archiveMovedCatalogSource,
+} from "./session-catalog-move-archive.js";
 import {
   allowProcessHomeFallback,
   catalogRegistrationSnapshot,
@@ -491,11 +496,14 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
           return;
         }
         const { catalogId: _catalogId, ...providerRequest } = request;
-        const result = await provider.archive({
+        const { archive, ...result } = await provider.archive({
           ...providerRequest,
           agentId: authorization.agentId,
           allowProcessHomeFallback: authorization.allowProcessHomeFallback,
         });
+        if (archive) {
+          await archiveCatalogSessionAsCaller(options, archive, "catalog-archive");
+        }
         retireSessionCatalogLists(context.getRuntimeConfig());
         respond(true, result);
       } catch (error) {
@@ -536,6 +544,45 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
         });
         retireSessionCatalogLists(context.getRuntimeConfig());
         respond(true, result);
+      } catch (error) {
+        respondCatalogError(error, respond);
+      }
+    },
+  ),
+
+  "sessions.catalog.move": defineValidatedGatewayHandler(
+    "sessions.catalog.move",
+    validateSessionsCatalogMoveParams,
+    async (options) => {
+      const { params: request, respond, context } = options;
+      const provider = registrationOrRespond(request.catalogId, respond)?.provider;
+      if (!provider) {
+        return;
+      }
+      if (!provider.move) {
+        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "catalog cannot move"));
+        return;
+      }
+      // Like reordering, a move changes which folder shows a row; the provider owns
+      // folders and decides which rows may move, so it is authorized at host level.
+      const resolvedAgent = resolveAgentIdOrRespondError({
+        rawAgentId: request.agentId,
+        respond,
+        cfg: context.getRuntimeConfig(),
+      });
+      if (!resolvedAgent) {
+        return;
+      }
+      try {
+        const { catalogId: _catalogId, ...providerRequest } = request;
+        const { archive, ...result } = await provider.move({
+          ...providerRequest,
+          agentId: resolvedAgent.agentId,
+          allowProcessHomeFallback: allowProcessHomeFallback(context.logGateway),
+        });
+        const warning = await archiveMovedCatalogSource(options, archive);
+        retireSessionCatalogLists(context.getRuntimeConfig());
+        respond(true, { ...result, ...(warning ? { warning } : {}) });
       } catch (error) {
         respondCatalogError(error, respond);
       }

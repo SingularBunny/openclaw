@@ -1,6 +1,9 @@
 import type { JSX } from "@solidjs/web";
 import { createMemo, For, Show, untrack } from "solid-js";
-import type { SessionsCatalogReorderParams } from "../../../packages/gateway-protocol/src/index.ts";
+import type {
+  SessionsCatalogMoveParams,
+  SessionsCatalogReorderParams,
+} from "../../../packages/gateway-protocol/src/index.ts";
 import type { GatewaySessionRow } from "../api/types.ts";
 import type { CatalogOpenTarget } from "../app/settings.ts";
 import { readPresenceEntries, resolveCurrentSelfUser } from "../app/user-profile.ts";
@@ -114,6 +117,30 @@ async function reorderCatalog(
   }
 }
 
+async function moveCatalog(
+  host: SessionListHost,
+  params: SessionsCatalogMoveParams,
+): Promise<void> {
+  const mutation = host.sessionData.beginSessionMutation();
+  if (!mutation) {
+    return;
+  }
+  const scope = { ...mutation, catalogGeneration: host.sessionData.sessionScopeGeneration };
+  try {
+    const result = await host.sessionData.moveSessionCatalog(scope, params);
+    if (result?.warning) {
+      showToast({ message: result.warning });
+    }
+  } catch (error) {
+    if (
+      host.sessionData.isSessionMutationScopeCurrent(scope) &&
+      scope.catalogGeneration === host.sessionData.sessionScopeGeneration
+    ) {
+      showToast({ message: formatUiError(error) });
+    }
+  }
+}
+
 function renderSessionCatalog(params: {
   host: SessionListHost;
   snapshot: SessionCatalogRenderSnapshot;
@@ -168,6 +195,7 @@ function renderSessionCatalog(params: {
         host().sessionOrganizer.reorderSidebarSection(source, target, position)
       }
       onReorderCatalog={(request) => void reorderCatalog(host(), request)}
+      onMoveCatalog={(request) => void moveCatalog(host(), request)}
       viewMenuOpenCatalogId={host().sidebarMenus.catalogViewMenuPosition?.catalogId ?? null}
       ownerFilterActive={host().sessionOwnerFilterActive}
       onOpenViewMenu={(catalogId, trigger, position) => {

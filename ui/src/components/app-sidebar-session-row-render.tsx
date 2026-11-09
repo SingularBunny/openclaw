@@ -239,7 +239,13 @@ function renderRecentSessionRow(params: RecentSessionParams) {
           }
           if (groupWriteAccess().allowed) {
             writeSessionDragData(event.dataTransfer, session().key);
-            host().sessionOrganizer.startSessionDrag(session());
+            // Starting an organizer drag reveals empty session sections as drop
+            // targets. Inside a catalog folder that insertion shifts the tree under
+            // the pointer during dragstart, and Chrome then ends the drag at once.
+            // Catalog rows keep the session payload (pins, split panes) only.
+            if (!catalogReorder) {
+              host().sessionOrganizer.startSessionDrag(session());
+            }
           }
         }
       }}

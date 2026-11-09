@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildAnthropicCliBackend } from "./cli-backend.js";
 import { CLAUDE_CLI_CLEAR_ENV } from "./cli-constants.js";
 import {
+  appendClaudeCliChromeArgs,
   appendClaudeCliPromptSuggestionArgs,
   isClaudeCliPromptSuggestionsEnabled,
   normalizeClaudeBackendConfig,
@@ -206,6 +207,17 @@ describe("Claude CLI prompt suggestions", () => {
     expect(
       appendClaudeCliPromptSuggestionArgs(["-p"], {}, { OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS: "0" }),
     ).toEqual(["-p"]);
+  });
+
+  it("adds Claude in Chrome only when OPENCLAW_CLAUDE_CHROME is on and the run allows it", () => {
+    const on = { OPENCLAW_CLAUDE_CHROME: "1" };
+    expect(appendClaudeCliChromeArgs(["-p"], {}, {})).toEqual(["-p"]);
+    expect(appendClaudeCliChromeArgs(["-p"], {}, on)).toEqual(["-p", "--chrome"]);
+    expect(appendClaudeCliChromeArgs(["-p"], { executionMode: "side-question" }, on)).toEqual([
+      "-p",
+    ]);
+    expect(appendClaudeCliChromeArgs(["-p", "--no-chrome"], {}, on)).toEqual(["-p", "--no-chrome"]);
+    expect(appendClaudeCliChromeArgs(["-p", "--chrome"], {}, on)).toEqual(["-p", "--chrome"]);
   });
 
   it("leaves side questions and operator-configured values alone", () => {
