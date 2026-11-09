@@ -38,6 +38,7 @@ import {
   loadMoreSessionCatalog as loadMoreSessionCatalogData,
   refreshSessionCatalogs as refreshSessionCatalogData,
   resetSessionCatalogConnection,
+  retainSessionCatalogRows,
   retireSessionCatalogData,
   resolveSessionCatalogAgentId,
   scheduleSessionCatalogRefresh,
@@ -374,14 +375,12 @@ export class SessionDataOwner implements SessionCatalogDataOwner {
       return;
     }
 
-    const previousAgentId = this.sessionScopeAgentId;
-    const previousCatalogAgentId = this.sessionCatalogAgentId;
     const agentChanged =
-      previousAgentId !== null &&
-      previousAgentId !== nextAgentId &&
+      this.sessionScopeAgentId !== null &&
+      this.sessionScopeAgentId !== nextAgentId &&
       this.sessionListQuery(this.inputs.expandedAgentId()).agentId !== undefined;
     const catalogAgentChanged =
-      previousCatalogAgentId !== null && previousCatalogAgentId !== nextCatalogAgentId;
+      this.sessionCatalogAgentId !== null && this.sessionCatalogAgentId !== nextCatalogAgentId;
     const ownsCurrentCanonicalList =
       !hasSidebarListFilter(this.inputs) &&
       this.sessionsAgentId !== null &&
@@ -392,13 +391,8 @@ export class SessionDataOwner implements SessionCatalogDataOwner {
     this.sessionCatalogAgentId = nextCatalogAgentId;
     retireSessionCatalogData(this);
     this.sessionCatalogRevision += 1;
-    this.sessionCatalogRefreshStatus = createPanelRefreshStatus();
 
-    if (agentChanged || catalogAgentChanged) {
-      // Catalog cursors and rows belong to the selected agent, not just its host.
-      this.sessionCatalogs = [];
-      this.sessionCatalogPageDepths.clear();
-    }
+    retainSessionCatalogRows(this, nextCatalogAgentId, agentChanged || catalogAgentChanged);
     if (agentChanged && !ownsCurrentCanonicalList) {
       // A replacement capability may publish its new-agent list before selection synchronizes.
       this.clearSessionCache();

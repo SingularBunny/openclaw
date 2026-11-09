@@ -702,4 +702,7 @@ export {
 
 export * from "./schema/sessions-involvement.js";
 
+// Fork: restart-pending notice (gateway.restart, snapshot.gatewayRestart).
+export * from "./schema/gateway-restart.js";
+
 export * from "./schema/catalog.js";
