@@ -1,6 +1,7 @@
 import { canonicalizePath } from "../../agents/utils/paths.js";
 import { sha256Hex } from "../../infra/crypto-digest.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { dropRedundantQualifiedSkills } from "./plugin-skill-names.js";
 import type { Skill } from "./skill-contract.js";
 import { compactSkillPath } from "./skill-paths.js";
 
@@ -125,8 +126,9 @@ export function mergeSkillRecords<T extends { skill: Skill }>(
   if (collisions === undefined && discoveredCollisions) {
     reportSkillPrecedenceCollisions(discoveredCollisions, sourceKey);
   }
-  // oxlint-disable-next-line unicorn/no-array-sort -- The Map spread is a private array.
-  return [...merged.values()].sort((a, b) => a.skill.name.localeCompare(b.skill.name, "en"));
+  return dropRedundantQualifiedSkills([...merged.values()], canonicalizePath).toSorted((a, b) =>
+    a.skill.name.localeCompare(b.skill.name, "en"),
+  );
 }
 
 /** Append lower-precedence names without changing the order of either tier. */
