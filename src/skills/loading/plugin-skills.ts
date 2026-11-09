@@ -40,6 +40,8 @@ let lastDefaultPluginSkillsPublication: {
   targets: ReadonlyMap<string, string>;
 } | null = null;
 
+const reportedLinkCollisions = new Set<string>();
+
 registerPluginMetadataProcessMemoLifecycleClear(() => {
   lastDefaultPluginSkillsPublication = null;
 });
@@ -148,7 +150,12 @@ export function resolvePluginSkillRootsFromContributions(params: {
           continue;
         }
         seen.add(resolvedCandidate);
-        resolved.push({ dir: resolvedCandidate, rejectHardlinks });
+        resolved.push({
+          dir: resolvedCandidate,
+          rejectHardlinks,
+          pluginId: record.id,
+          ...(record.origin === "bundled" ? { bundled: true } : {}),
+        });
       }
     }
   }
@@ -276,10 +283,16 @@ function collectSkillTargets(dir: string, targets: Map<string, string>): void {
   for (const entry of candidates) {
     const existing = targets.get(entry.name);
     if (existing) {
-      log.warn(
-        `plugin skill name collision: "${entry.name}" resolves to both ${existing} and ${entry.path}; ` +
-          `only the first will be published`,
-      );
+      // Discovery reads every plugin root and namespaces shared names, so this link is
+      // not the only route to the skill. Publication runs on every load; say it once.
+      const key = `${entry.name}\0${existing}\0${entry.path}`;
+      if (!reportedLinkCollisions.has(key)) {
+        reportedLinkCollisions.add(key);
+        log.debug(
+          `plugin skill link "${entry.name}" already points to ${existing}; ` +
+            `${entry.path} still loads from its plugin root`,
+        );
+      }
       continue;
     }
     targets.set(entry.name, entry.path);
