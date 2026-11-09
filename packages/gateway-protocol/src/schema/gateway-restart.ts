@@ -7,11 +7,18 @@ import { NonEmptyString } from "./primitives.js";
 const CountSchema = Type.Integer({ minimum: 0 });
 
 /**
- * `pending`: a restart is deferred until running work finishes; `restarting`: the wait is over
- * and the Gateway restarts now.
+ * `pending`: a restart is deferred until running work finishes (new turns still start);
+ * `draining`: the Gateway is restarting and waits for running agent turns, new turns are refused;
+ * `stopping`: the Gateway is stopping (service stop, SIGTERM/SIGINT) and waits likewise;
+ * `restarting`: the wait is over and the Gateway restarts now.
  */
 export const GatewayRestartNoticeSchema = closedObject({
-  phase: Type.Union([Type.Literal("pending"), Type.Literal("restarting")]),
+  phase: Type.Union([
+    Type.Literal("pending"),
+    Type.Literal("draining"),
+    Type.Literal("stopping"),
+    Type.Literal("restarting"),
+  ]),
   /** What asked for the restart, e.g. `config reload: env.vars.X`. */
   reason: NonEmptyString,
   /** Epoch ms when the wait began. */
