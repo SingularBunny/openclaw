@@ -12,6 +12,7 @@ import "../test-helpers/app-sidebar-cases/catalog-live-errors.ts";
 import "../test-helpers/app-sidebar-cases/catalog-ownership.ts";
 import "../test-helpers/app-sidebar-cases/catalog-terminal-owner.ts";
 import "../test-helpers/app-sidebar-cases/catalog-pages.ts";
+import "../test-helpers/app-sidebar-cases/catalog-reorder-drag.ts";
 
 beforeEach(() => {
   vi.spyOn(Math, "random").mockReturnValue(0);
