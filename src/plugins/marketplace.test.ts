@@ -191,6 +191,34 @@ describe("marketplace plugins", () => {
       { type: " ", source: "git", url: 42, repo: " https://example.com/alias.git " },
       gitSource("https://example.com/alias.git"),
     ],
+    [
+      "URL source pinned to a commit sha (Claude Code marketplace)",
+      {
+        source: "url",
+        url: "https://github.com/owner/repo.git",
+        sha: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+      {
+        kind: "git",
+        url: "https://github.com/owner/repo.git",
+        ref: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+    ],
+    [
+      "GitHub commit sha before ref",
+      {
+        source: "github",
+        repo: "owner/repo",
+        ref: "main",
+        sha: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+      githubSource("owner/repo", "bb92a77741419a4ab5f06e711a283343f1ada0c3"),
+    ],
+    [
+      "URL source with a short sha stays unpinned",
+      { source: "url", url: "https://github.com/owner/repo.git", sha: "bb92a77" },
+      { kind: "url", url: "https://github.com/owner/repo.git" },
+    ],
   ] as const)("normalizes %s in local marketplace listings", async (_label, source, expected) => {
     await writeMarketplaceManifest(rootDir, manifestFor(source, "example"));
 
