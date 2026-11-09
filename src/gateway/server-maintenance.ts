@@ -162,6 +162,10 @@ export function startGatewayMaintenanceTimers(params: {
     });
     params.nodeSendToAllSubscribed("health", snap);
   });
+  // Fork: restart-pending notice for Control UIs (gateway.restart).
+  setGatewayRestartNoticeBroadcaster((payload) => {
+    params.broadcast(GATEWAY_EVENT_RESTART, payload);
+  });
 
   const restartChannelsIfIdle = async (
     pending: PendingHostThawRestart,

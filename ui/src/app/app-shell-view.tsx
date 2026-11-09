@@ -26,6 +26,7 @@ import type { ShellOwnedElements } from "./app-shell-components.ts";
 import { DevicePairSetup } from "./app-shell-device-pair-setup.tsx";
 import { ShellDocks } from "./app-shell-docks.tsx";
 import { ShellLazyOverlays, type ShellElementAttributes } from "./app-shell-lazy-view.tsx";
+import { GatewayRestartNoticeBanner } from "./app-shell-restart-notice.tsx";
 import { readShellView, type ShellViewHost } from "./app-shell-view-state.ts";
 import { beginNativeWindowDrag, beginNativeWindowDragFromTopInset } from "./native-window-drag.ts";
 import { FloatingUpdateCard } from "./navigation-surface-view.tsx";
@@ -423,6 +424,9 @@ export function ApplicationShell(props: {
         <span class="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {connectionAnnouncement()}
         </span>
+        <Show when={!view().nativeEmbed && !view().onboarding}>
+          <GatewayRestartNoticeBanner snapshot={() => view().gatewaySnapshot} />
+        </Show>
         <ShellRequestedComponent
           host={props.host}
           component="terminal"

@@ -20,7 +20,8 @@ export function resolveSessionObserverMinDigestIntervalMs(env: NodeJS.ProcessEnv
 
 /**
  * OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS: minimum gap between recaps that transcript growth
- * requests while a run goes on. Run ends, archive and explicit requests stay immediate.
+ * requests while a run goes on, and between recaps the Activity page requests (counted from the
+ * stored recap after a restart). Run ends, archive and **Retry recap** stay immediate.
  */
 export function resolveActivityRecapRefreshMs(env: NodeJS.ProcessEnv = process.env) {
   return envPositiveInt(

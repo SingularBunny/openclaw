@@ -1,5 +1,6 @@
 import { beforeEach, vi } from "vitest";
 import * as sessionEventHandoff from "../../auto-reply/reply/session-event-handoff.js";
+import * as systemEvents from "../../infra/system-events.js";
 import * as processSupervisor from "../../process/supervisor/index.js";
 import type { ProcessSupervisor, RunExit } from "../../process/supervisor/types.js";
 import { withTestRunAdmission } from "../admitted-run-context.test-support.js";
@@ -24,6 +25,7 @@ export function wrapPreparedCliRunWithTestAdmission<Args extends unknown[], T>(
 }
 
 export const supervisorSpawnMock = vi.fn<ProcessSupervisor["spawn"]>();
+export const enqueueSystemEventMock = vi.fn<typeof systemEvents.enqueueSystemEvent>(() => true);
 export const enqueueSessionEventMock = vi.fn<typeof sessionEventHandoff.enqueueSessionEventForHost>(
   () => ({
     id: "cli-watchdog-event",
@@ -98,6 +100,7 @@ beforeEach(({ onTestFinished }) => {
     vi
       .spyOn(sessionEventHandoff, "enqueueSessionEventForHost")
       .mockImplementation(enqueueSessionEventMock),
+    vi.spyOn(systemEvents, "enqueueSystemEvent").mockImplementation(enqueueSystemEventMock),
   ];
   onTestFinished(() => spies.forEach((spy) => spy.mockRestore()));
 });

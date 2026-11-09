@@ -3,6 +3,7 @@ import { clearAgentRunContext, registerAgentRunContext } from "../infra/agent-ru
 import type { RunExit } from "../process/supervisor/types.js";
 import {
   enqueueSessionEventMock,
+  enqueueSystemEventMock,
   supervisorSpawnMock,
   type createManagedRun,
 } from "./cli-runner.test-support.js";
@@ -22,9 +23,10 @@ export function registerCliWatchdogNoticeTests(fixture: {
   historyPrompt: string;
 }) {
   it.each(["automatic", "message_tool_only", "private-run"] as const)(
-    "retains %s delivery for watchdog followups without retrying after diagnostic output",
+    "leaves a passive watchdog notice under %s delivery without waking the agent or retrying after diagnostic output",
     async (policy) => {
       enqueueSessionEventMock.mockClear();
+      enqueueSystemEventMock.mockClear();
       const clearBeforeRetry = vi.fn(async () => true);
       supervisorSpawnMock.mockResolvedValueOnce(
         fixture.makeManagedRun({
@@ -56,17 +58,16 @@ export function registerCliWatchdogNoticeTests(fixture: {
       await expect(fixture.run(context)).rejects.toThrow("produced no output");
       expect(supervisorSpawnMock).toHaveBeenCalledTimes(1);
       expect(clearBeforeRetry).not.toHaveBeenCalled();
-      expect(enqueueSessionEventMock).toHaveBeenCalledTimes(1);
-      expect(enqueueSessionEventMock).toHaveBeenCalledWith(
+      // Fork (F38): no session event (it showed as "background command finished" and woke the
+      // agent for an extra turn); the agent reads the notice at the start of its next turn.
+      expect(enqueueSessionEventMock).not.toHaveBeenCalled();
+      expect(enqueueSystemEventMock).toHaveBeenCalledTimes(1);
+      expect(enqueueSystemEventMock).toHaveBeenCalledWith(
         expect.stringContaining("produced no output"),
         expect.objectContaining({
-          agentId: "main",
           sessionKey: "agent:main:timeout-after-output",
-          source: "exec",
-          expectedTarget: expect.objectContaining({
-            sessionKey: "agent:main:timeout-after-output",
-          }),
-          deliver: policy === "automatic" ? undefined : false,
+          contextKey: "cli_watchdog",
+          replace: true,
         }),
       );
     },
