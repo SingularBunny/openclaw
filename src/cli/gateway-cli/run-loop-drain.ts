@@ -7,28 +7,62 @@ import type { GatewayActiveWorkSnapshot } from "../../infra/gateway-active-work.
 import { formatGatewayDrainCounts } from "../../infra/gateway-drain.js";
 import type { SubsystemLogger } from "../../logging/subsystem.js";
 import { beginGatewayShutdownCleanup } from "../../process/gateway-work-admission.js";
+import { startAgentTurnShutdownWait } from "./run-loop-agent-turn-wait.js";
 import type { GatewayRunSignalAction, GatewayRunSignalRequest } from "./run-loop-request.js";
 import { formatShutdownReason } from "./run-loop-shutdown-format.js";
 
 const RESTART_DRAIN_STILL_PENDING_WARN_MS = 30_000;
 
-export async function drainGatewayActiveWork({
-  request,
-  runtime,
-  drainTimeoutMs,
-  restartDrainDeadlineAt,
-  recordCounts,
-  recordWarning,
-  logger,
-}: {
+type DrainGatewayActiveWorkParams = {
   request: GatewayRunSignalRequest;
   runtime: typeof import("./lifecycle.runtime.js");
   drainTimeoutMs: number | undefined;
   restartDrainDeadlineAt: number | undefined;
+  /** Fork F44: wait for running agent turns until then (run-loop-agent-turn-wait.ts). */
+  agentTurnDrainDeadlineAt?: number;
   recordCounts: (counts: string) => void;
   recordWarning: (warning: string) => void;
   logger: Pick<SubsystemLogger, "info" | "warn">;
-}) {
+};
+
+export async function drainGatewayActiveWork(params: DrainGatewayActiveWorkParams) {
+  const { request, runtime, agentTurnDrainDeadlineAt, logger } = params;
+  const agentTurnWait =
+    agentTurnDrainDeadlineAt === undefined
+      ? undefined
+      : startAgentTurnShutdownWait({
+          action: request.action === "stop" ? "stop" : "restart",
+          reason: formatShutdownReason(request),
+          deadlineAt: agentTurnDrainDeadlineAt,
+          inspect: () => runtime.createGatewayActiveWorkSnapshot(),
+          logger,
+        });
+  try {
+    return await drainActiveWork(params, (timeoutMs, onSnapshot) =>
+      agentTurnWait
+        ? agentTurnWait.wait(timeoutMs, onSnapshot)
+        : runtime.waitForGatewayActiveWork(timeoutMs, { onSnapshot }),
+    );
+  } finally {
+    agentTurnWait?.finish();
+  }
+}
+
+async function drainActiveWork(
+  {
+    request,
+    runtime,
+    drainTimeoutMs,
+    restartDrainDeadlineAt,
+    recordCounts,
+    recordWarning,
+    logger,
+  }: DrainGatewayActiveWorkParams,
+  waitForActiveWork: (
+    timeoutMs: number | undefined,
+    onSnapshot: (snapshot: GatewayActiveWorkSnapshot) => void,
+  ) => Promise<{ drained: boolean; snapshot: GatewayActiveWorkSnapshot }>,
+) {
   const { restartIntent } = request;
   let drainTimedOut = false;
   const reportDrainSnapshot = createGatewayDrainReporter(
@@ -46,8 +80,7 @@ export async function drainGatewayActiveWork({
     await measureGatewayRestartTrace(
       "restart.drain",
       async () => {
-        const { abortEmbeddedAgentRun, createGatewayActiveWorkSnapshot, waitForGatewayActiveWork } =
-          runtime;
+        const { abortEmbeddedAgentRun, createGatewayActiveWorkSnapshot } = runtime;
         // Reject new enqueues immediately during the drain window so
         // sessions get an explicit restart error instead of silent task loss.
         const drainReason = formatShutdownReason(request);
@@ -69,9 +102,7 @@ export async function drainGatewayActiveWork({
           restartDrainDeadlineAt === undefined
             ? undefined
             : Math.max(0, restartDrainDeadlineAt - Date.now());
-        const drain = await waitForGatewayActiveWork(remainingDrainTimeoutMs, {
-          onSnapshot: reportDrainSnapshot,
-        });
+        const drain = await waitForActiveWork(remainingDrainTimeoutMs, reportDrainSnapshot);
         if (drain.drained) {
           if (!initialSnapshot.idle) {
             logger.info("all active work drained");
@@ -98,9 +129,7 @@ export async function drainGatewayActiveWork({
     try {
       markGatewayRestartTrace("stop.drain.begin");
       const activeWorkDrain = await measureGatewayRestartTrace("stop.drain", () =>
-        runtime.waitForGatewayActiveWork(drainTimeoutMs, {
-          onSnapshot: reportDrainSnapshot,
-        }),
+        waitForActiveWork(drainTimeoutMs, reportDrainSnapshot),
       );
       if (!activeWorkDrain.drained) {
         drainTimedOut = true;

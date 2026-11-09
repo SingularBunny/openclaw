@@ -11,7 +11,11 @@ import {
 } from "../infra/restart.js";
 import { createAppliedConfigHashPublisher } from "./applied-config-hash-publisher.js";
 import type { GatewayReloadPlan } from "./config-reload.js";
-import { countActiveAgentWork, resolveRestartAgentRunWait } from "./restart-agent-run-wait.js";
+import {
+  countActiveAgentWork,
+  countRunningAgentTurns,
+  resolveRestartAgentRunWait,
+} from "./restart-agent-run-wait.js";
 import { trackGatewayRestartDeferral, type GatewayRestartNoticeHandle } from "./restart-notice.js";
 import type { createGatewayActiveWorkTracker } from "./server-reload-active-work.js";
 import {
@@ -380,7 +384,7 @@ class GatewayRestartTransaction {
         agentRunWaitMs: agentRunWait ? (agentRunWait.maxWaitMs ?? null) : undefined,
         getCounts: () => {
           const counts = this.options.getActiveCounts();
-          return { agentTurns: countActiveAgentWork(counts), totalActive: counts.totalActive };
+          return { agentTurns: countRunningAgentTurns(counts), totalActive: counts.totalActive };
         },
       });
       // Timeout and failed checks leave a live deferral owned by this request.

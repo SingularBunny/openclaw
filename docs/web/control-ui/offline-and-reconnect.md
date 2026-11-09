@@ -209,7 +209,9 @@ read access: "Gateway restart pending: waiting for 2 running turns, restarts at 
 (reason: …)". It updates as turns finish, turns into "Gateway restarting now…" when the wait
 ends, and shows "Gateway restarted" for ten seconds after the page reconnects. A page opened
 during the wait picks it up from the hello snapshot. The notice can be dismissed; a new state
-shows again. See [`gateway.restart`](/gateway/protocol/rpc-bootstrap-and-events).
+shows again. When the Gateway itself restarts or stops while agent turns run and
+`OPENCLAW_RESTART_AGENT_RUN_WAIT_MS` is set, the notice reads "Gateway restarting: waiting for 1
+running turn, …; new messages are refused until it is back" or "Gateway stopping: …". See [`gateway.restart`](/gateway/protocol/rpc-bootstrap-and-events).
 
 The client retries ordinary connection loss automatically with randomized backoff: the first
 retry waits 800–960 ms, and sustained failures spread retries across 12.5–15 seconds.

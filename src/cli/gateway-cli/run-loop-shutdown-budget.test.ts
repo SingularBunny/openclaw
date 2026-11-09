@@ -328,3 +328,93 @@ describe("Gateway stop deadline follows the launchd stop that is actually runnin
     },
   );
 });
+
+// Fork F44: OPENCLAW_RESTART_AGENT_RUN_WAIT_MS lets shutdown drains wait for agent turns.
+describe("Gateway shutdown waits for agent turns with OPENCLAW_RESTART_AGENT_RUN_WAIT_MS", () => {
+  const systemdStop = (timeout: string) => ({
+    code: 0,
+    stdout: `LoadState=loaded\nTimeoutStopUSec=${timeout}\nInvocationID=own`,
+    stderr: "",
+  });
+  beforeEach(() => {
+    process.env.OPENCLAW_RESTART_AGENT_RUN_WAIT_MS = "1800000";
+    process.env.INVOCATION_ID = "own";
+  });
+
+  it("raises the shutdown limit to the wait when the unit's stop timeout allows it", async () => {
+    execSystem.mockResolvedValue(systemdStop("32min"));
+    const warn = vi.fn();
+    const budget = await resolveGatewayShutdownBudget("external", { info: vi.fn(), warn });
+    budget.log("startup");
+    expect(budget.timeoutMs).toBe(1_810_000);
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it("stays within a shorter unit stop timeout and says how to raise it", async () => {
+    execSystem.mockResolvedValue(systemdStop("5min 30s"));
+    const warn = vi.fn();
+    const budget = await resolveGatewayShutdownBudget("external", { info: vi.fn(), warn });
+    budget.log("startup");
+    expect(budget.timeoutMs).toBe(325_000);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("TimeoutStopSec"));
+  });
+
+  it("uses the wait outside a service, where nothing kills the Gateway early", async () => {
+    delete process.env.INVOCATION_ID;
+    readFile.mockResolvedValue(
+      "0::/user.slice/user-1000.slice/user@1000.service/app.slice/terminal.scope\n",
+    );
+    const budget = await resolveGatewayShutdownBudget(null, { info: vi.fn(), warn: vi.fn() });
+    expect(budget.timeoutMs).toBe(1_810_000);
+  });
+
+  it("gives a stop and an unforced restart the agent-turn deadline and a later exit timer", () => {
+    const budget = { timeoutMs: 1_810_000, reserveMs: 10_000, nativeStopBudget: true };
+    const now = Date.now();
+    const stop = resolveGatewayShutdownDrainBudget({
+      budget,
+      action: "stop",
+      forceRestart: false,
+      restartWithoutSupervisor: false,
+      acceptedAtMs: performance.now(),
+    });
+    expect(stop.drainTimeoutMs).toBe(20_000);
+    expect(stop.agentTurnDrainDeadlineAt).toBeGreaterThanOrEqual(now + 1_799_000);
+    expect(stop.forceExitMs).toBe(1_810_000);
+
+    const restart = resolveGatewayShutdownDrainBudget({
+      budget,
+      action: "restart",
+      forceRestart: false,
+      restartWithoutSupervisor: false,
+      acceptedAtMs: performance.now(),
+      requestedRestartDrainTimeoutMs: 300_000,
+    });
+    expect(restart.drainTimeoutMs).toBeLessThanOrEqual(300_000);
+    expect(restart.agentTurnDrainDeadlineAt).toBeGreaterThanOrEqual(now + 1_799_000);
+    expect(restart.forceExitMs).toBeGreaterThanOrEqual(1_809_000);
+
+    const forced = resolveGatewayShutdownDrainBudget({
+      budget,
+      action: "restart",
+      forceRestart: true,
+      restartWithoutSupervisor: false,
+      acceptedAtMs: performance.now(),
+      requestedRestartDrainTimeoutMs: 45_000,
+    });
+    expect(forced.agentTurnDrainDeadlineAt).toBeUndefined();
+  });
+
+  it("keeps upstream's drain when the wait is unset", () => {
+    delete process.env.OPENCLAW_RESTART_AGENT_RUN_WAIT_MS;
+    const drain = resolveGatewayShutdownDrainBudget({
+      budget: { timeoutMs: 325_000, reserveMs: 10_000, nativeStopBudget: true },
+      action: "stop",
+      forceRestart: false,
+      restartWithoutSupervisor: false,
+      acceptedAtMs: performance.now(),
+    });
+    expect(drain.agentTurnDrainDeadlineAt).toBeUndefined();
+    expect(drain.forceExitMs).toBe(325_000);
+  });
+});

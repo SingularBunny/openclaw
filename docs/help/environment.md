@@ -181,7 +181,7 @@ is stored without a restart and takes effect on the next Gateway start.
 | `OPENCLAW_PLUGIN_GATEWAY_METHODS`           | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                           |
 | `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` | `12000`     | Minimum gap between live progress digests of one run (utility model; only while a visible Control UI tab is open). |
 | `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps requested by transcript growth; a run end or archive still refreshes at once.  |
-| `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`        | off         | How long a restart required by a config change waits for running agent turns; see below.                           |
+| `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`        | off         | How long a restart or a stop waits for running agent turns; see below.                                             |
 
 `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` and `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS` set how
 often the utility model is called for a running chat; both read on use. Each progress digest and
@@ -202,6 +202,33 @@ before if other work is still active past the 5 minutes. Without the variable, o
 `300000` or less, the 5-minute bound applies to all work, as upstream.
 While a restart waits, the Control UI shows a notice at the top of the window with the running turns
 ([Hot reload](/gateway/configuration/hot-reload)).
+
+The same bound applies when the Gateway shuts down: an in-process restart (for example after the
+installed package was replaced, or `openclaw gateway install --force` refreshing the service) drains
+active work for at most 5 minutes, and a stop (`systemctl stop` or `restart`, SIGTERM, SIGINT, Ctrl+C)
+for at most 20 seconds; then running turns are aborted. With the variable set, the drain keeps waiting
+past those budgets while agent turns or their reply deliveries run, up to the bound counted from the
+stop or restart request. During this drain new turns are refused (the sender gets the restart or
+stop error), so the wait ends once the running turns finish; queued turns do not extend it. Other work
+keeps the upstream budget. The Control UI notice then says the Gateway is restarting or stopping and
+how many turns it waits for.
+
+- A SIGTERM that arrives while a restart drains (for example `systemctl restart` during an
+  installation-replacement restart) turns the restart into a stop and keeps waiting.
+- A second SIGTERM or SIGINT, or a SIGQUIT, ends the wait at once: what still runs is aborted and the
+  Gateway shuts down as it does without the variable. Outside such a wait SIGQUIT keeps Node's
+  default (immediate exit).
+- A forced restart (`--force` restart intents) and a suspend handoff keep the upstream drain.
+- The service manager's stop timeout still bounds the wait: the Gateway reads systemd's
+  `TimeoutStopSec` (or launchd's `ExitTimeOut`) and never waits past the point where it would be
+  killed. `openclaw gateway install` writes `TimeoutStopSec=330`, so a longer wait needs a systemd
+  drop-in, which reinstalls keep, for example
+  `~/.config/systemd/user/openclaw-gateway.service.d/agent-turn-wait.conf` with
+  `[Service]` and `TimeoutStopSec=1920` for a 30-minute wait, then `systemctl --user daemon-reload`.
+  At startup the Gateway logs a warning when the stop timeout is shorter than the wait.
+  `openclaw doctor` reports such a drop-in as an operator override of installer policy.
+- A turn that is still aborted is marked as interrupted by a Gateway restart and resumed by restart
+  recovery after the Gateway is back, as upstream does.
 
 `OPENCLAW_PLUGIN_GATEWAY_METHODS` grants a plugin that is neither bundled nor a trusted official install
 exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#api-runtime-gateway):
