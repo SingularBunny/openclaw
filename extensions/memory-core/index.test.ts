@@ -438,6 +438,49 @@ describe("memory-core plugin runtime registration", () => {
   });
 
   // Runs before any case below marks process-wide indexing live.
+  it("opens every index at cold start with OPENCLAW_MEMORY_INDEX_ON_START", async () => {
+    vi.stubEnv("OPENCLAW_MEMORY_INDEX_ON_START", "1");
+    try {
+      const config: OpenClawConfig = {
+        plugins: { slots: { memory: "memory-core" } },
+        agents: { entries: { main: {}, research: {} } },
+      };
+      let service: OpenClawPluginService | undefined;
+      const backgroundTasks: unknown[] = [];
+      const api = createTestPluginApi({
+        id: "memory-core",
+        config,
+        runtime: hostRuntime,
+        registerService(registered) {
+          if (registered.id === "memory-core-index" && registered.apiVersion !== 2) {
+            service = registered;
+          }
+        },
+      });
+      api.lifecycle.runInBackgroundContext = (run) => {
+        const task = run();
+        backgroundTasks.push(task);
+        return task;
+      };
+      plugin.register(api);
+      if (!service) {
+        throw new Error("Expected the memory index service");
+      }
+      const context = { config, stateDir: "unused", logger: api.logger };
+      expect(hasMemoryIndexingBeenLive()).toBe(false);
+      await service.start(context);
+      await Promise.all(backgroundTasks);
+      expect(getMemorySearchManagerMock.mock.calls).toEqual([
+        [{ cfg: config, agentId: "main" }],
+        [{ cfg: config, agentId: "research" }],
+      ]);
+      await service.stop?.(context);
+    } finally {
+      vi.unstubAllEnvs();
+      getMemorySearchManagerMock.mockClear();
+    }
+  });
+
   it("leaves cold-start indexing demand-driven until a manager has run", async () => {
     const config: OpenClawConfig = {
       plugins: { slots: { memory: "memory-core" } },

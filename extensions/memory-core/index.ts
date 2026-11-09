@@ -210,6 +210,11 @@ function createLazyMemoryRuntime(host: MemoryCoreRuntimeHost): MemoryPluginRunti
   };
 }
 
+/** Fork: OPENCLAW_MEMORY_INDEX_ON_START=1 opens every agent's index at Gateway start. Read on use. */
+function memoryIndexOnStart(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.OPENCLAW_MEMORY_INDEX_ON_START?.trim() ?? "");
+}
+
 export default definePluginEntry({
   id: "memory-core",
   name: "OpenClaw Memory",
@@ -264,7 +269,9 @@ export default definePluginEntry({
           // Cold start stays demand-driven: opening every agent's index starts its
           // transcript and index workers before any search or turn needs them.
           // Restarts after a manager ran restore watching without a search.
-          if (!hasMemoryIndexingBeenLive()) {
+          // Fork: OPENCLAW_MEMORY_INDEX_ON_START=1 opens every index at start, for agents whose
+          // chats rarely search (CLI backends), so new chats and memory files still get indexed.
+          if (!hasMemoryIndexingBeenLive() && !memoryIndexOnStart()) {
             return;
           }
           const activate = async () => {
