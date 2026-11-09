@@ -7,6 +7,7 @@ import {
   ErrorCodes,
   validateSessionsUsageParams,
 } from "../../../packages/gateway-protocol/src/index.js";
+import { overlayProviderUsageRateLimits } from "../../infra/provider-usage.rate-limit.js";
 import { resolveUsageCostWorkerDayBucket } from "../../infra/session-cost-usage-worker-runtime.js";
 import { loadSessionLogs, loadSessionUsageTimeSeries } from "../../infra/session-cost-usage.js";
 import { isIncognitoSessionKey, normalizeAgentId } from "../../routing/session-key.js";
@@ -95,7 +96,8 @@ export const usageHandlers: GatewayRequestHandlers = {
       config: context.getRuntimeConfig(),
       coldRead,
     });
-    respond(true, summary, undefined);
+    // Fork: live turn-level rate-limit status is newer than the minute-cached windows.
+    respond(true, overlayProviderUsageRateLimits(summary), undefined);
   },
   "usage.cost": async ({ respond, params, context, client }) => {
     const dateRange = resolveUsageDateRangeOrRespond(params ?? {}, respond);

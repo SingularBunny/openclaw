@@ -37,6 +37,7 @@ import {
   type SidebarRecentSession,
   type SidebarToolActivity,
 } from "./app-sidebar-session-types.ts";
+import { ClaudeUsageIndicator } from "./claude-usage-indicator.tsx";
 import { SessionOrganizer } from "./session-organizer.ts";
 import { SidebarScrollContext, type createSidebarScroll } from "./sidebar-context-controller.ts";
 import { createSidebarMenus } from "./sidebar-menus.tsx";
@@ -593,6 +594,8 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
                 </div>
               </Show>
             </div>
+            {/* Fork: Claude subscription limits stay visible under the session list. */}
+            <ClaudeUsageIndicator gateway={() => this.context.gateway} />
             <Show when={this.devGitBranch}>
               <div class="sidebar-shell__footer">
                 <openclaw-tooltip prop:content={this.devGitBranch ?? undefined}>
