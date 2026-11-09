@@ -2,7 +2,8 @@ import type { GatewayRestartNotice } from "../../packages/gateway-protocol/src/i
 
 /**
  * Fork: the state of a Gateway restart that waits for running work (a config change that needs a
- * restart, deferred until agent turns and other work finish). Control UIs show it as a notice
+ * restart, deferred until agent turns and other work finish; F44: a restart or stop that drains
+ * running agent turns, run-loop-agent-turn-wait.ts). Control UIs show it as a notice
  * outside the chat: `gateway.restart` events while it changes, and `snapshot.gatewayRestart` in
  * hello for clients that connect while it is pending. The notice lives in this process only: the
  * restarted Gateway starts without one.
@@ -18,7 +19,12 @@ export type GatewayRestartNoticeCounts = {
   totalActive: number;
 };
 
+/** Phases a waiting restart or stop publishes until it is over. */
+export type GatewayRestartWaitPhase = Exclude<GatewayRestartNotice["phase"], "restarting">;
+
 export type GatewayRestartNoticeHandle = {
+  /** Fork F44: the wait changed its nature, e.g. a restart drain that a SIGTERM turned into a stop. */
+  setPhase(phase: GatewayRestartWaitPhase): void;
   /** The restart is about to happen (work finished or the wait timed out). */
   restarting(): void;
   /** The restart no longer waits (superseded or cancelled). */
@@ -62,15 +68,22 @@ export function trackGatewayRestartDeferral(params: {
   budgetMs: number;
   agentRunWaitMs?: number | null;
   getCounts: () => GatewayRestartNoticeCounts;
+  /** F44: a shutdown drain publishes `draining` or `stopping` instead of `pending`. */
+  phase?: GatewayRestartWaitPhase;
+  /** F44: the drain's own deadline instead of one computed from the budgets. */
+  deadlineAt?: number | null;
   now?: () => number;
   pollMs?: number;
 }): GatewayRestartNoticeHandle {
   const now = params.now ?? Date.now;
   const since = now();
+  let waitPhase: GatewayRestartWaitPhase = params.phase ?? "pending";
   const deadlineAt =
-    params.agentRunWaitMs === null
-      ? null
-      : since + Math.max(params.budgetMs, params.agentRunWaitMs ?? params.budgetMs);
+    params.deadlineAt !== undefined
+      ? params.deadlineAt
+      : params.agentRunWaitMs === null
+        ? null
+        : since + Math.max(params.budgetMs, params.agentRunWaitMs ?? params.budgetMs);
   const token = {};
   owner = token;
   let timer: ReturnType<typeof setInterval> | null = null;
@@ -108,15 +121,15 @@ export function trackGatewayRestartDeferral(params: {
     }
   };
   const isOwner = () => owner === token;
-  publish(build("pending"));
+  publish(build(waitPhase));
   timer = setInterval(() => {
     if (!isOwner()) {
       stopTimers();
       return;
     }
-    const next = build("pending");
+    const next = build(waitPhase);
     if (
-      current?.phase !== "pending" ||
+      current?.phase !== waitPhase ||
       next.activeTurns !== current.activeTurns ||
       next.activeWork !== current.activeWork
     ) {
@@ -125,6 +138,13 @@ export function trackGatewayRestartDeferral(params: {
   }, params.pollMs ?? DEFAULT_POLL_MS);
   timer.unref?.();
   return {
+    setPhase(phase) {
+      if (!isOwner() || !timer || phase === waitPhase) {
+        return;
+      }
+      waitPhase = phase;
+      publish(build(waitPhase));
+    },
     restarting() {
       if (!isOwner()) {
         return;

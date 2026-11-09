@@ -101,6 +101,7 @@ describe("gateway restart notice (fork)", () => {
         return { cancel };
       },
     );
+    // One chat turn shows in two overlapping registries: it is one running turn.
     const activeCounts = { ...zeroActiveCounts, totalActive: 3, agentRuns: 1, chatRuns: 1 };
     const coordinator = createCoordinator(
       { assertRestartReady: vi.fn(), requestRecoveryRestart: vi.fn() },
@@ -111,7 +112,7 @@ describe("gateway restart notice (fork)", () => {
       expect(getGatewayRestartNotice()).toMatchObject({
         phase: "pending",
         reason: "config reload: gateway.port",
-        activeTurns: 2,
+        activeTurns: 1,
         activeWork: 3,
       });
       expect(events).toHaveLength(1);

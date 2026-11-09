@@ -54,6 +54,24 @@ describe("gateway restart notice", () => {
     expect(work?.text).toContain('common.gatewayRestart.waitingWork{\\"count\\":\\"4\\"}');
   });
 
+  it("says a restarting or stopping Gateway waits for turns and refuses new messages", () => {
+    const reason = "restart (SIGUSR2: gateway.installation_replaced)";
+    for (const phase of ["draining", "stopping"] as const) {
+      const notice = { ...pending, phase, reason, activeTurns: 1 };
+      expect(readGatewayRestartNotice(notice)).toEqual(notice);
+      const banner = resolveGatewayRestartBanner(
+        { phase: "connected", restartNotice: notice },
+        0,
+        translate,
+      );
+      expect(banner?.kind).toBe(phase);
+      expect(banner?.tone).toBe("warn");
+      expect(banner?.text).toMatch(new RegExp(`^common\\.gatewayRestart\\.${phase}\\{`));
+      expect(banner?.text).toContain("common.gatewayRestart.waitingTurn{");
+      expect(banner?.text).toContain(`"reason":"${reason}"`);
+    }
+  });
+
   it("shows restarting now, then restarted briefly after the reconnect", () => {
     expect(
       resolveGatewayRestartBanner({ phase: "reconnecting", restartPending: true }, 0, translate)

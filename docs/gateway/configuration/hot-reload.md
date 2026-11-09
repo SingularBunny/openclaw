@@ -157,7 +157,13 @@ notice at the top of the window, outside any chat: what the restart waits for
 settings. It switches to "Gateway restarting now" when the wait ends and shows
 "Gateway restarted" for a few seconds after the page reconnects. How long a
 restart may wait for agent turns is set by `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`
-([Environment variables](/help/environment)). The longest
+([Environment variables](/help/environment)). New turns still start while a
+config restart waits. The same variable lets the restart itself, and a stop of
+the Gateway (service stop or restart, SIGTERM, SIGINT), drain running agent turns
+past the upstream budgets of 5 minutes and 20 seconds; during that drain new turns
+are refused, and the notice reads "Gateway restarting" or "Gateway stopping" with
+the turns it waits for. A second SIGTERM or SIGINT, or a SIGQUIT, stops waiting.
+The service manager's stop timeout still bounds it. The longest
 matching config prefix determines the outcome. Rules supplied by a plugin apply
 only while that plugin is loaded; a path that matches no rule defaults to a
 Gateway restart.

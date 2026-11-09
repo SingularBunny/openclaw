@@ -53,3 +53,18 @@ export function countActiveAgentWork(counts: AgentWorkCounts): number {
     counts.sessionAdmissions
   );
 }
+
+type RunningTurnCounts = {
+  agentRuns: number;
+  embeddedRuns: number;
+  acpRuns: number;
+  chatRuns: number;
+};
+
+/**
+ * Running agent turns for display. The registries overlap (one embedded turn is also an admitted
+ * agent run), so the largest of them is the closest count; queued turns are not running.
+ */
+export function countRunningAgentTurns(counts: RunningTurnCounts): number {
+  return Math.max(counts.agentRuns, counts.embeddedRuns, counts.acpRuns, counts.chatRuns, 0);
+}

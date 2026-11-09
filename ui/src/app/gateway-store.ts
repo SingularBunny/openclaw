@@ -271,7 +271,8 @@ export function createApplicationGateway(
     } else if (event.event === "gateway.restart") {
       // Fork: restart-pending notice, shown outside the chat (gateway-restart-notice.ts).
       const restartNotice = readGatewayRestartNotice(asOptionalRecord(event.payload)?.notice);
-      restartAwaited ||= restartNotice?.phase === "restarting";
+      restartAwaited ||=
+        restartNotice?.phase === "restarting" || restartNotice?.phase === "draining";
       setSnapshot({ restartNotice });
     } else if (event.event === "shutdown") {
       // Only a restart-bearing shutdown arms the amber state; an ordinary stop

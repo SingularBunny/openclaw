@@ -706,6 +706,7 @@ export async function runGatewayLoop(params: {
           runtime: eagerLifecycleRuntime,
           drainTimeoutMs: drainBudget.drainTimeoutMs,
           restartDrainDeadlineAt: drainBudget.restartDrainDeadlineAt,
+          agentTurnDrainDeadlineAt: drainBudget.agentTurnDrainDeadlineAt,
           recordCounts: (counts) => {
             lastDrainCounts = counts;
           },
