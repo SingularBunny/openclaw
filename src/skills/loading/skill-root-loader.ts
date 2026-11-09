@@ -10,6 +10,7 @@ import {
   type LoadedLocalSkill,
   type LocalSkillLoadDiagnostic,
 } from "./local-loader.js";
+import { qualifyCollidingPluginSkills } from "./plugin-skill-names.js";
 import { createSkillEntry } from "./skill-entry-metadata.js";
 import { compactSkillPath } from "./skill-paths.js";
 import {
@@ -260,7 +261,13 @@ export function loadWorkspaceSkillSourceEntries(
       });
     }
   }
-  grouped.set("extra", extra);
+  grouped.set(
+    "extra",
+    qualifyCollidingPluginSkills(extra, {
+      pluginSkillRoots: plan.pluginSkillRoots,
+      pluginSkillsDir: plan.pluginSkillsDir,
+    }),
+  );
   // Custodian and bundled records share a tier and deterministic collision order.
   grouped
     .get("bundled")
