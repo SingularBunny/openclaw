@@ -213,6 +213,11 @@ function createLazyMemoryRuntime(host: MemoryCoreRuntimeHost): MemoryPluginRunti
   };
 }
 
+/** Fork: OPENCLAW_MEMORY_INDEX_ON_START=1 opens every agent's index at Gateway start. Read on use. */
+function memoryIndexOnStart(): boolean {
+  return /^(1|true|yes)$/i.test(process.env.OPENCLAW_MEMORY_INDEX_ON_START?.trim() ?? "");
+}
+
 export default definePluginEntry({
   id: "memory-core",
   name: "OpenClaw Memory",
@@ -266,7 +271,11 @@ export default definePluginEntry({
         start({ config, logger }) {
           // Restore watched indexes without opening untouched agents' databases
           // and workers just because another agent used memory before this reload.
-          const agentIds = retainMemoryIndexingAgents(listAgentIds(config));
+          // Fork: OPENCLAW_MEMORY_INDEX_ON_START=1 opens every index at start, for agents whose
+          // chats rarely search (CLI backends), so new chats and memory files still get indexed.
+          const configuredAgentIds = listAgentIds(config);
+          const liveAgentIds = retainMemoryIndexingAgents(configuredAgentIds);
+          const agentIds = memoryIndexOnStart() ? configuredAgentIds : liveAgentIds;
           if (agentIds.length === 0) {
             return;
           }
