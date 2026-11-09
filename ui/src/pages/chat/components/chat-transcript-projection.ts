@@ -9,6 +9,7 @@ import { chatItemGroups } from "../chat-agent-run-grouping.ts";
 import { assistantGroupCanOwnActiveRunStatus } from "../chat-assistant-reply.ts";
 import { resolveTurnRecap, shouldRenderQueuedSendInThread } from "../chat-progress.ts";
 import { projectChatReasoning } from "../chat-reasoning.ts";
+import { canCutAtChatMessage } from "../chat-rewind-target.ts";
 import { groupReadsHandoffRoster, projectSubagentStatus } from "../chat-subagent-wait.ts";
 import type { SystemEventRenderItem } from "../chat-system-event-grouping.ts";
 import { persistedMessageEntryId } from "../chat-thread-items.ts";
@@ -330,9 +331,10 @@ export function projectChatTranscript(
   } satisfies StreamGroupOptions;
   const renderGroupOptions = (item: MessageGroup) => {
     const continuation = continuations.get(item.key);
+    const rewindMessage = item.messages.at(-1)?.message;
     const rewindEntryId =
-      item.role.toLowerCase() === "user"
-        ? persistedMessageEntryId(item.messages.at(-1)?.message)
+      item.role.toLowerCase() === "user" && canCutAtChatMessage(rewindMessage)
+        ? persistedMessageEntryId(rewindMessage)
         : null;
     return {
       ...sharedMessageRenderOptions,

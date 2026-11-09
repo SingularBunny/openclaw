@@ -1,8 +1,5 @@
 /** Owns captured destinations and cancellation for background exec completion notifications. */
-import {
-  captureSessionEventTargetForHost as captureSessionEventTarget,
-  enqueueSessionEventForHost as enqueueSessionEvent,
-} from "../auto-reply/reply/session-event-handoff.js";
+import { captureSessionEventTargetForHost as captureSessionEventTarget } from "../auto-reply/reply/session-event-handoff.js";
 import {
   hasAgentRunContextExecutionOwner,
   listAgentRunsForSession,
@@ -21,6 +18,7 @@ import {
   tail,
   type ProcessSession,
 } from "./bash-process-registry.js";
+import { deliverExecExitNotice } from "./bash-tools.exec-notify-batch.js";
 import {
   appendExecTimeoutRetryGuidance,
   compactNotifyOutput,
@@ -29,26 +27,6 @@ import {
 import { getGatewayToolCallerIdentity } from "./tools/gateway-caller-context.js";
 
 const DEFAULT_NOTIFY_TAIL_CHARS = 400;
-function enqueueExecExitNotification(
-  text: string,
-  target: NonNullable<ProcessSession["notifySessionTarget"]>,
-  id: string,
-  options: Omit<
-    Parameters<typeof enqueueSessionEvent>[1],
-    "agentId" | "sessionKey" | "source"
-  > = {},
-) {
-  return enqueueSessionEvent(text, {
-    ...options,
-    agentId: target.agentId!,
-    sessionKey: target.sessionKey!,
-    source: "exec",
-    contextKey: options.contextKey ?? `exec:${id}`,
-    sourceTurnId: `exec:${id}`,
-    expectedTarget: target,
-  });
-}
-
 /** Capture the original session before spawning work that may outlive its turn. */
 export function prepareExecExitNotification(
   session: ProcessSession,
@@ -160,25 +138,28 @@ export async function maybeNotifyOnExit(
       );
       return;
     }
+    // Fork: completions that finish while the session is mid-turn reach it as one event
+    // after that turn instead of one turn each.
     try {
-      const receipt = enqueueExecExitNotification(
-        eventText,
-        session.notifySessionTarget,
-        processSessionInstanceId(session),
-        {
-          ...eventOptions,
-          sourceRunId: session.originRunId,
-          assertAcceptanceCurrent: session.assertExitNotificationAcceptanceCurrent,
-        },
+      recordNotifyOnExitRemoval(
+        session,
+        deliverExecExitNotice({
+          id: session.id,
+          instanceId: processSessionInstanceId(session),
+          text: eventText,
+          agentId,
+          sessionKey: eventSessionKey,
+          target: session.notifySessionTarget,
+          owners: readExecRequestOwners(session),
+          deliveryContext: session.notifyDeliveryContext,
+          isObsolete: () =>
+            session.terminalPollObserved === true || session.requestCancelled === true,
+          ...(session.originRunId ? { sourceRunId: session.originRunId } : {}),
+          ...(session.assertExitNotificationAcceptanceCurrent
+            ? { assertAcceptanceCurrent: session.assertExitNotificationAcceptanceCurrent }
+            : {}),
+        }),
       );
-      recordNotifyOnExitRemoval(session, receipt.cancel);
-      void receipt.settled.then(async (outcome) => {
-        if (outcome.status === "failed") {
-          logWarn(
-            `exec: completion delivery failed (${outcome.error}); inspect the process result.`,
-          );
-        }
-      });
     } catch (error) {
       logWarn(
         `exec: completion was not admitted (${formatErrorMessage(error)}); inspect the process result.`,

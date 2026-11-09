@@ -28,6 +28,9 @@ import { MIN_READABLE_SESSION_VERSION } from "./version.js";
 type MessageCut = {
   status: "cut";
   message: Record<string, unknown>;
+  /** Fork: a native-only cut puts this row's text in the composer instead of the local message. */
+  nativeEditorText?: string;
+  native?: boolean;
   parentId: string | null;
   prefix: TranscriptEvent[];
 };
@@ -79,7 +82,7 @@ export function selectSessionMessageCut(
   const cut =
     params.mode === "switch"
       ? undefined
-      : resolveMessageCut(events, params.entryId, params.mode === "fork");
+      : resolveMessageCut(events, params.entryId, params.mode === "fork", params.nativeCut);
   if (cut && cut.status !== "cut") {
     return cut;
   }
@@ -122,12 +125,19 @@ export function planSessionMessageCut(
   ) {
     return { status: "conflict" };
   }
+  // A native-only cut never falls back to the kept branch's checkpoint: that reply is newer
+  // than the row being cut, and the native session would keep the cut-away turns.
+  const resumePoint =
+    params.cliResumePoint ??
+    (params.nativeCut
+      ? undefined
+      : readCliResumePointAtLeaf(
+          events,
+          params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
+        ));
   const resumedCliSessionBindings = resumeCliSessionBindingsAt(
     currentEntry,
-    readCliResumePointAtLeaf(
-      events,
-      params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
-    ),
+    resumePoint,
     (provider) => params.cliForkProviders?.includes(provider) === true,
   );
   const nextSessionId = randomUUID();
@@ -254,10 +264,14 @@ export function planSessionMessageCut(
         previous: currentEntry,
         sessionKey: params.targetKey,
       });
-  const editorText =
-    cut && (readMessageWorkContext(cut.message)?.text ?? extractEditorText(cut.message.content));
-  const editorAttachments = cut && extractEditorAttachments(cut.message.content);
-  const editorMediaRefs = cut && extractEditorMediaRefs(cut.message);
+  const localCut = cut && !cut.native ? cut : undefined;
+  const editorText = cut?.native
+    ? cut.nativeEditorText
+    : localCut &&
+      (readMessageWorkContext(localCut.message)?.text ??
+        extractEditorText(localCut.message.content));
+  const editorAttachments = localCut && extractEditorAttachments(localCut.message.content);
+  const editorMediaRefs = localCut && extractEditorMediaRefs(localCut.message);
   return {
     status: "prepared",
     header,
@@ -310,9 +324,24 @@ function resolveMessageCut(
   events: readonly TranscriptEvent[],
   entryId: string,
   copyPrefix: boolean,
+  nativeCut?: SessionMessageCutIntent["nativeCut"],
 ): MessageCut | Exclude<SessionMessageCutMutationResult, { status: "created" }> {
   const tree = scanSessionTranscriptTree(events);
   const target = tree.byId.get(entryId);
+  if (!target && nativeCut?.keepLeaf) {
+    // The native-only row follows every local message: the local branch stays whole and only
+    // the native session moves back.
+    return {
+      status: "cut",
+      message: {},
+      native: true,
+      ...(nativeCut.editorText ? { nativeEditorText: nativeCut.editorText } : {}),
+      parentId: tree.leafId,
+      prefix: copyPrefix
+        ? copyPathPrefix(selectSessionTranscriptTreePathNodes(tree, tree.leafId))
+        : [],
+    };
+  }
   if (!target) {
     return { status: "missing-entry" };
   }
@@ -326,16 +355,17 @@ function resolveMessageCut(
   if (targetIndex < 0) {
     return { status: "off-active-path" };
   }
-  const prefix: TranscriptEvent[] = [];
-  for (const node of copyPrefix ? activePath.slice(0, targetIndex) : []) {
-    const entry = asRecord(node.entry);
-    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
-    // data property instead of rebinding the copy's prototype.
-    prefix.push(
-      entry && entry.parentId !== node.parentId
-        ? { ...entry, parentId: node.parentId }
-        : node.entry,
-    );
+  const prefix = copyPrefix ? copyPathPrefix(activePath.slice(0, targetIndex)) : [];
+  if (nativeCut) {
+    // The local row is only the cut anchor after a native-only row; the composer gets that row.
+    return {
+      status: "cut",
+      message,
+      native: true,
+      ...(nativeCut.editorText ? { nativeEditorText: nativeCut.editorText } : {}),
+      parentId: target.parentId,
+      prefix,
+    };
   }
   return {
     status: "cut",
@@ -343,6 +373,19 @@ function resolveMessageCut(
     parentId: target.parentId,
     prefix,
   };
+}
+
+function copyPathPrefix(
+  nodes: ReturnType<typeof selectSessionTranscriptTreePathNodes>,
+): TranscriptEvent[] {
+  return nodes.map((node) => {
+    const entry = asRecord(node.entry);
+    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
+    // data property instead of rebinding the copy's prototype.
+    return entry && entry.parentId !== node.parentId
+      ? { ...entry, parentId: node.parentId }
+      : node.entry;
+  });
 }
 
 // Gateway-written inline images are already size-capped at send time; these bounds

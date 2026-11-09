@@ -392,12 +392,12 @@ function shouldHideProjectedHistoryMessage(
     return false;
   }
   const provenance = normalizeInputProvenance(message.provenance);
+  // Fork: background exec completions stay in history; the Control UI renders their
+  // internal_system provenance as a collapsed system notice, not as an operator message.
   if (
     roleContent.role === "user" &&
     provenance?.kind === "internal_system" &&
-    (provenance.sourceTool === "exec" ||
-      provenance.sourceTool === "cron_failure_repair" ||
-      provenance.sourceTool === "tool_handoff")
+    (provenance.sourceTool === "cron_failure_repair" || provenance.sourceTool === "tool_handoff")
   ) {
     // Internal repair instructions and yielded tool results belong to the model transcript,
     // not the chat feed.
