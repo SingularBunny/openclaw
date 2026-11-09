@@ -124,7 +124,16 @@ function prepareAttachment(input: SidebarAttachmentProps) {
 }
 
 function SidebarAttachment(props: SidebarAttachmentProps) {
-  // Download-only attachments never resolve preview sources.
+  // Download-only attachments never resolve preview sources; PDF and Office documents
+  // read their bytes through the same download action for the reader.
+  const readerKind = createMemo(() => {
+    const mimeType = props.content.mimeType ?? "";
+    return isPdfAttachment(mimeType, props.content.title)
+      ? "pdf"
+      : isOfficeAttachment(mimeType, props.content.title)
+        ? "office"
+        : null;
+  });
   return (
     <Show
       when={props.content.download && props.download}
@@ -141,6 +150,27 @@ function SidebarAttachment(props: SidebarAttachmentProps) {
             downloadPending={download().pending}
           />
           <Show when={download().error}>{(error) => <div role="alert">{error()}</div>}</Show>
+          <Show when={readerKind()}>
+            {(kind) => (
+              <openclaw-chat-pdf-preview
+                prop:loadSource={props.content.download}
+                prop:sourceIdentity={[
+                  props.runtime.connectionEpoch ?? "",
+                  props.runtime.agentId ?? "",
+                  props.runtime.sessionKey ?? "",
+                  props.content.sourceIdentity ?? props.content.title,
+                ].join("\u0000")}
+                prop:label={props.content.title}
+                prop:mimeType={props.content.mimeType ?? ""}
+                prop:sizeBytes={props.content.sizeBytes}
+                prop:transform={
+                  kind() === "office"
+                    ? officePdfTransform(props.runtime, props.content.title)
+                    : undefined
+                }
+              />
+            )}
+          </Show>
         </>
       )}
     </Show>

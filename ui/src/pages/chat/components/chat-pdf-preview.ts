@@ -1,4 +1,4 @@
-import { html, type PropertyValues } from "lit";
+import { html, nothing, type PropertyValues } from "lit";
 import { property, state } from "lit/decorators.js";
 import { t } from "../../../i18n/index.ts";
 import { OpenClawLightDomContentsElement } from "../../../lit/openclaw-element.ts";
@@ -13,6 +13,8 @@ const PDF_PREVIEW_MAX_BYTES = 16 * 1024 * 1024;
 const PDF_PREVIEW_TIMEOUT_MS = 10_000;
 // Converting a document (e.g. LibreOffice cold start) takes longer than reading a PDF.
 const PDF_PREVIEW_TRANSFORM_TIMEOUT_MS = 60_000;
+// A loader authorizes a fresh download first; match the artifact download deadline.
+const PDF_PREVIEW_LOAD_TIMEOUT_MS = 30_000;
 
 export function isPdfAttachment(rawMimeType: string, filename: string): boolean {
   const mimeType = rawMimeType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
@@ -33,6 +35,13 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
   @property({ attribute: false }) transform:
     | ((bytes: Uint8Array, signal: AbortSignal) => Promise<Uint8Array<ArrayBuffer>>)
     | undefined;
+  /**
+   * Reads the source bytes instead of fetching `src`, e.g. a session artifact behind its
+   * ticketed download route. The host keeps its own download action for such sources.
+   */
+  @property({ attribute: false }) loadSource:
+    | ((signal: AbortSignal) => Promise<Blob | null>)
+    | undefined;
 
   @state() private status: "loading" | "ready" | "error" = "loading";
   @state() private previewUrl: string | null = null;
@@ -52,11 +61,16 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
   }
 
   override willUpdate(changed: PropertyValues<this>): void {
-    if (changed.has("src") || changed.has("sourceIdentity") || changed.has("sizeBytes")) {
+    if (
+      changed.has("src") ||
+      changed.has("loadSource") ||
+      changed.has("sourceIdentity") ||
+      changed.has("sizeBytes")
+    ) {
       this.cancelLoad();
       // A renewed ticket for the same attachment must not reset the native reader.
       if (
-        !this.src ||
+        (!this.src && !this.loadSource) ||
         !this.previewUrl ||
         !this.sourceIdentity ||
         changed.has("sourceIdentity") ||
@@ -65,7 +79,7 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
         this.revokePreviewUrl();
         this.status = "loading";
       }
-      if (this.src) {
+      if (this.src || this.loadSource) {
         void this.loadPdf();
       }
     }
@@ -94,19 +108,28 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
     this.abortController = controller;
     const timeout = setTimeout(
       () => controller.abort(),
-      this.transform ? PDF_PREVIEW_TRANSFORM_TIMEOUT_MS : PDF_PREVIEW_TIMEOUT_MS,
+      this.transform
+        ? PDF_PREVIEW_TRANSFORM_TIMEOUT_MS
+        : this.loadSource
+          ? PDF_PREVIEW_LOAD_TIMEOUT_MS
+          : PDF_PREVIEW_TIMEOUT_MS,
     );
     try {
-      const response = await fetch(this.src, {
-        credentials: "same-origin",
-        redirect: "error",
-        signal: controller.signal,
-      });
-      if (!response.ok) {
-        await response.body?.cancel().catch(() => undefined);
-        throw new Error("PDF attachment unavailable");
+      let fetched: ArrayBuffer | null;
+      if (this.loadSource) {
+        fetched = await this.readLoadedSource(this.loadSource, controller.signal);
+      } else {
+        const response = await fetch(this.src, {
+          credentials: "same-origin",
+          redirect: "error",
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          await response.body?.cancel().catch(() => undefined);
+          throw new Error("PDF attachment unavailable");
+        }
+        fetched = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
       }
-      const fetched = await readResponseBytesWithinLimit(response, PDF_PREVIEW_MAX_BYTES);
       if (!fetched) {
         throw new Error("PDF attachment exceeds preview limit");
       }
@@ -143,6 +166,17 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
     }
   }
 
+  private async readLoadedSource(
+    loadSource: (signal: AbortSignal) => Promise<Blob | null>,
+    signal: AbortSignal,
+  ): Promise<ArrayBuffer | null> {
+    const blob = await loadSource(signal);
+    if (!blob || signal.aborted) {
+      throw new Error("PDF attachment unavailable");
+    }
+    return blob.size > PDF_PREVIEW_MAX_BYTES ? null : await blob.arrayBuffer();
+  }
+
   override render() {
     const downloadHref = safeAttachmentHref(this.src);
     return html`
@@ -154,13 +188,17 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
               : this.status === "error" || !this.previewUrl
                 ? html`<div class="sidebar-attachment-preview__unavailable" role="alert">
                     ${t("chat.attachments.previewUnavailable")}
-                    ${renderCompactAttachmentCard({
-                      kind: "document",
-                      label: this.label,
-                      mimeType: this.mimeType,
-                      sizeBytes: this.sizeBytes,
-                      downloadHref: downloadHref ?? undefined,
-                    })}
+                    ${
+                      this.loadSource
+                        ? nothing
+                        : renderCompactAttachmentCard({
+                            kind: "document",
+                            label: this.label,
+                            mimeType: this.mimeType,
+                            sizeBytes: this.sizeBytes,
+                            downloadHref: downloadHref ?? undefined,
+                          })
+                    }
                   </div>`
                 : html`<iframe
                     class="sidebar-pdf-preview__frame"

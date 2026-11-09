@@ -186,7 +186,13 @@ declare module "@solidjs/web" {
         ElementProperties<
           Pick<
             HTMLElementTagNameMap["openclaw-chat-pdf-preview"],
-            "src" | "transform" | "sourceIdentity" | "label" | "mimeType" | "sizeBytes"
+            | "src"
+            | "transform"
+            | "loadSource"
+            | "sourceIdentity"
+            | "label"
+            | "mimeType"
+            | "sizeBytes"
           >
         >;
       "openclaw-agent-row-chip": HTMLAttributes<HTMLElement> & {

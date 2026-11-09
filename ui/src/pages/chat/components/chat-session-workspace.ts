@@ -149,11 +149,15 @@ async function loadArtifactSidebarContent(
     };
   }
   if (encoding === "base64" || (url && isHttpArtifactDownloadUrl(url, resourceBasePath))) {
+    const { id, sizeBytes } = result.artifact;
+    // PDF and Office artifacts also open in the reader, which reads them through `download`.
     return {
       kind: "attachment",
       attachmentKind: "document",
       title,
       mimeType,
+      sourceIdentity: `artifact:${id}`,
+      ...(typeof sizeBytes === "number" ? { sizeBytes } : {}),
       download,
     };
   }

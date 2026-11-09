@@ -265,6 +265,146 @@ describe("session workspace artifacts", () => {
     },
   );
 
+  async function openReaderArtifactPanel(params: {
+    mimeType: string;
+    title: string;
+    sizeBytes?: number;
+  }) {
+    vi.stubGlobal("Blob", NodeBlob);
+    const fixture = createArtifactHost({ data: "", ...params, http: true });
+    fixture.state.connectionEpoch = 1;
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+    const artifact = {
+      ...fixture.artifact,
+      ...(params.sizeBytes === undefined ? {} : { sizeBytes: params.sizeBytes }),
+    };
+    let ticket = 0;
+    fixture.request.mockImplementation(async (_method, query) => ({
+      artifact,
+      ...(query.transport === "http"
+        ? { url: `/api/artifacts/download/connection/ticket-${++ticket}` }
+        : { encoding: "base64", data: "" }),
+    }));
+    const NativeURL = URL;
+    const createObjectURL = vi.fn(() => "blob:artifact-reader");
+    vi.stubGlobal(
+      "URL",
+      class extends NativeURL {
+        static override createObjectURL = createObjectURL;
+        static override revokeObjectURL = vi.fn();
+      },
+    );
+    createSessionWorkspaceProps(fixture.state).onOpenArtifact("artifact-1");
+    const content = await fixture.loadedContent();
+    const panel = document.createElement("openclaw-chat-detail-panel") as HTMLElement & {
+      content: SidebarContent;
+      attachmentRuntime: AttachmentSidebarRuntime;
+      updateComplete: Promise<unknown>;
+    };
+    panel.content = content;
+    panel.attachmentRuntime = {
+      connectionEpoch: 1,
+      sessionKey: fixture.state.sessionKey,
+      resourceBasePath: "/mount",
+    };
+    document.body.append(panel);
+    onTestFinished(() => panel.remove());
+    await panel.updateComplete;
+    return { ...fixture, fetchMock, content, panel, createObjectURL };
+  }
+
+  function artifactResponse(body: string, type: string) {
+    return new Response(new Blob([body], { type }), {
+      headers: { "Content-Disposition": 'attachment; filename="artifact"' },
+    });
+  }
+
+  it("opens a PDF artifact in the reader through its ticketed download and keeps Download", async () => {
+    const fixture = await openReaderArtifactPanel({
+      mimeType: "application/pdf",
+      title: "report.pdf",
+      sizeBytes: 8,
+    });
+    fixture.fetchMock.mockImplementation(async () =>
+      artifactResponse("%PDF-1.7", "application/pdf"),
+    );
+    expect(fixture.content).toMatchObject({
+      kind: "attachment",
+      sourceIdentity: "artifact:artifact-1",
+      sizeBytes: 8,
+      download: expect.any(Function),
+    });
+
+    await vi.waitFor(() =>
+      expect(fixture.panel.querySelector("iframe")?.getAttribute("src")).toBe(
+        "blob:artifact-reader",
+      ),
+    );
+    expect(
+      fixture.panel.querySelector("button.chat-assistant-attachment-card__download"),
+    ).not.toBeNull();
+    expect(fixture.fetchMock).toHaveBeenCalledExactlyOnceWith(
+      "/mount/api/artifacts/download/connection/ticket-2",
+      { credentials: "same-origin", redirect: "error", signal: expect.any(AbortSignal) },
+    );
+    expect(fixture.request).toHaveBeenCalledTimes(2);
+  });
+
+  it("opens an Office artifact as the converter's PDF rendition", async () => {
+    const fixture = await openReaderArtifactPanel({
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      title: "brief.docx",
+    });
+    const converted = createDeferred<Uint8Array>();
+    fixture.fetchMock.mockImplementation(async (url, init) => {
+      if (typeof url === "string" && url.startsWith("/mount/api/office-preview/convert")) {
+        converted.resolve(new Uint8Array(await new Response(init?.body).arrayBuffer()));
+        return new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf" } });
+      }
+      return artifactResponse(
+        "PK-docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+    });
+
+    await vi.waitFor(() => expect(fixture.panel.querySelector("iframe")).not.toBeNull());
+    expect(new TextDecoder().decode(await converted.promise)).toBe("PK-docx");
+    expect(fixture.fetchMock.mock.calls.map(([url]) => url)).toEqual([
+      "/mount/api/artifacts/download/connection/ticket-2",
+      "/mount/api/office-preview/convert?name=brief.docx",
+    ]);
+  });
+
+  it("keeps oversized PDF artifacts and other binary artifacts download-only", async () => {
+    const oversized = await openReaderArtifactPanel({
+      mimeType: "application/pdf",
+      title: "scan.pdf",
+      sizeBytes: 16 * 1024 * 1024 + 1,
+    });
+    await vi.waitFor(() =>
+      expect(oversized.panel.querySelector('[role="alert"]')?.textContent).toContain(
+        "Preview unavailable",
+      ),
+    );
+    expect(oversized.panel.querySelector("iframe")).toBeNull();
+    expect(
+      oversized.panel.querySelectorAll("button.chat-assistant-attachment-card__download"),
+    ).toHaveLength(1);
+    expect(oversized.fetchMock).not.toHaveBeenCalled();
+    oversized.panel.remove();
+
+    const archive = await openReaderArtifactPanel({
+      mimeType: "application/zip",
+      title: "archive.zip",
+    });
+    expect(archive.panel.querySelector("openclaw-chat-pdf-preview")).toBeNull();
+    expect(
+      archive.panel.querySelector("button.chat-assistant-attachment-card__download"),
+    ).not.toBeNull();
+    expect(archive.fetchMock).not.toHaveBeenCalled();
+  });
+
   it("uses listed artifact titles without changing tab identity", async () => {
     const { state, request, loadedContent } = createArtifactHost({
       data: "iVBORw0KGgo=",
