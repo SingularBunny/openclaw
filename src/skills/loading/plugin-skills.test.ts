@@ -251,7 +251,9 @@ describe("resolvePluginSkillRoots", () => {
       await fs.mkdir(f.s);
     }
     f.use({ skills: symlink ? ["./skills-link"] : ["./skills", path.relative(f.p, outside)] });
-    expect(f.resolve()).toStrictEqual(symlink ? [] : [{ dir: f.s, rejectHardlinks: true }]);
+    expect(f.resolve()).toStrictEqual(
+      symlink ? [] : [{ dir: f.s, rejectHardlinks: true, pluginId: "helper" }],
+    );
   });
   it.each([false, true])("cleans generated links (active workspace=%s)", async (active) => {
     const stale = path.join(f.o, "stale-skill");
@@ -271,13 +273,95 @@ describe("resolvePluginSkillRoots", () => {
     expect((await fs.stat(stale)).isDirectory()).toBe(true);
     expect(hoisted.resolvePluginMetadataSnapshot).not.toHaveBeenCalled();
   });
+  it("namespaces skill names shared by several plugins and keeps unique names plain", async () => {
+    const workspaceDir = await tempDirs.make("openclaw-shared-skills-");
+    const pluginSkillsDir = await tempDirs.make("managed-plugin-skills-");
+    const plugins = await Promise.all(
+      [
+        { id: "upkeep", origin: "workspace", skills: ["review", "deploy"] },
+        { id: "alpha", origin: "workspace", skills: ["review"] },
+        { id: "claude-obsidian", origin: "workspace", skills: ["canvas"] },
+        { id: "canvas", origin: "bundled", skills: ["canvas"] },
+      ].map(async (plugin) => {
+        const rootDir = await tempDirs.make(`openclaw-${plugin.id}-`);
+        for (const skill of plugin.skills) {
+          const skillDir = path.join(rootDir, "skills", skill);
+          await fs.mkdir(skillDir, { recursive: true });
+          await fs.writeFile(
+            path.join(skillDir, "SKILL.md"),
+            `---\nname: ${skill}\ndescription: ${skill} from ${plugin.id}\n---\n`,
+          );
+        }
+        return {
+          id: plugin.id,
+          name: plugin.id,
+          channels: [],
+          providers: [],
+          cliBackends: [],
+          skills: ["./skills"],
+          hooks: [],
+          origin: plugin.origin as "workspace" | "bundled",
+          rootDir,
+          source: rootDir,
+          manifestPath: path.join(rootDir, "openclaw.plugin.json"),
+        };
+      }),
+    );
+    hoisted.loadPluginManifestRegistryForInstalledIndex.mockReturnValue({
+      diagnostics: [],
+      plugins,
+    });
+    const rootOf = (id: string) => plugins.find((plugin) => plugin.id === id)!.rootDir;
+    const config: OpenClawConfig = {
+      plugins: {
+        entries: Object.fromEntries(plugins.map((plugin) => [plugin.id, { enabled: true }])),
+      },
+      skills: {
+        load: { allowSymlinkTargets: [path.join(rootOf("alpha"), "skills", "review")] },
+      },
+    };
+    const load = (dir = workspaceDir) =>
+      loadWorkspaceSkills(dir, {
+        config,
+        pluginSkillsDir,
+        managedSkillsDir: path.join(workspaceDir, ".managed"),
+        bundledSkillsDir: path.join(workspaceDir, ".bundled"),
+      })
+        .filter((entry) => /review|canvas|deploy/.test(entry.skill.name))
+        .map((entry) => [entry.skill.name, entry.skill.description]);
+
+    expect(load()).toEqual([
+      ["alpha:review", "review from alpha"],
+      ["canvas", "canvas from canvas"],
+      ["claude-obsidian:canvas", "canvas from claude-obsidian"],
+      ["deploy", "deploy from upkeep"],
+      ["upkeep:review", "review from upkeep"],
+    ]);
+
+    // A project that links one version keeps it under the plain name without a duplicate.
+    const projectDir = await tempDirs.make("openclaw-project-");
+    await fs.mkdir(path.join(projectDir, "skills"), { recursive: true });
+    await fs.symlink(
+      path.join(rootOf("alpha"), "skills", "review"),
+      path.join(projectDir, "skills", "review"),
+      symlinkType,
+    );
+    expect(load(projectDir)).toEqual([
+      ["canvas", "canvas from canvas"],
+      ["claude-obsidian:canvas", "canvas from claude-obsidian"],
+      ["deploy", "deploy from upkeep"],
+      ["review", "review from alpha"],
+      ["upkeep:review", "review from upkeep"],
+    ]);
+  });
+
   it("limits Agent Plugins skills to valid immediate child directories", async () => {
     const valid = await write(path.join(f.s, "valid"), "valid immediate skill\n");
     await write(path.join(f.s, "group", "deep"), "nested skill must be ignored\n");
     await fs.mkdir(path.join(f.s, "missing"));
     await fs.writeFile(path.join(f.s, "SKILL.md"), "root skill must be ignored\n");
     f.use({ format: "bundle", bundleFormat: "agent", skills: ["skills"] });
-    expect(f.resolve()).toEqual([{ dir: valid, rejectHardlinks: true }]);
+    expect(f.resolve()).toEqual([{ dir: valid, rejectHardlinks: true, pluginId: "helper" }]);
     expect(f.link("valid")).toBe(valid);
     expect(["deep", "skills"].map((name) => fsSync.existsSync(path.join(f.m, name)))).toEqual([
       false,
