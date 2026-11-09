@@ -10,10 +10,11 @@ import {
 } from "../agents/cli-image-turn-correlation.js";
 import { isOpenClawCliImageCachePath } from "../agents/embedded-agent-runner/run/images.media-refs.js";
 import { stripInboundMetadata } from "../auto-reply/reply/strip-inbound-meta.js";
-import { isImageMediaFact, readPersistedMediaFacts } from "../media/media-facts.js";
+import { readPersistedMediaFacts } from "../media/media-facts.js";
 import { stripInlineDirectiveTagsForDisplay } from "../utils/directive-tags.js";
 import {
   readRoutedPromptView,
+  stripCliAttachmentDecorations,
   stripCliPromptDecorations,
 } from "./cli-session-history.prompt-text.js";
 
@@ -93,10 +94,14 @@ function extractComparableText(
   const withoutDecorations = isClaudeImport ? stripCliPromptDecorations(rawText) : rawText;
   const cleanText = normalizeText(
     role === "user"
-      ? stripInboundMetadata(
-          isClaudeImport
-            ? stripTrailingCliImageMentions(withoutDecorations.trim()).text
-            : withoutDecorations,
+      ? stripCliAttachmentDecorations(
+          stripInboundMetadata(
+            stripCliAttachmentDecorations(
+              isClaudeImport
+                ? stripTrailingCliImageMentions(withoutDecorations.trim()).text
+                : withoutDecorations,
+            ),
+          ),
         )
       : withoutDecorations,
   );
@@ -171,8 +176,9 @@ export function createCliHistoryRow(message: unknown, id: number, localSeq?: num
     record && role
       ? extractComparableText(record, role, localSeq === undefined)
       : { hasCliImageMentions: false };
-  const localImage =
-    record?.role === "user" && (readPersistedMediaFacts(record) ?? []).some(isImageMediaFact);
+  // Fork (F37): documents reach Claude as images too (a PDF is rendered to pages and sent as
+  // @<cache>.png with the turn key), so any attached file, not only an image, keys the local turn.
+  const localMedia = record?.role === "user" && (readPersistedMediaFacts(record) ?? []).length > 0;
   const entryId = normalizeOptionalString(meta?.id);
   const serialized = JSON.stringify(message);
   return {
@@ -197,7 +203,7 @@ export function createCliHistoryRow(message: unknown, id: number, localSeq?: num
     image_key:
       localSeq === undefined
         ? (comparable.cliImageTurnKey ?? null)
-        : localImage
+        : localMedia
           ? ((entryId ? hashCliImageTurnEntryId(entryId) : comparable.cliImageTurnKey) ?? null)
           : null,
     image_mentions: comparable.hasCliImageMentions ? 1 : 0,

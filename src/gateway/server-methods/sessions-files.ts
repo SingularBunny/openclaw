@@ -14,7 +14,7 @@ import {
   validateSessionsFilesListParams,
   validateSessionsFilesSetParams,
 } from "../../../packages/gateway-protocol/src/index.js";
-import { resolveAgentWorkspaceDir } from "../../agents/agent-scope.js";
+import { resolveAgentRunCwd, resolveAgentWorkspaceDir } from "../../agents/agent-scope.js";
 import { loadAgentIdentityFromWorkspaceAsync } from "../../agents/identity-file.js";
 import { getAgentWorkspaceAccess } from "../../agents/workspace-access.js";
 import { DEFAULT_IDENTITY_FILENAME } from "../../agents/workspace-bootstrap-policy.js";
@@ -46,6 +46,7 @@ import {
   resolveOpenPathCommand,
   sanitizePathForLog,
 } from "./open-path.js";
+import { resolveSessionBrowseRoots, selectSessionBrowseRoot } from "./session-file-browse-roots.js";
 import { createSessionFileReadAuthority } from "./session-file-read-authority.js";
 import {
   getRepositoryArtifact,
@@ -392,17 +393,54 @@ async function handleSessionFilesRead(
             path: request.params.path,
             search: request.params.search,
           };
-          result =
-            repository?.kind === "stored"
+          // Fork (F34): another folder of this session (agent run cwd, session cwd) instead of the
+          // workspace, under the same host-read authority as files outside the workspace.
+          const browseRoots =
+            repository || source.entry?.execNode
+              ? []
+              : resolveSessionBrowseRoots({
+                  root: loaded.root,
+                  runCwd: resolveAgentRunCwd(source.cfg, agentId),
+                  spawnedCwd: source.entry?.spawnedCwd,
+                });
+          const browse = await selectSessionBrowseRoot({
+            requested: request.params.root,
+            root: loaded.root,
+            browseRoots,
+            authorize: hostRead.authorizeHostRead,
+          });
+          if (browse.kind !== "ok") {
+            const root = request.params.root ?? "";
+            failure = () =>
+              browse.kind === "denied"
+                ? respondSessionFileNotFound(respond, root, "outside_session_boundary")
+                : respond(
+                    false,
+                    undefined,
+                    sessionFilesError(browse.kind, browse.message, { root }),
+                  );
+          }
+          const browseRoot = browse.kind === "ok" ? browse.root : undefined;
+          const browseLoaded = browseRoot
+            ? { ...loaded, root: browseRoot, fileRoot: browseRoot, diffCwd: undefined }
+            : loaded;
+          result = failure
+            ? { files: [] }
+            : repository?.kind === "stored"
               ? await listRepositoryArtifacts(repository, query)
               : repository
                 ? await repository.inspect("list", query)
-                : await listSessionWorkspaceFiles({
-                    ...loaded,
-                    ...query,
-                    assertCurrent,
-                    authorizeHostRead: hostRead.authorizeHostRead,
-                  });
+                : {
+                    ...(await listSessionWorkspaceFiles({
+                      ...browseLoaded,
+                      ...query,
+                      assertCurrent,
+                      authorizeHostRead: hostRead.authorizeHostRead,
+                    })),
+                    ...(browseRoots.length > 0 && loaded.root
+                      ? { roots: [loaded.root, ...browseRoots] }
+                      : {}),
+                  };
           assertCurrent();
         } else if (request.kind === "assets") {
           result = await getSessionWorkspaceAssets({

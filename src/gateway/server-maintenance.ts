@@ -46,6 +46,7 @@ import {
   createHostThawRecovery,
   type HostThawChannelRestartOutcome,
 } from "./host-thaw-recovery.js";
+import { GATEWAY_EVENT_RESTART, setGatewayRestartNoticeBroadcaster } from "./restart-notice.js";
 import {
   chatAbortMarkerTimestampMs,
   type ChatRunEntry,
@@ -152,6 +153,10 @@ export function startGatewayMaintenanceTimers(params: {
       },
     });
     params.nodeSendToAllSubscribed("health", snap);
+  });
+  // Fork: restart-pending notice for Control UIs (gateway.restart).
+  setGatewayRestartNoticeBroadcaster((payload) => {
+    params.broadcast(GATEWAY_EVENT_RESTART, payload);
   });
 
   const restartChannelsIfIdle = async (

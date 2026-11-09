@@ -49,6 +49,8 @@ const EVENT_SCOPE_GUARDS: Record<string, string[]> = {
   presence: [READ_SCOPE],
   shutdown: [],
   "gateway.suspension": [],
+  // Fork: the reason names changed config paths.
+  "gateway.restart": [READ_SCOPE],
   tick: [],
   "talk.event": [READ_SCOPE],
   "talk.mode": [TALK_SCOPE],

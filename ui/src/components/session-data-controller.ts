@@ -39,6 +39,7 @@ import {
   loadMoreSessionCatalog as loadMoreSessionCatalogData,
   refreshSessionCatalogs as refreshSessionCatalogData,
   resetSessionCatalogConnection,
+  retainSessionCatalogRows,
   retireSessionCatalogData,
   resolveSessionCatalogAgentId,
   scheduleSessionCatalogRefresh,
@@ -295,14 +296,12 @@ export class SessionDataController implements SolidController, SessionCatalogDat
       return;
     }
 
-    const previousAgentId = this.sessionScopeAgentId;
-    const previousCatalogAgentId = this.sessionCatalogAgentId;
     const agentChanged =
-      previousAgentId !== null &&
-      previousAgentId !== nextAgentId &&
+      this.sessionScopeAgentId !== null &&
+      this.sessionScopeAgentId !== nextAgentId &&
       this.sessionListQuery(this.host.expandedAgentId()).agentId !== undefined;
     const catalogAgentChanged =
-      previousCatalogAgentId !== null && previousCatalogAgentId !== nextCatalogAgentId;
+      this.sessionCatalogAgentId !== null && this.sessionCatalogAgentId !== nextCatalogAgentId;
     const ownsCurrentCanonicalList =
       !hasSidebarListFilter(this.host) &&
       nextAgentId !== null &&
@@ -314,13 +313,8 @@ export class SessionDataController implements SolidController, SessionCatalogDat
     this.sessionCatalogAgentId = nextCatalogAgentId;
     retireSessionCatalogData(this);
     this.sessionCatalogRevision += 1;
-    this.sessionCatalogRefreshStatus = createPanelRefreshStatus();
 
-    if (agentChanged || catalogAgentChanged) {
-      // Catalog cursors and rows belong to the selected agent, not just its host.
-      this.sessionCatalogs = [];
-      this.sessionCatalogPageDepths.clear();
-    }
+    retainSessionCatalogRows(this, nextCatalogAgentId, agentChanged || catalogAgentChanged);
     if (agentChanged && !ownsCurrentCanonicalList) {
       // A replacement capability may publish its new-agent list before selection synchronizes.
       this.clearSessionCache();
@@ -345,9 +339,7 @@ export class SessionDataController implements SolidController, SessionCatalogDat
     applySessionCatalogChangedToData(this, payload);
   }
 
-  handlePluginSessionCatalogChanged(): void {
-    applyPluginSessionCatalogChangedToData(this);
-  }
+  handlePluginSessionCatalogChanged = applyPluginSessionCatalogChangedToData.bind(null, this);
 
   private readonly handleCatalogSessionContinued = (
     event: CustomEvent<CatalogSessionContinuedDetail>,

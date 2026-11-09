@@ -16,6 +16,10 @@ export type SessionWorkspaceProps = {
   browserSearch: string;
   sessionKey: string;
   list: SessionWorkspaceListResult | null;
+  /** Fork (F34): folders the panel can browse (workspace first) and the one shown; null = workspace. */
+  roots?: readonly string[] | null;
+  browseRoot?: string | null;
+  onSelectRoot?: (root: string | null) => void;
   loading: boolean;
   error: string | null;
   activeId: string | null;
@@ -47,6 +51,10 @@ export type SessionWorkspaceState = {
   agentId: string;
   browserPath: string;
   browserSearch: string;
+  /** Fork (F34): another folder of the session shown instead of the workspace (null: workspace). */
+  browseRoot: string | null;
+  /** Fork (F34): folders sessions.files.list offers, workspace first; null until the first listing. */
+  roots: readonly string[] | null;
   browserSearchTimer: ReturnType<typeof globalThis.setTimeout> | null;
   connectionEpoch: number;
   diffContent?: SidebarContent;

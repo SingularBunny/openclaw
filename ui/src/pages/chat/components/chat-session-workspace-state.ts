@@ -57,6 +57,8 @@ function createSessionWorkspaceState(state: SessionWorkspaceHost): SessionWorksp
     agentId: resolvePaneAgent(state),
     browserPath: "",
     browserSearch: "",
+    browseRoot: null,
+    roots: null,
     filter: "all",
     browserSearchTimer: null,
     connectionEpoch: state.connectionEpoch,
@@ -132,11 +134,13 @@ export function loadSessionWorkspace(
   const client = state.client;
   const browserPath = workspace.browserPath;
   const browserSearch = workspace.browserSearch;
+  const browseRoot = workspace.browseRoot;
   // Session ownership survives folder/search changes; this response belongs to its query.
   const isCurrentListing = () =>
     isCurrentSessionWorkspace(state, workspace) &&
     workspace.browserPath === browserPath &&
-    workspace.browserSearch === browserSearch;
+    workspace.browserSearch === browserSearch &&
+    workspace.browseRoot === browseRoot;
   void (async () => {
     try {
       const [files, artifacts] = await Promise.all([
@@ -144,6 +148,7 @@ export function loadSessionWorkspace(
           path: browserSearch ? "" : browserPath,
           search: browserSearch,
           agentId,
+          ...(browseRoot ? { root: browseRoot } : {}),
         }),
         client.request<{
           artifacts?: SessionWorkspaceListResult["artifacts"];
@@ -155,6 +160,8 @@ export function loadSessionWorkspace(
       if (!isCurrentListing()) {
         return;
       }
+      workspace.roots =
+        files?.roots ?? (files?.root && !browseRoot ? [files.root] : workspace.roots);
       workspace.list = {
         sessionKey,
         ...(files?.root ? { root: files.root } : {}),

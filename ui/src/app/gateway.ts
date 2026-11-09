@@ -1,4 +1,7 @@
-import type { UserProfile } from "../../../packages/gateway-protocol/src/index.js";
+import type {
+  GatewayRestartNotice,
+  UserProfile,
+} from "../../../packages/gateway-protocol/src/index.js";
 import type { GatewaySuspension } from "../../../packages/gateway-protocol/src/schema/gateway-suspend.js";
 import type { PluginsUiDescriptorsResult } from "../../../packages/gateway-protocol/src/schema/plugins.js";
 import type { ControlUiBootstrapProfileHint } from "../../../src/gateway/control-ui-bootstrap-contract.js";
@@ -21,6 +24,10 @@ export type ApplicationGatewaySnapshot = {
   phase: ApplicationGatewayPhase;
   offlineStable: boolean;
   restartPending?: boolean;
+  /** Fork: a Gateway restart waiting for running work (`gateway.restart`, hello snapshot). */
+  restartNotice?: GatewayRestartNotice | null;
+  /** Fork: when this page reconnected after a Gateway restart it was told about. */
+  restartedAt?: number;
   suspensionPhase?: GatewaySuspension["phase"];
   /** Transport identity stays stable while plugin capability fields are refreshed. */
   hello: GatewayHelloOk | null;

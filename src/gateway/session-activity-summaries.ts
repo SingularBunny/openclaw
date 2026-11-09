@@ -40,6 +40,7 @@ import {
 } from "../sessions/session-lifecycle-events.js";
 import type { InternalSessionTranscriptUpdate } from "../sessions/transcript-events.js";
 import { runInDetachedAsyncContext } from "../shared/detached-async-context.js";
+import { ensureRecapNow, type RecapEnsureTarget } from "./session-activity-recap-ensure.js";
 import {
   projectActivitySummaryEntry,
   subscribeActivitySummaryEntryReceipts,
@@ -105,7 +106,7 @@ class ActivitySummaryCancelledError extends Error {
 
 export type SessionActivitySummaryService = {
   ensure: (
-    target: ActivitySummaryTarget,
+    target: RecapEnsureTarget,
     entry: SessionEntry | undefined,
   ) => Promise<ActivitySummaryView>;
   handleEvent: (event: SessionObserverEvent) => void;
@@ -589,14 +590,14 @@ export function createSessionActivitySummaries(deps: {
     }
   });
   const unsubscribeFacts = subscribeActivitySummaryEntryReceipts(states, drop);
-  const ensure = async (requested: ActivitySummaryTarget, entry: SessionEntry | undefined) => {
+  const ensure = async (requested: RecapEnsureTarget, entry: SessionEntry | undefined) => {
     const target = eventTarget(requested.key, requested.agentId)!;
     if (isCronSessionKey(target.key)) {
       return { state: "unavailable" as const };
     }
     const state = admit(target, entry);
     if (state) {
-      schedule(state, true);
+      schedule(state, ensureRecapNow(state, requested, now()));
     }
     return prepareSessionActivitySummaryView({
       ...target,

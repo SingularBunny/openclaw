@@ -49,6 +49,7 @@ import {
   notifyGatewayObservers,
 } from "./gateway-observers.ts";
 import { readSuspensionPhase } from "./gateway-readiness.ts";
+import { readGatewayRestartNotice } from "./gateway-restart-notice.ts";
 import { createAvailabilityIndicators } from "./gateway-store.availability.ts";
 import { createGatewayCredentials } from "./gateway-store.credentials.ts";
 import { createDeviceCredentialMethods } from "./gateway-store.device-credential.ts";
@@ -131,6 +132,8 @@ export function createApplicationGateway(
   // transport drops render as "reconnecting" (shell + banner) instead of
   // kicking the operator back to the login gate.
   let everConnected = false;
+  // Fork: a restart this page was told about (shutdown with restart, restarting notice).
+  let restartAwaited = false;
   let stopped = true;
   // Snapshot observers can synchronously stop or replace their publishing client.
   const isCurrentClient = (expected: GatewayBrowserClient | null) =>
@@ -265,12 +268,18 @@ export function createApplicationGateway(
       if (suspensionPhase) {
         setSnapshot({ suspensionPhase });
       }
+    } else if (event.event === "gateway.restart") {
+      // Fork: restart-pending notice, shown outside the chat (gateway-restart-notice.ts).
+      const restartNotice = readGatewayRestartNotice(asOptionalRecord(event.payload)?.notice);
+      restartAwaited ||= restartNotice?.phase === "restarting";
+      setSnapshot({ restartNotice });
     } else if (event.event === "shutdown") {
       // Only a restart-bearing shutdown arms the amber state; an ordinary stop
       // (restartExpectedMs absent) flows through the normal offline pill so the
       // retry action stays reachable. Hostile values fall to the timer clamp.
       const expected = asOptionalRecord(event.payload)?.restartExpectedMs;
       if (typeof expected === "number") {
+        restartAwaited = true;
         setUnavailableDeadline("restartPending", expected);
         setSnapshot({ restartPending: true });
       }
@@ -483,10 +492,15 @@ export function createApplicationGateway(
         const canvasPluginSurfaceUrl = hello.pluginSurfaceUrls?.canvas?.trim() || null;
         const canvasLeaseGeneration = canvasSurface.begin(nextClient, hello.auth);
         setUnavailableDeadline("restartPending");
+        // Fork: a reconnect after a restart this page was told about shows "Gateway restarted".
+        const restarted = restartAwaited;
+        restartAwaited = false;
         setConnectionSnapshot({
           client: nextClient,
           phase: "connected",
           restartPending: false,
+          restartNotice: readGatewayRestartNotice(asOptionalRecord(hello.snapshot)?.gatewayRestart),
+          ...(restarted ? { restartedAt: Date.now() } : {}),
           suspensionPhase: readSuspensionPhase(asOptionalRecord(hello.snapshot)?.suspension),
           hello,
           pluginCapabilities: readHelloPluginCapabilities(hello),

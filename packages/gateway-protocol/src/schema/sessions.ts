@@ -250,6 +250,8 @@ export const SessionsFilesListParamsSchema = closedObject({
   agentId: Type.Optional(NonEmptyString),
   path: Type.Optional(Type.String()),
   search: Type.Optional(Type.String()),
+  /** Fork: browse one of the result's `roots` instead of the session workspace. */
+  root: Type.Optional(NonEmptyString),
 });
 
 /** File references visible in one session workspace. */
@@ -260,6 +262,9 @@ export const SessionsFilesListResultSchema = closedObject({
   gitCheckout: Type.Optional(Type.Boolean()),
   files: Type.Array(SessionFileEntrySchema),
   browser: Type.Optional(SessionFileBrowserResultSchema),
+  /** Fork: folders the Files panel can browse, the session workspace first, then the agent's run cwd
+   *  and the session cwd when they lie outside it; absent when there is only the workspace. */
+  roots: Type.Optional(Type.Array(NonEmptyString)),
 });
 
 /** Reads one session-referenced file by path. */

@@ -136,6 +136,7 @@ export const sessionActivitySummaryHandlers: GatewayRequestHandlers = {
             key: target.canonicalKey,
             agentId: target.agentId,
             entry: { ...selected.entry, ...target.entry },
+            retry: requested.retry === true,
           });
         }
         const sessions = await Promise.all(
@@ -145,7 +146,8 @@ export const sessionActivitySummaryHandlers: GatewayRequestHandlers = {
             activitySummary: {
               ...(target.unavailable
                 ? { state: "unavailable" as const }
-                : await service.ensure(target, target.entry)),
+                : // Fork (F41): page requests keep the minimum recap interval; Retry is immediate.
+                  await service.ensure({ ...target, immediate: target.retry }, target.entry)),
               canEnsure: true,
             },
           })),

@@ -360,7 +360,7 @@ export type SessionCapability = {
   compact: (key: string, options?: { agentId?: string | null }) => Promise<SessionCompactResult>;
   listFiles: (
     key: string,
-    options?: { agentId?: string | null; path?: string; search?: string },
+    options?: { agentId?: string | null; path?: string; search?: string; root?: string | null },
   ) => Promise<SessionWorkspaceListResult | null>;
   getFile: (
     key: string,
