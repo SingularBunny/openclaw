@@ -286,6 +286,39 @@ describe("marketplace plugins", () => {
         ref: "pinned",
       },
     },
+    {
+      label: "URL source pinned to a commit sha (Claude Code marketplace)",
+      source: {
+        source: "url",
+        url: "https://github.com/owner/repo.git",
+        sha: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+      expected: {
+        kind: "git",
+        url: "https://github.com/owner/repo.git",
+        ref: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+    },
+    {
+      label: "GitHub commit sha before ref",
+      source: {
+        source: "github",
+        repo: "owner/repo",
+        ref: "main",
+        sha: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+      expected: {
+        kind: "github",
+        repo: "owner/repo",
+        path: undefined,
+        ref: "bb92a77741419a4ab5f06e711a283343f1ada0c3",
+      },
+    },
+    {
+      label: "URL source with a short sha stays unpinned",
+      source: { source: "url", url: "https://github.com/owner/repo.git", sha: "bb92a77" },
+      expected: { kind: "url", url: "https://github.com/owner/repo.git" },
+    },
   ])("normalizes $label in local marketplace listings", async ({ source, expected }) => {
     await withTempDir("openclaw-marketplace-test-", async (rootDir) => {
       await writeMarketplaceManifest(rootDir, { plugins: [{ name: "example", source }] });
