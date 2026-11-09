@@ -8,6 +8,7 @@ import type { WorkspaceBootstrapFile } from "./workspace.js";
 export {
   createManagedRun,
   enqueueSessionEventMock,
+  enqueueSystemEventMock,
   supervisorSpawnMock,
 } from "./cli-runner/execute.test-support.js";
 

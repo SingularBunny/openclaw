@@ -57,6 +57,7 @@ import { failClosedPluginResumeCases } from "./cli-runner.resume.test-fixtures.j
 import {
   createManagedRun,
   enqueueSessionEventMock,
+  enqueueSystemEventMock,
   supervisorSpawnMock,
 } from "./cli-runner.test-support.js";
 import { registerCliWatchdogNoticeTests } from "./cli-runner.watchdog.cases.js";
@@ -444,6 +445,7 @@ describe("runCliAgent reliability", () => {
 
   it("does not enqueue watchdog system events for side-question no-output timeouts", async () => {
     enqueueSessionEventMock.mockClear();
+    enqueueSystemEventMock.mockClear();
     supervisorSpawnMock.mockResolvedValueOnce(makeNoOutputTimeoutRun());
 
     await expect(
@@ -459,6 +461,7 @@ describe("runCliAgent reliability", () => {
     ).rejects.toThrow("produced no output");
 
     expect(enqueueSessionEventMock).not.toHaveBeenCalled();
+    expect(enqueueSystemEventMock).not.toHaveBeenCalled();
   });
 
   it("falls back to cold reseed when Claude lacks the checkpoint flag", async ({
@@ -1029,6 +1032,7 @@ describe("runCliAgent reliability", () => {
       });
       const hookRunner = createLifecycleHooks(["llm_input", "llm_output", "agent_end"]);
       enqueueSessionEventMock.mockClear();
+      enqueueSystemEventMock.mockClear();
       const events: string[] = [];
       let spawnCount = 0;
       supervisorSpawnMock.mockImplementation(async () => {
@@ -1101,6 +1105,7 @@ describe("runCliAgent reliability", () => {
         expect(events).toEqual(["spawn-1", `clear-${reason}`, "spawn-2"]);
         if (reason === "timeout") {
           expect(enqueueSessionEventMock).not.toHaveBeenCalled();
+          expect(enqueueSystemEventMock).not.toHaveBeenCalled();
         }
         expect(clearBeforeRetry).toHaveBeenCalledWith({
           provider: "claude-cli",

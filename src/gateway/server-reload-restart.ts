@@ -8,6 +8,8 @@ import {
   setGatewayRestartPolicy,
 } from "../infra/restart.js";
 import type { GatewayReloadPlan } from "./config-reload.js";
+import { countActiveAgentWork, resolveRestartAgentRunWait } from "./restart-agent-run-wait.js";
+import { trackGatewayRestartDeferral, type GatewayRestartNoticeHandle } from "./restart-notice.js";
 import type { createGatewayActiveWorkTracker } from "./server-reload-active-work.js";
 import type {
   GatewayReloadHandlerParams,
@@ -39,6 +41,8 @@ class GatewayRestartTransaction {
   private restartDeferral: RestartDeferralHandle | null = null;
   private operation: GatewayRestartOperation | undefined;
   private deferredHash: string | null = null;
+  // Fork: restart-pending notice for Control UIs (restart-notice.ts).
+  private restartNotice: GatewayRestartNoticeHandle | null = null;
 
   readonly hasOutstandingGatewayRestart = () =>
     !this.stopped &&
@@ -125,6 +129,8 @@ class GatewayRestartTransaction {
   private supersedeRequest(): void {
     this.restartDeferral?.cancel();
     this.restartDeferral = null;
+    this.restartNotice?.clear();
+    this.restartNotice = null;
     this.operation = undefined;
   }
 
@@ -184,11 +190,40 @@ class GatewayRestartTransaction {
         params.logReload.warn(`config change requires gateway restart (${reasons}) — preparing`);
       }
 
+      // Fork: OPENCLAW_RESTART_AGENT_RUN_WAIT_MS keeps waiting for running agent turns.
+      const agentRunWait = resolveRestartAgentRunWait();
+      this.restartNotice?.clear();
+      this.restartNotice = trackGatewayRestartDeferral({
+        reason: restartReason,
+        budgetMs: resolveGatewayRestartDeferralTimeoutMs(),
+        agentRunWaitMs: agentRunWait ? (agentRunWait.maxWaitMs ?? null) : undefined,
+        getCounts: () => {
+          const counts = this.options.getActiveCounts();
+          return { agentTurns: countActiveAgentWork(counts), totalActive: counts.totalActive };
+        },
+      });
       // Timeout and failed checks leave a live deferral owned by this request.
       this.restartDeferral = deferGatewayRestartUntilIdle({
         getPendingCount: () => this.options.getActiveCounts().totalActive,
         maxWaitMs: resolveGatewayRestartDeferralTimeoutMs(undefined),
         timeoutIntent: { force: true, reason: "config reload forced restart" },
+        ...(agentRunWait
+          ? {
+              extendWhileActive: {
+                isActive: () => countActiveAgentWork(this.options.getActiveCounts()) > 0,
+                maxWaitMs: agentRunWait.maxWaitMs,
+                onExtended: (elapsedMs: number) => {
+                  params.logReload.warn(
+                    `restart deferral reached ${Math.round(elapsedMs)}ms; waiting for running agent turns ${
+                      agentRunWait.maxWaitMs === undefined
+                        ? "until they finish"
+                        : `up to ${agentRunWait.maxWaitMs}ms in total`
+                    } (OPENCLAW_RESTART_AGENT_RUN_WAIT_MS)`,
+                  );
+                },
+              },
+            }
+          : {}),
         reason: restartReason,
         // Preparation can wait for the plugin lifecycle lease, whose holders need
         // root admission; the deferral runs it before taking the signal fence.
@@ -228,6 +263,7 @@ class GatewayRestartTransaction {
         hooks: {
           onReady: () => {
             this.restartDeferral = null;
+            this.restartNotice?.restarting();
           },
           onStillPending: (_pending, elapsedMs) => {
             params.logReload.warn(
@@ -236,6 +272,7 @@ class GatewayRestartTransaction {
           },
           onTimeout: (_pending, elapsedMs) => {
             // Keep the handle until preparation settles or the request is cancelled.
+            this.restartNotice?.restarting();
             params.logReload.warn(
               `restart timeout after ${elapsedMs}ms with ${this.options.formatDeferredWorkStatus("still active")}; forcing restart`,
             );
