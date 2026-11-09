@@ -256,13 +256,13 @@ describe("rewind composer ownership", () => {
     },
   );
 
-  it("lets only the latest rewind replace the composer", async () => {
+  // Fork: a second rewind while one is in flight is ignored (it would only fail with
+  // "session changed"), so the first rewind owns the composer.
+  it("ignores a second rewind while the first is in flight", async () => {
     const older = createDeferred<{ editorText: string }>();
-    const newer = createDeferred<{ editorText: string }>();
     const state = createRewindHost(older.promise, "main");
-    Object.assign(state.sessions, {
-      rewind: vi.fn().mockReturnValueOnce(older.promise).mockReturnValueOnce(newer.promise),
-    });
+    const rewind = vi.fn().mockReturnValue(older.promise);
+    Object.assign(state.sessions, { rewind });
     state.chatMessage = "current draft";
     const first = rewindChatHistory(
       state,
@@ -274,11 +274,9 @@ describe("rewind composer ownership", () => {
       "later-user",
       new ChatAttachmentReadLifecycle(() => {}),
     );
-    older.resolve({ editorText: "superseded rewind" });
-    await first;
-    expect(state.chatMessage).toBe("current draft");
-    newer.resolve({ editorText: "selected rewind" });
-    await second;
-    expect(state.chatMessage).toBe("selected rewind");
+    older.resolve({ editorText: "first rewind" });
+    await Promise.all([first, second]);
+    expect(rewind).toHaveBeenCalledTimes(1);
+    expect(state.chatMessage).toBe("first rewind");
   });
 });

@@ -24,6 +24,11 @@ export type ClaudeCliHistoryParams = {
   projectsDir?: string;
   localSessionId?: string;
   reseedReceipt?: CliSessionReseedReceipt;
+  /**
+   * A message cut re-armed the binding at this native checkpoint; rows after it belong to the
+   * cut-away branch until the next turn forks the session there.
+   */
+  resumeAtCheckpointId?: string;
 };
 
 function projectOversizedClaudeEntry(entry: ClaudeCliProjectEntry): ClaudeCliProjectEntry | null {
@@ -106,6 +111,7 @@ export async function resolveClaudeCliHistorySource(
       params.cliSessionId,
       params.localSessionId?.trim() || null,
       normalizeCliSessionReseedReceipt(params.reseedReceipt),
+      params.resumeAtCheckpointId?.trim() || null,
     ]);
     return [filePath, cacheKey, stats.size];
   } catch {
@@ -132,6 +138,7 @@ export async function visitClaudeCliSessionMessages(
     crlfDelay: Number.POSITIVE_INFINITY,
   });
   const reseedState = createClaudeReseedImportState(params);
+  const stopAfter = params.resumeAtCheckpointId?.trim() || undefined;
   let bytesSinceYield = 0;
   let lineNumber = 0;
   // Production imports already run in the history worker. A pathological decode can
@@ -153,12 +160,14 @@ export async function visitClaudeCliSessionMessages(
       }
     }
     let parsedMessage: Message | null = null;
+    let checkpointReached = false;
     try {
       const decoded = decodeClaudeCliProjectEntry(line);
       const entry = oversized ? projectOversizedClaudeEntry(decoded) : decoded;
       if (!entry) {
         continue;
       }
+      checkpointReached = stopAfter !== undefined && entry.uuid === stopAfter;
       parsedMessage = parseClaudeCliHistoryEntry(
         entry,
         params.cliSessionId,
@@ -174,6 +183,9 @@ export async function visitClaudeCliSessionMessages(
       if (messages.length > 1) {
         visit(redactClaudeCliHistoryMessage(messages.shift()!));
       }
+    }
+    if (checkpointReached) {
+      break;
     }
   }
   for (const message of messages) {
