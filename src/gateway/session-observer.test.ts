@@ -223,6 +223,36 @@ describe("session observer", () => {
     expect(harness.broadcastToConnIds.mock.calls.at(-1)?.[1]).toMatchObject({ health: "done" });
   });
 
+  it("spaces live digests by OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS (fork)", async () => {
+    const previous = process.env.OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS;
+    process.env.OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS = "90000";
+    try {
+      const harness = createHarness();
+      startAndAddToolNotes(harness.observer);
+      await vi.advanceTimersByTimeAsync(12_000);
+      await flushObserver();
+      expect(harness.completeModel).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(78_000);
+      await flushObserver();
+      expect(harness.completeModel).toHaveBeenCalledOnce();
+
+      addToolNotes(harness);
+      await vi.advanceTimersByTimeAsync(60_000);
+      await flushObserver();
+      expect(harness.completeModel).toHaveBeenCalledOnce();
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      await flushObserver();
+      expect(harness.completeModel).toHaveBeenCalledTimes(2);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS;
+      } else {
+        process.env.OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS = previous;
+      }
+    }
+  });
+
   it("suspends when hidden and resumes on the next event after becoming visible", async () => {
     const harness = createHarness();
     startAndAddToolNotes(harness.observer);

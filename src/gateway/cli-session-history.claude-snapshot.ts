@@ -77,6 +77,11 @@ export type ClaudeCliHistoryParams = {
   homeDir?: string;
   localSessionId?: string;
   reseedReceipt?: CliSessionReseedReceipt;
+  /**
+   * A message cut re-armed the binding at this native checkpoint; rows after it belong to the
+   * cut-away branch until the next turn forks the session there.
+   */
+  resumeAtCheckpointId?: string;
 };
 async function decodeOversizedClaudeEntry(
   worker: Worker,
@@ -125,6 +130,7 @@ export async function resolveClaudeCliHistorySource(
       params.cliSessionId,
       params.localSessionId?.trim() || null,
       normalizeCliSessionReseedReceipt(params.reseedReceipt),
+      params.resumeAtCheckpointId?.trim() || null,
     ]);
     return [filePath, cacheKey, stats.size];
   } catch {
@@ -151,6 +157,7 @@ export async function visitClaudeCliSessionMessages(
     crlfDelay: Number.POSITIVE_INFINITY,
   });
   const reseedState = createClaudeReseedImportState(params);
+  const stopAfter = params.resumeAtCheckpointId?.trim() || undefined;
   let bytesSinceYield = 0;
   let lineNumber = 0;
   let worker: Worker | undefined;
@@ -171,6 +178,7 @@ export async function visitClaudeCliSessionMessages(
         }
       }
       let parsedMessage: Message | null = null;
+      let checkpointReached = false;
       try {
         // Keep large valid user/assistant records visible through a bounded projection;
         // unsupported external records are still ignored, but JSON.parse runs off-loop.
@@ -188,6 +196,7 @@ export async function visitClaudeCliSessionMessages(
         if (!entry) {
           continue;
         }
+        checkpointReached = stopAfter !== undefined && entry.uuid === stopAfter;
         parsedMessage = parseClaudeCliHistoryEntry(
           entry,
           params.cliSessionId,
@@ -203,6 +212,9 @@ export async function visitClaudeCliSessionMessages(
         if (messages.length > 1) {
           visit(redactClaudeCliHistoryMessage(messages.shift()!));
         }
+      }
+      if (checkpointReached) {
+        break;
       }
     }
   } finally {

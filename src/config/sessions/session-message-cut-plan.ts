@@ -71,7 +71,10 @@ export function planSessionMessageCut(
     currentEntry,
     "Session history changes are unavailable while model selection is locked.",
   );
-  const cut = params.mode === "switch" ? undefined : resolveMessageCut(events, params.entryId);
+  const cut =
+    params.mode === "switch"
+      ? undefined
+      : resolveMessageCut(events, params.entryId, params.nativeCut);
   if (cut && cut.status !== "cut") {
     return cut;
   }
@@ -90,12 +93,19 @@ export function planSessionMessageCut(
     throw new Error("Repository session fork requires its own prepared workspace");
   }
 
+  // A native-only cut never falls back to the kept branch's checkpoint: that reply is newer
+  // than the row being cut, and the native session would keep the cut-away turns.
+  const resumePoint =
+    params.cliResumePoint ??
+    (params.nativeCut
+      ? undefined
+      : readCliResumePointAtLeaf(
+          events,
+          params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
+        ));
   const resumedCliSessionBindings = resumeCliSessionBindingsAt(
     currentEntry,
-    readCliResumePointAtLeaf(
-      events,
-      params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
-    ),
+    resumePoint,
     (provider) => params.cliForkProviders?.includes(provider) === true,
   );
   const nextSessionId = randomUUID();
@@ -246,9 +256,20 @@ function validateBranchTip(
 function resolveMessageCut(
   events: readonly TranscriptEvent[],
   entryId: string,
+  nativeCut?: SessionMessageCutIntent["nativeCut"],
 ): MessageCut | Exclude<SessionMessageCutMutationResult, { status: "created" }> {
   const tree = scanSessionTranscriptTree(events);
   const target = tree.byId.get(entryId);
+  if (!target && nativeCut?.keepLeaf) {
+    // The native-only row follows every local message: the local branch stays whole and only
+    // the native session moves back.
+    return {
+      status: "cut",
+      ...(nativeCut.editorText ? { editorText: nativeCut.editorText } : {}),
+      parentId: tree.leafId,
+      prefix: copyPathPrefix(selectSessionTranscriptTreePathNodes(tree, tree.leafId)),
+    };
+  }
   if (!target) {
     return { status: "missing-entry" };
   }
@@ -262,16 +283,15 @@ function resolveMessageCut(
   if (targetIndex < 0) {
     return { status: "off-active-path" };
   }
-  const prefix: TranscriptEvent[] = [];
-  for (const node of activePath.slice(0, targetIndex)) {
-    const entry = asRecord(node.entry);
-    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
-    // data property instead of rebinding the copy's prototype.
-    prefix.push(
-      entry && entry.parentId !== node.parentId
-        ? { ...entry, parentId: node.parentId }
-        : node.entry,
-    );
+  const prefix = copyPathPrefix(activePath.slice(0, targetIndex));
+  if (nativeCut) {
+    // The local row is only the cut anchor after a native-only row; the composer gets that row.
+    return {
+      status: "cut",
+      ...(nativeCut.editorText ? { editorText: nativeCut.editorText } : {}),
+      parentId: target.parentId,
+      prefix,
+    };
   }
   const editorAttachments = extractEditorAttachments(message.content);
   const editorMediaRefs = extractEditorMediaRefs(message);
@@ -283,6 +303,19 @@ function resolveMessageCut(
     parentId: target.parentId,
     prefix,
   };
+}
+
+function copyPathPrefix(
+  nodes: ReturnType<typeof selectSessionTranscriptTreePathNodes>,
+): TranscriptEvent[] {
+  return nodes.map((node) => {
+    const entry = asRecord(node.entry);
+    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
+    // data property instead of rebinding the copy's prototype.
+    return entry && entry.parentId !== node.parentId
+      ? { ...entry, parentId: node.parentId }
+      : node.entry;
+  });
 }
 
 // Gateway-written inline images are already size-capped at send time; these bounds

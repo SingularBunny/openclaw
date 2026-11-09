@@ -768,7 +768,9 @@ For the bundled `claude-cli` backend, sessions without library selections
 materialize eligible skills as a temporary Claude Code plugin, passed via
 `--plugin-dir`. A plugin-qualified skill gets a renamed `SKILL.md` copy there
 (`upkeep:review` becomes `upkeep-review`), so same-named skills keep
-distinct Claude names. Sessions with library selections use OpenClaw's prompt catalog
+distinct Claude names. The copy sits in a mirror of its plugin folder whose other
+entries link to the real files, so paths such as `../../shared` or `../scripts`
+(also through `readlink -f`) resolve as from the original skill folder. Sessions with library selections use OpenClaw's prompt catalog
 and pinned revision paths instead. OpenClaw omits `--plugin-dir` for those
 sessions to keep Claude's native skill aliases from conflicting with library
 command identities. Other CLI backends use the prompt catalog only.

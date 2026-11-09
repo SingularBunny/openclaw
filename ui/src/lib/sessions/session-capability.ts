@@ -40,6 +40,12 @@ import type { BootRoster } from "./session-boot-roster.ts";
 import type { SessionChangedRowResult } from "./session-row-reconcile.ts";
 import type { SessionRunTerminal } from "./session-run-terminal.ts";
 
+/** Claude CLI chats: the cut message as it appears in Claude's own transcript. */
+export type SessionMessageCutNativeTarget = {
+  nativeMessageId?: string;
+  nativeOnly?: true;
+};
+
 export type SessionState = {
   result: SessionsListResult | null;
   resultCached?: boolean;
@@ -375,12 +381,12 @@ export type SessionCapability = {
   rewind: (
     key: string,
     entryId: string,
-    options?: { agentId?: string | null },
+    options?: { agentId?: string | null } & SessionMessageCutNativeTarget,
   ) => Promise<SessionsRewindResult>;
   forkAtMessage: (
     key: string,
     entryId: string,
-    options?: { agentId?: string | null },
+    options?: { agentId?: string | null } & SessionMessageCutNativeTarget,
   ) => Promise<SessionsForkResult>;
   listBranches: (key: string, options?: { agentId?: string | null }) => Promise<SessionBranch[]>;
   switchBranch: (

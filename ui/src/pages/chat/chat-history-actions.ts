@@ -12,6 +12,7 @@ import { loadChatBranches } from "./chat-history-branches.ts";
 import type { ChatHistoryResult } from "./chat-history-snapshot.ts";
 import { resetChatHistoryProjection, setChatError } from "./chat-history-state.ts";
 import { loadChatHistory } from "./chat-history.ts";
+import { CHAT_MESSAGE_CUT_UNAVAILABLE, resolveChatMessageCutTarget } from "./chat-rewind-target.ts";
 import type { ChatHistoryHost, ChatState } from "./chat-state-contract.ts";
 import type { ChatAttachmentReadLifecycle } from "./components/chat-attachment-reads.ts";
 import {
@@ -213,6 +214,8 @@ function captureChatHistoryView(state: ChatState) {
   return { sessionKey, agentParams, connectionIsCurrent, viewMatches, viewIsCurrent };
 }
 
+const rewindingChats = new WeakSet<object>();
+
 export async function rewindChatHistory(
   state: RewindChatHistoryState,
   entryId: string,
@@ -231,11 +234,20 @@ export async function rewindChatHistory(
       state.chatMentions,
       state.chatReplyTarget,
     );
+  // A second click while a long rewind still runs would only be rejected as a changed session.
+  const cut = rewindingChats.has(state) ? null : readChatMessageCut(state, entryId);
+  if (!cut) {
+    return null;
+  }
+  rewindingChats.add(state);
   const composerSignature = readComposer();
   const attachmentReadSignal = attachmentReads.readSignal;
   const ownsComposer = captureChatComposerReplacement(state, sessionKey, agentParams.agentId);
   try {
-    const result = await state.sessions.rewind(sessionKey, entryId, agentParams);
+    const result = await state.sessions.rewind(sessionKey, cut.entryId, {
+      ...agentParams,
+      ...cut.native,
+    });
     const editorText = result.editorText ?? "";
     clearCachedChatMessagesForSession(state, sessionKey, agentParams.agentId, "cache-eviction");
     if (viewMatches()) {
@@ -277,7 +289,27 @@ export async function rewindChatHistory(
       scheduleChatScroll(state);
     }
     return null;
+  } finally {
+    rewindingChats.delete(state);
   }
+}
+
+/**
+ * The `sessions.rewind`/`sessions.fork` target for a visible message; rows merged from Claude's
+ * own transcript map to a local cut plus the native row. Null (with a chat error) when the row
+ * cannot be a cut point.
+ */
+export function readChatMessageCut(
+  state: Pick<ChatState, "chatMessages" | "lastError" | "chatError" | "requestUpdate">,
+  entryId: string,
+) {
+  const target = resolveChatMessageCutTarget(state.chatMessages, entryId);
+  if (!target) {
+    setChatError(state, CHAT_MESSAGE_CUT_UNAVAILABLE, true);
+    return null;
+  }
+  const { entryId: cutEntryId, ...native } = target;
+  return { entryId: cutEntryId, native };
 }
 
 export async function switchChatHistoryBranch(

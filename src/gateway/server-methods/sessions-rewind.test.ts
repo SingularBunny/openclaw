@@ -97,6 +97,7 @@ import { resetPluginRuntimeStateForTest, setActivePluginRegistry } from "../../p
 import { runExclusiveSessionLifecycleMutation } from "../../sessions/session-lifecycle-admission.js";
 import { listSessionStateEventsSince } from "../../sessions/session-state-events.js";
 import { createDeferredCore } from "../../shared/deferred.js";
+import { withClaudeProjectsDir } from "../cli-session-history.test-support.js";
 import { sessionRewindHandlers } from "./sessions-rewind.js";
 
 // One teardown owns drainage and deletion so a failed drain retains the fixture root.
@@ -771,6 +772,88 @@ describe("session message-cut methods", () => {
         forkNextResume: true,
         authEpochVersion: 2,
       }),
+    });
+  });
+
+  it("rewinds to a row that exists only in Claude's own transcript", async () => {
+    const registry = createEmptyPluginRegistry();
+    registry.cliBackends.push({
+      pluginId: "anthropic",
+      source: "test",
+      backend: {
+        id: "claude-cli",
+        config: {
+          command: "claude",
+          forkArg: "--fork-session",
+          resumeAtArg: "--resume-session-at",
+        },
+      },
+    });
+    setActivePluginRegistry(registry);
+    await withClaudeProjectsDir(async ({ sessionId: nativeSessionId, filePath }) => {
+      fs.writeFileSync(
+        filePath,
+        [
+          { uuid: "native-answer", parentUuid: null, type: "assistant", content: "earlier" },
+          { uuid: "native-prompt", parentUuid: "native-answer", type: "user", content: "typed" },
+          { uuid: "native-reply", parentUuid: "native-prompt", type: "assistant", content: "x" },
+        ]
+          .map((row) =>
+            JSON.stringify({
+              parentUuid: row.parentUuid,
+              isSidechain: false,
+              type: row.type,
+              message: { role: row.type, content: row.content },
+              uuid: row.uuid,
+            }),
+          )
+          .join("\n"),
+      );
+      await patchSessionEntryCore({ agentId: "main", sessionKey }, () => ({
+        cliSessionBindings: { "claude-cli": { sessionId: nativeSessionId } },
+      }));
+      const call = async (params: Record<string, unknown>) => {
+        const respond = vi.fn();
+        await expectDefined(
+          sessionRewindHandlers["sessions.rewind"],
+          "rewind handler",
+        )({
+          req: { id: "native-rewind" } as never,
+          params: { sessionKey, ...params },
+          respond: respond as unknown as RespondFn,
+          context: context(),
+          client: null,
+          isWebchatConnect: () => false,
+        });
+        return respond;
+      };
+
+      const unknown = await call({
+        entryId: "native-missing",
+        nativeMessageId: "native-missing",
+        nativeOnly: true,
+      });
+      expect(unknown).toHaveBeenCalledWith(
+        false,
+        undefined,
+        expect.objectContaining({
+          message: expect.stringContaining("only in Claude's own history"),
+        }),
+      );
+
+      const rewind = await call({
+        entryId: "native-prompt",
+        nativeMessageId: "native-prompt",
+        nativeOnly: true,
+      });
+      expect(rewind).toHaveBeenCalledWith(true, { editorText: "typed" }, undefined);
+      const entry = await readSessionEntryReadOnlyInWorker({ agentId: "main", sessionKey });
+      expect(entry?.sessionId).not.toBe(sourceSessionId);
+      expect(entry?.cliSessionBindings?.["claude-cli"]).toMatchObject({
+        sessionId: nativeSessionId,
+        resumeCheckpointId: "native-answer",
+        forkNextResume: true,
+      });
     });
   });
 

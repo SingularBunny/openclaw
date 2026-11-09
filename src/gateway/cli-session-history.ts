@@ -118,6 +118,11 @@ export async function prepareCliSessionHistoryReader(
     homeDir: params.cliHistoryHomeDir,
     localSessionId: params.sessionId,
     reseedReceipt: binding.reseedReceipt,
+    // After a rewind the binding resumes this session at an earlier checkpoint; later rows
+    // are the cut-away branch and must not reappear as imported history.
+    ...(binding.forkNextResume && binding.resumeCheckpointId
+      ? { resumeAtCheckpointId: binding.resumeCheckpointId }
+      : {}),
   };
   const identity = JSON.stringify([params.storePath, params.sessionAgentId, params.sessionId]);
   const source = await resolveClaudeCliHistorySource(native);

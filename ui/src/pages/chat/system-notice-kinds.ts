@@ -50,6 +50,13 @@ const systemNoticeKinds: Readonly<Record<string, SystemNoticeKind>> = {
     collapsedBody: true,
     startsTurn: false,
   },
+  // Fork: background exec completion notices (`Exec completed (…) :: …`), one line per
+  // finished command; the command output tail opens on demand.
+  exec: {
+    icon: "terminal",
+    labelKey: "chat.systemNotice.execCompletion.label",
+    collapsedBody: true,
+  },
   claude_cli_task_notification: {
     icon: "cpu",
     labelKey: "chat.systemNotice.claudeCliTaskNotification.label",

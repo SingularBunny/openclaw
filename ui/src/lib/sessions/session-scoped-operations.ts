@@ -13,6 +13,7 @@ import type {
   SessionCompactResult,
   SessionCapability,
   SessionConnectionOwner,
+  SessionMessageCutNativeTarget,
   SessionMessageSubscription,
   SessionRefreshOutcome,
 } from "./session-capability.ts";
@@ -29,6 +30,13 @@ type SessionScopedOperationsHost = {
 function buildTranscriptMutationParams(sessionKey: string, agentId?: string | null) {
   const { key, ...owner } = buildSessionRequestParams(sessionKey, agentId);
   return { sessionKey: key, ...owner };
+}
+
+function nativeCutParams(options: SessionMessageCutNativeTarget) {
+  return {
+    ...(options.nativeMessageId ? { nativeMessageId: options.nativeMessageId } : {}),
+    ...(options.nativeOnly ? { nativeOnly: true } : {}),
+  };
 }
 
 export function createSessionScopedOperations(host: SessionScopedOperationsHost) {
@@ -179,7 +187,11 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
     requestCommittedMutation<SessionsRewindResult>(
       "Session rewind requires an active Gateway connection",
       "sessions.rewind",
-      { ...buildTranscriptMutationParams(key, options.agentId), entryId },
+      {
+        ...buildTranscriptMutationParams(key, options.agentId),
+        entryId,
+        ...nativeCutParams(options),
+      },
       options.agentId,
     );
 
@@ -187,7 +199,11 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
     requestCommittedMutation<SessionsForkResult>(
       "Session fork requires an active Gateway connection",
       "sessions.fork",
-      { ...buildTranscriptMutationParams(key, options.agentId), entryId },
+      {
+        ...buildTranscriptMutationParams(key, options.agentId),
+        entryId,
+        ...nativeCutParams(options),
+      },
       options.agentId,
     );
 

@@ -3376,6 +3376,9 @@ export const en: TranslationMap & {
       claudeCliTaskNotification: {
         label: "System · background task",
       },
+      execCompletion: {
+        label: "System · background command finished",
+      },
       showContent: "Show content",
     },
     skillLearned: {

@@ -610,6 +610,17 @@ export const SessionsRewindParamsSchema = closedObject({
   sessionKey: NonEmptyString,
   agentId: Type.Optional(NonEmptyString),
   entryId: NonEmptyString,
+  /**
+   * Id of the same message in a bound CLI's own transcript (Claude rows merged into chat
+   * history). The native session then resumes right before it instead of at the last
+   * checkpoint recorded on the kept branch.
+   */
+  nativeMessageId: Type.Optional(NonEmptyString),
+  /**
+   * The message exists only in the CLI's own transcript. `entryId` is the first later local
+   * user message to cut at, or `nativeMessageId` itself when no local message follows.
+   */
+  nativeOnly: Type.Optional(Type.Boolean()),
 });
 
 /** Creates a new session from the active-path state before one persisted user message. */

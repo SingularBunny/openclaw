@@ -1,8 +1,5 @@
 /** Owns captured destinations and cancellation for background exec completion notifications. */
-import {
-  captureSessionEventTargetForHost as captureSessionEventTarget,
-  enqueueSessionEventForHost as enqueueSessionEvent,
-} from "../auto-reply/reply/session-event-handoff.js";
+import { captureSessionEventTargetForHost as captureSessionEventTarget } from "../auto-reply/reply/session-event-handoff.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import { resolveEventSessionKeyForPolicy } from "../infra/event-session-routing.js";
 import { readExecRequestOwners, withExecRequestOwners } from "../infra/exec-request-context.js";
@@ -17,6 +14,7 @@ import {
   tail,
   type ProcessSession,
 } from "./bash-process-registry.js";
+import { deliverExecExitNotice } from "./bash-tools.exec-notify-batch.js";
 import {
   appendExecTimeoutRetryGuidance,
   compactNotifyOutput,
@@ -115,22 +113,24 @@ export function maybeNotifyOnExit(
       );
       return;
     }
+    // Fork: completions that finish while the session is mid-turn reach it as one event
+    // after that turn instead of one turn each.
     try {
-      const receipt = enqueueSessionEvent(eventText, {
-        ...eventOptions,
-        agentId,
-        source: "exec",
-        sourceTurnId: `exec:${processSessionInstanceId(session)}`,
-        expectedTarget: session.notifySessionTarget,
-      });
-      recordNotifyOnExitRemoval(session, receipt.cancel);
-      void receipt.settled.then((outcome) => {
-        if (outcome.status === "failed") {
-          logWarn(
-            `exec: completion delivery failed (${outcome.error}); inspect the process result.`,
-          );
-        }
-      });
+      recordNotifyOnExitRemoval(
+        session,
+        deliverExecExitNotice({
+          id: session.id,
+          instanceId: processSessionInstanceId(session),
+          text: eventText,
+          agentId,
+          sessionKey: eventSessionKey,
+          target: session.notifySessionTarget,
+          owners: readExecRequestOwners(session),
+          deliveryContext: session.notifyDeliveryContext,
+          isObsolete: () =>
+            session.terminalPollObserved === true || session.requestCancelled === true,
+        }),
+      );
     } catch (error) {
       logWarn(
         `exec: completion was not admitted (${formatErrorMessage(error)}); inspect the process result.`,

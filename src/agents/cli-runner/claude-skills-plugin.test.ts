@@ -116,4 +116,100 @@ describe("prepareClaudeCliSkillsPlugin", () => {
       await prepared.cleanup();
     }
   });
+  it("keeps the plugin folders around a renamed skill reachable by relative paths", async () => {
+    const pluginRoot = path.join(base, "upkeep-plugin");
+    const skillDir = path.join(pluginRoot, "skills", "review");
+    await fs.mkdir(path.join(skillDir, "references"), { recursive: true });
+    await fs.mkdir(path.join(pluginRoot, "skills", "draft"), { recursive: true });
+    await fs.mkdir(path.join(pluginRoot, "shared"), { recursive: true });
+    await fs.mkdir(path.join(pluginRoot, "scripts"), { recursive: true });
+    await fs.writeFile(path.join(skillDir, "SKILL.md"), "---\nname: review\n---\n", "utf8");
+    await fs.writeFile(path.join(skillDir, "references", "notes.md"), "notes", "utf8");
+    await fs.writeFile(path.join(pluginRoot, "skills", "draft", "SKILL.md"), "draft", "utf8");
+    await fs.writeFile(path.join(pluginRoot, "shared", "x"), "shared", "utf8");
+    await fs.writeFile(path.join(pluginRoot, "scripts", "run.sh"), "run", "utf8");
+    await fs.writeFile(path.join(pluginRoot, "config.yml"), "config", "utf8");
+    // Installed skills are reached through a symlink, as in ~/.openclaw/plugin-skills.
+    const linkedSkillDir = path.join(base, "plugin-skills", "review");
+    await fs.mkdir(path.dirname(linkedSkillDir), { recursive: true });
+    await fs.symlink(skillDir, linkedSkillDir, "dir");
+
+    const prepared = await prepareClaudeCliSkillsPlugin({
+      backendId: "claude-cli",
+      skillsSnapshot: {
+        ...skillsSnapshot,
+        resolvedSkills: [
+          {
+            ...skillsSnapshot.resolvedSkills![0]!,
+            name: "upkeep:review",
+            filePath: path.join(linkedSkillDir, "SKILL.md"),
+            baseDir: linkedSkillDir,
+          },
+        ],
+      },
+    });
+    try {
+      // Unnormalized paths: the OS resolves `..` after following the skill symlink.
+      const renamed = `${prepared.pluginDir}/skills/upkeep-review`;
+      await expect(fs.readFile(`${renamed}/SKILL.md`, "utf8")).resolves.toBe(
+        "---\nname: upkeep-review\n---\n",
+      );
+      await expect(fs.readFile(`${renamed}/references/notes.md`, "utf8")).resolves.toBe("notes");
+      await expect(fs.readFile(`${renamed}/../../shared/x`, "utf8")).resolves.toBe("shared");
+      await expect(fs.readFile(`${renamed}/../../scripts/run.sh`, "utf8")).resolves.toBe("run");
+      await expect(fs.readFile(`${renamed}/../draft/SKILL.md`, "utf8")).resolves.toBe("draft");
+      await expect(fs.readFile(`${renamed}/../review/SKILL.md`, "utf8")).resolves.toBe(
+        "---\nname: review\n---\n",
+      );
+
+      const mirroredRoot = await fs.realpath(`${renamed}/../..`);
+      expect(mirroredRoot.startsWith(await fs.realpath(pluginTempRoot))).toBe(true);
+      expect((await fs.readdir(mirroredRoot)).toSorted()).toEqual(
+        (await fs.readdir(pluginRoot)).toSorted(),
+      );
+      expect((await fs.readdir(`${renamed}/..`)).toSorted()).toEqual([
+        "draft",
+        "review",
+        "upkeep-review",
+      ]);
+      await expect(fs.realpath(`${renamed}/../../shared/x`)).resolves.toBe(
+        await fs.realpath(path.join(pluginRoot, "shared", "x")),
+      );
+    } finally {
+      await prepared.cleanup();
+    }
+    await expect(fs.readdir(pluginTempRoot)).resolves.toEqual([]);
+    await expect(fs.readFile(path.join(pluginRoot, "shared", "x"), "utf8")).resolves.toBe("shared");
+  });
+
+  it("mirrors the parent folder of a renamed skill outside a skills folder", async () => {
+    const skillDir = path.join(base, "loose", "review");
+    await fs.mkdir(skillDir, { recursive: true });
+    await fs.writeFile(path.join(skillDir, "SKILL.md"), "# Method\n", "utf8");
+    await fs.writeFile(path.join(base, "loose", "helper.sh"), "helper", "utf8");
+
+    const prepared = await prepareClaudeCliSkillsPlugin({
+      backendId: "claude-cli",
+      skillsSnapshot: {
+        ...skillsSnapshot,
+        resolvedSkills: [
+          {
+            ...skillsSnapshot.resolvedSkills![0]!,
+            name: "loose:review",
+            filePath: path.join(skillDir, "SKILL.md"),
+            baseDir: skillDir,
+          },
+        ],
+      },
+    });
+    try {
+      const renamed = `${prepared.pluginDir}/skills/loose-review`;
+      await expect(fs.readFile(`${renamed}/SKILL.md`, "utf8")).resolves.toBe(
+        "---\nname: loose-review\n---\n# Method\n",
+      );
+      await expect(fs.readFile(`${renamed}/../helper.sh`, "utf8")).resolves.toBe("helper");
+    } finally {
+      await prepared.cleanup();
+    }
+  });
 });
