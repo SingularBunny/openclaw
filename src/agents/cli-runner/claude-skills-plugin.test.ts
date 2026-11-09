@@ -69,6 +69,54 @@ describe("prepareClaudeCliSkillsPlugin", () => {
     await expect(fs.readdir(pluginTempRoot)).resolves.toEqual([]);
   });
 
+  it("gives plugin-qualified skills distinct native names", async () => {
+    const resolvedSkills: NonNullable<SkillSnapshot["resolvedSkills"]> = [];
+    for (const pluginId of ["upkeep", "alpha"]) {
+      const skillDir = path.join(base, pluginId, "skills", "review");
+      const skillFile = path.join(skillDir, "SKILL.md");
+      await fs.mkdir(path.join(skillDir, "references"), { recursive: true });
+      await fs.writeFile(
+        skillFile,
+        `---\nname: review\ndescription: From ${pluginId}\n---\n\n# Method\n`,
+        "utf8",
+      );
+      await fs.writeFile(path.join(skillDir, "references", "notes.md"), pluginId, "utf8");
+      resolvedSkills.push({
+        ...skillsSnapshot.resolvedSkills![0]!,
+        name: `${pluginId}:review`,
+        filePath: skillFile,
+        baseDir: skillDir,
+      });
+    }
+
+    const prepared = await prepareClaudeCliSkillsPlugin({
+      backendId: "claude-cli",
+      skillsSnapshot: { ...skillsSnapshot, resolvedSkills },
+    });
+    try {
+      const skillsDir = path.join(prepared.pluginDir!, "skills");
+      expect((await fs.readdir(skillsDir)).toSorted()).toEqual([
+        "alpha-review",
+        "upkeep-review",
+      ]);
+      const skillMd = await fs.readFile(
+        path.join(skillsDir, "upkeep-review", "SKILL.md"),
+        "utf8",
+      );
+      expect(skillMd).toBe(
+        "---\nname: upkeep-review\ndescription: From upkeep\n---\n\n# Method\n",
+      );
+      await expect(
+        fs.readFile(
+          path.join(skillsDir, "alpha-review", "references", "notes.md"),
+          "utf8",
+        ),
+      ).resolves.toBe("alpha");
+    } finally {
+      await prepared.cleanup();
+    }
+  });
+
   it("delivers and cleans up copied skills when symlinks are unavailable", async () => {
     vi.spyOn(fs, "symlink").mockRejectedValueOnce(new Error("unavailable"));
     const prepared = await prepareClaudeCliSkillsPlugin({

@@ -58,6 +58,45 @@ export type ClaudeCliSkillsPlugin = {
   skillCommands?: ReadonlyMap<string, Skill>;
 };
 
+function withFrontmatterName(content: string, name: string): string {
+  const match = /^---\r?\n([\s\S]*?)\r?\n---/u.exec(content);
+  if (!match) {
+    return `---\nname: ${name}\n---\n${content}`;
+  }
+  const frontmatter = match[1] ?? "";
+  const next = /^name:.*$/mu.test(frontmatter)
+    ? frontmatter.replace(/^name:.*$/mu, `name: ${name}`)
+    : `name: ${name}\n${frontmatter}`;
+  return `---\n${next}\n---${content.slice(match[0].length)}`;
+}
+
+/**
+ * Plugin-qualified OpenClaw names (`<pluginId>:<skill>`) differ from the SKILL.md `name`
+ * Claude reads, and two such skills would register the same native name. Give Claude a
+ * renamed SKILL.md and link the remaining files unchanged.
+ */
+async function materializeRenamedSkillDir(params: {
+  sourceDir: string;
+  targetDir: string;
+  name: string;
+}) {
+  await fs.mkdir(params.targetDir, { mode: 0o700 });
+  for (const entry of await fs.readdir(params.sourceDir)) {
+    if (entry !== "SKILL.md") {
+      await linkOrCopySkillDir({
+        sourceDir: path.join(params.sourceDir, entry),
+        targetDir: path.join(params.targetDir, entry),
+      });
+    }
+  }
+  const content = await fs.readFile(path.join(params.sourceDir, "SKILL.md"), "utf-8");
+  await fs.writeFile(
+    path.join(params.targetDir, "SKILL.md"),
+    withFrontmatterName(content, params.name),
+    { encoding: "utf-8", mode: 0o600 },
+  );
+}
+
 /** Prepares Claude CLI `--plugin-dir` args for the current session skill snapshot. */
 export async function prepareClaudeCliSkillsPlugin(params: {
   backendId: string;
@@ -125,10 +164,16 @@ export async function prepareClaudeCliSkillsPlugin(params: {
     const skillCommands = new Map<string, Skill>();
     for (const skill of skills) {
       try {
-        await linkOrCopySkillDir({
-          sourceDir: skill.sourceDir,
-          targetDir: path.join(skillsDir, skill.targetDirName),
-        });
+        const targetDir = path.join(skillsDir, skill.targetDirName);
+        if (skill.name.includes(":")) {
+          await materializeRenamedSkillDir({
+            sourceDir: skill.sourceDir,
+            targetDir,
+            name: skill.targetDirName,
+          });
+        } else {
+          await linkOrCopySkillDir({ sourceDir: skill.sourceDir, targetDir });
+        }
         skillCommands.set(`${OPENCLAW_CLAUDE_PLUGIN_NAME}:${skill.targetDirName}`, skill.skill);
       } catch (error) {
         cliBackendLog.warn(
