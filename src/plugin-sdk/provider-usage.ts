@@ -274,6 +274,7 @@ export type {
   ProviderUsageCostDaily,
   ProviderUsageModelBreakdown,
   ProviderUsageBilling,
+  ProviderUsageRateLimit,
   ProviderUsageSnapshot,
   UsageWindow,
 } from "../infra/provider-usage.types.js";
@@ -316,3 +317,5 @@ export {
   buildUsageHttpErrorSnapshot,
   fetchJson,
 } from "../infra/provider-usage.fetch.shared.js";
+// Fork: live rate-limit status observed on model turns (Claude CLI `rate_limit_event`).
+export { recordProviderUsageRateLimit } from "../infra/provider-usage.rate-limit.js";
