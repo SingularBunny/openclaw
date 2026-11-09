@@ -1,6 +1,7 @@
 import type {
   SessionCatalog,
   SessionCatalogSession,
+  SessionsCatalogMoveParams,
   SessionsCatalogReorderParams,
 } from "../../../../packages/gateway-protocol/src/index.ts";
 
@@ -77,6 +78,81 @@ export function reorderSessionCatalogs(
           ),
         },
   );
+}
+
+/**
+ * Moves one row of a host into another custom folder, mirroring the provider's
+ * move: the row takes the folder name and sits where `threadIds` places it, or
+ * after the folder's last row when the drop had no position.
+ */
+export function moveCatalogHostSession(
+  sessions: readonly SessionCatalogSession[],
+  params: Pick<SessionsCatalogMoveParams, "threadId" | "group" | "threadIds">,
+): SessionCatalogSession[] {
+  const moved = sessions.find((session) => session.threadId === params.threadId);
+  if (!moved) {
+    return [...sessions];
+  }
+  const rest = sessions.filter((session) => session !== moved);
+  const row = { ...moved, customGroup: params.group };
+  const order = params.threadIds ?? [];
+  const following = order.slice(order.indexOf(params.threadId) + 1);
+  const ownIndex = order.indexOf(params.threadId);
+  let index = -1;
+  if (ownIndex >= 0) {
+    // Before the first row that follows the moved one in the requested order.
+    for (const threadId of following) {
+      index = rest.findIndex(
+        (session) => session.threadId === threadId && customGroupOf(session) === params.group,
+      );
+      if (index >= 0) {
+        break;
+      }
+    }
+  }
+  if (index < 0) {
+    const last = rest.findLastIndex((session) => customGroupOf(session) === params.group);
+    index = last >= 0 ? last + 1 : rest.length;
+  }
+  return [...rest.slice(0, index), row, ...rest.slice(index)];
+}
+
+/** Returns catalogs with the move applied to the addressed catalog host. */
+export function moveSessionCatalogs(
+  catalogs: readonly SessionCatalog[],
+  params: Pick<
+    SessionsCatalogMoveParams,
+    "catalogId" | "hostId" | "threadId" | "group" | "threadIds"
+  >,
+): SessionCatalog[] {
+  return catalogs.map((catalog) =>
+    catalog.id !== params.catalogId
+      ? catalog
+      : {
+          ...catalog,
+          hosts: catalog.hosts.map((host) =>
+            host.hostId !== params.hostId
+              ? host
+              : { ...host, sessions: moveCatalogHostSession(host.sessions, params) },
+          ),
+        },
+  );
+}
+
+/** Puts `source`, a row from another folder, next to `target`; null when `target` is unknown. */
+export function insertCatalogOrderEntry(
+  order: readonly string[],
+  source: string,
+  target: string,
+  position: "before" | "after",
+): string[] | null {
+  const next = order.filter((entry) => entry !== source);
+  const index = next.indexOf(target);
+  if (index < 0) {
+    return null;
+  }
+  next.splice(index + (position === "after" ? 1 : 0), 0, source);
+  return next;
 }
 
 /** Moves `source` next to `target`; returns null when the order would not change. */

@@ -1,6 +1,9 @@
 import { Value } from "typebox/value";
 import { describe, expect, it } from "vitest";
-import { validateSessionsCatalogReorderParams } from "../validator-registry.js";
+import {
+  validateSessionsCatalogMoveParams,
+  validateSessionsCatalogReorderParams,
+} from "../validator-registry.js";
 import {
   SessionCatalogShareRouteSchema,
   SessionsCatalogHostEventSchema,
@@ -169,6 +172,39 @@ describe("SessionsCatalogReorder params", () => {
         target: { kind: "groups", order: ["Work"] },
       }),
     ).toBe(false);
+  });
+});
+
+describe("SessionsCatalogMove params", () => {
+  const base = { catalogId: "claude", hostId: "gateway:local", agentId: "main" };
+
+  it("accepts a move with and without a target position", () => {
+    expect(validateSessionsCatalogMoveParams({ ...base, threadId: "t-1", group: "Home" })).toBe(
+      true,
+    );
+    expect(
+      validateSessionsCatalogMoveParams({
+        ...base,
+        sourceHomeId: "home-1",
+        threadId: "t-1",
+        group: "Home",
+        threadIds: ["t-2", "t-1"],
+      }),
+    ).toBe(true);
+  });
+
+  it("rejects missing rows or folders, bad orders and unknown fields", () => {
+    for (const params of [
+      { ...base, group: "Home" },
+      { ...base, threadId: "t-1" },
+      { ...base, threadId: "t-1", group: "" },
+      { ...base, threadId: "t-1", group: "Home", threadIds: [] },
+      { ...base, threadId: "t-1", group: "Home", threadIds: ["t-1", "t-1"] },
+      { ...base, threadId: "t-1", group: "Home", unexpected: true },
+      { catalogId: "claude", threadId: "t-1", group: "Home" },
+    ]) {
+      expect(validateSessionsCatalogMoveParams(params)).toBe(false);
+    }
   });
 });
 

@@ -168,6 +168,7 @@ CLI run builds its arguments, so a change applies from the next run.
 | `OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS` | `200`       | Items that continuing a native catalog session carries over.                                                      |
 | `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES` | `524288`    | Bytes that continuing a native catalog session carries over.                                                      |
 | `OPENCLAW_CATALOG_IMPORT_OWNER`           | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).  |
+| `OPENCLAW_CLAUDE_CHROME`                  | off         | `1` gives Claude CLI agent turns the Claude in Chrome browser tools (`--chrome`).                                 |
 | `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`      | on          | `0` or `false` stops passing `--prompt-suggestions true` to Claude CLI runs (composer ghost-text predictions).    |
 | `OPENCLAW_MEMORY_INDEX_ON_START`          | off         | `1` opens every agent's memory index at Gateway start instead of on its first search.                             |
 | `OPENCLAW_PLUGIN_GATEWAY_METHODS`         | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                          |

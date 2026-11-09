@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import type {
   SessionCatalog,
+  SessionsCatalogMoveParams,
   SessionsCatalogReorderParams,
 } from "../../../packages/gateway-protocol/src/index.ts";
 import type { SidebarCatalogSessionMutationScope } from "./app-sidebar-session-types.ts";
-import { reorderSessionCatalog } from "./session-data-controller-catalog.ts";
+import { moveSessionCatalog, reorderSessionCatalog } from "./session-data-controller-catalog.ts";
 
 function catalogs(): SessionCatalog[] {
   const row = (threadId: string, customGroup: string) => ({
@@ -90,5 +91,51 @@ describe("reorderSessionCatalog", () => {
     expect(owner.sessionCatalogs).toBe(previous);
     expect(order()).toEqual(["a1", "b1"]);
     expect(owner.invalidateSessionCatalogs).not.toHaveBeenCalled();
+  });
+});
+
+describe("moveSessionCatalog", () => {
+  const params: SessionsCatalogMoveParams = {
+    catalogId: "claude",
+    hostId: "gateway:local",
+    agentId: "main",
+    threadId: "a1",
+    group: "Beta",
+    threadIds: ["a1", "b1"],
+  };
+  const groups = (owner: ReturnType<typeof setup>["owner"]) =>
+    owner.sessionCatalogs[0]!.hosts[0]!.sessions.map((row) => `${row.customGroup}:${row.threadId}`);
+
+  it("shows the row in its new folder at once, returns the result and refreshes", async () => {
+    const request = vi.fn(async (_method: string, _params: unknown) => ({
+      ok: true,
+      threadId: "s:agent:beta:x",
+    }));
+    const { owner, scope } = setup(request);
+    const run = moveSessionCatalog(
+      owner as unknown as Parameters<typeof moveSessionCatalog>[0],
+      scope,
+      params,
+    );
+    expect(groups(owner)).toEqual(["Beta:a1", "Beta:b1"]);
+    await expect(run).resolves.toEqual({ ok: true, threadId: "s:agent:beta:x" });
+    expect(request).toHaveBeenCalledWith("sessions.catalog.move", params);
+    expect(owner.invalidateSessionCatalogs).toHaveBeenCalledOnce();
+  });
+
+  it("puts the row back and rethrows when the Gateway rejects the move", async () => {
+    const { owner, scope } = setup(async () => {
+      throw new Error("the main chat of a project stays with its agent");
+    });
+    const previous = owner.sessionCatalogs;
+    await expect(
+      moveSessionCatalog(
+        owner as unknown as Parameters<typeof moveSessionCatalog>[0],
+        scope,
+        params,
+      ),
+    ).rejects.toThrow("stays with its agent");
+    expect(owner.sessionCatalogs).toBe(previous);
+    expect(groups(owner)).toEqual(["Alpha:a1", "Beta:b1"]);
   });
 });
