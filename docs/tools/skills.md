@@ -274,6 +274,22 @@ Plugin skill directories merge at the same low-precedence level as
 skill overrides them. Gate a plugin skill's own eligibility via
 `metadata.openclaw.requires` in its frontmatter, same as any other skill.
 
+Plugin skill names are global while only one plugin uses them. When several
+enabled plugins ship a skill with the same name, each copy stays available under
+a plugin-qualified name, `<pluginId>:<name>` (for example `upkeep:review` and
+`alpha:review`), like Claude Code plugin skills. If exactly one of those
+plugins is bundled with OpenClaw, its copy keeps the plain name and the others are
+qualified. Names that only one plugin ships do not change. Use the qualified name
+in agent allowlists, `skills.entries`, `/skill <name>`, and `$<name>` references;
+the native slash command replaces `:` with `_` (`/upkeep_review`).
+
+To give an agent one version under the plain name, link it from the agent
+workspace (`<workspace>/skills/<name>` pointing at the plugin's skill folder, with
+that folder in `skills.load.allowSymlinkTargets`). The workspace skill wins by
+precedence, and the qualified copy that points at the same `SKILL.md` is hidden;
+the other plugins' copies stay qualified. The shared name is reported once per
+process at info level.
+
 For multi-account channel plugins, gate general messaging skills on the channel
 subtree (for example, `channels.discord`), not a root token field: credentials
 may live under a named account. This is a coarse skill-visibility check. The
@@ -750,7 +766,9 @@ When an agent run starts, OpenClaw:
 
 For the bundled `claude-cli` backend, sessions without library selections
 materialize eligible skills as a temporary Claude Code plugin, passed via
-`--plugin-dir`. Sessions with library selections use OpenClaw's prompt catalog
+`--plugin-dir`. A plugin-qualified skill gets a renamed `SKILL.md` copy there
+(`upkeep:review` becomes `upkeep-review`), so same-named skills keep
+distinct Claude names. Sessions with library selections use OpenClaw's prompt catalog
 and pinned revision paths instead. OpenClaw omits `--plugin-dir` for those
 sessions to keep Claude's native skill aliases from conflicting with library
 command identities. Other CLI backends use the prompt catalog only.

@@ -377,6 +377,88 @@ describe("resolvePluginSkillRoots", () => {
     }
   });
 
+  it("namespaces skill names shared by several plugins and keeps unique names plain", async () => {
+    const workspaceDir = await tempDirs.make("openclaw-shared-skills-");
+    const pluginSkillsDir = await tempDirs.make("managed-plugin-skills-");
+    const plugins = await Promise.all(
+      [
+        { id: "upkeep", origin: "workspace", skills: ["review", "deploy"] },
+        { id: "alpha", origin: "workspace", skills: ["review"] },
+        { id: "claude-obsidian", origin: "workspace", skills: ["canvas"] },
+        { id: "canvas", origin: "bundled", skills: ["canvas"] },
+      ].map(async (plugin) => {
+        const rootDir = await tempDirs.make(`openclaw-${plugin.id}-`);
+        for (const skill of plugin.skills) {
+          const skillDir = path.join(rootDir, "skills", skill);
+          await fs.mkdir(skillDir, { recursive: true });
+          await fs.writeFile(
+            path.join(skillDir, "SKILL.md"),
+            `---\nname: ${skill}\ndescription: ${skill} from ${plugin.id}\n---\n`,
+          );
+        }
+        return {
+          id: plugin.id,
+          name: plugin.id,
+          channels: [],
+          providers: [],
+          cliBackends: [],
+          skills: ["./skills"],
+          hooks: [],
+          origin: plugin.origin as "workspace" | "bundled",
+          rootDir,
+          source: rootDir,
+          manifestPath: path.join(rootDir, "openclaw.plugin.json"),
+        };
+      }),
+    );
+    hoisted.loadPluginManifestRegistryForInstalledIndex.mockReturnValue({
+      diagnostics: [],
+      plugins,
+    });
+    const rootOf = (id: string) => plugins.find((plugin) => plugin.id === id)!.rootDir;
+    const config: OpenClawConfig = {
+      plugins: {
+        entries: Object.fromEntries(plugins.map((plugin) => [plugin.id, { enabled: true }])),
+      },
+      skills: {
+        load: { allowSymlinkTargets: [path.join(rootOf("alpha"), "skills", "review")] },
+      },
+    };
+    const load = (dir = workspaceDir) =>
+      loadWorkspaceSkills(dir, {
+        config,
+        pluginSkillsDir,
+        managedSkillsDir: path.join(workspaceDir, ".managed"),
+        bundledSkillsDir: path.join(workspaceDir, ".bundled"),
+      })
+        .filter((entry) => /review|canvas|deploy/.test(entry.skill.name))
+        .map((entry) => [entry.skill.name, entry.skill.description]);
+
+    expect(load()).toEqual([
+      ["alpha:review", "review from alpha"],
+      ["canvas", "canvas from canvas"],
+      ["claude-obsidian:canvas", "canvas from claude-obsidian"],
+      ["deploy", "deploy from upkeep"],
+      ["upkeep:review", "review from upkeep"],
+    ]);
+
+    // A project that links one version keeps it under the plain name without a duplicate.
+    const projectDir = await tempDirs.make("openclaw-project-");
+    await fs.mkdir(path.join(projectDir, "skills"), { recursive: true });
+    await fs.symlink(
+      path.join(rootOf("alpha"), "skills", "review"),
+      path.join(projectDir, "skills", "review"),
+      directorySymlinkType,
+    );
+    expect(load(projectDir)).toEqual([
+      ["canvas", "canvas from canvas"],
+      ["claude-obsidian:canvas", "canvas from claude-obsidian"],
+      ["deploy", "deploy from upkeep"],
+      ["review", "review from alpha"],
+      ["upkeep:review", "review from upkeep"],
+    ]);
+  });
+
   it("rejects plugin skill paths that escape the plugin root", async () => {
     const { workspaceDir, pluginRoot, outsideSkills } = await setupPluginOutsideSkills();
     await fs.mkdir(path.join(pluginRoot, "skills"), { recursive: true });
@@ -401,7 +483,9 @@ describe("resolvePluginSkillRoots", () => {
       } as OpenClawConfig,
     });
 
-    expect(roots).toEqual([{ dir: path.resolve(pluginRoot, "skills"), rejectHardlinks: true }]);
+    expect(roots).toEqual([
+      { dir: path.resolve(pluginRoot, "skills"), rejectHardlinks: true, pluginId: "helper" },
+    ]);
   });
 
   it("rejects plugin skill symlinks that resolve outside plugin root", async () => {
@@ -491,7 +575,7 @@ describe("resolvePluginSkillRoots", () => {
       } as OpenClawConfig,
     });
 
-    expect(roots).toEqual([{ dir: validSkill, rejectHardlinks: true }]);
+    expect(roots).toEqual([{ dir: validSkill, rejectHardlinks: true, pluginId: "helper" }]);
     expect(fsSync.readlinkSync(path.join(pluginSkillsDir, "valid"))).toBe(validSkill);
     expect(fsSync.existsSync(path.join(pluginSkillsDir, "deep"))).toBe(false);
     expect(fsSync.existsSync(path.join(pluginSkillsDir, "skills"))).toBe(false);
