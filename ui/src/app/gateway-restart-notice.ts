@@ -8,6 +8,13 @@ registerGatewayRestartEnglish();
 /** How long "Gateway restarted" stays after the reconnect. */
 export const GATEWAY_RESTARTED_NOTICE_MS = 10_000;
 
+const NOTICE_PHASES = new Set<GatewayRestartNotice["phase"]>([
+  "pending",
+  "draining",
+  "stopping",
+  "restarting",
+]);
+
 const isCount = (value: unknown): value is number =>
   typeof value === "number" && Number.isInteger(value) && value >= 0;
 
@@ -16,7 +23,7 @@ export function readGatewayRestartNotice(value: unknown): GatewayRestartNotice |
   const record = asOptionalRecord(value);
   if (
     !record ||
-    (record.phase !== "pending" && record.phase !== "restarting") ||
+    !NOTICE_PHASES.has(record.phase as GatewayRestartNotice["phase"]) ||
     typeof record.reason !== "string" ||
     !record.reason.trim() ||
     !isCount(record.since) ||
@@ -27,7 +34,7 @@ export function readGatewayRestartNotice(value: unknown): GatewayRestartNotice |
     return null;
   }
   return {
-    phase: record.phase,
+    phase: record.phase as GatewayRestartNotice["phase"],
     reason: record.reason,
     since: record.since,
     deadlineAt: record.deadlineAt,
@@ -36,8 +43,14 @@ export function readGatewayRestartNotice(value: unknown): GatewayRestartNotice |
   };
 }
 
+const WAIT_TEXT_KEYS = {
+  pending: "common.gatewayRestart.pending",
+  draining: "common.gatewayRestart.draining",
+  stopping: "common.gatewayRestart.stopping",
+} as const;
+
 export type GatewayRestartBanner = {
-  kind: "pending" | "restarting" | "restarted";
+  kind: "pending" | "draining" | "stopping" | "restarting" | "restarted";
   tone: "warn" | "info";
   text: string;
 };
@@ -69,7 +82,8 @@ export function resolveGatewayRestartBanner(
       text: translate("common.gatewayRestart.restarting"),
     };
   }
-  if (notice?.phase === "pending" && snapshot.phase === "connected") {
+  // F44: `draining` (a restart) and `stopping` wait for agent turns while new turns are refused.
+  if (notice && snapshot.phase === "connected") {
     const waiting =
       notice.activeTurns > 0
         ? translate(
@@ -88,9 +102,9 @@ export function resolveGatewayRestartBanner(
             minutes: String(Math.max(1, Math.ceil((notice.deadlineAt - now) / 60_000))),
           });
     return {
-      kind: "pending",
+      kind: notice.phase,
       tone: "warn",
-      text: translate("common.gatewayRestart.pending", {
+      text: translate(WAIT_TEXT_KEYS[notice.phase], {
         waiting,
         when,
         reason: displayReason(notice.reason),
