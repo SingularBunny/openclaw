@@ -167,10 +167,23 @@ function normalizeEntrySource(
     return { ok: false, error: 'plugin source object missing "type" or "source"' };
   }
 
+  // Fork: Claude Code marketplaces pin a git source to an exact commit with "sha"; without
+  // honoring it, the default branch head is installed instead of the pinned commit.
+  const sha = normalizeOptionalString(rec.sha);
+  const pinnedSha = sha && isImmutableGitCommitRef(sha) ? sha : undefined;
+
   if (kind === "path" || kind === "url") {
     const value = normalizeOptionalString(rec[kind]);
     if (!value) {
       return { ok: false, error: `${kind} source missing "${kind}"` };
+    }
+    if (
+      kind === "url" &&
+      pinnedSha &&
+      !resolveArchiveKind(value) &&
+      normalizeGitCloneSource(value)
+    ) {
+      return { ok: true, source: { kind: "git", url: value, ref: pinnedSha } };
     }
     return {
       ok: true,
@@ -196,6 +209,7 @@ function normalizeEntrySource(
       return { ok: false, error: 'git-subdir source missing "path"' };
     }
     const ref =
+      pinnedSha ??
       normalizeOptionalString(rec.ref) ??
       normalizeOptionalString(rec.branch) ??
       normalizeOptionalString(rec.tag);
