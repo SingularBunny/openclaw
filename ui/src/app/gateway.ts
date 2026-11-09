@@ -1,4 +1,5 @@
 import type {
+  GatewayRestartNotice,
   ModelCatalogTarget,
   UserProfile,
 } from "../../../packages/gateway-protocol/src/index.js";
@@ -34,6 +35,10 @@ export type ApplicationGatewaySnapshot = {
   deferredIntentCount?: number;
   deferredIntentDraining?: boolean;
   restartPending?: boolean;
+  /** Fork: a Gateway restart waiting for running work (`gateway.restart`, hello snapshot). */
+  restartNotice?: GatewayRestartNotice | null;
+  /** Fork: when this page reconnected after a Gateway restart it was told about. */
+  restartedAt?: number;
   suspensionPhase?: GatewaySuspension["phase"];
   /**
    * Last accepted handshake for the current client identity, retained while reconnecting.

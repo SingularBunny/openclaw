@@ -80,6 +80,7 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
       path: options.path ?? "",
       search: options.search ?? "",
       ...(options.agentId?.trim() ? { agentId: options.agentId.trim() } : {}),
+      ...(options.root?.trim() ? { root: options.root.trim() } : {}),
     });
 
   const getFile = (
