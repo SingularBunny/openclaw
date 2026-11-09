@@ -364,12 +364,12 @@ export function SidebarPanel(props: SidebarPanelProps) {
                     (props.content?.kind === "attachment" &&
                       !props.content.src &&
                       !props.content.resolveSource &&
-                      (props.content.download ||
-                        // Office documents read as their PDF rendition, like PDFs.
-                        !(
-                          isPdfAttachment(props.content.mimeType ?? "", props.content.title) ||
-                          isOfficeAttachment(props.content.mimeType ?? "", props.content.title)
-                        )))) &&
+                      // PDF and Office documents, download-only artifacts included, open in the
+                      // reader (Office as its PDF rendition).
+                      !(
+                        isPdfAttachment(props.content.mimeType ?? "", props.content.title) ||
+                        isOfficeAttachment(props.content.mimeType ?? "", props.content.title)
+                      ))) &&
                   props.content.file
                     ? props.content.file
                     : undefined
