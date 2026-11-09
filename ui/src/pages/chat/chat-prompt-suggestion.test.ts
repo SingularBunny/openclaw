@@ -126,7 +126,7 @@ describe("chat composer prompt suggestion", () => {
     expect(onDismissPromptSuggestion).toHaveBeenCalled();
   });
 
-  it("dismisses with Escape and on typing, and leaves Tab alone without a suggestion", () => {
+  it("dismisses with Escape, only hides while typing, and leaves Tab alone without a suggestion", () => {
     const onDismissPromptSuggestion = vi.fn();
     const escaped = renderComposerFixture({
       promptSuggestion: "run the tests",
@@ -144,7 +144,8 @@ describe("chat composer prompt suggestion", () => {
     const textarea = getTextarea(typed.container);
     textarea.value = "h";
     textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
-    expect(onTypingDismiss).toHaveBeenCalled();
+    // Typing hides the ghost text through the draft; clearing it brings the suggestion back (Claude Code).
+    expect(onTypingDismiss).not.toHaveBeenCalled();
 
     const plain = renderComposerFixture({});
     const tab = keydown(getTextarea(plain.container), "Tab");

@@ -1,3 +1,4 @@
+import type { CliSessionResumePoint } from "./cli-session-binding.js";
 import type { SessionEntryReplacementPublication } from "./session-accessor.sqlite-entry-cache.types.js";
 import type {
   SessionBranchSwitchMutationResult,
@@ -28,6 +29,10 @@ export type SessionMessageCutIntent = {
   mode: "fork" | "rewind" | "switch";
   /** CLI backends that can resume a native session at a checkpoint with a fork. */
   cliForkProviders?: string[];
+  /** Native resume point chosen by the caller; see `SessionMessageCutMutationParams`. */
+  cliResumePoint?: CliSessionResumePoint;
+  /** Cut before a row that exists only in the CLI's own transcript. */
+  nativeCut?: { editorText?: string; keepLeaf?: boolean };
   repositoryWorkspaceId?: string;
   sourceKey: string;
   targetKey: string;

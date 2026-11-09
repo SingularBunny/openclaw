@@ -527,6 +527,37 @@ describe("Activity recap admission, refresh, and provider recovery", () => {
     },
   );
 
+  it("waits OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS before a transcript refresh (fork)", async () => {
+    await service.dispose();
+    await scheduler.stop();
+    const time = createGatewaySchedulerClock(Date.now());
+    scheduler = createTestGatewayScheduler(time.clock);
+    service = createService();
+    const target = await addSession(1);
+    const initial = createDeferred();
+    changed.mockImplementation(() => {
+      if (view(target)?.state === "current") {
+        initial.resolve();
+      }
+    });
+    await ensureRecap(target);
+    await initial.promise;
+    await appendWork(target);
+    fakeTime();
+    const previous = process.env.OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS;
+    process.env.OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS = "600000";
+    try {
+      service.handleTranscript({ target: scope(target) });
+      expect(time.armedAtMs).toBe(time.clock.now() + 600_000);
+    } finally {
+      if (previous === undefined) {
+        delete process.env.OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS;
+      } else {
+        process.env.OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS = previous;
+      }
+    }
+  });
+
   it.each(["complete", "shutdown", "continuation"] as const)(
     "coalesces a late refresh wake and joins its model work on %s",
     async (outcome) => {

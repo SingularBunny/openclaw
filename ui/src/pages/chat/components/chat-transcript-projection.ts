@@ -11,6 +11,7 @@ import { localParticipantIdentityKey } from "../../../lib/chat/sender-label.ts";
 import { messageRecoveryKey, resolveSourceMessageId } from "../chat-message-recovery.ts";
 import { resolveTurnRecap } from "../chat-progress.ts";
 import { projectChatReasoning } from "../chat-reasoning.ts";
+import { canCutAtChatMessage } from "../chat-rewind-target.ts";
 import { projectSubagentStatus } from "../chat-subagent-wait.ts";
 import {
   assistantGroupCanOwnActiveRunStatus,
@@ -346,9 +347,10 @@ export function projectChatTranscript(props: ChatThreadProps, transcript: ChatTr
   } satisfies StreamGroupOptions;
   const renderGroupOptions = (item: MessageGroup) => {
     const continuation = continuations.get(item.key);
+    const rewindMessage = item.messages.at(-1)?.message;
     const rewindEntryId =
-      item.role.toLowerCase() === "user"
-        ? persistedMessageEntryId(item.messages.at(-1)?.message)
+      item.role.toLowerCase() === "user" && canCutAtChatMessage(rewindMessage)
+        ? persistedMessageEntryId(rewindMessage)
         : null;
     return {
       ...sharedMessageRenderOptions,

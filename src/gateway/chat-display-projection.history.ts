@@ -352,14 +352,8 @@ function shouldHideProjectedHistoryMessage(
   if (!roleContent) {
     return false;
   }
-  const provenance = normalizeInputProvenance(message.provenance);
-  if (
-    roleContent.role === "user" &&
-    provenance?.kind === "internal_system" &&
-    provenance.sourceTool === "exec"
-  ) {
-    return true;
-  }
+  // Fork: background exec completions stay in history; the Control UI renders their
+  // internal_system provenance as a collapsed system notice, not as an operator message.
   if (roleContent.role === "user" && isCompletionReportInputProvenance(message.provenance)) {
     return true;
   }

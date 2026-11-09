@@ -101,4 +101,37 @@ describe("session capability message cuts", () => {
     });
     sessions.dispose();
   });
+
+  it("sends the Claude transcript row of a merged message with the cut", async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === "sessions.rewind" || method === "sessions.fork") {
+        return method === "sessions.fork" ? { sessionKey: "agent:main:dashboard:f" } : {};
+      }
+      if (method === "sessions.list") {
+        return { sessions: [], count: 0 };
+      }
+      throw new Error(`Unexpected request: ${method}`);
+    });
+    const client = { request } as unknown as GatewayBrowserClient;
+    const { gateway } = createGatewayHarness(client);
+    const sessions = createTestSessionCapability(gateway);
+
+    await sessions.rewind("agent:main:main", "next-local", {
+      nativeMessageId: "claude-uuid",
+      nativeOnly: true,
+    });
+    await sessions.forkAtMessage("agent:main:main", "local", { nativeMessageId: "claude-twin" });
+    expect(request).toHaveBeenCalledWith("sessions.rewind", {
+      sessionKey: "agent:main:main",
+      entryId: "next-local",
+      nativeMessageId: "claude-uuid",
+      nativeOnly: true,
+    });
+    expect(request).toHaveBeenCalledWith("sessions.fork", {
+      sessionKey: "agent:main:main",
+      entryId: "local",
+      nativeMessageId: "claude-twin",
+    });
+    sessions.dispose();
+  });
 });

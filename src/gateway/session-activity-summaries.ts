@@ -57,9 +57,9 @@ import { readSessionListSelectionFacts } from "./session-list-target.js";
 import type { SessionObserverEvent } from "./session-observer-contract.js";
 import { defaultCompleteModel, defaultPrepareModel } from "./session-observer-model.js";
 import type { SessionRowProjection } from "./session-row-projection.js";
+import { resolveActivityRecapRefreshMs } from "./session-utility-cadence.js";
 
 const log = createSubsystemLogger("gateway/activity-summary");
-const REFRESH_MS = 90_000;
 const RETRY_MS = 120_000;
 const MAX_TRACKED = 256;
 const MAX_RETRIES = 3;
@@ -293,7 +293,7 @@ export function createSessionActivitySummaries(deps: {
     state.readyAt = Math.max(
       now(),
       state.retryAt,
-      state.immediate ? 0 : state.lastStartedAt + REFRESH_MS,
+      state.immediate ? 0 : state.lastStartedAt + resolveActivityRecapRefreshMs(),
       state.calls >= MAX_CALLS_PER_HOUR ? state.windowStart + HOUR_MS : 0,
     );
     publish(state, "updating");

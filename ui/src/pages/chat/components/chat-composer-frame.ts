@@ -439,8 +439,8 @@ export function createChatComposerContext(props: ChatComposerProps) {
     ) {
       return;
     }
-    // Any edit replaces the prediction, including the insertion that accepts it.
-    dismissPromptSuggestion();
+    // Fork: typing only hides the prediction (it shows while the composer is empty), so clearing the
+    // draft brings it back, as in Claude Code. Accepting it with Tab and sending still retire it.
     const typedAtSign = event.inputType === "insertText" && event.data?.includes("@") === true;
     if (event.inputType === "insertFromPaste" || event.inputType === "insertFromDrop") {
       state.mentionMenu.close();

@@ -59,6 +59,16 @@ const internalInputs = [
       abortedLastRun: true,
     }),
   ],
+  // Fork: current exec completion events reach Claude as their bare text.
+  ["exec-bare", "Exec completed (calm-wil, code 0) :: compiled started"],
+  [
+    "exec-bare-batch",
+    "Exec completed (calm-wil, code 0) :: compiled\nExec failed (brisk-ca, signal SIGTERM) :: INSERT INTO tmp",
+  ],
+  [
+    "exec-bare-after-gap-and-resume",
+    `[OpenClaw: 4 messages occurred outside this Claude session from 2026-11-09T13:06:39.873Z to 2026-11-09T13:44:25.470Z, using "openclaw/delivery-mirror". Their contents are not included here. Read them with sessions_history.]\n\n${buildCliSessionDriftNote(["system-prompt"])}\n\nExec completed (calm-wil, code 0) :: tail`,
+  ],
 ] as const;
 // The display projection already rewrites or hides these even on canonical rows,
 // so only the imported copy is asserted.
@@ -185,6 +195,8 @@ describe("Claude imported internal inputs", () => {
     "[System] Please explain this tag.",
     "[Tue 2026-09-22 16:00 GMT+8] [System] Please explain this tag.",
     "System: Please preserve this log\n\nExplain it",
+    "Exec completed (calm-wil, code 0) :: done\n\nWhat does this mean?",
+    "Exec completed (my job finished fine)",
     'Explain this instruction: requester_profile is the verified linked requester. For "assign to me", use sessions assign_owner with ownerType="human" and ownerId=requester_profile.id, if available.',
     'requester_profile is the verified linked requester. For "assign to me", use sessions assign_owner with ownerType="human" and ownerId=requester_profile.id, if available. Extra user text.\n\nExplain it',
     'Conversation info: ⟦openclaw:ctx⟧\n```json\n{"requester_profile":{"id":"owner"},"requester_profile_hint":"current"}\n```\n\nrequester_profile is the verified linked requester. For "assign to me", use sessions assign_owner with ownerType="human" and ownerId=requester_profile.id, if available.\n\nExplain it',

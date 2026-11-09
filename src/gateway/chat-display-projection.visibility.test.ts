@@ -60,24 +60,20 @@ describe("internal history display projection", () => {
   });
 
   it.each([
-    "Exec completed (background-job, code 0) :: PRIVATE_COMMAND_OUTPUT",
-    "Exec failed (background-job, code 1) :: PRIVATE_COMMAND_OUTPUT",
-  ])("hides internal exec notifications without suppressing user text: %s", (text) => {
+    "Exec completed (background-job, code 0) :: command output",
+    "Exec failed (background-job, code 1) :: command output",
+  ])("keeps exec notifications for the Control UI system notice (fork): %s", (text) => {
     const completion = {
       ...userTextMessage(text),
-      provenance: { kind: "internal_system", sourceTool: " exec " },
+      provenance: { kind: "internal_system", sourceTool: "exec" },
     };
     const original = structuredClone(completion);
     const user = { ...userTextMessage(text), provenance: { kind: "external_user" } };
-    const restart = {
-      ...userTextMessage("Gateway restarted during update."),
-      provenance: { kind: "internal_system", sourceTool: "restart-sentinel" },
-    };
     const answer = assistantTextMessage("The checks finished. Continuing the task.", 2);
 
-    expect(projectChatDisplayMessages([completion, user, restart, answer])).toEqual([
+    expect(projectChatDisplayMessages([completion, user, answer])).toEqual([
+      completion,
       user,
-      restart,
       answer,
     ]);
     expect(completion).toEqual(original);

@@ -130,6 +130,8 @@ async function mutateSqliteSessionAtMessage(
   const intent: SessionMessageCutIntent = {
     canonicalSourceKey,
     ...(params.cliForkProviders?.length ? { cliForkProviders: [...params.cliForkProviders] } : {}),
+    ...(params.cliResumePoint ? { cliResumePoint: { ...params.cliResumePoint } } : {}),
+    ...(params.nativeCut ? { nativeCut: { ...params.nativeCut } } : {}),
     creation: params.creation ? structuredClone(params.creation) : undefined,
     forkWorkspace: params.forkWorkspace ? structuredClone(params.forkWorkspace) : undefined,
     entryId: params.entryId,

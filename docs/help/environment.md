@@ -160,18 +160,28 @@ positive integer falls back to the default. Values from the process environment 
 `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS` is a switch rather than a limit; it is read when each Claude
 CLI run builds its arguments, so a change applies from the next run.
 
-| Variable                                  | Default     | Purpose                                                                                                           |
-| ----------------------------------------- | ----------- | ----------------------------------------------------------------------------------------------------------------- |
-| `OPENCLAW_WORKER_PENDING_TASKS`           | `128`       | Pending tasks per worker queue. Memory indexing of very large chats can fail with "worker task capacity reached". |
-| `OPENCLAW_WORKER_PENDING_BYTES`           | `268435456` | Pending bytes per worker queue, including the SQLite worker broker.                                               |
-| `OPENCLAW_WORKER_HEAP_MB`                 | `512`       | Old-generation heap ceiling of state, transcript, and SQLite workers.                                             |
-| `OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS` | `200`       | Items that continuing a native catalog session carries over.                                                      |
-| `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES` | `524288`    | Bytes that continuing a native catalog session carries over.                                                      |
-| `OPENCLAW_CATALOG_IMPORT_OWNER`           | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).  |
-| `OPENCLAW_CLAUDE_CHROME`                  | off         | `1` gives Claude CLI agent turns the Claude in Chrome browser tools (`--chrome`).                                 |
-| `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`      | on          | `0` or `false` stops passing `--prompt-suggestions true` to Claude CLI runs (composer ghost-text predictions).    |
-| `OPENCLAW_MEMORY_INDEX_ON_START`          | off         | `1` opens every agent's memory index at Gateway start instead of on its first search.                             |
-| `OPENCLAW_PLUGIN_GATEWAY_METHODS`         | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                          |
+| Variable                                    | Default     | Purpose                                                                                                            |
+| ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
+| `OPENCLAW_WORKER_PENDING_TASKS`             | `128`       | Pending tasks per worker queue. Memory indexing of very large chats can fail with "worker task capacity reached".  |
+| `OPENCLAW_WORKER_PENDING_BYTES`             | `268435456` | Pending bytes per worker queue, including the SQLite worker broker.                                                |
+| `OPENCLAW_WORKER_HEAP_MB`                   | `512`       | Old-generation heap ceiling of state, transcript, and SQLite workers.                                              |
+| `OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS`   | `200`       | Items that continuing a native catalog session carries over.                                                       |
+| `OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES`   | `524288`    | Bytes that continuing a native catalog session carries over.                                                       |
+| `OPENCLAW_CATALOG_IMPORT_OWNER`             | off         | `1` treats catalog imports as the owner's own chats; see [owner imports](/nodes/session-catalogs#owner-imports).   |
+| `OPENCLAW_CLAUDE_CHROME`                    | off         | `1` gives Claude CLI agent turns the Claude in Chrome browser tools (`--chrome`).                                  |
+| `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`        | on          | `0` or `false` stops passing `--prompt-suggestions true` to Claude CLI runs (composer ghost-text predictions).     |
+| `OPENCLAW_MEMORY_INDEX_ON_START`            | off         | `1` opens every agent's memory index at Gateway start instead of on its first search.                              |
+| `OPENCLAW_PLUGIN_GATEWAY_METHODS`           | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                           |
+| `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` | `12000`     | Minimum gap between live progress digests of one run (utility model; only while a visible Control UI tab is open). |
+| `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps requested by transcript growth; a run end or archive still refreshes at once.  |
+
+`OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` and `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS` set how
+often the utility model is called for a running chat; both read on use. Each progress digest and
+each recap is a separate utility-model call (on a Claude CLI utility model, a `claude` run against
+the same subscription limit as the agent). With the defaults a long run costs one digest every
+12 s (at most 40 per run) and one recap every 90 s (at most 40 per hour per chat). `90000` and
+`600000` cut that to about one digest per 1.5 minutes and one recap per 10 minutes while the run
+lasts, plus the final digest and recap when it ends.
 
 `OPENCLAW_PLUGIN_GATEWAY_METHODS` grants a plugin that is neither bundled nor a trusted official install
 exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#api-runtime-gateway):

@@ -69,11 +69,13 @@ async function materializeRenamedSkillDir(params: {
   sourceDir: string;
   targetDir: string;
   name: string;
+  linkEntry?: (params: { sourceDir: string; targetDir: string }) => Promise<void>;
 }) {
+  const linkEntry = params.linkEntry ?? linkOrCopySkillDir;
   await fs.mkdir(params.targetDir, { mode: 0o700 });
   for (const entry of await fs.readdir(params.sourceDir)) {
     if (entry !== "SKILL.md") {
-      await linkOrCopySkillDir({
+      await linkEntry({
         sourceDir: path.join(params.sourceDir, entry),
         targetDir: path.join(params.targetDir, entry),
       });
@@ -85,6 +87,103 @@ async function materializeRenamedSkillDir(params: {
     withFrontmatterName(content, params.name),
     { encoding: "utf-8", mode: 0o600 },
   );
+}
+
+/** Mirrors at most this many entries per level; larger folders are not mirrored. */
+const MAX_MIRRORED_ENTRIES = 1000;
+
+async function symlinkEntry(params: { sourceDir: string; targetDir: string }) {
+  const stat = await fs.stat(params.sourceDir).catch(() => undefined);
+  const type = stat?.isDirectory() ? (process.platform === "win32" ? "junction" : "dir") : "file";
+  await fs.symlink(params.sourceDir, params.targetDir, type);
+}
+
+async function linkMirrorEntries(params: { sourceDir: string; targetDir: string; skip: string[] }) {
+  const entries = (await fs.readdir(params.sourceDir)).filter(
+    (entry) => !params.skip.includes(entry),
+  );
+  if (entries.length > MAX_MIRRORED_ENTRIES) {
+    throw new Error(`${params.sourceDir} has more than ${MAX_MIRRORED_ENTRIES} entries`);
+  }
+  for (const entry of entries) {
+    await symlinkEntry({
+      sourceDir: path.join(params.sourceDir, entry),
+      targetDir: path.join(params.targetDir, entry),
+    });
+  }
+}
+
+/**
+ * Skills resolve plugin files relative to their own folder (`../../shared`, `../scripts`,
+ * `readlink -f` to the plugin root). A renamed copy is a real temp folder, so build a
+ * mirror of the plugin around it: `<mirror>/skills/<name>` holds the renamed SKILL.md, every
+ * other entry of the real `skills/` folder and plugin root is a symlink. When the skill does
+ * not live in a `skills/` folder, only its parent folder is mirrored. Returns the mirrored
+ * skill folder, or `undefined` when the mirror cannot be built with symlinks alone.
+ */
+async function buildRenamedSkillMirror(params: {
+  sourceDir: string;
+  mirrorDir: string;
+  name: string;
+}): Promise<string | undefined> {
+  try {
+    const realSkillDir = await fs.realpath(params.sourceDir);
+    const parentDir = path.dirname(realSkillDir);
+    const pluginRoot = path.basename(parentDir) === "skills" ? path.dirname(parentDir) : undefined;
+    if (parentDir === realSkillDir) {
+      return undefined;
+    }
+    const mirroredParent = pluginRoot ? path.join(params.mirrorDir, "skills") : params.mirrorDir;
+    await fs.mkdir(mirroredParent, { recursive: true, mode: 0o700 });
+    if (pluginRoot) {
+      await linkMirrorEntries({
+        sourceDir: pluginRoot,
+        targetDir: params.mirrorDir,
+        skip: ["skills"],
+      });
+    }
+    await linkMirrorEntries({
+      sourceDir: parentDir,
+      targetDir: mirroredParent,
+      skip: [params.name],
+    });
+    const mirroredSkillDir = path.join(mirroredParent, params.name);
+    await materializeRenamedSkillDir({
+      sourceDir: realSkillDir,
+      targetDir: mirroredSkillDir,
+      name: params.name,
+      linkEntry: symlinkEntry,
+    });
+    return mirroredSkillDir;
+  } catch (error) {
+    cliBackendLog.warn(
+      `claude skill plugin could not mirror the plugin folder of ${params.sourceDir}: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    await fs.rm(params.mirrorDir, { recursive: true, force: true }).catch(() => undefined);
+    return undefined;
+  }
+}
+
+async function linkRenamedSkillDir(params: {
+  sourceDir: string;
+  targetDir: string;
+  mirrorDir: string;
+  name: string;
+}) {
+  const mirroredSkillDir = await buildRenamedSkillMirror(params);
+  if (mirroredSkillDir) {
+    try {
+      await fs.symlink(
+        mirroredSkillDir,
+        params.targetDir,
+        process.platform === "win32" ? "junction" : "dir",
+      );
+      return;
+    } catch {
+      await fs.rm(params.mirrorDir, { recursive: true, force: true }).catch(() => undefined);
+    }
+  }
+  await materializeRenamedSkillDir(params);
 }
 
 /** Prepares Claude CLI `--plugin-dir` args for the current session skill snapshot. */
@@ -131,6 +230,7 @@ export async function prepareClaudeCliSkillsPlugin(params: {
   const pluginDir = path.join(tempDir, OPENCLAW_CLAUDE_PLUGIN_NAME);
   const manifestDir = path.join(pluginDir, ".claude-plugin");
   const skillsDir = path.join(pluginDir, "skills");
+  const mirrorsDir = path.join(tempDir, "skill-mirrors");
   try {
     await fs.mkdir(manifestDir, { recursive: true, mode: 0o700 });
     await fs.mkdir(skillsDir, { recursive: true, mode: 0o700 });
@@ -155,9 +255,10 @@ export async function prepareClaudeCliSkillsPlugin(params: {
       try {
         const targetDir = path.join(skillsDir, skill.targetDirName);
         if (skill.name.includes(":")) {
-          await materializeRenamedSkillDir({
+          await linkRenamedSkillDir({
             sourceDir: skill.sourceDir,
             targetDir,
+            mirrorDir: path.join(mirrorsDir, skill.targetDirName),
             name: skill.targetDirName,
           });
         } else {

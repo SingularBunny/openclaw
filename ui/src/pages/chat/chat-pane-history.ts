@@ -23,7 +23,11 @@ import {
   cloneChatAttachmentsForIndependentOwner,
   replaceChatAttachmentsFromEditor,
 } from "./attachment-payload-store.ts";
-import { rewindChatHistory, switchChatHistoryBranch } from "./chat-history-actions.ts";
+import {
+  readChatMessageCut,
+  rewindChatHistory,
+  switchChatHistoryBranch,
+} from "./chat-history-actions.ts";
 import {
   fetchStagedOlderHistoryPage,
   isStagedOlderHistoryPageCurrent,
@@ -681,8 +685,15 @@ export abstract class ChatPaneHistory extends ChatPaneReplyNavigation {
     const state = scope.state;
     const sourceKey = state.sessionKey;
     const agentParams = scopedAgentParamsForSession(state, sourceKey);
+    const cut = readChatMessageCut(state, entryId);
+    if (!cut) {
+      return;
+    }
     try {
-      const result = await state.sessions.forkAtMessage(sourceKey, entryId, agentParams);
+      const result = await state.sessions.forkAtMessage(sourceKey, cut.entryId, {
+        ...agentParams,
+        ...cut.native,
+      });
       const editorText = result.editorText ?? "";
       if (
         !this.ownsHeaderOutcomeScope(scope) ||

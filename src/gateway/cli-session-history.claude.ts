@@ -29,6 +29,7 @@ import {
   readInterSessionPromptEnvelope,
 } from "../sessions/input-provenance.js";
 import { formatSystemTurnPrompt } from "../sessions/system-turn-prompt.js";
+import { isClaudeCliExecCompletionPrompt } from "./cli-session-history.exec-prompt.js";
 import { stripCliPromptDecorations } from "./cli-session-history.prompt-text.js";
 import { attachOpenClawTranscriptMeta } from "./session-transcript-readers.js";
 
@@ -371,6 +372,9 @@ function resolveClaudeCliInternalSourceTool(text: string): string | undefined {
     ) &&
     body.includes("\n\nTreat this completion as an internal continuation, not a new user request. ")
   ) {
+    return "exec";
+  }
+  if (isClaudeCliExecCompletionPrompt(text)) {
     return "exec";
   }
   // Default prompts only; a configured heartbeat prompt is not recognized here.
