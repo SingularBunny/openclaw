@@ -25,6 +25,10 @@ openclaw plugins marketplace refresh --feed-url <url>
 openclaw plugins marketplace refresh --expected-sha256 <sha256> --json
 ```
 
+In a Claude-compatible `marketplace.json`, a plugin's git source (`url`, `github`, or `git`)
+can pin an exact commit with `sha` (40 hex characters). Installing that plugin checks out the
+pinned commit instead of the default branch head; `sha` wins over `ref`, `branch`, and `tag`.
+
 Hosted feed fetches save a snapshot, so `entries` without `--offline` and `refresh`
 require the Gateway to be stopped. Use `entries --offline` to read the accepted
 snapshot while the Gateway runs.
