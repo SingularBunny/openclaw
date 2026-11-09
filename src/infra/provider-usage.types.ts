@@ -62,6 +62,20 @@ type ProviderUsageCostHistory = {
   categories: ProviderUsageCostBreakdown[];
 };
 
+/**
+ * Fork: latest rate-limit status a provider reported on a model turn (Claude CLI
+ * `rate_limit_event`). Carries no percentages; usage windows stay the source of those.
+ */
+export type ProviderUsageRateLimit = {
+  status: "allowed" | "allowed_warning" | "rejected";
+  /** Provider window id, e.g. `five_hour`, `seven_day`, `seven_day_opus`. */
+  limitType?: string;
+  /** Epoch ms when the limit resets. */
+  resetAt?: number;
+  /** Epoch ms when the status was observed. */
+  observedAt: number;
+};
+
 export type ProviderUsageSnapshot = {
   provider: UsageProviderId;
   displayName: string;
@@ -72,6 +86,8 @@ export type ProviderUsageSnapshot = {
   plan?: string;
   /** Account identity (email) the usage was fetched under, when known. */
   accountEmail?: string;
+  /** Fork: live rate-limit status from the latest model turn, newer than the windows. */
+  rateLimit?: ProviderUsageRateLimit;
   error?: string;
 };
 

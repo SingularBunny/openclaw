@@ -36,8 +36,9 @@ function parseClaudeUsage(value: unknown) {
   const windows = [
     readClaudeWindow(usage.five_hour, "5h", true),
     readClaudeWindow(usage.seven_day, "Week", true),
-    readClaudeWindow(usage.seven_day_sonnet, "Sonnet") ??
-      readClaudeWindow(usage.seven_day_opus, "Opus"),
+    // Fork: model windows carry their own weekly reset too.
+    readClaudeWindow(usage.seven_day_sonnet, "Sonnet", true) ??
+      readClaudeWindow(usage.seven_day_opus, "Opus", true),
   ].filter((window) => window !== undefined);
 
   const knownLabels = new Set(windows.map((window) => window.label.toLowerCase()));

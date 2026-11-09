@@ -9,6 +9,7 @@ import {
   resolveAuthProfileOrder,
   type AuthProfileStore,
 } from "../agents/auth-profiles.js";
+import { resolveExternalCliAuthScopeFromConfig } from "../agents/auth-profiles/external-cli-scope.js";
 import { resolveEnvApiKey } from "../agents/model-auth-env.js";
 import { isNonSecretApiKeyMarker } from "../agents/model-auth-markers.js";
 import { resolveUsableCustomProviderApiKey } from "../agents/model-auth.js";
@@ -260,6 +261,46 @@ function isUsageProviderManifestEligible(params: {
   });
 }
 
+/**
+ * Fork: plugin-owned CLI backends (manifest `cliBackends`) that the config routes models
+ * through. A CLI backend owns its login outside the auth-profile store, so its use is the
+ * credential-source signal that lets the owning provider's usage hook run.
+ */
+function resolveUsageCliBackendsInUse(params: {
+  state: UsageAuthState;
+  providerIds: string[];
+}): string[] {
+  const providerIds = new Set(normalizeProviderIds(params.providerIds));
+  try {
+    const scope = resolveExternalCliAuthScopeFromConfig(params.state.cfg);
+    if (!scope) {
+      return [];
+    }
+    const scoped = new Set(normalizeProviderIds(scope.providerIds));
+    const snapshot = loadManifestMetadataSnapshot({
+      config: params.state.cfg,
+      env: params.state.env,
+    });
+    const inUse = new Set<string>();
+    for (const plugin of snapshot.plugins) {
+      if (!normalizeProviderIds(plugin.providers).some((id) => providerIds.has(id))) {
+        continue;
+      }
+      if (!isUsageProviderManifestEligible({ plugin, state: params.state })) {
+        continue;
+      }
+      for (const backend of normalizeProviderIds(plugin.cliBackends ?? [])) {
+        if (scoped.has(backend)) {
+          inUse.add(backend);
+        }
+      }
+    }
+    return [...inUse].toSorted();
+  } catch {
+    return [];
+  }
+}
+
 function resolveUsageCredentialProviderIds(params: {
   state: UsageAuthState;
   provider: UsageProviderId;
@@ -452,8 +493,13 @@ export async function resolveProviderAuths(params: {
           state: directCredentialState,
           providerIds: credentialProviderIds,
         });
+      const cliBackendsInUse = resolveUsageCliBackendsInUse({
+        state: directCredentialState,
+        providerIds: credentialProviderIds,
+      });
       const allowAuthProfileStore =
         hasDirectCredentialSource ||
+        cliBackendsInUse.length > 0 ||
         (hasAuthProfileStoreSource &&
           (await hasAuthProfileCredentialSource({
             state: authProfileSourceState,
@@ -478,6 +524,7 @@ export async function resolveProviderAuths(params: {
             agentDir: state.agentDir,
             env: state.env,
             provider,
+            ...(cliBackendsInUse.length > 0 ? { cliBackendsInUse } : {}),
             // Provider-owned hooks may route API keys to a different billing endpoint
             // even when generic fallback for this usage provider remains OAuth-only.
             resolveApiKeyFromConfigAndStore: (options) =>

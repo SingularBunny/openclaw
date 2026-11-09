@@ -27,9 +27,9 @@ import { renderAppSidebarOnline, sidebarOnlineOrder } from "./app-sidebar-online
 import { hidePersonalSidebarCatalog } from "./app-sidebar-personal-navigation.ts";
 import { renderSidebarRail, renderSidebarPages } from "./app-sidebar-rail.tsx";
 import type { SessionCatalogGroupsRenderer } from "./app-sidebar-session-catalog-render.tsx";
+import type { CatalogSessionMenuRequest } from "./app-sidebar-session-catalogs.ts";
 import "../styles/app-sidebar.css";
 import "../styles/sidebar-rail.css";
-import type { CatalogSessionMenuRequest } from "./app-sidebar-session-catalogs.ts";
 import { renderSessionListToolbar } from "./app-sidebar-session-filter-summary.tsx";
 import { renderSessionList as SessionList } from "./app-sidebar-session-list-render.tsx";
 import type {
@@ -51,6 +51,7 @@ import {
   type SidebarRecentSession,
   type SidebarToolActivity,
 } from "./app-sidebar-session-types.ts";
+import { ClaudeUsageIndicator } from "./claude-usage-indicator.tsx";
 import {
   COMMUNITY_INVITE_KEY,
   dismissCommunityInvite as persistCommunityInviteDismissal,
@@ -645,6 +646,8 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
                 />
               </Show>
             </div>
+            {/* Fork: Claude subscription limits stay visible under the session list. */}
+            <ClaudeUsageIndicator gateway={() => this.context.gateway} />
             <div class="sidebar-shell__invite">
               <Show
                 when={

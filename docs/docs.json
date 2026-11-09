@@ -2729,6 +2729,7 @@
                       "web/control-ui/chat",
                       "web/control-ui/panels",
                       "web/control-ui/settings",
+                      "web/control-ui/claude-usage",
                       "web/control-ui/feature-reference",
                       "web/control-ui/offline-and-reconnect",
                       "web/control-ui/security-model",
