@@ -260,3 +260,95 @@ describe("CLI resume points", () => {
     expect(readCliSessionResumePoint({ role: "assistant" })).toBeUndefined();
   });
 });
+
+describe("message cuts at rows from the CLI's own transcript", () => {
+  const nativePoint = {
+    provider: "claude-cli",
+    sessionId: "native-b",
+    checkpointId: "native-row-before",
+  };
+
+  it("resumes at a caller-read native checkpoint instead of the recorded one", () => {
+    const plan = planSessionMessageCut(entry({}), events, {
+      ...intent("rewind", "u3"),
+      cliResumePoint: nativePoint,
+    });
+    expect(plan.status).toBe("prepared");
+    if (plan.status !== "prepared") {
+      return;
+    }
+    expect(plan.result.entry.cliSessionBindings?.["claude-cli"]).toMatchObject({
+      sessionId: "native-b",
+      resumeCheckpointId: "native-row-before",
+      forkNextResume: true,
+    });
+    // A local row keeps its own composer text.
+    expect(plan.result).toMatchObject({ editorText: "u3" });
+  });
+
+  it("cuts at the next local prompt and restores the native prompt text", () => {
+    const plan = planSessionMessageCut(entry({}), events, {
+      ...intent("rewind", "u3"),
+      cliResumePoint: nativePoint,
+      nativeCut: { editorText: "typed in Claude Code" },
+    });
+    expect(plan.status).toBe("prepared");
+    if (plan.status !== "prepared") {
+      return;
+    }
+    expect(plan.result).toMatchObject({ editorText: "typed in Claude Code" });
+    expect(plan.events.at(-1)).toMatchObject({ type: "leaf", targetId: "a2" });
+  });
+
+  it("keeps the whole local branch when no local prompt follows the native row", () => {
+    const plan = planSessionMessageCut(entry({}), events, {
+      ...intent("rewind", "native-only-row"),
+      cliResumePoint: nativePoint,
+      nativeCut: { editorText: "typed later", keepLeaf: true },
+    });
+    expect(plan.status).toBe("prepared");
+    if (plan.status !== "prepared") {
+      return;
+    }
+    expect(plan.events.at(-1)).toMatchObject({ type: "leaf", targetId: "a3" });
+    expect(plan.result).toMatchObject({ editorText: "typed later" });
+    expect(plan.result.entry.sessionId).not.toBe("local-1");
+    expect(plan.result.entry.cliSessionBindings?.["claude-cli"]).toMatchObject({
+      resumeCheckpointId: "native-row-before",
+    });
+
+    const forked = planSessionMessageCut(entry({}), events, {
+      ...intent("fork", "native-only-row"),
+      cliResumePoint: nativePoint,
+      nativeCut: { keepLeaf: true },
+    });
+    expect(forked.status).toBe("prepared");
+    if (forked.status === "prepared") {
+      expect(forked.events.slice(1).map((event) => (event as { id: string }).id)).toEqual([
+        "u1",
+        "a1",
+        "u2",
+        "a2",
+        "u3",
+        "a3",
+      ]);
+    }
+  });
+
+  it("never falls back to the newer recorded checkpoint for a native-only row", () => {
+    const next = plannedEntry(entry({}), {
+      ...intent("rewind", "native-only-row"),
+      nativeCut: { keepLeaf: true },
+    });
+    expect(next.cliSessionBindings).toBeUndefined();
+  });
+
+  it("still reports a missing local anchor", () => {
+    expect(
+      planSessionMessageCut(entry({}), events, {
+        ...intent("rewind", "gone"),
+        nativeCut: {},
+      }).status,
+    ).toBe("missing-entry");
+  });
+});

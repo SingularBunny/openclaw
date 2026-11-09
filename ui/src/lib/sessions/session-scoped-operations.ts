@@ -45,6 +45,19 @@ export function preloadSessionMessageSubscriptions(): Promise<SubscriptionRuntim
   ));
 }
 
+/** Claude CLI chats: the cut message as it appears in Claude's own transcript. */
+export type SessionMessageCutNativeTarget = {
+  nativeMessageId?: string;
+  nativeOnly?: true;
+};
+
+function nativeCutParams(options: SessionMessageCutNativeTarget) {
+  return {
+    ...(options.nativeMessageId ? { nativeMessageId: options.nativeMessageId } : {}),
+    ...(options.nativeOnly ? { nativeOnly: true } : {}),
+  };
+}
+
 export function createSessionScopedOperations(host: SessionScopedOperationsHost) {
   const ownedSubscriptions = new Set<SessionMessageSubscription>();
   let disposed = false;
@@ -125,19 +138,35 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
     return result;
   };
 
-  const rewind = (key: string, entryId: string, options: { agentId?: string | null } = {}) =>
+  const rewind = (
+    key: string,
+    entryId: string,
+    options: { agentId?: string | null } & SessionMessageCutNativeTarget = {},
+  ) =>
     requestCommittedMutation<SessionsRewindResult>(
       "Session rewind requires an active Gateway connection",
       "sessions.rewind",
-      { ...buildTranscriptMutationParams(key, options.agentId), entryId },
+      {
+        ...buildTranscriptMutationParams(key, options.agentId),
+        entryId,
+        ...nativeCutParams(options),
+      },
       options.agentId,
     );
 
-  const forkAtMessage = (key: string, entryId: string, options: { agentId?: string | null } = {}) =>
+  const forkAtMessage = (
+    key: string,
+    entryId: string,
+    options: { agentId?: string | null } & SessionMessageCutNativeTarget = {},
+  ) =>
     requestCommittedMutation<SessionsForkResult>(
       "Session fork requires an active Gateway connection",
       "sessions.fork",
-      { ...buildTranscriptMutationParams(key, options.agentId), entryId },
+      {
+        ...buildTranscriptMutationParams(key, options.agentId),
+        entryId,
+        ...nativeCutParams(options),
+      },
       options.agentId,
     );
 

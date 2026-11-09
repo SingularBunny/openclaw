@@ -1738,6 +1738,7 @@ const startupEnglish = {
       gatewayRestarted: {},
       cliHarnessContext: {},
       claudeCliTaskNotification: {},
+      execCompletion: {},
       pluginSteering: {},
     },
     skillLearned: {},

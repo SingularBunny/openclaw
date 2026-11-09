@@ -23,6 +23,7 @@ import {
   normalizeCliSessionReseedReceipt,
 } from "../config/sessions/cli-session-binding.js";
 import { attachOpenClawTranscriptMeta } from "./session-transcript-entry-message.js";
+import { isClaudeCliExecCompletionPrompt } from "./cli-session-history.exec-prompt.js";
 
 const CLAUDE_CLI_PROVIDER = "claude-cli";
 
@@ -295,6 +296,10 @@ function resolveClaudeCliInternalSourceTool(text: string): string | undefined {
   // What remains are Claude's own command frames and a resume note sent without a prompt.
   if (stripCliSessionDriftNote(`${text}\n\n`) === "") {
     return "cli_session_resume";
+  }
+  // Fork: a background exec completion delivered as a prompt reads as an internal exec notice.
+  if (isClaudeCliExecCompletionPrompt(text)) {
+    return "exec";
   }
   if (
     /^<command-name>\/compact<\/command-name>\s*<command-message>compact<\/command-message>\s*<command-args>[\s\S]*<\/command-args>$/u.test(
