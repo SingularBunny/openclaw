@@ -32,7 +32,11 @@ import {
   replaceChatAttachmentsFromEditor,
 } from "./attachment-payload-store.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
-import { rewindChatHistory, switchChatHistoryBranch } from "./chat-history-actions.ts";
+import {
+  readChatMessageCut,
+  rewindChatHistory,
+  switchChatHistoryBranch,
+} from "./chat-history-actions.ts";
 import { hasVisibleOlderHistoryPage } from "./chat-history-page-visibility.ts";
 import {
   fetchStagedOlderHistoryPage,
@@ -702,8 +706,15 @@ export abstract class ChatPaneHistory extends ChatPaneSnapshotHydration {
     const state = scope.state;
     const sourceKey = state.sessionKey;
     const agentParams = scopedAgentParamsForSession(state, sourceKey);
+    const cut = readChatMessageCut(state, entryId);
+    if (!cut) {
+      return;
+    }
     try {
-      const result = await state.sessions.forkAtMessage(sourceKey, entryId, agentParams);
+      const result = await state.sessions.forkAtMessage(sourceKey, cut.entryId, {
+        ...agentParams,
+        ...cut.native,
+      });
       const editorText = result.editorText ?? "";
       if (
         !this.ownsHeaderOutcomeScope(scope) ||

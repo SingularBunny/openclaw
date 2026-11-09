@@ -53,11 +53,11 @@ import {
   type SessionObserverEventSteps,
 } from "./session-observer-work.js";
 import { resolveSessionSubscriptionKey } from "./session-subscription-keys.js";
+import { observerDigestIntervalMs as minDigestIntervalMs } from "./session-utility-cadence.js";
 
 const observerLog = createSubsystemLogger("gateway/session-observer");
 
 const MIN_NOTES_PER_DIGEST = 4;
-const MIN_DIGEST_INTERVAL_MS = 12_000;
 const MAX_DIGESTS_PER_RUN = 40;
 const MAX_LIVE_DIGESTS_PER_RUN = MAX_DIGESTS_PER_RUN - 1;
 const MAX_CONSECUTIVE_FAILURES = 2;
@@ -278,7 +278,7 @@ export function createSessionObserver(deps: SessionObserverDeps): SessionObserve
     ) {
       return;
     }
-    const delay = Math.max(0, MIN_DIGEST_INTERVAL_MS - (Date.now() - state.lastRunAt));
+    const delay = Math.max(0, minDigestIntervalMs() - (Date.now() - state.lastRunAt));
     if (delay === 0) {
       runDigest(state, false);
       return;
@@ -316,7 +316,7 @@ export function createSessionObserver(deps: SessionObserverDeps): SessionObserve
     if (!final && selectedNotes.length < MIN_NOTES_PER_DIGEST) {
       return;
     }
-    if (!final && Date.now() - state.lastRunAt < MIN_DIGEST_INTERVAL_MS) {
+    if (!final && Date.now() - state.lastRunAt < minDigestIntervalMs()) {
       schedule(state);
       return;
     }

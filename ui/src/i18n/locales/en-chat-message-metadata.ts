@@ -112,6 +112,9 @@ const enChatMessageMetadata = {
       claudeCliTaskNotification: {
         label: "System · background task",
       },
+      execCompletion: {
+        label: "System · background command finished",
+      },
       pluginSteering: {
         label: "{plugin} guidance",
       },
