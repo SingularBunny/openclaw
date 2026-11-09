@@ -491,6 +491,30 @@ export function appendClaudeCliPromptSuggestionArgs(
     : [...args, CLAUDE_PROMPT_SUGGESTIONS_ARG, "true"];
 }
 
+const CLAUDE_CHROME_ARG = "--chrome";
+
+/**
+ * Fork: OPENCLAW_CLAUDE_CHROME=1|true gives agent turns Claude Code's Claude in Chrome browser tools
+ * (off by default, as upstream). Runs that force `--no-chrome` (restricted tool policies) and side
+ * questions stay without it. Read on use so config env.vars reloads apply to the next run.
+ */
+export function isClaudeCliChromeEnabled(env: NodeJS.ProcessEnv = process.env): boolean {
+  return /^(1|true|yes)$/i.test(env.OPENCLAW_CLAUDE_CHROME?.trim() ?? "");
+}
+
+export function appendClaudeCliChromeArgs(
+  args: readonly string[],
+  context: Pick<CliBackendResolveExecutionArgsContext, "executionMode">,
+  env: NodeJS.ProcessEnv = process.env,
+): string[] {
+  return context.executionMode === "side-question" ||
+    args.includes(CLAUDE_CHROME_ARG) ||
+    args.includes(CLAUDE_NO_CHROME_ARG) ||
+    !isClaudeCliChromeEnabled(env)
+    ? [...args]
+    : [...args, CLAUDE_CHROME_ARG];
+}
+
 export function normalizeClaudeBackendConfig(config: CliBackendConfig): CliBackendConfig {
   const output = config.output ?? "jsonl";
   const input = config.input ?? "stdin";
