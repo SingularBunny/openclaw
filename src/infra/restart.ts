@@ -667,6 +667,16 @@ export function deferGatewayRestartUntilIdle(
     maxWaitMs?: number;
     reason?: string;
     timeoutIntent?: GatewayRestartIntent;
+    /**
+     * Fork: past maxWaitMs, keep waiting while `isActive` reports running agent work, up to
+     * `maxWaitMs` in total (unbounded when undefined). Once agent work ends, a deferral past
+     * its own budget forces the restart as before.
+     */
+    extendWhileActive?: {
+      isActive: () => boolean;
+      maxWaitMs?: number;
+      onExtended?: (elapsedMs: number) => void;
+    };
   },
   scheduledRequest?: PendingGatewayRestart,
 ): RestartDeferralHandle {
@@ -703,6 +713,32 @@ export function deferGatewayRestartUntilIdle(
   const startedAt = monotonicNow();
   let nextStillPendingAt = startedAt + DEFAULT_DEFERRAL_STILL_PENDING_WARN_MS;
   let timeoutNotified = false;
+  let extensionNotified = false;
+  const isExtended = (elapsedMs: number, pending: number | undefined): boolean => {
+    const extension = opts.extendWhileActive;
+    if (!extension || timeoutNotified) {
+      return false;
+    }
+    if (extension.maxWaitMs !== undefined && elapsedMs >= extension.maxWaitMs) {
+      return false;
+    }
+    if (extensionNotified && pending !== undefined && pending <= 0) {
+      // The extended wait ended idle: restart without force.
+      return true;
+    }
+    let active: boolean;
+    try {
+      active = extension.isActive();
+    } catch {
+      // Unknown agent work does not extend upstream's bound.
+      return false;
+    }
+    if (active && !extensionNotified) {
+      extensionNotified = true;
+      extension.onExtended?.(elapsedMs);
+    }
+    return active;
+  };
   let lastKnownPending: number | undefined;
   const readPendingCount = (): number | undefined => {
     try {
@@ -776,7 +812,7 @@ export function deferGatewayRestartUntilIdle(
     const current = readPendingCount();
     const now = monotonicNow();
     const elapsedMs = now - startedAt;
-    if (maxWaitMs !== undefined && elapsedMs >= maxWaitMs) {
+    if (maxWaitMs !== undefined && elapsedMs >= maxWaitMs && !isExtended(elapsedMs, current)) {
       if (!timeoutNotified) {
         timeoutNotified = true;
         opts.hooks?.onTimeout?.(lastKnownPending, elapsedMs);

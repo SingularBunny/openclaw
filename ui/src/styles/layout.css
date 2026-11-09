@@ -3661,6 +3661,47 @@ button.gateway-status:focus-visible {
   margin-bottom: calc(6px + var(--shell-dock-reserve-bottom));
 }
 
+/* Fork: Gateway restart notice (pending, restarting, restarted), outside any chat. */
+.shell-restart-notice {
+  position: fixed;
+  top: calc(var(--shell-topbar-height, 44px) + 8px);
+  left: 50%;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: min(640px, calc(100vw - 32px));
+  padding: 7px 8px 7px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated, var(--bg));
+  color: var(--text);
+  font-size: 13px;
+  transform: translateX(-50%);
+  box-shadow: 0 4px 16px rgb(0 0 0 / 12%);
+}
+
+.shell-restart-notice--warn {
+  border-color: color-mix(in srgb, var(--warn) 55%, var(--border));
+  background: color-mix(in srgb, var(--warn) 9%, var(--bg-elevated, var(--bg)));
+}
+
+.shell-restart-notice__text {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.shell-restart-notice__dismiss {
+  flex: none;
+  padding: 0 6px;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
 .sidebar-session-group-running {
   flex: none;
   margin-left: 4px;

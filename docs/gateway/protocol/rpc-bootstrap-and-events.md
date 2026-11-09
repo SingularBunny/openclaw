@@ -349,6 +349,13 @@ or protocol-version change.
 - `heartbeat`: heartbeat event stream update.
 - `cron`: cron run/job change event.
 - `shutdown`: gateway shutdown notification.
+- `gateway.restart` (fork, `operator.read`): a restart that waits for running work.
+  The payload is `{ notice }`; `notice` is `null` when the restart no longer waits,
+  otherwise `{ phase, reason, since, deadlineAt, activeTurns, activeWork }`:
+  `phase` is `pending` or `restarting`, `deadlineAt` is the latest restart time in
+  epoch ms (`null` waits until agent turns finish), and the counts are what the
+  restart still waits for. Hello carries the same object as
+  `snapshot.gatewayRestart` while a restart is pending.
 - `node.pair.requested` / `node.pair.resolved`: node pairing lifecycle.
 - `node.invoke.request`: node invoke request broadcast.
 - `device.pair.requested` / `device.pair.resolved`: paired-device approval lifecycle.

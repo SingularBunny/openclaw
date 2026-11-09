@@ -1983,6 +1983,52 @@ describe("startGatewayConfigReloader", () => {
     expect(targetEnv[envKey]).toBe("b");
   });
 
+  it("publishes fork env.vars read on use without a restart; other env.vars still restart", async () => {
+    const forkKey = "OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS";
+    const targetEnv: NodeJS.ProcessEnv = {};
+    const initialConfig = { gateway: { reload: {} } } satisfies OpenClawConfig;
+    const forkConfig = {
+      ...initialConfig,
+      env: { vars: { [forkKey]: "90000" } },
+    } satisfies OpenClawConfig;
+    const pathConfig = {
+      ...initialConfig,
+      env: { vars: { [forkKey]: "90000", PATH: "/fixture/bin" } },
+    } satisfies OpenClawConfig;
+    const harness = createWriteReloaderHarness({
+      initialConfig,
+      prepareConfigCandidate: async ({ runtimeConfig, sourceConfig, previousSourceConfig }) => ({
+        runtimeConfig,
+        compareConfig: sourceConfig,
+        runtimeEnv: prepareConfigRuntimeEnv({
+          previousConfig: previousSourceConfig,
+          nextConfig: sourceConfig,
+          env: targetEnv,
+        }),
+      }),
+      onHotReload: async (plan, nextConfig, ownership) => {
+        ownership.publishRuntimeEnv();
+        ownership.markRuntimeCommitted(nextConfig, plan);
+        return "applied";
+      },
+    });
+    await harness.reloader.ready;
+
+    harness.emitWrite(makeWrite(forkConfig, "fork-env", { revision: 1 }));
+    await flushReload(harness.reloader);
+
+    const [plan] = getOnlyHotReloadCall(harness);
+    expect(plan.hotReasons).toEqual([`env.vars.${forkKey}`]);
+    expect(harness.onRestart).not.toHaveBeenCalled();
+    expect(targetEnv[forkKey]).toBe("90000");
+
+    harness.emitWrite(makeWrite(pathConfig, "path-env", { revision: 2 }));
+    await flushReload(harness.reloader);
+
+    const [restartPlan] = getOnlyRestartCall(harness);
+    expect(restartPlan.restartReasons).toEqual(["env.vars.PATH"]);
+  });
+
   it.each(["noop", "hot"] as const)(
     "publishes %s config changes between lifecycle preparation and completion",
     async (kind) => {

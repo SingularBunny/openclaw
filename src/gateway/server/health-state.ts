@@ -15,6 +15,7 @@ import type { GatewayConfigRevisionProjector } from "../config-revision-token.js
 import { projectUpdateAvailable } from "../events.js";
 import type { HealthSummary } from "../health/types.js";
 import { createPresenceRecipientProjection } from "../presence-projection.js";
+import { getGatewayRestartNotice } from "../restart-notice.js";
 import type { ChannelRuntimeSnapshot } from "../server-channel-runtime.types.js";
 import type { GatewayClient } from "../server-methods/types.js";
 import type { SessionRowProjection } from "../session-row-projection.js";
@@ -75,6 +76,10 @@ export function buildGatewaySnapshot(opts: {
     projectUpdateAvailable(getUpdateAvailable(), includeUpdateDetails) ?? undefined;
   const updateSchedule = includeUpdateDetails ? (getUpdateSchedule() ?? undefined) : undefined;
   const appliedConfigHash = getRuntimeConfigAppliedHash();
+  // Fork: a restart waiting for running work, for clients that connect meanwhile.
+  const gatewayRestart = includeUpdateDetails
+    ? (getGatewayRestartNotice() ?? undefined)
+    : undefined;
   const snapshot: Snapshot = {
     suspension: { phase: getGatewaySuspendAdmissionPhase() },
     presence,
@@ -96,6 +101,7 @@ export function buildGatewaySnapshot(opts: {
     },
     updateAvailable,
     updateSchedule,
+    ...(gatewayRestart ? { gatewayRestart } : {}),
   };
   if (opts.includeSensitive === true) {
     const auth = resolveGatewayAuth({ authConfig: cfg.gateway?.auth, env: process.env });

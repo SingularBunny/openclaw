@@ -152,13 +152,20 @@ Installed third-party plugins may declare additional credential variables in the
 
 ### Worker and catalog limits
 
-These variables replace compiled-in limits. They are read when the limit is used, so setting them
-through config `env.vars` (`openclaw config set env.vars.<NAME> '"<value>"' --strict-json` or the
-`config.patch` Gateway method) applies them without restarting the Gateway. A value that is not a
-positive integer falls back to the default. Values from the process environment or the state-dir
-`.env` take precedence over config `env.vars`.
-`OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS` is a switch rather than a limit; it is read when each Claude
-CLI run builds its arguments, so a change applies from the next run.
+These variables replace compiled-in limits and switches. Setting one of them through config
+`env.vars` (`openclaw config set env.vars.<NAME> '"<value>"' --strict-json`, the `env.<NAME>`
+shorthand, or the `config.patch` Gateway method) is applied without restart: the Gateway hot-reloads
+the change and updates its process environment, while any other `env` change still requires a Gateway
+restart. A change that also touches another `env` variable restarts the Gateway as before. A value
+that is not a positive integer falls back to the default. Values from the process environment or the
+state-dir `.env` take precedence over config `env.vars`.
+
+Each variable is read when it is used, so a change takes effect on the next use: the next queue
+admission, catalog continuation or import, Claude CLI run (`OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS`,
+`OPENCLAW_CLAUDE_CHROME`), granted request, progress digest or recap. `OPENCLAW_WORKER_HEAP_MB`
+applies to workers started after the change; running workers keep their heap ceiling.
+`OPENCLAW_MEMORY_INDEX_ON_START` is read when the memory index service starts, by design: the change
+is stored without a restart and takes effect on the next Gateway start.
 
 | Variable                                    | Default     | Purpose                                                                                                            |
 | ------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------ |
@@ -174,6 +181,7 @@ CLI run builds its arguments, so a change applies from the next run.
 | `OPENCLAW_PLUGIN_GATEWAY_METHODS`           | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                           |
 | `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` | `12000`     | Minimum gap between live progress digests of one run (utility model; only while a visible Control UI tab is open). |
 | `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps requested by transcript growth; a run end or archive still refreshes at once.  |
+| `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`        | off         | How long a restart required by a config change waits for running agent turns; see below.                           |
 
 `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` and `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS` set how
 often the utility model is called for a running chat; both read on use. Each progress digest and
@@ -182,6 +190,18 @@ the same subscription limit as the agent). With the defaults a long run costs on
 12 s (at most 40 per run) and one recap every 90 s (at most 40 per hour per chat). `90000` and
 `600000` cut that to about one digest per 1.5 minutes and one recap per 10 minutes while the run
 lasts, plus the final digest and recap when it ends.
+
+A config change that requires a Gateway restart waits until active work finishes, at most 5 minutes;
+then the restart is forced and aborts what still runs, including agent turns. With
+`OPENCLAW_RESTART_AGENT_RUN_WAIT_MS` the wait continues past those 5 minutes while agent turns
+(admitted, embedded, ACP, or chat runs) are running: a number of milliseconds above `300000` bounds
+the total wait, and `unlimited` waits until no agent turn runs. New turns are still admitted during
+the wait, so a Gateway that is never without a running turn restarts only when the bound runs out.
+Once no agent turn runs, the restart happens at once if nothing else is active, or is forced as
+before if other work is still active past the 5 minutes. Without the variable, or with a value of
+`300000` or less, the 5-minute bound applies to all work, as upstream.
+While a restart waits, the Control UI shows a notice at the top of the window with the running turns
+([Hot reload](/gateway/configuration/hot-reload)).
 
 `OPENCLAW_PLUGIN_GATEWAY_METHODS` grants a plugin that is neither bundled nor a trusted official install
 exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#api-runtime-gateway):

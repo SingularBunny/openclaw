@@ -60,6 +60,8 @@ export const GATEWAY_EVENTS = [
   "talk.voice.change",
   "shutdown",
   "gateway.suspension",
+  // Fork: restart-pending notice.
+  "gateway.restart",
   "health",
   "heartbeat",
   "cron",

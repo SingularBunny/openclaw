@@ -375,3 +375,72 @@ describe("sessions.files host read boundary", () => {
     expect(fs.existsSync(escapedPath)).toBe(false);
   });
 });
+
+// Fork (F34): a project agent's CLI runs outside its workspace; Files can browse that folder too.
+describe("sessions.files.list browse roots", () => {
+  const prepareRunCwd = (entry: Partial<InternalSessionEntry> = { permissionMode: "full" }) => {
+    const runCwd = fs.realpathSync(outsideDirs.make("session-files-run-cwd-"));
+    fs.mkdirSync(path.join(runCwd, "notes"));
+    fs.writeFileSync(path.join(runCwd, "notes", "plan.md"), "# Plan\n", "utf8");
+    const cfg = { agents: { list: [{ id: "main", cwd: runCwd }] } } as OpenClawConfig;
+    return { runCwd, fixture: prepareHostFileRead(entry, cfg) };
+  };
+
+  it("offers the agent run cwd and browses it on request", async () => {
+    const { runCwd, fixture } = prepareRunCwd();
+    const list = expectOkPayload(
+      await invoke("sessions.files.list", { sessionKey }, fixture.context, fixture.options),
+    );
+    expect(list.root).toBe(workspaceRoot);
+    expect(list.roots).toEqual([workspaceRoot, runCwd]);
+
+    const browsed = expectOkPayload(
+      await invoke(
+        "sessions.files.list",
+        { sessionKey, root: runCwd, path: "notes" },
+        fixture.context,
+        fixture.options,
+      ),
+    );
+    expect(browsed.root).toBe(runCwd);
+    expect(browsed.roots).toEqual([workspaceRoot, runCwd]);
+    expect(browsed.browser).toMatchObject({ path: "notes", parentPath: "" });
+    expect(browsed.browser.entries).toEqual([
+      expect.objectContaining({ path: "notes/plan.md", name: "plan.md" }),
+    ]);
+  });
+
+  it("refuses folders the session does not offer and keeps the host-read policy", async () => {
+    const { fixture } = prepareRunCwd();
+    const other = outsideDirs.make("session-files-other-");
+    const refused = expectError(
+      await invoke(
+        "sessions.files.list",
+        { sessionKey, root: other },
+        fixture.context,
+        fixture.options,
+      ),
+    );
+    expect(refused.details).toMatchObject({ type: "session_root_unavailable", root: other });
+
+    const contained = prepareRunCwd({ permissionMode: "read-only" });
+    const blocked = expectError(
+      await invoke(
+        "sessions.files.list",
+        { sessionKey, root: contained.runCwd },
+        contained.fixture.context,
+        contained.fixture.options,
+      ),
+    );
+    expect(blocked.details).toMatchObject({ reason: "outside_session_boundary" });
+  });
+
+  it("omits roots when the run cwd lies inside the workspace", async () => {
+    const cfg = { agents: { list: [{ id: "main", cwd: path.join(workspaceRoot, "src") }] } };
+    const fixture = prepareHostFileRead({ permissionMode: "full" }, cfg as OpenClawConfig);
+    const list = expectOkPayload(
+      await invoke("sessions.files.list", { sessionKey }, fixture.context, fixture.options),
+    );
+    expect(list).not.toHaveProperty("roots");
+  });
+});

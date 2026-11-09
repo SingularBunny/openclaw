@@ -10,7 +10,11 @@ import { openSlot } from "../sidebar-layout.ts";
 import "./chat-tool-output.ts";
 import { assistantMediaPolicyKey } from "./chat-message-media.ts";
 import { selectSessionWorkspacePreview } from "./chat-session-workspace-state.ts";
-import { openSessionWorkspaceFile, revealSessionWorkspaceFile } from "./chat-session-workspace.ts";
+import {
+  canRevealSessionWorkspaceFile,
+  openSessionWorkspaceFile,
+  revealSessionWorkspaceFile,
+} from "./chat-session-workspace.ts";
 import type { SidebarContent } from "./chat-sidebar-content-types.ts";
 
 export function renderChatDetailSlot(params: {
@@ -54,11 +58,15 @@ export function renderChatDetailSlot(params: {
     .onOpenWorkspaceFile=${(target: MarkdownFileLinkTarget) =>
       openSessionWorkspaceFile(host, target)}
     .onOpenSessionLink=${params.chat.onOpenSessionLink}
-    .onRevealInWorkspace=${(path: string) => {
-      revealSessionWorkspaceFile(host, path);
-      selectSessionWorkspacePreview(host, null);
-      host.updateSidebarLayout(openSlot(host.sidebarLayout, "workspace"));
-    }}
+    .onRevealInWorkspace=${
+      content.kind === "file" && !canRevealSessionWorkspaceFile(host, content.path)
+        ? null
+        : (path: string) => {
+            revealSessionWorkspaceFile(host, path);
+            selectSessionWorkspacePreview(host, null);
+            host.updateSidebarLayout(openSlot(host.sidebarLayout, "workspace"));
+          }
+    }
     .onOpenImage=${(item: Parameters<typeof host.handleOpenImage>[0]) =>
       host.handleOpenImage(item, host.beginImageOpen())}
     .embedded=${true}

@@ -103,6 +103,32 @@ export function resetSessionCatalogConnection(owner: SessionCatalogResetOwner): 
   owner.requestSessionDataUpdate();
 }
 
+/**
+ * Fork (F31): catalogs such as the Projects tree list the sessions of every agent, so a switch to
+ * another agent's chat keeps the rows on screen and re-reads them in the background (the refresh
+ * replaces them). Rows go only when catalog access is gone.
+ */
+export function retainSessionCatalogRows(
+  owner: SessionCatalogDataOwner,
+  nextCatalogAgentId: string | null,
+  scopeAgentChanged: boolean,
+): void {
+  const snapshot = owner.context?.gateway.snapshot;
+  const accessRevoked =
+    !owner.context ||
+    (nextCatalogAgentId === null &&
+      snapshot?.phase === "connected" &&
+      !canCallGatewayMethod(snapshot, "sessions.catalog.list", "operator.read"));
+  owner.sessionCatalogRefreshStatus =
+    !accessRevoked && owner.sessionCatalogs.length > 0
+      ? { ...owner.sessionCatalogRefreshStatus, error: null, awaitingGateway: false }
+      : createPanelRefreshStatus();
+  if (scopeAgentChanged && accessRevoked) {
+    owner.sessionCatalogs = [];
+    owner.sessionCatalogPageDepths.clear();
+  }
+}
+
 /** A completed list RPC can still leave pending hosts or hidden discovery pages. */
 export function areSessionCatalogsSettled(
   owner: Pick<

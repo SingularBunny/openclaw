@@ -19,6 +19,7 @@ import { createLitContentRef } from "../lit/solid-bridge.ts";
 import { DevicePairSetup } from "./app-shell-device-pair-setup.tsx";
 import { ShellDocks } from "./app-shell-docks.tsx";
 import { ShellLazyOverlays, type ShellElementAttributes } from "./app-shell-lazy-view.tsx";
+import { GatewayRestartNoticeBanner } from "./app-shell-restart-notice.tsx";
 import { readShellView, type ShellViewHost } from "./app-shell-view-state.ts";
 import {
   isOptionalElementDefined,
@@ -361,6 +362,9 @@ function ApplicationShell(props: { host: ShellViewHost }): SolidJSX.Element {
               }
             />
           </div>
+        </Show>
+        <Show when={!view().nativeEmbed && !view().onboarding}>
+          <GatewayRestartNoticeBanner snapshot={() => view().gatewaySnapshot} />
         </Show>
         <openclaw-terminal-panel
           inert={view().navDrawerOpen}

@@ -203,6 +203,14 @@ automatic reconnect use a calm presentation; authentication and other failures t
 attention keep their explanation and recovery action. The same status appears in the macOS app's
 embedded dashboard. Connection status does not replace the Gateway name in the account menu.
 
+In this fork, a Gateway restart that waits for running work (a config change that needs a
+restart) also shows a notice at the top of the window, outside any chat, for operators with
+read access: "Gateway restart pending: waiting for 2 running turns, restarts at most in 28 min
+(reason: …)". It updates as turns finish, turns into "Gateway restarting now…" when the wait
+ends, and shows "Gateway restarted" for ten seconds after the page reconnects. A page opened
+during the wait picks it up from the hello snapshot. The notice can be dismissed; a new state
+shows again. See [`gateway.restart`](/gateway/protocol/rpc-bootstrap-and-events).
+
 The client retries ordinary connection loss automatically with randomized backoff: the first
 retry waits 800–960 ms, and sustained failures spread retries across 12.5–15 seconds.
 Server retry hints remain minimum waits and can extend beyond that normal cap, with up to

@@ -6,6 +6,7 @@ import { getActivePluginRegistry, getActivePluginRegistryVersion } from "../plug
 import { DEFAULT_ACCOUNT_ID } from "../routing/account-id.js";
 import { isPlainObject } from "../utils.js";
 import { canHotReloadGatewayAuthCredentials } from "./auth-resolve.js";
+import { FORK_HOT_ENV_RELOAD_PREFIXES } from "./config-reload-fork-env.js";
 import { haveSameOperatorRoleSourcePolicies } from "./operator-role-source-policy.js";
 
 export type ChannelKind = ChannelId;
@@ -200,6 +201,8 @@ const CORE_RELOAD_POLICIES: ReloadPolicy[] = [
     ],
     kind: "hot",
   },
+  // Fork: variables read on use only need the published process.env; other env stays restart-bound.
+  { prefixes: FORK_HOT_ENV_RELOAD_PREFIXES, kind: "hot" },
   { prefixes: ["hooks.gmail"], kind: "hot", actions: ["restartGmailWatcher", "reloadHooks"] },
   {
     prefixes: ["hooks.internal", "agents.defaults.workspace"],

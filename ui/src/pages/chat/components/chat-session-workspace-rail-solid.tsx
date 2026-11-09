@@ -252,10 +252,36 @@ function WorkspaceContents(props: { workspace: SessionWorkspaceProps }) {
   );
   return (
     <aside class="chat-workspace-rail" aria-label={t("chat.workspaceFiles.label")}>
-      <Show when={props.workspace.list?.root}>
-        <openclaw-tooltip prop:content={props.workspace.list?.root}>
-          <div class="chat-workspace-rail__path">{props.workspace.list?.root}</div>
-        </openclaw-tooltip>
+      <Show
+        when={(props.workspace.roots?.length ?? 0) > 1}
+        fallback={
+          <Show when={props.workspace.list?.root}>
+            <openclaw-tooltip prop:content={props.workspace.list?.root}>
+              <div class="chat-workspace-rail__path">{props.workspace.list?.root}</div>
+            </openclaw-tooltip>
+          </Show>
+        }
+      >
+        {/* Fork (F34): the workspace and the session's other folders (agent run cwd). */}
+        <select
+          class="chat-workspace-rail__path chat-workspace-rail__root-select"
+          aria-label={t("chat.workspaceFiles.browseRoot")}
+          title={props.workspace.browseRoot ?? props.workspace.roots?.[0] ?? ""}
+          onChange={(event) => props.workspace.onSelectRoot?.(event.currentTarget.value)}
+        >
+          <For each={props.workspace.roots ?? []}>
+            {(root, index) => (
+              <option
+                value={root}
+                selected={
+                  props.workspace.browseRoot ? root === props.workspace.browseRoot : index() === 0
+                }
+              >
+                {root}
+              </option>
+            )}
+          </For>
+        </select>
       </Show>
       <div class="chat-workspace-rail__toolbar">
         <label class="chat-workspace-rail__search">

@@ -17,7 +17,15 @@ export const SessionActivitySummarySchema = closedObject({
 });
 export const SessionsActivitySummaryEnsureParamsSchema = closedObject({
   sessions: Type.Array(
-    closedObject({ key: NonEmptyString, agentId: Type.Optional(NonEmptyString) }),
+    closedObject({
+      key: NonEmptyString,
+      agentId: Type.Optional(NonEmptyString),
+      /**
+       * Fork: an explicit retry starts the recap at once; other requests keep the per-session
+       * minimum interval and return the stored recap meanwhile.
+       */
+      retry: Type.Optional(Type.Boolean()),
+    }),
     {
       minItems: 1,
       maxItems: 20,

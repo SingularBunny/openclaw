@@ -229,8 +229,13 @@ export class SessionActivityController {
         if (rows.length === 0) {
           continue;
         }
+        // Fork (F41): only Retry recap asks for an immediate recap; page loads keep the interval.
+        const retried = new Set<string>();
         for (const row of rows) {
           const key = summaryRowKey(row);
+          if (this.summaryRetries.has(key)) {
+            retried.add(key);
+          }
           this.summaryAttempts.set(key, summaryRevision(row));
           this.summaryRetries.delete(key);
         }
@@ -243,6 +248,7 @@ export class SessionActivityController {
               sessions: rows.map((row) => ({
                 key: row.key,
                 ...(row.agentId ? { agentId: row.agentId } : {}),
+                ...(retried.has(summaryRowKey(row)) ? { retry: true } : {}),
               })),
             },
             { signal: pending.signal },

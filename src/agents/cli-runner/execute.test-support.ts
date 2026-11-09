@@ -1,6 +1,7 @@
 /** Test doubles and setup for CLI execution supervisor and event seams. */
 import { vi, type Mock } from "vitest";
 import type { enqueueSessionEventForHost } from "../../auto-reply/reply/session-event-handoff.js";
+import type { enqueueSystemEvent } from "../../infra/system-events.js";
 import type { getProcessSupervisor } from "../../process/supervisor/index.js";
 import { withTestRunAdmission } from "../admitted-run-context.test-support.js";
 import { executeDeps } from "./execute-deps.js";
@@ -33,6 +34,7 @@ export function setCliRunnerExecuteTestDeps(overrides: Partial<typeof executeDep
 }
 
 export const supervisorSpawnMock = vi.fn<SupervisorSpawnFn>();
+export const enqueueSystemEventMock = vi.fn<typeof enqueueSystemEvent>(() => true);
 export const enqueueSessionEventMock = vi.fn<EnqueueSessionEventFn>(() => ({
   id: "cli-watchdog-event",
   accepted: Promise.resolve({ ok: true }),
@@ -111,6 +113,7 @@ setCliRunnerExecuteTestDeps({
     generation: "test",
   }),
   enqueueSessionEvent: (text, options) => enqueueSessionEventMock(text, options),
+  enqueueSystemEvent: (text, options) => enqueueSystemEventMock(text, options),
 });
 
 type MockRunExit = {

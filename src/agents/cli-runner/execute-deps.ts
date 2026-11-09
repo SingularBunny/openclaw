@@ -3,6 +3,7 @@ import {
   enqueueSessionEventForHost,
 } from "../../auto-reply/reply/session-event-handoff.js";
 import { invokeNodeClaudeCliRun } from "../../gateway/node-agent-cli-runtime.js";
+import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { getProcessSupervisor as getProcessSupervisorImpl } from "../../process/supervisor/index.js";
 import {
   registerExecApprovalRequestForHostOrThrow,
@@ -16,6 +17,7 @@ export const executeDeps = {
   getProcessSupervisor: getProcessSupervisorImpl,
   captureSessionEventTarget: captureSessionEventTargetForHost,
   enqueueSessionEvent: enqueueSessionEventForHost,
+  enqueueSystemEvent,
   writeCliSystemPromptFile,
   invokeNodeClaudeCliRun,
   registerExecApprovalRequestForHostOrThrow,

@@ -101,3 +101,22 @@ export function stripCliPromptDecorations(text: string, preserveRequesterGuidanc
     preserveRequesterGuidance,
   );
 }
+
+// Fork (F37): attachments reach the CLI as `[media attached …]` notes (auto-reply/media-note.ts,
+// chat-attachments.ts) and `<file …>` blocks with the extracted text, the latter wrapped as
+// EXTERNAL_UNTRUSTED_CONTENT (media/file-context.ts, file-attachment-outcomes.ts). The local row keeps
+// only what the user typed, so the comparable view drops both. File content escapes `</file`, so the
+// first closing tag ends its block.
+const MEDIA_ATTACHED_LINE = /^\[media attached(?: \d+\/\d+)?: [^\n]*\]\r?$/gmu;
+const FILE_CONTEXT_BLOCK = /<file name="[^"\n]*"(?: mime="[^"\n]*")?>[\s\S]*?<\/file>/gu;
+
+export function stripCliAttachmentDecorations(text: string): string {
+  if (!text.includes("[media attached") && !text.includes("<file name=")) {
+    return text;
+  }
+  return text
+    .replace(FILE_CONTEXT_BLOCK, "")
+    .replace(MEDIA_ATTACHED_LINE, "")
+    .replace(/\n{3,}/gu, "\n\n")
+    .trim();
+}

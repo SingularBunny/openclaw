@@ -150,7 +150,14 @@ Reload planning classifies each changed path as one of three outcomes:
   scheduling a reload action for that path. Consumers that read the current
   config can observe the new value on a later read.
 
-In `hybrid` mode, Gateway restarts happen automatically when required. The longest
+In `hybrid` mode, Gateway restarts happen automatically when required. A restart
+waits for running work first; in this fork the Control UI shows that wait as a
+notice at the top of the window, outside any chat: what the restart waits for
+(running turns or background tasks), the latest restart time, and the changed
+settings. It switches to "Gateway restarting now" when the wait ends and shows
+"Gateway restarted" for a few seconds after the page reconnects. How long a
+restart may wait for agent turns is set by `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`
+([Environment variables](/help/environment)). The longest
 matching config prefix determines the outcome. Rules supplied by a plugin apply
 only while that plugin is loaded; a path that matches no rule defaults to a
 Gateway restart.

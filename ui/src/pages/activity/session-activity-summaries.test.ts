@@ -317,7 +317,14 @@ it("keeps an explicit retry queued while another visible batch is pending", asyn
   );
   expect(request).toHaveBeenLastCalledWith(
     ACTIVITY_SUMMARY_ENSURE_METHOD,
-    { sessions: [{ key: retryRow.key, agentId: "main" }] },
+    { sessions: [{ key: retryRow.key, agentId: "main", retry: true }] },
+    expect.anything(),
+  );
+  // Fork (F41): the page backfill itself does not ask for an immediate recap.
+  expect(request).toHaveBeenNthCalledWith(
+    2,
+    ACTIVITY_SUMMARY_ENSURE_METHOD,
+    { sessions: [{ key: pendingRow.key, agentId: "main" }] },
     expect.anything(),
   );
   state.dispose();

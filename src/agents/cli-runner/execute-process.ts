@@ -49,6 +49,8 @@ import { buildCliSupervisorScopeKey } from "./reliability.js";
 import type { NodeClaudePlacement, PreparedCliRunContext } from "./types.js";
 
 const CLI_RUNNER_OUTPUT_PARSE_BYTES = 1024 * 1024;
+/** Fork (F38): one pending watchdog notice per session; a newer stall replaces it. */
+const CLI_WATCHDOG_EVENT_CONTEXT_KEY = "cli_watchdog";
 
 type ExecuteCliProcessOptions = {
   onPhase?: (phase: "send" | "resolve" | "cleanup") => void;
@@ -576,22 +578,24 @@ export async function executeCliProcess(params: {
           "It may have been waiting for interactive input or an approval prompt.",
           "Check CLI permission settings and OpenClaw approval prompts.",
         ].join(" ");
+        // Fork (F38): the notice is passive. It used to be queued as an `exec` session event,
+        // which showed as "background command finished" and woke the agent for an extra turn
+        // after the fallback model had already answered. The agent now reads it as a `System:`
+        // line at the start of its next turn.
         if (eventSessionKey && eventAgentId && eventTarget) {
           try {
-            const receipt = params.deps.enqueueSessionEvent(stallNotice, {
-              agentId: eventAgentId,
+            eventTarget.assertCurrent?.();
+            params.deps.enqueueSystemEvent(stallNotice, {
               sessionKey: eventSessionKey,
-              source: "exec",
-              expectedTarget: eventTarget,
-              deliver: eventDelivery,
-            });
-            void receipt.settled.then((outcome) => {
-              if (outcome.status === "failed") {
-                cliBackendLog.warn(`CLI watchdog follow-up failed: ${outcome.error}`);
-              }
+              contextKey: CLI_WATCHDOG_EVENT_CONTEXT_KEY,
+              replace: true,
+              ...(eventTarget.storePath ? { sessionStorePath: eventTarget.storePath } : {}),
+              ...(eventTarget.deliveryContext
+                ? { deliveryContext: eventTarget.deliveryContext }
+                : {}),
             });
           } catch (error) {
-            cliBackendLog.warn(`CLI watchdog follow-up rejected: ${formatErrorMessage(error)}`);
+            cliBackendLog.warn(`CLI watchdog notice rejected: ${formatErrorMessage(error)}`);
           }
         }
       }
