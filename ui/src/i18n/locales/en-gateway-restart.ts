@@ -6,6 +6,10 @@ const catalog = {
   common: {
     gatewayRestart: {
       pending: "Gateway restart pending: {waiting}, restarts {when} (reason: {reason})",
+      draining:
+        "Gateway restarting: {waiting}, restarts {when}; new messages are refused until it is back (reason: {reason})",
+      stopping:
+        "Gateway stopping: {waiting}, stops {when}; new messages are refused (reason: {reason})",
       waitingTurn: "waiting for 1 running turn",
       waitingTurns: "waiting for {count} running turns",
       waitingWork: "waiting for {count} background tasks",
