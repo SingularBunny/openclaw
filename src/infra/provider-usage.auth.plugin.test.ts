@@ -54,6 +54,12 @@ vi.mock("../plugins/manifest-contract-eligibility.js", () => ({
         providers: ["minimax", "minimax-portal"],
       },
       {
+        id: "anthropic",
+        origin: "bundled",
+        providers: ["anthropic"],
+        cliBackends: ["claude-cli"],
+      },
+      {
         id: "openai",
         origin: "bundled",
         providers: ["openai"],
@@ -108,6 +114,31 @@ describe("provider usage auth boundary", () => {
     order.mockReset().mockReturnValue([]);
     resolveKey.mockReset().mockResolvedValue(null);
     resolvePlugin.mockReset().mockResolvedValue(undefined);
+  });
+
+  it("runs the usage hook for a provider whose own CLI backend the config routes through", async () => {
+    resolvePlugin.mockImplementationOnce(async ({ context }) =>
+      context.cliBackendsInUse?.includes("claude-cli") ? { token: "cli-usage" } : undefined,
+    );
+    const auths = await resolveProviderAuths({
+      providers: ["anthropic"],
+      env: {},
+      agentDir: "/tmp/openclaw-agent",
+      config: {
+        agents: {
+          defaults: {
+            models: { "anthropic/claude-opus-5-5": { agentRuntime: { id: "claude-cli" } } },
+          },
+        },
+      },
+    });
+    expect(auths).toEqual([{ provider: "anthropic", token: "cli-usage" }]);
+    expect(resolvePlugin).toHaveBeenCalledOnce();
+  });
+
+  it("skips the usage hook when no credential source or CLI backend is configured", async () => {
+    expect(await resolve(["anthropic"])).toEqual([]);
+    expect(resolvePlugin).not.toHaveBeenCalled();
   });
 
   it("normalizes direct plugin candidates ahead of provider environment credentials", async () => {

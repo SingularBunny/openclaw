@@ -1,5 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
-import { fetchAnthropicUsage, resolveAnthropicUsageAuth } from "./usage.js";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  CLAUDE_CLI_USAGE_AUTH_FLOW,
+  fetchAnthropicUsage,
+  resetAnthropicUsageBackoffForTest,
+  resolveAnthropicUsageAuth,
+} from "./usage.js";
+
+const readClaudeCli = vi.hoisted(() => vi.fn());
+vi.mock("openclaw/plugin-sdk/provider-auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("openclaw/plugin-sdk/provider-auth")>()),
+  readClaudeCliCredentialsCached: readClaudeCli,
+}));
 
 function requestUrl(input: string | URL | Request): URL {
   return new URL(input instanceof Request ? input.url : input);
@@ -231,5 +242,94 @@ describe("Anthropic provider usage", () => {
       fetchFn,
     });
     expect(snapshot.plan).toBeUndefined();
+  });
+
+  describe("Claude CLI native login (fork)", () => {
+    afterEach(() => {
+      readClaudeCli.mockReset();
+      resetAnthropicUsageBackoffForTest();
+    });
+
+    const cliCtx = (cliBackendsInUse?: string[]) => ({
+      config: {},
+      env: {},
+      provider: "anthropic",
+      ...(cliBackendsInUse ? { cliBackendsInUse } : {}),
+      resolveApiKeyFromConfigAndStore: () => undefined,
+      resolveOAuthToken: async () => null,
+    });
+
+    it("uses a valid Claude CLI access token read-only when the claude-cli backend is in use", async () => {
+      readClaudeCli.mockReturnValue({
+        type: "oauth",
+        provider: "anthropic",
+        access: "cli-access",
+        refresh: "cli-refresh",
+        expires: Date.now() + 3_600_000,
+        subscriptionType: "max",
+        rateLimitTier: "default_claude_max_20x",
+        email: "owner@example.com",
+      });
+      expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({
+        token: "cli-access",
+        authFlow: CLAUDE_CLI_USAGE_AUTH_FLOW,
+        subscriptionType: "max",
+        rateLimitTier: "default_claude_max_20x",
+        email: "owner@example.com",
+      });
+      expect(readClaudeCli).toHaveBeenCalledWith(
+        expect.objectContaining({ allowKeychainPrompt: false }),
+      );
+    });
+
+    it("leaves an expiring Claude CLI token to Claude CLI instead of refreshing it", async () => {
+      readClaudeCli.mockReturnValue({
+        type: "oauth",
+        provider: "anthropic",
+        access: "cli-access",
+        refresh: "cli-refresh",
+        expires: Date.now() + 30_000,
+      });
+      expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({ handled: true });
+    });
+
+    it("does not read Claude CLI login unless the claude-cli backend is in use", async () => {
+      expect(await resolveAnthropicUsageAuth(cliCtx())).toEqual({ handled: true });
+      expect(readClaudeCli).not.toHaveBeenCalled();
+    });
+
+    it("backs off after HTTP 429 and serves the last good snapshot meanwhile", async () => {
+      let status = 200;
+      const fetchFn = vi.fn(async () =>
+        status === 200
+          ? new Response(
+              JSON.stringify({ five_hour: { utilization: 42, resets_at: "2099-01-01T00:00:00Z" } }),
+              { status: 200 },
+            )
+          : new Response(JSON.stringify({ error: { message: "rate limited" } }), {
+              status: 429,
+              headers: { "retry-after": "600" },
+            }),
+      );
+      const usageCtx = {
+        config: {},
+        env: {},
+        provider: "anthropic",
+        token: "cli-access",
+        timeoutMs: 5000,
+        fetchFn,
+      };
+      const first = await fetchAnthropicUsage(usageCtx);
+      expect(first.windows[0]).toMatchObject({ label: "5h", usedPercent: 42 });
+      status = 429;
+      const limited = await fetchAnthropicUsage(usageCtx);
+      expect(limited.error).toBeUndefined();
+      expect(limited.windows[0]).toMatchObject({ usedPercent: 42 });
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      // Within the backoff the endpoint is not called again.
+      await fetchAnthropicUsage(usageCtx);
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      expect(JSON.stringify(limited)).not.toContain("cli-access");
+    });
   });
 });

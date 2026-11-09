@@ -141,6 +141,12 @@ export type ProviderResolveUsageAuthContext = {
   workspaceDir?: string;
   env: NodeJS.ProcessEnv;
   provider: string;
+  /**
+   * Fork: CLI backends owned by this provider's plugin that the config routes models through
+   * (for example `claude-cli`). Such a backend keeps its own login outside the auth-profile
+   * store; the provider decides whether and how to read it.
+   */
+  cliBackendsInUse?: string[];
   /** @deprecated Await resolveApiKeyCandidatesFromConfigAndStore instead. Removal follows an announced ordinary stable release window. */
   resolveApiKeyFromConfigAndStore: (params?: {
     providerIds?: string[];
