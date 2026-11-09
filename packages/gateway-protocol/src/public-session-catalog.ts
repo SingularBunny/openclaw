@@ -22,6 +22,8 @@ export type {
   SessionsCatalogReadResult,
   SessionsCatalogReorderParams,
   SessionsCatalogReorderResult,
+  SessionsCatalogMoveParams,
+  SessionsCatalogMoveResult,
   SessionsCatalogStartTerminalParams,
   SessionsCatalogStartTerminalResult,
 } from "./schema/sessions-catalog.js";

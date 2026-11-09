@@ -67,6 +67,10 @@ export const validateSessionsCatalogReorderParams = createProtocolValidator(
   S.SessionsCatalogReorderParamsSchema,
   Checks.isSessionsCatalogReorderParams,
 );
+export const validateSessionsCatalogMoveParams = createProtocolValidator(
+  S.SessionsCatalogMoveParamsSchema,
+  Checks.isSessionsCatalogMoveParams,
+);
 export const validateSessionsCatalogStartTerminalParams = createProtocolValidator(
   S.SessionsCatalogStartTerminalParamsSchema,
   Checks.isSessionsCatalogStartTerminalParams,

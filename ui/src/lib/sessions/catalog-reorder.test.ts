@@ -5,6 +5,8 @@ import type {
 } from "../../../../packages/gateway-protocol/src/index.ts";
 import { groupCatalogSessionsByProject } from "./catalog-project-grouping.ts";
 import {
+  insertCatalogOrderEntry,
+  moveCatalogHostSession,
   moveCatalogOrderEntry,
   reorderCatalogHostSessions,
   reorderSessionCatalogs,
@@ -105,5 +107,55 @@ describe("moveCatalogOrderEntry", () => {
     expect(moveCatalogOrderEntry(["a", "b"], "a", "a", "after")).toBeNull();
     expect(moveCatalogOrderEntry(["a", "b"], "a", "b", "before")).toBeNull();
     expect(moveCatalogOrderEntry(["a", "b"], "x", "b", "before")).toBeNull();
+  });
+});
+
+describe("moveCatalogHostSession", () => {
+  const row = (threadId: string, customGroup: string): SessionCatalogSession => ({
+    threadId,
+    customGroup,
+    status: "stored",
+    archived: false,
+    canContinue: false,
+    canArchive: false,
+  });
+  const rows = [row("a1", "Alpha"), row("a2", "Alpha"), row("b1", "Beta"), row("b2", "Beta")];
+  const view = (sessions: SessionCatalogSession[]) =>
+    sessions.map((entry) => `${entry.customGroup}:${entry.threadId}`);
+
+  it("puts the row where the target order places it", () => {
+    expect(
+      view(
+        moveCatalogHostSession(rows, {
+          threadId: "a1",
+          group: "Beta",
+          threadIds: ["b1", "a1", "b2"],
+        }),
+      ),
+    ).toEqual(["Alpha:a2", "Beta:b1", "Beta:a1", "Beta:b2"]);
+  });
+
+  it("appends the row to the folder without a position, or to the end for a new folder", () => {
+    expect(view(moveCatalogHostSession(rows, { threadId: "a1", group: "Beta" }))).toEqual([
+      "Alpha:a2",
+      "Beta:b1",
+      "Beta:b2",
+      "Beta:a1",
+    ]);
+    expect(view(moveCatalogHostSession(rows, { threadId: "b1", group: "Gamma" }))).toEqual([
+      "Alpha:a1",
+      "Alpha:a2",
+      "Beta:b2",
+      "Gamma:b1",
+    ]);
+    expect(moveCatalogHostSession(rows, { threadId: "x", group: "Beta" })).toEqual(rows);
+  });
+});
+
+describe("insertCatalogOrderEntry", () => {
+  it("inserts a row from another folder next to its drop target", () => {
+    expect(insertCatalogOrderEntry(["a", "b"], "x", "a", "after")).toEqual(["a", "x", "b"]);
+    expect(insertCatalogOrderEntry(["a", "b"], "x", "a", "before")).toEqual(["x", "a", "b"]);
+    expect(insertCatalogOrderEntry(["a", "b"], "x", "y", "before")).toBeNull();
   });
 });

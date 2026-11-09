@@ -68,6 +68,7 @@ export interface SessionListHost {
     | "isSessionMutationScopeCurrent"
     | "loadMoreSessionCatalog"
     | "loadMoreSidebarSessions"
+    | "moveSessionCatalog"
     | "presenceInstanceId"
     | "presencePayload"
     | "refreshSessionCatalogs"

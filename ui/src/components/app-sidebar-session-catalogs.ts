@@ -209,7 +209,11 @@ export type CatalogRowControls = Partial<
 
 export type CatalogBackingSessionDisplay = {
   catalogIdentityKey: string;
-  catalogMenu: CatalogSessionMenuRequest;
+  /**
+   * The catalog's row menu. Absent for rows that are ordinary Gateway sessions (`source:
+   * "openclaw"`): those keep the regular session menu, with Archive and Delete.
+   */
+  catalogMenu?: CatalogSessionMenuRequest;
   rowRef?: (
     element: HTMLElement,
     controls: CatalogRowControls,
