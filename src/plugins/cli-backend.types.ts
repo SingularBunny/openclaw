@@ -196,6 +196,11 @@ export type CliBackendLiveSessionHandle = {
   isIdle(): boolean;
   close(reason: CliBackendLiveSessionCloseReason, error?: unknown): void;
   waitForExit(): Promise<void>;
+  /**
+   * Fork (F47): stops one background task of this process (Claude CLI `stop_task`).
+   * Resolves false when the process does not know the task or cannot take input.
+   */
+  stopTask?(taskId: string): Promise<boolean>;
 };
 
 /** Closure-bound host capability for one admitted reusable-runtime turn. */

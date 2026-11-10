@@ -291,6 +291,32 @@ so reloading the chat shows it again until a new run starts. Set
 `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS=0` to turn predictions off (see
 [Environment variables](/help/environment#worker-and-catalog-limits)).
 
+## Claude CLI todo list and background tasks
+
+Sessions on the Claude CLI backend (`claude-cli`) show Claude's own todo list in
+**Details → Task progress**, the same card that `progress_card` (`update_plan`) fills. Claude
+writes it with `TodoWrite` or, in newer CLI versions, with `TaskCreate`, `TaskUpdate` and
+`TaskList`; each successful call replaces the card's steps, so items move from pending to in
+progress to completed as Claude works. The card shows at most one step in progress and up to 50
+steps; when Claude works on several items at once, the later ones read as pending. The list is
+saved as the session's progress card, so hover previews, dashboard progress widgets and channels
+that show progress see it too, and it replaces whatever the card held before. Only Claude's main
+thread counts: todo lists of its subagents do not change the card. `TodoWrite` calls appear in the
+transcript as the same one-line receipt as progress-card updates, for example
+**Progress updated — 2/5 · Run tests**.
+
+While Claude CLI background agents or tasks run, the working indicator shows their count
+(**2 background agents running**, then **Waiting for 2 background agents to finish** once the
+answer is in). Select the count to list them, one row each: the description Claude gave the
+task, its type (the agent type, such as `general-purpose` or `Explore`, or `shell` and
+`workflow`), running time and status. Tasks that end while others still run stay in the list as
+**Completed**, **Failed** or **Stopped**; the list closes with the last task. **Stop** asks the
+Claude CLI process to stop that one task (its `stop_task` control request) and needs write access
+to the session; the row turns **Stopped** when Claude reports the stop. If the task already ended
+or the process is gone, the button stays and its tooltip says so. Gateway clients call
+`sessions.cliTasks.stop` with `{ sessionKey, agentId?, taskId }`; the result is
+`{ requested: boolean }`.
+
 ## Composer capability menu
 
 Select **+** beside the chat composer to open attachments and session capabilities in one menu:

@@ -17,6 +17,8 @@ import {
 } from "../../../lit/solid-content.tsx";
 import { renderChatAvatar } from "../chat-avatar.ts";
 import type { ChatSubagentWait } from "../chat-subagent-wait.ts";
+import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.ts";
 import type { GroupedMessageOptions } from "./chat-message-bubble-options.ts";
 import { GroupedMessage } from "./chat-message-bubble-view.tsx";
 import {
@@ -90,8 +92,9 @@ export type StreamGroupOptions = StreamMessageOptions & {
   waitingApproval?: boolean;
   waitingSubagents?: ChatSubagentWait;
   runningSubagents?: number;
-  /** Fork (F33): Claude CLI background agents/tasks line. */
-  backgroundTasksLabel?: string;
+  /** Fork (F33, F47): Claude CLI background agents/tasks line and rows. */
+  backgroundTasks?: CliBackgroundTasksStatus | null;
+  onStopBackgroundTask?: CliBackgroundTaskStop;
   subagentActivity?: LegacyTemplateResult;
   onOpenSubagents?: () => void;
   runOutputTokens?: number | null;
@@ -169,7 +172,8 @@ function NonstreamPart(props: {
         waitingSubagents:
           props.part.waitingOn === "subagents" ? props.options.waitingSubagents : undefined,
         runningSubagents: props.options.runningSubagents,
-        backgroundTasksLabel: props.options.backgroundTasksLabel,
+        backgroundTasks: props.options.backgroundTasks,
+        onStopBackgroundTask: props.options.onStopBackgroundTask,
         subagentActivity: props.options.subagentActivity,
         onOpenSubagents: props.options.onOpenSubagents,
         startupLabel: props.options.startupLabel,

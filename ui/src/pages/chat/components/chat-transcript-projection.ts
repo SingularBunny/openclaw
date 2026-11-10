@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized module. */
 import { asNullableRecord } from "@openclaw/normalization-core/record-coerce";
 import { html, nothing } from "lit";
 import { CHAT_MESSAGE_MAX_CHARS } from "../../../../../packages/gateway-protocol/src/schema/chat-history-constants.js";
@@ -333,7 +334,8 @@ export function projectChatTranscript(props: ChatThreadProps, transcript: ChatTr
     waitingApproval: props.waitingApproval,
     waitingSubagents: subagents.wait ?? undefined,
     runningSubagents: subagents.running,
-    backgroundTasksLabel: props.backgroundTasksLabel,
+    backgroundTasks: props.backgroundTasks,
+    onStopBackgroundTask: props.onStopBackgroundTask,
     subagentActivity: subagents.activity.length
       ? html`<openclaw-chat-subagent-activity
           .rows=${subagents.activity}
@@ -606,7 +608,8 @@ export function projectChatTranscript(props: ChatThreadProps, transcript: ChatTr
     props.onRetryRun,
     props.failureActionsRunId,
     Boolean(props.waitingApproval),
-    props.backgroundTasksLabel,
+    props.backgroundTasks,
+    props.onStopBackgroundTask,
     props.questionPrompts,
     state.asyncQuestionRevision,
     props.asyncQuestions?.historyKey,

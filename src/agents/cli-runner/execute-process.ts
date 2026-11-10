@@ -325,6 +325,7 @@ export async function executeCliProcess(params: {
           pluginTimeout.error = error;
         },
         onBackgroundTasksChange: params.events.emitCliBackgroundTasks,
+        onTodosChange: params.events.emitCliTodos,
         onInterrupted: (reason) => {
           streamingParser?.finish();
           const partialOutput = streamingParser?.getOutput();

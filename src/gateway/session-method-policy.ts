@@ -41,6 +41,7 @@ const SESSION_TARGET_POLICY_BY_METHOD = new Map<string, SessionTargetPolicy>([
   ["send", { fields: ["sessionKey"], runStart: true }],
   ["session.discussion.open", { fields: ["sessionKey"], required: true }],
   ["sessions.processes.stop", { fields: ["key"], required: true }],
+  ["sessions.cliTasks.stop", { fields: ["sessionKey"], required: true }],
   ["sessions.abort", { fields: ["key"], required: true }],
   ["sessions.assignOwner", { fields: ["key"], required: true }],
   // This changes a personal list preference, not the shared session.

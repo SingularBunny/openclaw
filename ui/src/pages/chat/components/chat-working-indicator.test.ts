@@ -1,5 +1,5 @@
 import { render } from "lit";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { selectWorkingClawSurprise } from "./chat-working-indicator-surprise.ts";
 import { renderChatWorkingIndicator } from "./chat-working-indicator.ts";
 
@@ -37,7 +37,7 @@ describe("renderChatWorkingIndicator", () => {
     render(
       renderChatWorkingIndicator(
         { kind: "reading-indicator", key: "background-test", startedAt: 1 },
-        { backgroundTasksLabel: "Waiting for 2 background agents to finish" },
+        { backgroundTasks: { runId: "r", count: 2, agents: 2, waiting: true } },
       ),
       container,
     );
@@ -45,6 +45,84 @@ describe("renderChatWorkingIndicator", () => {
       "Waiting for 2 background agents to finish",
     );
     expect(container.querySelector("openclaw-working-phrase")).toBeNull();
+  });
+
+  it("lists each background task under the counter line with a stop control", async () => {
+    const container = document.createElement("div");
+    const stops: string[] = [];
+    let accept = true;
+    const draw = (onStop?: (taskId: string) => Promise<boolean>) =>
+      render(
+        renderChatWorkingIndicator(
+          { kind: "reading-indicator", key: "background-rows", startedAt: 1 },
+          {
+            backgroundTasks: {
+              runId: "r",
+              count: 2,
+              agents: 1,
+              waiting: false,
+              tasks: [
+                {
+                  taskId: "a1",
+                  taskType: "local_agent",
+                  subagentType: "Explore",
+                  description: "Map the parser",
+                  status: "running",
+                  startedAt: 1_000,
+                },
+                {
+                  taskId: "b1",
+                  taskType: "local_bash",
+                  description: "npm test",
+                  status: "running",
+                  startedAt: 2_000,
+                },
+                {
+                  taskId: "c1",
+                  taskType: "local_agent",
+                  description: "Check docs",
+                  status: "failed",
+                  startedAt: 500,
+                  endedAt: 900,
+                },
+              ],
+            },
+            onStopBackgroundTask: onStop,
+          },
+        ),
+        container,
+      );
+    draw(async (taskId) => {
+      stops.push(taskId);
+      return accept;
+    });
+    const summary = container.querySelector("details.chat-cli-tasks > summary");
+    expect(summary?.textContent?.trim()).toBe("2 background tasks running");
+    const rows = [...container.querySelectorAll<HTMLElement>(".chat-cli-tasks__row")];
+    expect(rows.map((row) => row.dataset.taskId)).toEqual(["a1", "b1", "c1"]);
+    expect(rows[0]?.querySelector(".chat-cli-tasks__type")?.textContent).toBe("Explore");
+    expect(rows[1]?.querySelector(".chat-cli-tasks__type")?.textContent).toBe("shell");
+    expect(rows[2]?.querySelector(".chat-cli-tasks__status")?.textContent).toBe("Failed");
+    expect(rows[0]?.querySelector("openclaw-elapsed-time")).toHaveProperty("startMs", 1_000);
+    expect(rows[2]?.querySelector("openclaw-elapsed-time")).toHaveProperty("endMs", 900);
+    expect(rows[2]?.querySelector("button")).toBeNull();
+
+    const stop = rows[0]?.querySelector<HTMLButtonElement>(".chat-cli-tasks__stop");
+    expect(stop?.getAttribute("aria-label")).toBe("Stop Map the parser");
+    stop?.click();
+    expect(stop?.disabled).toBe(true);
+    await Promise.resolve();
+    expect(stops).toEqual(["a1"]);
+
+    accept = false;
+    const refused = rows[1]?.querySelector<HTMLButtonElement>(".chat-cli-tasks__stop");
+    refused?.click();
+    await vi.waitFor(() => expect(refused?.disabled).toBe(false));
+    expect(refused?.disabled).toBe(false);
+    expect(refused?.title).toBe("This task is no longer running in this Claude session.");
+
+    draw();
+    expect(container.querySelector(".chat-cli-tasks__stop")).toBeNull();
   });
 
   it("renders neutral dots without claw surprises and forwards authored phrases", () => {

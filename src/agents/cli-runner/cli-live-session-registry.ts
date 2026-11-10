@@ -23,6 +23,8 @@ type CliLiveSessionOwner = {
 type CliLiveSessionRecord = {
   handle: CliBackendLiveSessionHandle;
   owner: PreparedCliRunContext["preparedBackend"];
+  /** Fork (F47): the conversation this process serves, for per-task controls. */
+  conversation: { agentId?: string; sessionKey?: string };
   approvalGrants: Set<string>;
   cleanup?: () => Promise<void>;
   cleanupPromise?: Promise<void>;
@@ -77,6 +79,31 @@ export function getCliLiveSessionApprovalGrants(
 ): Set<string> | undefined {
   const record = liveSessions.get(buildCliLiveSessionKey(context));
   return record?.owner === context.preparedBackend ? record.approvalGrants : undefined;
+}
+
+/**
+ * Fork (F47): asks the live CLI process of a conversation to stop one of its background
+ * tasks. Resolves false when no live process of that conversation knows the task.
+ */
+export async function stopCliLiveSessionTask(
+  conversation: { agentId?: string; sessionKeys: readonly string[] },
+  taskId: string,
+): Promise<boolean> {
+  for (const record of liveSessions.values()) {
+    const { agentId, sessionKey } = record.conversation;
+    if (
+      !sessionKey ||
+      !conversation.sessionKeys.includes(sessionKey) ||
+      (conversation.agentId && agentId && conversation.agentId !== agentId) ||
+      !record.handle.stopTask
+    ) {
+      continue;
+    }
+    if (await record.handle.stopTask(taskId)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Closes the live execution session associated with a prepared run context, if one exists. */
@@ -268,6 +295,10 @@ export function createCliLiveSessionCapability(params: {
       const record: CliLiveSessionRecord = {
         handle,
         owner: params.context.preparedBackend,
+        conversation: {
+          agentId: params.context.params.agentId,
+          sessionKey: params.context.params.sessionKey,
+        },
         approvalGrants: new Set(),
         ...(cleanup ? { cleanup } : {}),
         ...(grant && params.captureKey

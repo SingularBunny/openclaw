@@ -68,7 +68,6 @@ import {
   selectedChatSessionRow,
 } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
-import { formatCliBackgroundTasksLabel } from "./cli-background-tasks.ts";
 import { getChatComposerState } from "./components/chat-composer-state.ts";
 import { openSessionWorkspaceFile } from "./components/chat-session-workspace.ts";
 import { resolveChatLinkFaviconFetcher } from "./link-favicon-loader.ts";
@@ -81,6 +80,20 @@ const bootLayout = html`<main class="app-shell app-shell--booting" aria-busy="tr
 
 export class ChatPaneRuntime extends ChatPaneLayoutRender {
   private readonly notify = () => this.requestUpdate();
+  /** Fork (F47): stops one Claude CLI background task of the selected session. */
+  private readonly stopCliBackgroundTask = async (taskId: string): Promise<boolean> => {
+    const state = this.state;
+    if (!state?.client) {
+      return false;
+    }
+    const agentId = resolveChatAgentId(state);
+    const result = await state.client.request<{ requested?: boolean }>("sessions.cliTasks.stop", {
+      sessionKey: state.sessionKey,
+      ...(agentId ? { agentId } : {}),
+      taskId,
+    });
+    return result?.requested === true;
+  };
   readonly providerReview = new ChatProviderReviewController(this, () => this.state, this.notify);
 
   render() {
@@ -406,7 +419,13 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       environmentStartStatus:
         placement?.state === "provisioning" ? placement.startStatus : undefined,
       waitingApproval: state.waitingApprovalStatuses.size > 0,
-      backgroundTasksLabel: formatCliBackgroundTasksLabel(state.cliBackgroundTasks),
+      backgroundTasks: state.cliBackgroundTasks,
+      onStopBackgroundTask:
+        canWriteProgressCard &&
+        nativeConversation &&
+        isGatewayMethodAdvertised(gatewaySnapshot, "sessions.cliTasks.stop") === true
+          ? this.stopCliBackgroundTask
+          : undefined,
       compactionStatus: state.compactionStatus,
       fallbackStatus: state.fallbackStatus,
       providerPolicyNotice: catalogKey ? null : state.providerPolicyNotice,
