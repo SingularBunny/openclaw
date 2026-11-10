@@ -646,7 +646,7 @@
     {
       "files": ["extensions/anthropic/cli-runtime.test.ts"],
       "rules": {
-        "max-lines": ["error", { "max": 1002, "skipBlankLines": true, "skipComments": true }]
+        "max-lines": ["error", { "max": 1020, "skipBlankLines": true, "skipComments": true }]
       }
     },
     {
