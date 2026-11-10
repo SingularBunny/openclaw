@@ -123,7 +123,9 @@ export class ShellNavigationOwner {
     if (face === "chat" && readDeletedSessionStartup(context, sessionKey)) {
       return true;
     }
-    const sessionWasDeleted = context.sessions.deletionState(sessionKey);
+    // Only a confirmed deletion moves the chat: a pending one can still be
+    // rejected, and the operator must stay on the chat that reports it.
+    const sessionWasDeleted = context.sessions.deletionState(sessionKey) === "confirmed";
     // Session lists are filtered and windowed. Only a failed route for this
     // active key, or an authoritative deletion, proves it needs replacement.
     const activeSessionRow = findUiSessionRow(context, sessionKey);
@@ -179,7 +181,7 @@ export class ShellNavigationOwner {
     if (!context || !routeId || !isSessionRouteId(routeId) || !sessionKey) {
       return;
     }
-    const selectedSessionDeleted = context.sessions.deletionState(sessionKey);
+    const selectedSessionDeleted = context.sessions.deletionState(sessionKey) === "confirmed";
     if (selectedSessionDeleted) {
       this.replaceChatWithCurrentSession();
     }
@@ -228,7 +230,7 @@ export class ShellNavigationOwner {
         const committedSessionKey = routeState.committedSessionKey;
         const committedSessionDeleted =
           committedSessionKey !== undefined &&
-          routeContext.sessions.deletionState(committedSessionKey);
+          routeContext.sessions.deletionState(committedSessionKey) === "confirmed";
         if (committedSessionDeleted) {
           if (
             committedRouteId === "chat" &&

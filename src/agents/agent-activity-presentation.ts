@@ -143,7 +143,8 @@ export function summarizeAgentActivity(
     }
     // Prepared names describe operations, not successful effects or distinct
     // files. Free-form titles and metadata belong only in individual details.
-    const name = normalizeLowercaseStringOrEmpty(item.name);
+    // History keeps the loopback MCP prefix CLI harnesses add to gateway tools.
+    const name = normalizeLowercaseStringOrEmpty(item.name).replace(OPENCLAW_MCP_PREFIX, "");
     const named = ACTIVITY_CATEGORIES.get(name) ?? "other";
     // An operation that ended one of these ways; a launch that did started nothing.
     const outcome =
@@ -165,6 +166,8 @@ export function summarizeAgentActivity(
   }
   return { total, counts, outcomes };
 }
+
+const OPENCLAW_MCP_PREFIX = /^mcp__openclaw__|^mcp_openclaw_/;
 
 function categoryTools<Category extends string>(category: Category, names: string[]) {
   return names.map((name) => [name, category] as const);
@@ -195,6 +198,7 @@ const ACTIVITY_CATEGORIES = new Map([
     "list",
     "codebase_search",
     "web_search",
+    "websearch",
   ]),
   ...categoryTools("fetches", ["web_fetch", "webfetch", "fetch"]),
 ]);

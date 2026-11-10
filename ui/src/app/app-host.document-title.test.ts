@@ -192,7 +192,7 @@ describe("OpenClaw shell document title", () => {
     const operation = sessions.delete(active.key);
     expect(sessions.deletionState(active.key)).toBe("pending");
     expect(sessions.state.deletedSessions).toEqual([]);
-    expect(replace).toHaveBeenCalledExactlyOnceWith("chat", { pathname: "/chat/main" });
+    expect(replace).not.toHaveBeenCalled();
     deletion.resolve({ deleted: false });
     await operation;
     await settleShell(shell);

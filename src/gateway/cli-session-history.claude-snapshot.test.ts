@@ -5,6 +5,8 @@ import type { Worker } from "node:worker_threads";
 import { afterEach, expect, it, vi } from "vitest";
 import { createDeferred } from "../../test/helpers/promise.js";
 import { useAutoCleanupTempDirTracker } from "../../test/helpers/temp-dir.js";
+import { summarizeAgentActivity } from "../agents/agent-activity-presentation.js";
+import { projectAgentHistoryActivity } from "../infra/agent-activity-events.js";
 import {
   readClaudeCliSessionMessagesAsync,
   createClaudeTextHistoryLines,
@@ -177,4 +179,44 @@ it("projects oversized Claude messages off-thread using one worker per snapshot"
     process.off("worker", onWorker);
     parseSpy.mockRestore();
   }
+});
+
+it("treats Claude tool results without is_error as completed, not outcome unknown", async () => {
+  await withClaudeProjectsDir(async ({ homeDir, sessionId, filePath }) => {
+    const entry = (type: "user" | "assistant", uuid: string, content: unknown) =>
+      JSON.stringify({
+        type,
+        uuid,
+        timestamp: "2026-03-26T16:29:54.700Z",
+        message: { role: type, content },
+      });
+    await fs.writeFile(
+      filePath,
+      [
+        entry("user", "ask", "open the page"),
+        entry("assistant", "calls", [
+          { type: "tool_use", id: "call-mcp", name: "mcp__browser__navigate", input: {} },
+          { type: "tool_use", id: "call-exec", name: "mcp__openclaw__exec", input: {} },
+          { type: "tool_use", id: "call-read", name: "Read", input: {} },
+        ]),
+        entry("user", "results", [
+          { type: "tool_result", tool_use_id: "call-mcp", content: "navigated" },
+          { type: "tool_result", tool_use_id: "call-exec", content: "boom", is_error: true },
+          { type: "tool_result", tool_use_id: "call-read", content: "text", is_error: false },
+        ]),
+      ].join("\n"),
+      "utf8",
+    );
+    const messages = await readClaudeCliSessionMessagesAsync({ cliSessionId: sessionId, homeDir });
+    const activity = projectAgentHistoryActivity(
+      messages.map((message, index) => ({ messageId: `m${index}`, message })),
+    ).flatMap(({ items }) => items);
+    expect(
+      Object.fromEntries(activity.map((item) => [item.toolCallId, item.status ?? "unknown"])),
+    ).toEqual({ "call-mcp": "completed", "call-exec": "failed", "call-read": "completed" });
+    // The turn summary counts the loopback exec as a command and has no unknown outcome.
+    const summary = summarizeAgentActivity(activity);
+    expect(summary.counts).toMatchObject({ commands: 1, reads: 1, other: 1 });
+    expect(summary.outcomes).toMatchObject({ failed: 1, unknown: 0 });
+  });
 });

@@ -656,7 +656,7 @@ describe("cli session history", () => {
       expectFields(messages[0], { role: "user", content: "current recovered ask" });
       expectFields(messages[1], { role: "user", content: "summary" });
       expectFields(messages[2], {
-        content: [{ type: "tool_result", tool_use_id: "tool-1", content: "done" }],
+        content: [{ type: "tool_result", tool_use_id: "tool-1", content: "done", is_error: false }],
       });
       expectFields(messages[3], { role: "assistant", content: "response" });
       expectFields(messages[4], { role: "user", content: syntheticPrompt });
