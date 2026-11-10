@@ -379,14 +379,20 @@ export function projectChatTranscript(
       personActivity: props.personActivity,
       avatarPlacement,
       contextWindow: threadContextWindow,
+      rewindFiles:
+        rewindEntryId && props.onRewindMessage && props.onPreviewRewindFiles
+          ? () => props.onPreviewRewindFiles!(rewindEntryId)
+          : undefined,
       onRewind:
         rewindEntryId && props.onRewindMessage
-          ? () => {
-              void Promise.resolve(props.onRewindMessage?.(rewindEntryId)).then((rewound) => {
-                if (rewound) {
-                  props.onFocusComposer?.();
-                }
-              });
+          ? (choice) => {
+              void Promise.resolve(props.onRewindMessage?.(rewindEntryId, choice)).then(
+                (rewound) => {
+                  if (rewound) {
+                    props.onFocusComposer?.();
+                  }
+                },
+              );
             }
           : undefined,
       rewindDisabled: Boolean(props.runActive || props.runWorking),

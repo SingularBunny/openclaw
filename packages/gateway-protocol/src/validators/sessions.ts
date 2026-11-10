@@ -43,6 +43,10 @@ export const validateSessionCatalogShareRoute = createProtocolValidator(
   S.SessionCatalogShareRouteSchema,
   Checks.isSessionCatalogShareRoute,
 );
+export const validateSessionsRewindFilesParams = createProtocolValidator(
+  S.SessionsRewindFilesParamsSchema,
+  Checks.isSessionsRewindFilesParams,
+);
 export const validateSessionsCatalogListParams = createProtocolValidator(
   S.SessionsCatalogListParamsSchema,
   Checks.isSessionsCatalogListParams,

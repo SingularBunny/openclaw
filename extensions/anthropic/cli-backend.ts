@@ -17,6 +17,7 @@ import {
   parseClaudeCliJsonlEvent,
   parseClaudeCliJsonlLifecycleEvent,
 } from "./cli-output.js";
+import { CLAUDE_CLI_FILE_CHECKPOINTING_ENV } from "./cli-rewind-files.js";
 import {
   appendClaudeCliChromeArgs,
   appendClaudeCliPromptSuggestionArgs,
@@ -318,6 +319,9 @@ export function buildAnthropicCliBackend(
                     : "false",
               }
             : {}),
+          // Fork (F52): print mode keeps file checkpoints only with this flag (the Agent SDK's
+          // `enableFileCheckpointing` sets it), so rewind can restore files Claude edited.
+          ...(isolatedCompletion ? {} : CLAUDE_CLI_FILE_CHECKPOINTING_ENV),
           ...resolveClaudeCliAutoCompactEnv(context.contextTokenBudget),
           ...(context.contextWindow === "200k" ? { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" } : {}),
           ...resolveClaudeCliThinkingEnv(context.thinkingLevel, context.modelId),
