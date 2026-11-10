@@ -5,6 +5,7 @@ import type {
   CliBackendLiveSessionCapability,
   CliBackendLiveSessionCloseReason,
   CliBackendLiveSessionHandle,
+  CliBackendRewindFilesResult,
 } from "../../plugins/cli-backend.types.js";
 import { CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE } from "../failover/error.js";
 import { runCliCleanup } from "./cleanup.js";
@@ -109,6 +110,36 @@ export async function stopCliLiveSessionTask(
     }
   }
   return false;
+}
+
+/**
+ * Fork (F52): asks the idle live CLI process of a conversation to restore (or, with
+ * `dryRun`, list) files changed since one of its native user messages. Resolves undefined
+ * when no idle live process of that conversation can take the request.
+ */
+export async function rewindCliLiveSessionFiles(
+  conversation: { backendId: string; agentId?: string; sessionKeys: readonly string[] },
+  userMessageId: string,
+  options: { dryRun: boolean },
+): Promise<CliBackendRewindFilesResult | undefined> {
+  for (const [key, record] of liveSessions) {
+    const { agentId, sessionKey } = record.conversation;
+    if (
+      !key.startsWith(`${conversation.backendId}:`) ||
+      !sessionKey ||
+      !conversation.sessionKeys.includes(sessionKey) ||
+      (conversation.agentId && agentId && conversation.agentId !== agentId) ||
+      !record.handle.rewindFiles ||
+      !record.handle.isIdle()
+    ) {
+      continue;
+    }
+    const result = await record.handle.rewindFiles(userMessageId, options);
+    if (result) {
+      return result;
+    }
+  }
+  return undefined;
 }
 
 export async function closeCliLiveSession(

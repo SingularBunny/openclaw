@@ -50,6 +50,7 @@ import {
 import type { ChatProviderReviewOwner } from "./chat-provider-review-controller.tsx";
 import { createChatQuestionActions } from "./chat-question-actions.ts";
 import { dismissRealtimeTalkError } from "./chat-realtime.ts";
+import { previewChatRewindFiles } from "./chat-rewind-files.ts";
 import { activeChatRunStartupStatus } from "./chat-run-startup.ts";
 import { chatSendPendingReason } from "./chat-send-support.ts";
 import { readChatModelCatalogState, refreshChatCommands } from "./chat-state-refresh.ts";
@@ -227,7 +228,7 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       sessionParticipationBlocked,
       onDenied: (reason) => this.publishHeaderError(reason),
       onAbort: () => void state.handleAbortChat({ preserveDraft: true }),
-      onRewind: (entryId) => this.rewindToMessage(entryId),
+      onRewind: (entryId, choice) => this.rewindToMessage(entryId, choice),
       onFork: (entryId) => this.forkFromMessage(entryId),
     });
     const setReply = (target: ChatProps["replyTarget"]) => {
@@ -654,6 +655,11 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       onSetReply: sessionDisabledBanner ? undefined : setReply,
       replyMessageAccess: catalogKey || selectedSessionArchived ? undefined : replyMessageAccess,
       onRewindMessage: selectedSessionArchived ? undefined : sessionActionCallbacks.onRewindMessage,
+      // Fork (F52): Claude's file restore in the rewind confirmation.
+      onPreviewRewindFiles:
+        isGatewayMethodAdvertised(gatewaySnapshot, "sessions.rewind.files") === true
+          ? (entryId) => previewChatRewindFiles(state, entryId)
+          : undefined,
       agentsList: state.agentsList,
       currentAgentId,
       loadFullAssistantMessage: createSidebarFullMessageLoader(state, this.context.gateway),

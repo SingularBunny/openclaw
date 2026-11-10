@@ -28,6 +28,7 @@ import type { PresentationValue } from "../../../lib/presentation.ts";
 import { listen } from "../../../lib/reactive/listener.ts";
 // Pane-local search, context menus, selection actions, and presentation resets.
 import type { TurnRecapWatch } from "../chat-progress.ts";
+import type { ChatRewindChoice, ChatRewindFilesPreview } from "../chat-rewind-files.ts";
 import type { SubagentRoster } from "../chat-spawned-subagent.ts";
 import { resetChatThreadState } from "../chat-thread.ts";
 import type { ChatTranscriptMetadata } from "../chat-transcript-metadata.ts";
@@ -187,7 +188,9 @@ export type ChatThreadProps = Omit<
     onTranscriptAnnouncementRef?: (element: HTMLElement) => void | (() => void);
     onSetReply?: (target: MessageReplyTarget) => void;
     replyMessageAccess?: ReplyMessageAccess;
-    onRewindMessage?: (entryId: string) => Promise<boolean> | boolean;
+    onRewindMessage?: (entryId: string, choice?: ChatRewindChoice) => Promise<boolean> | boolean;
+    /** Fork (F52): which files a rewind before the message would restore. */
+    onPreviewRewindFiles?: (entryId: string) => Promise<ChatRewindFilesPreview | null>;
     onForkMessage?: (entryId: string) => Promise<void> | void;
     onFocusComposer?: () => void;
     commentAttachments?: readonly ChatAttachment[];
@@ -207,6 +210,7 @@ type TranscriptInteractionProps = Pick<
   | "runWorking"
   | "onSetReply"
   | "onRewindMessage"
+  | "onPreviewRewindFiles"
   | "onForkMessage"
   | "onFocusComposer"
   | "onAddToChat"
@@ -572,14 +576,18 @@ export function handleTranscriptContextMenu(
       className: "chat-confirm-wrap chat-rewind-wrap",
       onClick: (rewindEvent) => {
         // SAFETY: Menu actions bind directly to their native button.
-        openChatRewindConfirmation(rewindEvent.currentTarget as HTMLButtonElement, () => {
-          removeReplyContextMenu();
-          void Promise.resolve(props.onRewindMessage?.(entryId)).then((rewound) => {
-            if (rewound) {
-              props.onFocusComposer?.();
-            }
-          });
-        });
+        openChatRewindConfirmation(
+          rewindEvent.currentTarget as HTMLButtonElement,
+          (choice) => {
+            removeReplyContextMenu();
+            void Promise.resolve(props.onRewindMessage?.(entryId, choice)).then((rewound) => {
+              if (rewound) {
+                props.onFocusComposer?.();
+              }
+            });
+          },
+          props.onPreviewRewindFiles ? () => props.onPreviewRewindFiles!(entryId) : undefined,
+        );
       },
     });
   }

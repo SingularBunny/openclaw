@@ -208,7 +208,7 @@ it("records the native resume point beside the CLI assistant reply", async () =>
   } as unknown as Parameters<typeof resolveCliTranscriptResumePoint>[0]["context"];
   const resumePoint = resolveCliTranscriptResumePoint({
     context,
-    output: { resumeCheckpointId: "native-assistant-uuid" },
+    output: { resumeCheckpointId: "native-assistant-uuid", inputMessageId: "native-user-uuid" },
     cliSessionId: "native-session",
     bindingKept: true,
   });
@@ -216,6 +216,8 @@ it("records the native resume point beside the CLI assistant reply", async () =>
     provider: "claude-cli",
     sessionId: "native-session",
     checkpointId: "native-assistant-uuid",
+    // Fork (F52): Claude's file checkpoint key for this turn.
+    inputMessageId: "native-user-uuid",
     // Same digest the settled binding produces, so later cuts can match it.
     compat: hashCliSessionResumeCompat({
       authProfileId: "anthropic:work",
