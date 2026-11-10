@@ -235,6 +235,7 @@ export function createPageState(
     chatReasoning: null,
     chatRunStatus: null,
     compactionStatus: null,
+    cliBackgroundTasks: null,
     fallbackStatus: null,
     observerDigest: null,
     knownAgentRunIds: new Set(),

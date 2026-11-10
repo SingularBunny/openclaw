@@ -7,6 +7,7 @@ import type { SessionOperationEvent } from "../../../../packages/gateway-protoco
 import { formatUiError, formatUiExternalText } from "../../lib/format-error.ts";
 import { uiSessionEventMatches } from "../../lib/sessions/session-key.ts";
 import { reconcileChatRunStartup } from "./chat-run-startup.ts";
+import { applyCliBackgroundTasksEvent } from "./cli-background-tasks.ts";
 import type {
   AgentEventPayload,
   CompactionStatus,
@@ -361,6 +362,12 @@ export function handleStreamStatus(host: ToolStreamHost, payload: AgentEventPayl
   }
   if (payload.stream === "compaction") {
     handleCompactionEvent(host, payload);
+    return true;
+  }
+  if (payload.stream === "background_tasks") {
+    if (acceptsToolStreamSession(host, payload)) {
+      applyCliBackgroundTasksEvent(host, payload);
+    }
     return true;
   }
   if (payload.stream === "lifecycle") {

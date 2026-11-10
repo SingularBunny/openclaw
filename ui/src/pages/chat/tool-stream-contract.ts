@@ -13,6 +13,15 @@ import type { SessionCapability } from "../../lib/sessions/index.ts";
 import type { UiSessionDefaultsHost } from "../../lib/sessions/session-key.ts";
 import type { ChatRunStartupState } from "./chat-run-startup.ts";
 
+/** Fork (F33): Claude CLI background agents and tasks of the visible run. */
+export type CliBackgroundTasksStatus = {
+  runId: string;
+  count: number;
+  agents: number;
+  /** The answer is in; the run stays open only for this background work. */
+  waiting: boolean;
+};
+
 export type ChatReasoning = {
   runId: string;
   items: ChatReasoningItem[];
@@ -108,6 +117,7 @@ export type ToolStreamHost = {
   providerPolicyNotice?: ProviderPolicyNotice | null;
   compactionStatus?: CompactionStatus | null;
   compactionClearTimer?: number | null;
+  cliBackgroundTasks?: CliBackgroundTasksStatus | null;
   fallbackStatus?: FallbackStatus | null;
   fallbackClearTimer?: number | null;
   toolStreamSyncTimer: number | null;
@@ -128,4 +138,5 @@ export type ToolStreamState = Pick<
   | "activityEventSeqById"
   | "knownAgentRunIds"
   | "waitingApprovalStatuses"
+  | "cliBackgroundTasks"
 > & { toolStreamSyncTimer?: number | null };

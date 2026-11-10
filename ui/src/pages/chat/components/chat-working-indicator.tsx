@@ -30,6 +30,8 @@ type ChatWorkingIndicatorOptions = {
   waitingSubagents?: ChatSubagentWait;
   sessionLinks?: HandoffSessionLinks;
   runningSubagents?: number;
+  /** Fork (F33): Claude CLI background agents/tasks, e.g. "2 background agents running". */
+  backgroundTasksLabel?: string;
   onOpenSubagents?: () => void;
   startupLabel?: string;
   retryAt?: number;
@@ -160,7 +162,14 @@ function WorkingStatus(props: WorkingProps & { branding: ThemeBranding }) {
               startMs={props.options.waitingSubagents?.startedAt ?? props.part.startedAt}
             />
           </Show>
-          <Show when={props.options.outputTokens == null && working() && !props.options.bubbleMode}>
+          <Show
+            when={
+              props.options.outputTokens == null &&
+              working() &&
+              !props.options.bubbleMode &&
+              !props.options.backgroundTasksLabel
+            }
+          >
             <openclaw-working-phrase
               aria-hidden="true"
               prop:startMs={props.part.startedAt}
@@ -183,6 +192,14 @@ function WorkingStatus(props: WorkingProps & { branding: ThemeBranding }) {
               </button>
             </Show>
           </Show>
+          <Show when={props.options.backgroundTasksLabel}>
+            {(label) => (
+              <>
+                <span aria-hidden="true">·</span>
+                <span class="chat-working-indicator__background-tasks">{label()}</span>
+              </>
+            )}
+          </Show>
         </span>
       </Show>
     </div>
@@ -194,7 +211,11 @@ export function ChatWorkingIndicator(props: WorkingProps) {
   const attention = () => props.options.waitingApproval || props.options.retryAt !== undefined;
   return (
     <Show
-      when={props.options.bubbleMode && !props.options.waitingSubagents?.sessions.length}
+      when={
+        props.options.bubbleMode &&
+        !props.options.waitingSubagents?.sessions.length &&
+        !props.options.backgroundTasksLabel
+      }
       fallback={<WorkingStatus {...props} branding={branding.read()} />}
     >
       <Show when={!props.options.bubbleActivityActive}>
