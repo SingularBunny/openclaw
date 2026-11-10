@@ -44,9 +44,30 @@ function progressReceiptSteps(value: unknown): ProgressCardStep[] {
   });
 }
 
+/** Fork (F45): Claude CLI `TodoWrite` `{ todos: [{ content, status }] }` as plan steps. */
+function todoWriteSteps(value: unknown): ProgressCardStep[] {
+  return progressReceiptSteps(
+    Array.isArray(value)
+      ? value.map((entry) => {
+          const todo = asNullableRecord(entry);
+          return { step: todo?.content, status: todo?.status };
+        })
+      : undefined,
+  );
+}
+
+/** Plan tools render as one receipt line; the plan itself lives in Task progress. */
+function isProgressReceiptTool(name: string): boolean {
+  const normalized = name.trim().toLowerCase();
+  return normalized === "progress_card" || normalized === "todowrite";
+}
+
 function progressReceiptLabel(card: ToolCard, outcome: ToolCardOutcome) {
   const args = asNullableRecord(card.args);
-  const steps = progressReceiptSteps(args?.plan);
+  const steps =
+    card.name.trim().toLowerCase() === "todowrite"
+      ? todoWriteSteps(args?.todos)
+      : progressReceiptSteps(args?.plan);
   const markdown = typeof args?.markdown === "string" ? args.markdown.trim() : "";
   const completed = steps.filter((step) => step.status === "completed").length;
   const current =
@@ -191,7 +212,7 @@ function ToolCardView(props: ToolCardProps) {
       when={permission()}
       fallback={
         <Show
-          when={card().name.trim().toLowerCase() === "progress_card" && !props.hasChildren}
+          when={isProgressReceiptTool(card().name) && !props.hasChildren}
           fallback={
             <div
               ref={(element) => (host = element)}

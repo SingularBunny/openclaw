@@ -95,13 +95,27 @@ export function createCliModelRequestWait(params: {
 
 export type CliModelRequestWait = ReturnType<typeof createCliModelRequestWait>;
 
+export type CliBackgroundTaskStatus = "running" | "completed" | "failed" | "stopped";
+
+export type CliBackgroundTask = {
+  taskId: string;
+  taskType: string;
+  description?: string;
+  /** Agent type of a `local_agent` task, e.g. "general-purpose". */
+  subagentType?: string;
+};
+
 export type CliBackgroundTasksSnapshot = {
   /** Live, non-ambient background tasks. */
   count: number;
   /** Of `count`, subagents (`local_agent`). */
   agents: number;
-  tasks: Array<{ taskId: string; taskType: string; description?: string }>;
+  tasks: CliBackgroundTask[];
 };
+
+function readTrimmed(value: unknown, max: number): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+}
 
 /** Reads a `system/background_tasks_changed` record; undefined for any other record. */
 export function readCliBackgroundTasksSnapshot(
@@ -119,14 +133,13 @@ export function readCliBackgroundTasksSnapshot(
     if (!isRecord(task) || task.ambient === true || typeof task.task_id !== "string") {
       continue;
     }
-    const description =
-      typeof task.description === "string" && task.description.trim()
-        ? task.description.trim().slice(0, 200)
-        : undefined;
+    const description = readTrimmed(task.description, 200);
+    const subagentType = readTrimmed(task.subagent_type, 80);
     tasks.push({
       taskId: task.task_id,
       taskType: typeof task.task_type === "string" ? task.task_type : "unknown",
       ...(description ? { description } : {}),
+      ...(subagentType ? { subagentType } : {}),
     });
   }
   return {
@@ -136,10 +149,26 @@ export function readCliBackgroundTasksSnapshot(
   };
 }
 
-export type CliBackgroundTasksState = CliBackgroundTasksSnapshot & {
+/** Fork (F47): one row of the background task list. */
+export type CliBackgroundTaskRow = CliBackgroundTask & {
+  status: CliBackgroundTaskStatus;
+  /** Host time the task was first seen. */
+  startedAt: number;
+  endedAt?: number;
+};
+
+export type CliBackgroundTasksState = Omit<CliBackgroundTasksSnapshot, "tasks"> & {
+  /** Running tasks first, then those that ended while others still run. */
+  tasks: CliBackgroundTaskRow[];
   /** The answer is in; the turn stays open only for this background work. */
   waiting: boolean;
 };
+
+const MAX_ENDED_TASK_ROWS = 20;
+
+function readEndStatus(value: unknown): CliBackgroundTaskStatus | undefined {
+  return value === "completed" || value === "failed" || value === "stopped" ? value : undefined;
+}
 
 /**
  * Observes each structured CLI record for silent native waits: the pending model request
@@ -148,27 +177,86 @@ export type CliBackgroundTasksState = CliBackgroundTasksSnapshot & {
 export function createCliNativeWaitObserver(
   env: Readonly<Record<string, string | undefined>> | undefined,
   onBackgroundTasksChange?: (state: CliBackgroundTasksState) => void,
+  now: () => number = Date.now,
 ) {
   const modelRequestWait = createCliModelRequestWait({ env });
   let snapshot: CliBackgroundTasksSnapshot | undefined;
   let waiting = false;
+  const startedAt = new Map<string, number>();
+  const endStatus = new Map<string, CliBackgroundTaskStatus>();
+  let ended: CliBackgroundTaskRow[] = [];
+  const firstSeen = (taskId: string) => {
+    let at = startedAt.get(taskId);
+    if (at === undefined) {
+      at = now();
+      startedAt.set(taskId, at);
+    }
+    return at;
+  };
   const report = () => {
     if (!snapshot) {
       return;
     }
+    const running = snapshot.tasks.map((task): CliBackgroundTaskRow => ({
+      ...task,
+      status: "running",
+      startedAt: firstSeen(task.taskId),
+    }));
     try {
-      onBackgroundTasksChange?.({ ...snapshot, waiting });
+      onBackgroundTasksChange?.({
+        ...snapshot,
+        tasks: snapshot.count > 0 ? [...running, ...ended] : [],
+        waiting,
+      });
     } catch {
       // Presentation only; it must not end the turn.
     }
+  };
+  const recordEnded = (previous: CliBackgroundTasksSnapshot | undefined) => {
+    const live = new Set(snapshot?.tasks.map((task) => task.taskId));
+    const endedAt = now();
+    for (const task of previous?.tasks ?? []) {
+      if (live.has(task.taskId)) {
+        continue;
+      }
+      ended.unshift({
+        ...task,
+        status: endStatus.get(task.taskId) ?? "completed",
+        startedAt: firstSeen(task.taskId),
+        endedAt,
+      });
+      startedAt.delete(task.taskId);
+      endStatus.delete(task.taskId);
+    }
+    ended = ended.slice(0, MAX_ENDED_TASK_ROWS);
   };
   return {
     modelRequestGraceMs: modelRequestWait.graceMs,
     observe(record: Record<string, unknown>) {
       modelRequestWait.observe(record);
+      if (record.type === "system" && typeof record.task_id === "string") {
+        if (record.subtype === "task_started") {
+          firstSeen(record.task_id);
+        } else if (record.subtype === "task_notification") {
+          const status = readEndStatus(record.status);
+          const row = ended.find((task) => task.taskId === record.task_id);
+          if (status && row) {
+            // A late notification corrects a row that already left the live set.
+            row.status = status;
+            report();
+          } else if (status) {
+            endStatus.set(record.task_id, status);
+          }
+        }
+      }
       const next = readCliBackgroundTasksSnapshot(record);
       if (next && (next.count > 0 || (snapshot?.count ?? 0) > 0)) {
+        const previous = snapshot;
         snapshot = next;
+        recordEnded(previous);
+        if (next.count === 0) {
+          ended = [];
+        }
         // Once the set drains, the CLI answers the notifications: no longer a wait.
         waiting &&= next.count > 0;
         report();
@@ -188,6 +276,7 @@ export function createCliNativeWaitObserver(
     finish() {
       if ((snapshot?.count ?? 0) > 0) {
         snapshot = { count: 0, agents: 0, tasks: [] };
+        ended = [];
         waiting = false;
         report();
       }
