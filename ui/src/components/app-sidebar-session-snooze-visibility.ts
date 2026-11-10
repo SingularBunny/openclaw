@@ -1,3 +1,4 @@
+import { isCronSessionDisplayKey } from "../../../src/shared/session-list-visibility.ts";
 import type { SessionsListResult } from "../api/types.ts";
 import type { ApplicationContext } from "../app/context.ts";
 import { projectSidebarArchiveVisibility } from "./app-sidebar-session-archive-visibility.ts";
@@ -12,7 +13,9 @@ type SidebarSnoozeVisibilityHost = {
   readonly sessionDataContext: Pick<ApplicationContext, "sessions"> | undefined;
   readonly sessionsStatusFilter: SidebarSessionStatusFilter;
   readonly hiddenSessionCatalogIds: ReadonlySet<string>;
+  readonly sessionsShowCron: boolean;
   expandedAgentId(): string;
+  getRouteSessionKey(): string;
 };
 
 // Shares root and adopted-catalog snooze visibility and deadline inputs with their existing owners.
@@ -46,11 +49,17 @@ export function projectSidebarSnoozeCatalogs(
     deletionState: (key, agentId) => host.sessionDataContext?.sessions.deletionState(key, agentId),
     archiveVisibility: (key) => host.sessionDataContext?.sessions.archiveVisibility(key),
   });
+  // An automation session a catalog files into a folder follows "Show automation sessions" as in
+  // the regular list, which also keeps the open session visible.
+  const routeSessionKey = host.sessionsShowCron ? "" : host.getRouteSessionKey();
+  const isSessionHidden = (row: Parameters<typeof visibility.isSessionHidden>[0]) =>
+    visibility.isSessionHidden(row) ||
+    (!host.sessionsShowCron && row.key !== routeSessionKey && isCronSessionDisplayKey(row.key));
   return projectSidebarSessionCatalogs(
     visibleSidebarSessionCatalogs(host),
     ownerId,
     sidebarCatalogLiveRows(host.sessionData),
-    visibility.isSessionHidden,
+    isSessionHidden,
     host.sessionInvolvingMeFilterActive
       ? new Set(host.sessionData.sessionsResult?.sessions.map((row) => row.key))
       : undefined,
