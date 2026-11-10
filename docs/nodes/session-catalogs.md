@@ -234,13 +234,22 @@ folders under the pointer, which made Chrome end the drag at once.
 
 A row whose `source` is `"openclaw"` and that carries a `sessionKey` is an
 ordinary Gateway session listed by the provider (not a native thread adopted into
-one). When it belongs to the open agent, the Control UI renders it as that
-session's row with the regular session menu (rename, archive with Undo, delete
+one). When the Control UI has the session's live row, it renders the catalog row as
+that session's row with the regular session menu (rename, archive with Undo, delete
 with confirmation; a main session stays protected). Otherwise its catalog menu
 offers **Delete session** when the row has `canArchive`; the provider's
 `archive` hook may then return `archive: { key, expectedSessionId? }`, and the
 Gateway archives that session with `sessions.patch` as the caller, because a
 plugin may patch only sessions it created. A failed archive fails the request.
+
+The open agent's session list supplies live rows for its own sessions. Rows of
+the other agents come from one extra `sessions.list` window over all agents
+(active sessions, sidebar row mode, up to 200 rows), which the Control UI opens
+only while a catalog shows rows with a `sessionKey`. The broad `sessions.changed`
+stream keeps that window current, with the same paced re-reads as the sidebar
+list, so every catalog row keeps its running, unread and active-run markers when
+another agent's chat opens. A session outside the window falls back to the
+catalog's own `status`.
 
 A catalog row whose `sessionKey` is an automation session (`agent:<id>:cron:<job>`)
 follows the sidebar's **Show automation sessions** filter, as in the regular list:
