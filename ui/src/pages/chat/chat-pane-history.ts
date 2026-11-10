@@ -32,11 +32,7 @@ import {
   replaceChatAttachmentsFromEditor,
 } from "./attachment-payload-store.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
-import {
-  readChatMessageCut,
-  rewindChatHistory,
-  switchChatHistoryBranch,
-} from "./chat-history-actions.ts";
+import { readChatMessageCut, switchChatHistoryBranch } from "./chat-history-actions.ts";
 import { hasVisibleOlderHistoryPage } from "./chat-history-page-visibility.ts";
 import {
   fetchStagedOlderHistoryPage,
@@ -72,6 +68,7 @@ import {
 } from "./chat-pane-shared.ts";
 import { ChatPaneSnapshotHydration } from "./chat-pane-snapshot-hydration.ts";
 import type { ChatRewindChoice } from "./chat-rewind-files.ts";
+import { rewindPaneChat } from "./chat-rewind-leftovers.ts";
 import { TranscriptHistoryInput } from "./chat-scroll-input.ts";
 import type { ChatState } from "./chat-state-contract.ts";
 import { refreshPageChat } from "./chat-state-refresh.ts";
@@ -691,12 +688,11 @@ export abstract class ChatPaneHistory extends ChatPaneSnapshotHydration {
   }
 
   protected async rewindToMessage(entryId: string, choice?: ChatRewindChoice): Promise<boolean> {
-    const state = this.state;
-    if (!state) {
-      return false;
-    }
-    const result = await rewindChatHistory(state, entryId, this.chatState.attachmentReads, choice);
-    return Boolean(result);
+    return rewindPaneChat(this.state, entryId, choice, {
+      attachmentReads: this.chatState.attachmentReads,
+      questionState: this.questionPromptState,
+      presentationId: this.presentationId,
+    });
   }
 
   protected async forkFromMessage(entryId: string): Promise<void> {
