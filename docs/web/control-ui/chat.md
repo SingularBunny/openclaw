@@ -305,6 +305,13 @@ thread counts: todo lists of its subagents do not change the card. `TodoWrite` c
 transcript as the same one-line receipt as progress-card updates, for example
 **Progress updated — 2/5 · Run tests**.
 
+Claude Code turns these tools on by itself only for older models (Claude 4.x and earlier), so
+OpenClaw enables them for every agent turn that has native tools: it sets
+`CLAUDE_CODE_ENABLE_TODO_TOOLS` and, when the run limits Claude's tools with `--tools`, adds
+`TodoWrite`, `TaskCreate`, `TaskUpdate`, `TaskList` and `TaskGet` to that list. They only keep
+Claude's own list and grant no OpenClaw capability. Side questions and runs with tools disabled
+do not get them.
+
 While Claude CLI background agents or tasks run, the working indicator shows their count
 (**2 background agents running**, then **Waiting for 2 background agents to finish** once the
 answer is in). Select the count to list them, one row each: the description Claude gave the

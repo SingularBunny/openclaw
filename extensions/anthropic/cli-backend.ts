@@ -22,6 +22,7 @@ import {
   resolveClaudeCliExecutionArgs,
   resolveClaudeCliThinkingEnv,
 } from "./cli-shared.js";
+import { CLAUDE_CLI_TODO_TOOLS_ENV } from "./cli-todo-tools.js";
 import { appendClaudeCliToolNamingGuidance } from "./cli-tool-naming.js";
 
 type ClaudeCliAuthCredential =
@@ -307,6 +308,11 @@ export function buildAnthropicCliBackend(
           // Fork (F52): print mode keeps file checkpoints only with this flag (the Agent SDK's
           // `enableFileCheckpointing` sets it), so rewind can restore files Claude edited.
           ...(isolatedCompletion ? {} : CLAUDE_CLI_FILE_CHECKPOINTING_ENV),
+          // Fork (F60): Claude Code enables its todo tools only for older models unless
+          // this is set; `--tools` still decides whether a run has native tools at all.
+          ...(isolatedCompletion || context.executionMode === "side-question"
+            ? {}
+            : CLAUDE_CLI_TODO_TOOLS_ENV),
           ...resolveClaudeCliAutoCompactEnv(context.contextTokenBudget),
           ...(context.contextWindow === "200k" ? { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" } : {}),
           ...resolveClaudeCliThinkingEnv(context.thinkingLevel, context.modelId),

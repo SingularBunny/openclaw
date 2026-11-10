@@ -13,6 +13,7 @@ import {
   normalizeSortedUniqueTrimmedStringList,
 } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { CLAUDE_CLI_BACKEND_ID, OPENCLAW_MCP_TOOL_PREFIX } from "./cli-constants.js";
+import { withClaudeCliTodoTools } from "./cli-todo-tools.js";
 
 const CLAUDE_LEGACY_SKIP_PERMISSIONS_ARG = "--dangerously-skip-permissions";
 const CLAUDE_PERMISSION_MODE_ARG = "--permission-mode";
@@ -400,6 +401,7 @@ function readClaudeToolDenials(args: readonly string[]): string[] {
 function resolveClaudeCliRestrictedExecutionArgs(
   baseArgs: readonly string[],
   availability: NonNullable<CliBackendResolveExecutionArgsContext["toolAvailability"]>,
+  sideQuestion: boolean,
 ): string[] {
   const preservedDenials = readClaudeToolDenials(baseArgs);
   const normalized = stripClaudeArgs(baseArgs, {
@@ -419,7 +421,8 @@ function resolveClaudeCliRestrictedExecutionArgs(
     CLAUDE_NO_CHROME_ARG,
     CLAUDE_STRICT_MCP_CONFIG_ARG,
     CLAUDE_TOOLS_ARG,
-    availability.native.join(","),
+    // Fork (F60): Claude's local todo list stays available whenever native tools are.
+    (sideQuestion ? availability.native : withClaudeCliTodoTools(availability.native)).join(","),
   );
   if (availability.openClaw.length > 0) {
     normalized.push(
@@ -456,7 +459,11 @@ export function resolveClaudeCliExecutionArgs(
       ? resolveClaudeCliSideQuestionExecutionArgs(baseArgs)
       : applyClaudeCliEffortArgs(baseArgs, context.thinkingLevel, context.modelId);
   const resolvedArgs = context.toolAvailability
-    ? resolveClaudeCliRestrictedExecutionArgs(executionArgs, context.toolAvailability)
+    ? resolveClaudeCliRestrictedExecutionArgs(
+        executionArgs,
+        context.toolAvailability,
+        context.executionMode === "side-question",
+      )
     : executionArgs;
   return options.excludeDynamicSystemPromptSections && context.executionMode !== "side-question"
     ? [...resolvedArgs, CLAUDE_EXCLUDE_DYNAMIC_SYSTEM_PROMPT_SECTIONS_ARG]
