@@ -12,6 +12,13 @@ import { toErrorObject } from "openclaw/plugin-sdk/error-runtime";
 import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { isRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { hasClaudeRawToolInvocation } from "./cli-output.js";
+import {
+  createClaudeCliPlanApprover,
+  createSetPermissionModeRequest,
+  readClaudeCliPermissionMode,
+  resolveClaudeCliModeGate,
+  type ClaudeCliPermissionMode,
+} from "./cli-permission-mode.js";
 import type { ClaudeCliSecretInput } from "./cli-process.js";
 import { CLAUDE_CLI_INPUT_UUID_FIELD, requestClaudeCliRewindFiles } from "./cli-rewind-files.js";
 import { prepareClaudeCliTransportArgs } from "./cli-runtime-args.js";
@@ -57,6 +64,9 @@ type ClaudeCliTurn = {
   context: CliBackendExecuteContext;
   controller: AbortController;
   userInput: ReturnType<typeof createClaudeCliUserInputAuthorizer>;
+  /** Fork (F49): explicit session mode, updated when the operator approves a plan. */
+  permissionMode?: ClaudeCliPermissionMode;
+  planApprover: ReturnType<typeof createClaudeCliPlanApprover>;
   events: PassThrough;
   inputUuid: string;
   /** Replayed user text is never a task receipt, even after its input lifecycle ends. */
@@ -99,6 +109,10 @@ type ClaudeCliSession = {
   hasInputLifecycle: boolean;
   /** The latest turn's prediction sink; native sends the prediction after that turn's result. */
   reportPromptSuggestion?: (text: string) => void;
+  /** Fork (F49): the mode the native process was launched with or last switched to. */
+  permissionMode: ClaudeCliPermissionMode;
+  /** Re-sent after the approved ExitPlanMode result: the tool itself leaves plan mode. */
+  pendingPermissionMode?: ClaudeCliPermissionMode;
   closed: boolean;
 };
 const sessions = new WeakMap<CliBackendLiveSessionHandle, ClaudeCliSession>();
@@ -136,6 +150,24 @@ async function authorizeTool(
   const toolUseId = typeof request.tool_use_id === "string" ? request.tool_use_id : undefined;
   const abortSignal = AbortSignal.any([signal, turn.controller.signal]);
   try {
+    // Fork (F49): plan approval card and the session mode's prompts on top of host policy.
+    if (
+      toolName === "ExitPlanMode" &&
+      (turn.permissionMode === "plan" || turn.planApprover.has(toolUseId))
+    ) {
+      const planned = await turn.planApprover.approve({ input, signal: abortSignal, toolUseId });
+      if (activeTurn(session) !== turn || abortSignal.aborted) {
+        return { behavior: "deny", message: "The OpenClaw run is no longer active." };
+      }
+      if (planned.mode) {
+        await switchPermissionMode(session, turn, planned.mode);
+      }
+      return planned.result;
+    }
+    const gate = resolveClaudeCliModeGate(turn.permissionMode, toolName);
+    if (gate.kind === "deny") {
+      return { behavior: "deny", message: gate.message };
+    }
     const decision =
       toolName === "AskUserQuestion"
         ? await turn.userInput.authorize({ input, signal: abortSignal, toolUseId })
@@ -145,6 +177,7 @@ async function authorizeTool(
             cwd: typeof request.cwd === "string" ? request.cwd : undefined,
             toolCallId: toolUseId,
             abortSignal,
+            ...(gate.kind === "ask" ? { requireApproval: true } : {}),
           });
     // An operator decision can outlive its turn. Revalidate immediately before granting it.
     if (activeTurn(session) !== turn || abortSignal.aborted) {
@@ -160,10 +193,48 @@ async function authorizeTool(
       // The authorized input distinguishes it from explicit run_in_background work.
       turn.foregroundBashToolUseIds.add(toolUseId);
     }
+    if (
+      decision.behavior === "allow" &&
+      toolName === "EnterPlanMode" &&
+      turn.permissionMode &&
+      turn.permissionMode !== "plan"
+    ) {
+      // The native tool enters plan mode itself; keep the host gate and the session in step.
+      session.permissionMode = "plan";
+      await switchPermissionMode(session, turn, "plan");
+    }
     return decision;
   } catch {
     return { behavior: "deny", message: "OpenClaw could not authorize this tool call." };
   }
+}
+
+/** Fork (F49): applies a mode to the rest of the turn, the native process, and the session. */
+async function switchPermissionMode(
+  session: ClaudeCliSession,
+  turn: ClaudeCliTurn,
+  mode: ClaudeCliPermissionMode,
+): Promise<void> {
+  // The hook and can_use_tool can both carry one ExitPlanMode decision.
+  if (turn.permissionMode === mode) {
+    return;
+  }
+  turn.permissionMode = mode;
+  if (session.permissionMode !== mode) {
+    session.pendingPermissionMode = mode;
+    syncPermissionMode(session, mode);
+  }
+  await turn.context.onPermissionModeChange?.(mode);
+}
+
+function syncPermissionMode(session: ClaudeCliSession, mode: ClaudeCliPermissionMode): void {
+  const transport = session.transport;
+  if (session.closed || !transport) {
+    return;
+  }
+  session.permissionMode = mode;
+  // Like stop_task, the control response carries nothing the turn waits for.
+  void transport.send(createSetPermissionModeRequest(mode, randomUUID())).catch(() => {});
 }
 
 function isInjectedPrompt(turn: ClaudeCliTurn, prompt: unknown): boolean {
@@ -353,6 +424,12 @@ async function acceptMessage(session: ClaudeCliSession, received: Record<string,
     received.type === "result" && session.currentTurn
       ? { ...received, [CLAUDE_CLI_INPUT_UUID_FIELD]: session.currentTurn.inputUuid }
       : received;
+  if (session.pendingPermissionMode && message.type === "user") {
+    // The approved ExitPlanMode has run (its result is this user record); restate the choice.
+    const mode = session.pendingPermissionMode;
+    session.pendingPermissionMode = undefined;
+    syncPermissionMode(session, mode);
+  }
   if (message.type === "prompt_suggestion") {
     // A forked side request predicts the next prompt after the result. It is never turn
     // output, and once another turn has started the prediction is stale.
@@ -617,6 +694,7 @@ function createSession(capability?: CliBackendLiveSessionCapability): ClaudeCliS
     runningDescendants: new Map(),
     notifiedTasks: new Set(),
     hasInputLifecycle: false,
+    permissionMode: "default",
     closed: false,
     handle: {
       generation: randomUUID(),
@@ -682,6 +760,8 @@ export async function* executeClaudeCli(
     context,
     controller: new AbortController(),
     userInput: createClaudeCliUserInputAuthorizer(context),
+    permissionMode: readClaudeCliPermissionMode(context.permissionMode),
+    planApprover: createClaudeCliPlanApprover(context),
     events: new PassThrough({ objectMode: true }),
     inputUuid,
     submittedInputUuids: new Set([inputUuid]),
@@ -704,7 +784,13 @@ export async function* executeClaudeCli(
     // Adopt the process's exact MCP capture before prompt dispatch or native tool callbacks.
     capability?.activate(session.handle);
     let transport = session.transport;
-    if (!transport) {
+    if (transport) {
+      // Fork (F49): a warm process follows the session's mode chosen since its last turn.
+      if (session.permissionMode !== (turn.permissionMode ?? "default")) {
+        syncPermissionMode(session, turn.permissionMode ?? "default");
+      }
+    } else {
+      session.permissionMode = turn.permissionMode ?? "default";
       const { args, excludeDynamicSections } = prepareClaudeCliTransportArgs(context);
       session.transportStartup = createClaudeCliTransport({
         context,

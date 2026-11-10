@@ -35,6 +35,7 @@ import type { RealtimeTalkStatus } from "../talk/session.ts";
 import type { FallbackStatus } from "../tool-stream-contract.ts";
 import type { AsyncQuestionPresentation } from "./chat-async-question.types.ts";
 import type { ChatAttachmentControlsProps } from "./chat-attachment-controls.types.ts";
+import type { ChatClaudeModePickerProps } from "./chat-claude-mode.ts";
 import type { ComposerEmojiMenu } from "./chat-composer-emoji.tsx";
 import type { HumanMentionDirectory, HumanMentionMenu } from "./chat-composer-mention-menu.tsx";
 import type {
@@ -157,6 +158,8 @@ export type ChatComposerProps = ChatAttachmentControlsProps & {
   composerRecovery?: TemplateResult | typeof nothing;
   notices?: JSX.Element;
   permissionPicker?: ChatPermissionPickerProps;
+  /** Fork (F49): Claude Code permission mode picker, present for claude-cli sessions. */
+  claudeModePicker?: ChatClaudeModePickerProps;
   onDraftChange: (next: string, mentions?: readonly HumanMention[]) => void;
   onHistoryKeydown?: (input: ChatInputHistoryKeyInput) => ChatInputHistoryKeyResult;
   onSlashIntent?: () => void | Promise<void>;

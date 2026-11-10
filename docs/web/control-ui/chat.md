@@ -344,6 +344,33 @@ already uses (such as `/compact` or `/model`) stay OpenClaw's commands and are n
 Claude commands work only at the start of a message, not inline. The Gateway reads the list with
 [`commands.claude`](/gateway/protocol/operator-methods#operator-helper-methods).
 
+## Claude Code permission modes
+
+In `claude-cli` sessions the composer has a **Claude Code mode** picker next to the execution
+permissions. It sets the session's `claudePermissionMode`, which OpenClaw passes to Claude CLI as
+`--permission-mode` and applies on top of the execution permissions (an OpenClaw denial always
+wins):
+
+- **Not set** keeps the established behavior: OpenClaw's execution policy decides every native
+  tool call, and Claude runs in its `default` mode.
+- **Ask before edits** (`default`) asks for approval before each file edit (`Edit`, `Write`,
+  `MultiEdit`, `NotebookEdit`) and shell command (`Bash`), even when the execution policy would
+  allow it. **Allow always** in that card covers the tool for the rest of the Claude process.
+- **Accept edits** (`acceptEdits`) applies file edits without asking; shell commands still ask.
+- **Plan mode** (`plan`) refuses file edits and asks before shell commands. When Claude calls
+  `ExitPlanMode`, the chat shows the plan as a Markdown card and a question with three choices:
+  **Yes, and auto-accept edits** (the session continues in Accept edits), **Yes, and manually
+  approve edits** (Ask before edits), and **No, keep planning**. Typing an answer instead keeps
+  planning and sends the text to Claude as feedback. An approved choice applies to the rest of the
+  turn and is stored as the session's mode.
+- **Bypass permissions**, **Don't ask**, and **Auto** are passed to Claude CLI unchanged and add
+  no OpenClaw prompts. Bypass permissions needs `operator.admin`; the other modes need
+  `operator.write`, like other session settings.
+
+A mode changed while Claude is idle reaches a running Claude process with the stream-json
+`set_permission_mode` control request before the next turn. The status line under the composer
+shows non-default modes, for example `plan mode on`.
+
 ## Composer capability menu
 
 Select **+** beside the chat composer to open attachments and session capabilities in one menu:

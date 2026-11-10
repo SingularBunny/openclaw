@@ -16,6 +16,7 @@ import {
   renderAttachmentPreview,
   renderAttachmentReadStatus,
 } from "./chat-attachments.ts";
+import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ContextNotice } from "./chat-composer-context.tsx";
 import { hasComposerContent } from "./chat-composer-controls.ts";
 import {
@@ -65,7 +66,14 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
     return renderAttachmentPreview(props);
   });
   const composerLeadControl = (
-    <Show when={props.permissionPicker}>{(picker) => <ChatPermissionPicker {...picker()} />}</Show>
+    <>
+      <Show when={props.permissionPicker}>
+        {(picker) => <ChatPermissionPicker {...picker()} />}
+      </Show>
+      <Show when={props.claudeModePicker}>
+        {(picker) => <ChatClaudeModePicker {...picker()} />}
+      </Show>
+    </>
   );
   // A predicted next prompt replaces the placeholder as grey ghost text (Tab accepts it).
   const placeholder = createMemo(() =>
@@ -512,6 +520,7 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
               props.permissionPicker?.defaultMode ??
               activeSession()?.permissionMode
             }
+            claudeMode={props.claudeModePicker?.mode}
           />
         ) : undefined}
       </div>

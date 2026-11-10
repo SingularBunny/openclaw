@@ -143,6 +143,7 @@ export function buildGatewaySessionSnapshot(params: {
     effectiveFastModeSource: sessionRow.effectiveFastModeSource,
     fastAutoOnSeconds: sessionRow.fastAutoOnSeconds,
     toolOverrides: sessionRow.toolOverrides ?? null,
+    claudePermissionMode: sessionRow.claudePermissionMode ?? null,
     verboseLevel: sessionRow.verboseLevel,
     traceLevel: sessionRow.traceLevel,
     reasoningLevel: sessionRow.reasoningLevel,

@@ -148,6 +148,11 @@ export type CliBackendToolPermissionRequest = {
   toolInput: Record<string, unknown>;
   toolCallId?: string;
   abortSignal?: AbortSignal;
+  /**
+   * Fork (F49): the session's native permission mode asks the operator for this action even
+   * when host policy would allow it silently. Host denials and standing grants still apply.
+   */
+  requireApproval?: boolean;
 };
 
 /** Host-owned native action decision; plugins never acquire approval authority. */
@@ -280,6 +285,13 @@ export type CliBackendExecuteContext = {
    * runtimes emit it after the turn's result, so it stays callable after the run closes.
    */
   onPromptSuggestion?: (text: string) => void;
+  /**
+   * Fork (F49): the session's explicit native permission mode (Claude CLI `--permission-mode`).
+   * Absent keeps the backend's established behavior.
+   */
+  permissionMode?: string;
+  /** Fork (F49): records a mode the operator chose during the run (plan approval) on the session. */
+  onPermissionModeChange?: (mode: string) => Promise<void>;
   /** Closure-bound approval capability; retained copies fail after the run closes. */
   requestToolPermission: (
     request: CliBackendToolPermissionRequest,

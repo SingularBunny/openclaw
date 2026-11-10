@@ -77,6 +77,10 @@ import {
   sessionAgentStatusExpiresAt,
   SESSION_AGENT_STATUS_MAX_TTL_MINUTES,
 } from "../sessions/session-agent-status.js";
+import {
+  CLAUDE_PERMISSION_MODES,
+  normalizeClaudePermissionMode,
+} from "../shared/claude-permission-mode.js";
 import { isUserModelAuthProfileId } from "../state/user-model-account-id.js";
 import type { UserModelAccountSelection } from "./model-account-authority.js";
 import { isSessionUnreadAckOnlyPatch } from "./server-methods/session-unread-ack.js";
@@ -416,6 +420,16 @@ function* projectSessionPatchSteps(
   );
   if (fastModeError) {
     return invalid(fastModeError);
+  }
+
+  // Fork (F49): Claude CLI permission mode; the CLI runtime applies it on the next turn.
+  const claudePermissionModeError = applyNormalizedPreference(
+    "claudePermissionMode",
+    normalizeClaudePermissionMode,
+    `invalid claudePermissionMode (use ${CLAUDE_PERMISSION_MODES.join("|")})`,
+  );
+  if (claudePermissionModeError) {
+    return invalid(claudePermissionModeError);
   }
 
   if ("toolOverrides" in patch) {
