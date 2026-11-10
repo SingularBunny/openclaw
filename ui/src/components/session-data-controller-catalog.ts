@@ -106,7 +106,8 @@ export function resetSessionCatalogConnection(owner: SessionCatalogResetOwner): 
 /**
  * Fork (F31): catalogs such as the Projects tree list the sessions of every agent, so a switch to
  * another agent's chat keeps the rows on screen and re-reads them in the background (the refresh
- * replaces them). Rows go only when catalog access is gone.
+ * replaces them). Rows go only when catalog access is gone. Expanded pages are not carried over:
+ * their cursors belong to the previous agent's listing.
  */
 export function retainSessionCatalogRows(
   owner: SessionCatalogDataOwner,
@@ -123,9 +124,11 @@ export function retainSessionCatalogRows(
     !accessRevoked && owner.sessionCatalogs.length > 0
       ? { ...owner.sessionCatalogRefreshStatus, error: null, awaitingGateway: false }
       : createPanelRefreshStatus();
+  if (scopeAgentChanged) {
+    owner.sessionCatalogPageDepths.clear();
+  }
   if (scopeAgentChanged && accessRevoked) {
     owner.sessionCatalogs = [];
-    owner.sessionCatalogPageDepths.clear();
   }
 }
 

@@ -75,6 +75,26 @@ describe("SessionCatalogLiveState", () => {
     },
   );
 
+  it("keeps the visible hosts when a catalog answers with an error and no hosts", () => {
+    const live = new SessionCatalogLiveState();
+    live.beginRequest(1);
+    const current = catalog("projects", 2);
+    const error = { code: "catalog_pending", message: "Catalog refresh is still pending" };
+    expect(live.mergeFinal([{ ...current, hosts: [], error }], [current])).toEqual([
+      { ...current, error },
+    ]);
+    // Hosts in the answer, or nothing on screen yet: the answer stands.
+    const answered = { ...current, hosts: [current.hosts[0]!], error };
+    expect(live.mergeFinal([answered], [current])).toEqual([answered]);
+    expect(live.mergeFinal([{ ...current, hosts: [], error }], [])).toEqual([
+      { ...current, hosts: [], error },
+    ]);
+    // An empty answer without an error is a real empty catalog.
+    expect(live.mergeFinal([{ ...current, hosts: [] }], [current])).toEqual([
+      { ...current, hosts: [] },
+    ]);
+  });
+
   it("does not replace a settled progressive host with its pending final response", () => {
     const live = new SessionCatalogLiveState();
     const { progressId } = live.beginRequest(1);

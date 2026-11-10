@@ -180,7 +180,27 @@ export class SessionCatalogLiveState {
         ),
       ),
     );
-    return catalogs.map((catalog) => ({
+    const currentHostsByCatalog = new Map(
+      currentCatalogs.map((catalog) => [catalog.id, catalog.hosts] as const),
+    );
+    return catalogs.map((catalog) => {
+      // Fork: a catalog that answers with an error and no hosts (its provider is still listing past
+      // the Gateway's budget on a connection without a cached page, or failed) keeps the hosts on
+      // screen; otherwise the Projects tree vanished and its sessions fell into "Other" until the
+      // next refresh. The host event or the next refresh replaces them.
+      const retainedHosts = currentHostsByCatalog.get(catalog.id);
+      if (catalog.error && catalog.hosts.length === 0 && retainedHosts?.length) {
+        return { ...catalog, hosts: retainedHosts };
+      }
+      return this.mergeFinalHosts(catalog, currentHosts);
+    });
+  }
+
+  private mergeFinalHosts(
+    catalog: SessionCatalog,
+    currentHosts: ReadonlyMap<string, SessionCatalog["hosts"][number]>,
+  ): SessionCatalog {
+    return {
       ...catalog,
       hosts: catalog.hosts.map((host) => {
         const hostKey = sessionCatalogHostKey(catalog.id, host.hostId);
@@ -199,7 +219,7 @@ export class SessionCatalogLiveState {
           ? progressiveHost
           : host;
       }),
-    }));
+    };
   }
 
   get hasRequested() {
