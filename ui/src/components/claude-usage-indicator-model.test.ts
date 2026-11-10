@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  CLAUDE_USAGE_STALE_KEEP_MS,
   formatClaudeUsageCountdown,
+  rememberClaudeUsage,
   resolveClaudeUsageView,
 } from "./claude-usage-indicator-model.ts";
 
@@ -113,6 +115,33 @@ describe("Claude usage indicator model", () => {
     });
     expect(resolveClaudeUsageView(summary("allowed"), NOW, t)).toBeNull();
     expect(resolveClaudeUsageView(summary("rejected"), NOW, t)?.rateLimit?.status).toBe("rejected");
+  });
+
+  it("keeps the last good windows, marked stale, while reads fail", () => {
+    const good = {
+      updatedAt: NOW,
+      providers: [
+        {
+          provider: "anthropic",
+          displayName: "Claude",
+          windows: [{ label: "5h", usedPercent: 40, resetAt: NOW + 3_600_000 }],
+        },
+      ],
+    };
+    const failed = {
+      updatedAt: NOW,
+      providers: [{ provider: "anthropic", displayName: "Claude", windows: [], error: "HTTP 500" }],
+    };
+    const missing = { updatedAt: NOW, providers: [] };
+    const lastGood = rememberClaudeUsage(null, good, NOW);
+    expect(rememberClaudeUsage(lastGood, failed, NOW + 60_000)).toBe(lastGood);
+    expect(resolveClaudeUsageView(good, NOW, t, lastGood)?.staleSince).toBeUndefined();
+    for (const summary of [failed, missing]) {
+      const view = resolveClaudeUsageView(summary, NOW + 60_000, t, lastGood);
+      expect(view?.rows.map((row) => row.percent)).toEqual([40]);
+      expect(view?.staleSince).toBe(NOW);
+    }
+    expect(resolveClaudeUsageView(failed, NOW + CLAUDE_USAGE_STALE_KEEP_MS, t, lastGood)).toBeNull();
   });
 
   it("formats compact countdowns", () => {

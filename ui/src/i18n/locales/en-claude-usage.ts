@@ -18,6 +18,7 @@ const catalog = {
       approaching: "Approaching limit",
       approachingWindow: "Approaching {label} limit",
       openUsage: "Open usage",
+      updated: "updated {relative}",
     },
   },
 } satisfies TranslationMap;
