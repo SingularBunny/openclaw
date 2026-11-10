@@ -145,6 +145,39 @@ Full Access also preserves playback and downloads for existing attachments in
 the agent's configured workspace. It does not permit arbitrary outside
 non-image files.
 
+### Extra chat-file folders
+
+On the ai-workbench fork, `OPENCLAW_ASSISTANT_MEDIA_ROOTS` names extra folders whose files
+open in the chat like files inside the session's own folders: any file type previews or
+downloads, not only images. Use it when an assistant attaches files it keeps outside its
+workspace, such as `~/Downloads` or `~/Desktop`; without it such files show
+**Not an image**.
+
+Folders can apply to every agent or to one agent, like global and per-project folders:
+
+```bash
+openclaw config set env.vars.OPENCLAW_ASSISTANT_MEDIA_ROOTS \
+  "*=~/Desktop:~/Downloads;reports=~/Projects/reports:/srv/shared"
+```
+
+- Rules are separated by `;`. Each rule is `<scope>=<folders>`, where the scope is `*` (every
+  agent) or an agent id. A rule without `=` (just a folder list) counts as `*`.
+- Folders inside a rule are absolute or `~` paths separated by `:`, like `PATH`. A folder path
+  cannot contain `:`, `;` or `=` at the start of a rule.
+- A session uses the `*` folders plus the folders of its own agent. Another agent's folders
+  stay closed to it.
+- Relative, missing and non-directory entries and unknown scopes are ignored, and `/`, the
+  home folder itself and any folder containing it are refused; each is logged once as a
+  warning.
+- The folders apply only to Full Access sessions on this Gateway. Workspace-protected,
+  device-folder, execution-node and cloud sessions keep the behaviour described above.
+- Files are checked by their real path, so a symlink inside an extra folder that points
+  elsewhere stays outside it.
+- The setting changes only what the Control UI may preview and download. Agent tools keep
+  their own filesystem access.
+- The value is read on every request; a config change applies without a Gateway restart
+  and stops existing media tickets for files that are no longer covered.
+
 With workspace protection enabled, an outside image shows **Outside allowed
 folders**. Hover over its filename to inspect the source path. Administrators can
 select **Allow image** to preview that exact file without changing the session's

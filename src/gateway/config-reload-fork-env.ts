@@ -11,7 +11,8 @@
  * - OPENCLAW_MEMORY_INDEX_ON_START: read when the memory index service starts, so on the next start;
  * - OPENCLAW_RESTART_AGENT_RUN_WAIT_MS: on the next restart deferral;
  * - OPENCLAW_PROXY_ROUTES: on the next connection (the managed proxy itself, `proxy.*`, still
- *   needs a restart); OPENCLAW_CLI_BACKEND_PROXY: on the next CLI backend run.
+ *   needs a restart); OPENCLAW_CLI_BACKEND_PROXY: on the next CLI backend run;
+ * - OPENCLAW_ASSISTANT_MEDIA_ROOTS: on the next chat file preview or download.
  */
 export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_WORKER_PENDING_TASKS",
@@ -29,6 +30,7 @@ export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_RESTART_AGENT_RUN_WAIT_MS",
   "OPENCLAW_PROXY_ROUTES",
   "OPENCLAW_CLI_BACKEND_PROXY",
+  "OPENCLAW_ASSISTANT_MEDIA_ROOTS",
 ] as const;
 
 /** Both config spellings: `env.vars.<NAME>` and the `env.<NAME>` shorthand. */

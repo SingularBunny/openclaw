@@ -17,6 +17,7 @@ import { isIncognitoSessionKey } from "../routing/session-key.js";
 import { safeEqualSecret } from "../security/secret-equal.js";
 import { normalizeSessionKeyPreservingOpaquePeerIds } from "../sessions/session-key-utils.js";
 import { captureResidentUserProfileAccess } from "../state/user-profile-list.js";
+import { resolveAssistantMediaExtraRoots } from "./assistant-media-extra-roots.js";
 import { applyHttpOperatorRoleScopeCeiling, resolveHttpProfile } from "./http-auth-user-profile.js";
 import type { AuthorizedControlUiReadRequest } from "./http-auth-utils.js";
 import { authorizeOperatorScopesForMethod } from "./method-scopes.js";
@@ -284,6 +285,15 @@ function resolvePreparedAssistantMediaPolicy(
   // Full Access retains established agent-workspace downloads alongside the selected project.
   if (sessionRoot && !localRoots.includes(sessionRoot)) {
     localRoots.push(sessionRoot);
+  }
+  // Fork: configured chat-file folders (all agents + this agent) serve any file type, only for
+  // Full Access local sessions.
+  if (session && !remote && !workspaceOnly) {
+    for (const root of resolveAssistantMediaExtraRoots(agentId)) {
+      if (!localRoots.includes(root)) {
+        localRoots.push(root);
+      }
+    }
   }
   return {
     assertCurrent,
