@@ -2919,6 +2919,13 @@ export const en: TranslationMap & {
     subagentViewOnly: "View-only subagent",
     subagentSessionDisabled: "Continue in {parent}.",
     processesPanel: { title: "Processes", refresh: "Refresh processes" },
+    automationRuns: {
+      title: "Automation runs",
+      openInAutomations: "Open in Automations",
+      viewRun: "View this run's transcript",
+      empty: "This automation has not run yet.",
+      deleted: "This automation was deleted. Its run history is no longer available here.",
+    },
     subagentsPanel: {
       title: "Subagents",
       back: "Back to Subagents",
@@ -3760,6 +3767,8 @@ export const en: TranslationMap & {
       processesEmpty: "Inspect background commands and their output for this conversation.",
       subagents: "Subagents",
       subagentsEmpty: "Follow delegated work from this conversation.",
+      runs: "Runs",
+      runsEmpty: "Past runs of this automation, newest first.",
       desktop: "Desktop",
       desktopEmpty: "Connect to an available remote desktop.",
       portal: "Portal",
