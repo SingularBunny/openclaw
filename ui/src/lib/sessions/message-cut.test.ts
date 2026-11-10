@@ -74,6 +74,29 @@ it("lists branches and sends the selected leaf to the switch RPC", async () => {
     leafEntryId: "branch-b",
   });
 
+  it("asks the Gateway to restore Claude's file changes only when chosen (F52)", async () => {
+    const request = vi.fn(async (method: string) => {
+      if (method === "sessions.rewind") {
+        return { editorText: "edit me", filesRestored: { count: 2 } };
+      }
+      return { sessions: [] };
+    });
+    const client = { request } as unknown as GatewayBrowserClient;
+    const { gateway } = createGatewayHarness(client);
+    const sessions = createTestSessionCapability(gateway);
+
+    await expect(
+      sessions.rewind("agent:main:main", "user-entry", { restoreFiles: true }),
+    ).resolves.toEqual({ editorText: "edit me", filesRestored: { count: 2 } });
+    await sessions.rewind("agent:main:main", "user-entry", { restoreFiles: false });
+    const rewinds = request.mock.calls.filter(([method]) => method === "sessions.rewind");
+    expect(rewinds.map((call) => (call as unknown[])[1])).toEqual([
+      { sessionKey: "agent:main:main", entryId: "user-entry", restoreFiles: true },
+      { sessionKey: "agent:main:main", entryId: "user-entry" },
+    ]);
+    sessions.dispose();
+  });
+
   it("sends the Claude transcript row of a merged message with the cut", async () => {
     const request = vi.fn(async (method: string) => {
       if (method === "sessions.rewind" || method === "sessions.fork") {

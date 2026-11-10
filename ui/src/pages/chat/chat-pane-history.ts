@@ -71,6 +71,7 @@ import {
   preparePaneSessionHandoff,
 } from "./chat-pane-shared.ts";
 import { ChatPaneSnapshotHydration } from "./chat-pane-snapshot-hydration.ts";
+import type { ChatRewindChoice } from "./chat-rewind-files.ts";
 import { TranscriptHistoryInput } from "./chat-scroll-input.ts";
 import type { ChatState } from "./chat-state-contract.ts";
 import { refreshPageChat } from "./chat-state-refresh.ts";
@@ -689,12 +690,12 @@ export abstract class ChatPaneHistory extends ChatPaneSnapshotHydration {
     }
   }
 
-  protected async rewindToMessage(entryId: string): Promise<boolean> {
+  protected async rewindToMessage(entryId: string, choice?: ChatRewindChoice): Promise<boolean> {
     const state = this.state;
     if (!state) {
       return false;
     }
-    const result = await rewindChatHistory(state, entryId, this.chatState.attachmentReads);
+    const result = await rewindChatHistory(state, entryId, this.chatState.attachmentReads, choice);
     return Boolean(result);
   }
 
