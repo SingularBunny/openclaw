@@ -4,6 +4,7 @@ import type { MessageGroup } from "../../../lib/chat/chat-types.ts";
 import type { ForwardedAvatarOptions } from "../chat-avatar-view.tsx";
 import type { AssistantMessageExpansionState } from "../chat-message-recovery.ts";
 import type { TurnRecap } from "../chat-progress.ts";
+import type { ChatRewindChoice, ChatRewindFilesProvider } from "../chat-rewind-files.ts";
 import type { GroupedMessageOptions } from "./chat-message-bubble-options.ts";
 import type { MessageReplyTarget } from "./chat-message-markdown.types.ts";
 import type { MessageReactionOptions } from "./chat-message-reaction-model.ts";
@@ -42,7 +43,9 @@ export type RenderMessageGroupOptions = Omit<
     contextWindow?: number | null;
     onReply?: (target: MessageReplyTarget) => void;
     resolveReplyPreview?: ReplyPreviewLookup;
-    onRewind?: () => void;
+    onRewind?: (choice?: ChatRewindChoice) => void;
+    /** Fork (F52): the rewind confirmation's file restore check. */
+    rewindFiles?: ChatRewindFilesProvider;
     rewindDisabled?: boolean;
     activeContinuation?: { parts: StreamGroupPart[]; options: StreamGroupOptions };
     /** Only this run may supply live copy for an activity disclosure. */

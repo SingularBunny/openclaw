@@ -144,6 +144,11 @@ export type CliSessionResumePoint = {
   checkpointId: string;
   /** Account/workspace digest of the binding that produced this point; see below. */
   compat?: string;
+  /**
+   * Fork (F52): native id of the user message that started this reply's turn. Claude keys its
+   * file checkpoints by it, so a rewind before that message can restore the files.
+   */
+  inputMessageId?: string;
 };
 
 export const CLI_SESSION_RESUME_POINT_KEY = "cliResume";
@@ -182,11 +187,13 @@ export function readCliSessionResumePoint(message: unknown): CliSessionResumePoi
     return undefined;
   }
   const compat = normalizeOptionalString(point?.compat);
+  const inputMessageId = normalizeOptionalString(point?.inputMessageId);
   return {
     provider: normalizeProviderId(provider),
     sessionId,
     checkpointId,
     ...(compat && SHA256_HEX_PATTERN.test(compat) ? { compat } : {}),
+    ...(inputMessageId ? { inputMessageId } : {}),
   };
 }
 

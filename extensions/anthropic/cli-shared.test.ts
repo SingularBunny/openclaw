@@ -50,6 +50,7 @@ const token = (value: string): Credential => ({
 function expectSecret(prepared: ClaudePreparedExecutionWithSecret, envName: string, value: string) {
   expect(prepared.env).toEqual({
     CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
+    CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
     [envName]: "3",
   });
   expect(prepared.env).not.toHaveProperty("CLAUDE_CODE_SUBPROCESS_ENV_SCRUB");
@@ -491,6 +492,7 @@ describe("normalizeClaudeBackendConfig", () => {
     expect(prepare(backend, { contextTokenBudget: 100_000 })).toEqual({
       env: {
         CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
+        CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
         CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000",
       },
     });

@@ -5,6 +5,11 @@ import { registerChatMessageMetadataEnglish } from "../../../i18n/locales/en-cha
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { listen } from "../../../lib/reactive/listener.ts";
 import { getSafeLocalStorage } from "../../../local-storage.ts";
+import {
+  renderChatRewindFilesSection,
+  type ChatRewindChoice,
+  type ChatRewindFilesProvider,
+} from "../chat-rewind-files.ts";
 
 registerEnglishCatalog(registerChatMessageMetadataEnglish);
 
@@ -94,7 +99,10 @@ function placeConfirmedActionPopover(trigger: HTMLElement, popover: HTMLElement)
   popover.dataset.placement = placeBelow ? "below" : "above";
 }
 
-export function RewindButton(props: { onRewind: () => void }) {
+export function RewindButton(props: {
+  onRewind: (choice?: ChatRewindChoice) => void;
+  rewindFiles?: ChatRewindFilesProvider;
+}) {
   const label = () => t("chat.messages.rewind");
   return (
     <span class="chat-confirm-wrap chat-rewind-wrap">
@@ -104,7 +112,11 @@ export function RewindButton(props: { onRewind: () => void }) {
           aria-label={label()}
           onClick={(event: Event) =>
             // SAFETY: This handler is registered on the native button rendered here.
-            openChatRewindConfirmation(event.currentTarget as HTMLElement, () => props.onRewind())
+            openChatRewindConfirmation(
+              event.currentTarget as HTMLElement,
+              (choice) => props.onRewind(choice),
+              props.rewindFiles,
+            )
           }
         >
           <Icon name="refresh" />
@@ -114,11 +126,19 @@ export function RewindButton(props: { onRewind: () => void }) {
   );
 }
 
-export function openChatRewindConfirmation(btn: HTMLElement, action: () => void): void {
+/**
+ * `files` (fork F52) adds Claude's file restore to the confirmation: a dry run lists the files
+ * and the operator chooses whether the rewind restores them too.
+ */
+export function openChatRewindConfirmation(
+  btn: HTMLElement,
+  action: (choice: ChatRewindChoice) => void,
+  files?: ChatRewindFilesProvider,
+): void {
   const confirmLabel = t("chat.messages.rewind");
   const confirmText = t("chat.messages.rewindConfirm");
   if (shouldSkipRewindConfirm()) {
-    action();
+    action({ restoreFiles: false });
     return;
   }
   const wrap = btn.closest<HTMLElement>(".chat-confirm-wrap");
@@ -135,6 +155,9 @@ export function openChatRewindConfirmation(btn: HTMLElement, action: () => void)
   let cancel!: HTMLButtonElement;
   let yes!: HTMLButtonElement;
   let check!: HTMLInputElement;
+  // Fork (F52): Claude's file restore section, filled once the dry run answers.
+  let filesSection!: HTMLDivElement;
+  let filesCheck: HTMLInputElement | null = null;
   // Virtual rows use transforms, so portal the dialog to keep its fixed
   // coordinates relative to the viewport in web and native hosts.
   const disposePopover = render(
@@ -150,6 +173,17 @@ export function openChatRewindConfirmation(btn: HTMLElement, action: () => void)
           onKeyDown={containKeyboardFocus}
         >
           <p class="chat-confirm-popover__text">{confirmText}</p>
+          <div
+            ref={(element) => (filesSection = element)}
+            class="chat-confirm-popover__files"
+            hidden={!files}
+          >
+            {files ? (
+              <p class="chat-confirm-popover__files-note">
+                {t("chat.messages.rewindFilesChecking")}
+              </p>
+            ) : null}
+          </div>
           <label class="chat-confirm-popover__remember">
             <input
               ref={(element) => (check = element)}
@@ -181,8 +215,10 @@ export function openChatRewindConfirmation(btn: HTMLElement, action: () => void)
                     getSafeLocalStorage()?.setItem(SKIP_REWIND_CONFIRM_PREFERENCE, "1");
                   } catch {}
                 }
+                // An unanswered dry run leaves the choice unchecked: the rewind keeps today's behavior.
+                const restoreFiles = filesCheck?.checked === true;
                 dismissPopover();
-                action();
+                action({ restoreFiles });
               }}
             >
               {confirmLabel}
@@ -200,6 +236,14 @@ export function openChatRewindConfirmation(btn: HTMLElement, action: () => void)
   let dismissed = false;
   let ownerObserver: MutationObserver | null = null;
   let stopOutsideClick: (() => void) | undefined;
+  void files?.()
+    .catch(() => null)
+    .then((preview) => {
+      if (!dismissed) {
+        filesCheck = renderChatRewindFilesSection(filesSection, preview);
+        placeConfirmedActionPopover(btn, popover);
+      }
+    });
   function dismissPopover(options?: ConfirmedActionDismissOptions) {
     if (dismissed) {
       return;
@@ -238,8 +282,9 @@ export function openChatRewindConfirmation(btn: HTMLElement, action: () => void)
     if (evt.key !== "Tab") {
       return;
     }
-    const from = evt.shiftKey ? check : yes;
-    const to = evt.shiftKey ? yes : check;
+    const first = filesCheck?.isConnected ? filesCheck : check;
+    const from = evt.shiftKey ? first : yes;
+    const to = evt.shiftKey ? yes : first;
     if (document.activeElement === from) {
       evt.preventDefault();
       to.focus();

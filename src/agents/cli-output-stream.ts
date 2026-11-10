@@ -32,6 +32,7 @@ import {
   parseClaudeCliJsonlResult,
   parseClaudeCliStreamingDelta,
   pickCliResumeCheckpointId,
+  readCliResultInputMessageId,
   pickCliSessionId,
   preferGeminiCliStreamJsonError,
   readClaudeAttributedSubagentProgressId,
@@ -512,6 +513,7 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
         ...(output?.interimNativeReplies
           ? { interimNativeReplies: output.interimNativeReplies }
           : {}),
+        ...(claudeStreamJson ? readCliResultInputMessageId(parsed) : {}),
         ...(diagnosticUsage ? { diagnosticUsage } : {}),
       };
       // The result envelope carries the final message when present.

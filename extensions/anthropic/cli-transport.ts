@@ -18,6 +18,8 @@ export type ClaudeCliTransport = {
   waitForExit(): Promise<void>;
   send(message: Record<string, unknown>): Promise<void>;
   initialize(): Promise<Record<string, unknown>>;
+  /** Fork (F52): one host-initiated control request; resolves with the CLI's response body. */
+  request(request: Record<string, unknown>, timeoutMs: number): Promise<Record<string, unknown>>;
 };
 
 /** One Claude Code subprocess and its bidirectional stream-json control channel. */
@@ -48,6 +50,7 @@ export async function createClaudeCliTransport(params: {
     throw error;
   }
   const requests = new Map<string, AbortController>();
+  const outbound = new Map<string, ReturnType<typeof createDeferred<Record<string, unknown>>>>();
   const initializeId = randomUUID();
   const {
     promise: ready,
@@ -80,6 +83,10 @@ export async function createClaudeCliTransport(params: {
       controller.abort();
     }
     requests.clear();
+    for (const pending of outbound.values()) {
+      pending.reject(new Error("Claude CLI control channel is closed."));
+    }
+    outbound.clear();
   };
   const beginShutdown = () => {
     if (shutdownStarted) {
@@ -255,6 +262,25 @@ export async function createClaudeCliTransport(params: {
           throw new Error("Claude CLI initialization failed.");
         }
       }
+      const pending =
+        isRecord(response) && typeof response.request_id === "string"
+          ? outbound.get(response.request_id)
+          : undefined;
+      if (pending && isRecord(response)) {
+        outbound.delete(response.request_id as string);
+        if (response.subtype === "success") {
+          pending.resolve(isRecord(response.response) ? response.response : {});
+        } else {
+          // The CLI's own reason, e.g. why a file rewind was refused.
+          pending.reject(
+            new Error(
+              typeof response.error === "string" && response.error.trim()
+                ? response.error.trim()
+                : "Claude CLI rejected the control request.",
+            ),
+          );
+        }
+      }
     } else if (message.type === "control_request") {
       if (typeof message.request_id !== "string" || !isRecord(message.request)) {
         throw new Error("Claude CLI sent a malformed control request.");
@@ -312,6 +338,25 @@ export async function createClaudeCliTransport(params: {
       child.dispose();
     },
     send,
+    async request(request, timeoutMs) {
+      const id = `openclaw_${randomUUID()}`;
+      const pending = createDeferred<Record<string, unknown>>();
+      // Closing can reject it before the write settles.
+      void pending.promise.catch(() => {});
+      outbound.set(id, pending);
+      const timer = setTimeout(() => {
+        outbound.delete(id);
+        pending.reject(new Error("Claude CLI did not answer the control request in time."));
+      }, timeoutMs);
+      timer.unref();
+      try {
+        await send({ type: "control_request", request_id: id, request });
+        return await pending.promise;
+      } finally {
+        clearTimeout(timer);
+        outbound.delete(id);
+      }
+    },
     async initialize() {
       await send({
         type: "control_request",

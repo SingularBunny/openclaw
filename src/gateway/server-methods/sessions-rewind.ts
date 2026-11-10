@@ -65,6 +65,7 @@ import { emitSessionsChanged } from "./session-change-event.js";
 import { prepareSessionForkFilesystemRoot } from "./session-create-root.js";
 import { readGatewayRequestMutationAuthority } from "./session-mutation-guards.js";
 import { resolveEditorMediaAttachments } from "./session-rewind-editor-media.js";
+import { filesRestoredResult, restoreFilesForRewind } from "./session-rewind-files.js";
 import { resolveCliForkProviders, resolveNativeMessageCut } from "./session-rewind-native-cut.js";
 import { prepareRewindRepositoryEntries } from "./session-rewind-repository-entries.js";
 import { waitForTerminalSessionRunSettlement } from "./session-run-settlement.js";
@@ -75,6 +76,7 @@ import {
   prepareUpstreamForkCurrentGuard,
   resolveUpstreamForkHarness,
 } from "./sessions-fork-runtime-guard.js";
+import { sessionRewindFilesHandlers } from "./sessions-rewind-files.js";
 import { sessionLog } from "./sessions-shared.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { defineValidatedGatewayHandler } from "./validation.js";
@@ -101,6 +103,8 @@ export const sessionRewindHandlers: GatewayRequestHandlers = {
     validateSessionsRewindParams,
     (options) => mutateSessionAtMessage(options, "rewind"),
   ),
+  // Fork (F52): files a rewind would restore in a Claude CLI chat.
+  ...sessionRewindFilesHandlers,
   "sessions.fork": defineValidatedGatewayHandler(
     "sessions.fork",
     validateSessionsForkParams,
@@ -502,6 +506,12 @@ async function mutatePreparedSessionAtMessage({
       if ("error" in native) {
         return reject(native.error);
       }
+      // Fork (F52): files first; a failed restore leaves history untouched so the operator can
+      // retry or rewind the conversation alone. The commit guard below still fences the cut.
+      const files = await restoreFilesForRewind(action, params, current, sessionKey);
+      if (files && "error" in files) {
+        return reject(files.error, ErrorCodes.UNAVAILABLE);
+      }
       const mutationParams = {
         agentId: current.agentId,
         cliForkProviders,
@@ -683,6 +693,7 @@ async function mutatePreparedSessionAtMessage({
                   ? { editorText: committedResult.editorText }
                   : {}),
                 ...(editorAttachments.length > 0 ? { editorAttachments } : {}),
+                ...filesRestoredResult(files),
               },
           undefined,
         );

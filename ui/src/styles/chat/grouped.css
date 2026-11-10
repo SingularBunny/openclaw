@@ -2330,3 +2330,29 @@ button.chat-reply-attribution__target:disabled {
 .chat-system-events__body :is(.chat-notice, .chat-divider) {
   margin: 0;
 }
+.chat-confirm-popover__files {
+  max-width: 320px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-confirm-popover__files[hidden] {
+  display: none;
+}
+
+.chat-confirm-popover__files-note {
+  margin: 0 0 4px;
+}
+
+.chat-confirm-popover__files .chat-confirm-popover__files-option {
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.chat-confirm-popover__files-list {
+  margin: 0 0 4px;
+  padding-left: 20px;
+  font-family: var(--font-mono, monospace);
+  overflow-wrap: anywhere;
+}
