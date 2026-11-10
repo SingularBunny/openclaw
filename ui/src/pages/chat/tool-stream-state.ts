@@ -54,6 +54,9 @@ export function resetToolStreamRun(host: ToolStreamState, runId: string) {
   syncToolStreamMessages(host);
   host.chatStreamSegments = host.chatStreamSegments.filter((segment) => segment.runId !== runId);
   host.knownAgentRunIds?.delete(runId);
+  if (host.cliBackgroundTasks?.runId === runId) {
+    host.cliBackgroundTasks = null;
+  }
   for (const [approvalId, waitingApproval] of host.waitingApprovalStatuses ?? []) {
     if (waitingApproval.runId === runId) {
       host.waitingApprovalStatuses?.delete(approvalId);

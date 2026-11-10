@@ -11,6 +11,8 @@ type CliNoOutputTimeoutPolicyParams = {
   hasReplayUnsafeActivity: boolean;
   allowResumeControlOnlyRetry?: boolean;
   outstandingWorkGraceMs?: number;
+  /** Fork (F36): silence allowed while the CLI waits for the model's first response byte. */
+  modelRequestGraceMs?: number;
 };
 
 export const isReplaySafeCliResumeControlOnly = (useResume: boolean, ...unsafe: boolean[]) =>
@@ -23,11 +25,14 @@ export function resolveCliNoOutputTimeoutDecision(params: CliNoOutputTimeoutPoli
   // Native compaction is silent but busy, so it is outstanding work like any blocked
   // call and inherits the same grace that work already holds on this path.
   const outstandingWork = toolWork || params.cliTimeout.compactionActive === true;
-  const graceMs = params.outstandingWorkGraceMs;
+  // A pending model request is not tool work: it keeps its own, shorter grace and never
+  // changes replay safety.
+  const graces = [
+    outstandingWork ? params.outstandingWorkGraceMs : undefined,
+    params.modelRequestGraceMs,
+  ].filter((value): value is number => value !== undefined);
   const deferMs =
-    outstandingWork && graceMs !== undefined
-      ? Math.max(params.timeoutMs, graceMs) - params.quietDurationMs
-      : undefined;
+    graces.length > 0 ? Math.max(params.timeoutMs, ...graces) - params.quietDurationMs : undefined;
   const retryable =
     (!params.cliTimeout.observedActivity && !params.hasOutputText) ||
     (params.allowResumeControlOnlyRetry === true &&

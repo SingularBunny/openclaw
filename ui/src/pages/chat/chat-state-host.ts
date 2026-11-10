@@ -30,6 +30,7 @@ import type { handleAbortChat } from "./run-lifecycle.ts";
 import type { ChatMessageCache } from "./session-message-cache.ts";
 import type { SidebarLayout } from "./sidebar-layout.ts";
 import type {
+  CliBackgroundTasksStatus,
   CompactionStatus,
   FallbackStatus,
   WaitingApprovalStatus,
@@ -92,6 +93,7 @@ export type ChatPageHost = ChatHost &
     pendingSessionMessageReloadSessionKey: string | null;
     chatSubmitGuards: Set<string>;
     compactionStatus: CompactionStatus | null;
+    cliBackgroundTasks: CliBackgroundTasksStatus | null;
     fallbackStatus: FallbackStatus | null;
     observerDigest: SessionObserverDigest | null;
     knownAgentRunIds: Set<string>;

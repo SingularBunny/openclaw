@@ -1592,6 +1592,16 @@ const startupEnglish = {
     },
     subagentsRunning: "{count} subagents running",
     subagentsRunningOne: "1 subagent running",
+    backgroundTasks: {
+      runningAgents: "{count} background agents running",
+      runningAgentOne: "1 background agent running",
+      runningTasks: "{count} background tasks running",
+      runningTaskOne: "1 background task running",
+      waitingAgents: "Waiting for {count} background agents to finish",
+      waitingAgentOne: "Waiting for 1 background agent to finish",
+      waitingTasks: "Waiting for {count} background tasks to finish",
+      waitingTaskOne: "Waiting for 1 background task to finish",
+    },
     startupStatus: {
       preparingWorkspace: "Preparing workspace…",
       namingWorktree: "Naming worktree…",
