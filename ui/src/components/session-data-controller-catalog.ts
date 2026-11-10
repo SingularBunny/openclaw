@@ -44,6 +44,7 @@ import {
   failPanelRefresh,
   type PanelRefreshStatus,
 } from "./panel-refresh-status.ts";
+import { catalogStatusRows } from "./session-catalog-status-rows.ts";
 
 export interface SessionDataControllerHost extends SolidControllerHost {
   readonly isConnected: boolean;
@@ -92,6 +93,9 @@ export function retireSessionCatalogData(owner: SessionCatalogResetOwner): void 
   owner.sessionsLoading = false;
   owner.loadingMoreSessionCatalogIds = new Set();
   owner.sessionCatalogLive.clear();
+  if (!owner.isSessionDataHostConnected) {
+    catalogStatusRows(owner).dispose();
+  }
 }
 
 export function resetSessionCatalogConnection(owner: SessionCatalogResetOwner): void {
@@ -255,6 +259,8 @@ export function updateSessionCatalogData(owner: SessionCatalogDataOwner): void {
   if (owner.context) {
     owner.synchronizeSessionScope();
   }
+  // Fork (F58): other agents' catalog rows follow one all-agent status window.
+  catalogStatusRows(owner).synchronize(owner.sessionCatalogs);
   if (
     !visibleSessionCatalogClient(owner) ||
     owner.sessionCatalogLive.hasRequested ||
