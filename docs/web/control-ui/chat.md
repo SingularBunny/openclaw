@@ -357,12 +357,15 @@ wins):
   `MultiEdit`, `NotebookEdit`) and shell command (`Bash`), even when the execution policy would
   allow it. **Allow always** in that card covers the tool for the rest of the Claude process.
 - **Accept edits** (`acceptEdits`) applies file edits without asking; shell commands still ask.
-- **Plan mode** (`plan`) refuses file edits and asks before shell commands. When Claude calls
+- **Plan mode** (`plan`) refuses file edits, except Claude's own plan file (a Markdown file
+  directly in the `plansDirectory` setting, by default `~/.claude/plans`), and asks before shell
+  commands. When Claude calls
   `ExitPlanMode`, the chat shows the plan as a Markdown card and a question with three choices:
   **Yes, and auto-accept edits** (the session continues in Accept edits), **Yes, and manually
   approve edits** (Ask before edits), and **No, keep planning**. Typing an answer instead keeps
   planning and sends the text to Claude as feedback. An approved choice applies to the rest of the
-  turn and is stored as the session's mode.
+  turn and is stored as the session's mode; Claude's process switches to it once `ExitPlanMode`
+  has run, since the tool itself checks that it is still in plan mode.
 - **Bypass permissions**, **Don't ask**, and **Auto** are passed to Claude CLI unchanged and add
   no OpenClaw prompts. Bypass permissions needs `operator.admin`; the other modes need
   `operator.write`, like other session settings.
