@@ -164,8 +164,20 @@ describe("plugin-owned CLI execution: silent native waits", () => {
         agents: 2,
         waiting: false,
         tasks: [
-          { taskId: "agent-1", taskType: "local_agent", description: "Review the parser" },
-          { taskId: "agent-2", taskType: "local_agent", description: "Check the docs" },
+          {
+            taskId: "agent-1",
+            taskType: "local_agent",
+            description: "Review the parser",
+            status: "running",
+            startedAt: expect.any(Number),
+          },
+          {
+            taskId: "agent-2",
+            taskType: "local_agent",
+            description: "Check the docs",
+            status: "running",
+            startedAt: expect.any(Number),
+          },
         ],
       },
       expect.objectContaining({ count: 2, waiting: true }),

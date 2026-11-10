@@ -1,3 +1,4 @@
+import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
 import { asOptionalRecord, isRecord } from "@openclaw/normalization-core/record-coerce";
 import { stripMixedSilentReplyTokens } from "../../auto-reply/reply/mixed-silent-reply-tokens.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../../auto-reply/tokens.js";
@@ -29,6 +30,7 @@ import { runAgentHarnessAfterToolCallHook } from "../harness/hook-helpers.js";
 import { applyPluginTextReplacements } from "../plugin-text-transforms.js";
 import { resolveCliToolTerminalReason } from "../run-termination.js";
 import { cliAssistantItemId } from "./assistant-identity.js";
+import { createClaudeTodoProgressCardWriter } from "./claude-todos-progress-card.js";
 import type { CliToolTracking } from "./execute-tool-tracking.js";
 import type { CliBackgroundTasksState } from "./native-wait-state.js";
 import { normalizeCliToolName, stripOpenClawMcpToolPrefix } from "./tool-policy.js";
@@ -556,6 +558,36 @@ export function createCliEventHandlers(params: {
     }));
   };
 
+  // Fork (F45): Claude's todo list (TodoWrite, TaskCreate/TaskUpdate/TaskList) becomes the
+  // session progress card and the same `plan` event `progress_card` emits for channels.
+  let todoCardWriter: ReturnType<typeof createClaudeTodoProgressCardWriter> | undefined;
+  const emitCliTodos = (steps: ProgressCardStep[]) => {
+    if (!emitLiveEvents) {
+      return;
+    }
+    const completed = steps.filter((step) => step.status === "completed").length;
+    emitAgentEvent({
+      runId: runParams.runId,
+      stream: "plan",
+      data: {
+        phase: "update",
+        title: "Plan updated",
+        source: "claude-cli",
+        steps,
+        ...(steps.length > 0 ? { explanation: `${completed}/${steps.length} complete` } : {}),
+      },
+    });
+    const sessionKey = runParams.sessionKey?.trim();
+    if (!sessionKey) {
+      return;
+    }
+    todoCardWriter ??= createClaudeTodoProgressCardWriter({
+      sessionKey,
+      ...(runParams.agentId ? { agentId: runParams.agentId } : {}),
+    });
+    todoCardWriter.write(steps);
+  };
+
   const emitCliToolInputDelta = (progress: CliToolInputDelta) => {
     observedCliActivity = true;
     emitLiveEvent("tool", () => ({ phase: "input_delta", ...progress }));
@@ -577,6 +609,7 @@ export function createCliEventHandlers(params: {
     emitCliThinkingDelta,
     emitCliThinkingProgress,
     emitCliBackgroundTasks,
+    emitCliTodos,
     hasObservedCliActivity: () => observedCliActivity,
     hasActiveCompaction: () => compactionActive,
     setOnCompactionActiveChange: (listener: (() => void) | undefined) => {

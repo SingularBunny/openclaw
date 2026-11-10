@@ -33,9 +33,14 @@ import { resetChatThreadState } from "../chat-thread.ts";
 import type { ChatTranscriptMetadata } from "../chat-transcript-metadata.ts";
 import type { ChatTypingActorView, ChatTypingOverflow } from "../chat-typing-presence.ts";
 import type { RealtimeTalkConversationEntry } from "../talk/conversation-state.ts";
-import type { CompactionStatus, RunOutputUsage } from "../tool-stream-contract.ts";
+import type {
+  CliBackgroundTasksStatus,
+  CompactionStatus,
+  RunOutputUsage,
+} from "../tool-stream-contract.ts";
 import type { createAsyncQuestionPresentation } from "./chat-async-question.ts";
 import type { ChatCommentPinsHandle } from "./chat-comment-pins.tsx";
+import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
 import { resolveChatContextCopy, usesNativeContextMenu } from "./chat-context-copy.ts";
 import type { ChatHistoryBoundaryProps } from "./chat-history-boundary.tsx";
 import { getMessageActionElements } from "./chat-message-action-elements.ts";
@@ -148,8 +153,10 @@ export type ChatThreadProps = Omit<
     failureActionsRunId?: string;
     onDismissPendingInput?: (inputId: string) => void;
     waitingApproval?: boolean;
-    /** Fork (F33): Claude CLI background agents/tasks line for the working indicator. */
-    backgroundTasksLabel?: string;
+    /** Fork (F33, F47): Claude CLI background agents/tasks for the working indicator. */
+    backgroundTasks?: CliBackgroundTasksStatus | null;
+    /** Fork (F47): stops one Claude CLI background task. */
+    onStopBackgroundTask?: CliBackgroundTaskStop;
     questionPrompts?: readonly QuestionPrompt[];
     sessions: SessionsListResult | null;
     senderAgentAvatars?: ReadonlyMap<string, string | null>;
