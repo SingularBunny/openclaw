@@ -4,6 +4,10 @@ import { createProtocolValidator } from "../protocol-validator.js";
 import * as S from "../schema-modules.js";
 import type { AuditActivityListParams, AuditRunInspectParams } from "../schema-modules.js";
 
+export const validateCommandsClaudeParams = createProtocolValidator(
+  S.CommandsClaudeParamsSchema,
+  Checks.isCommandsClaudeParams,
+);
 export const validateCommandsListParams = createProtocolValidator(
   S.CommandsListParamsSchema,
   Checks.isCommandsListParams,
