@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayBrowserClient } from "../api/gateway.ts";
 import { restorePropertyDescriptor } from "../test-helpers/property-descriptor.ts";
 import { createStorageMock } from "../test-helpers/storage.ts";
@@ -9,6 +9,7 @@ import {
   getExistingSubscription,
   subscribeToWebPush,
   unsubscribeFromWebPush,
+  rebasePreferenceEdit,
 } from "./web-push.runtime.ts";
 
 const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
@@ -180,3 +181,22 @@ it.each(["loading", "native denied", "storage unavailable"])(
     expect(storage.getItem("openclaw.control.notificationsAutoPrompt.v1")).toBeNull();
   },
 );
+
+describe("web push preference edit rebasing", () => {
+  it("keeps only the fields this edit changed and applies them to the newest save", () => {
+    const base = { enabled: true, label: "", detailLevel: "detailed", categories: { a: false } };
+    const edited = { enabled: true, label: "", categories: { a: false, b: true } };
+    const latest = { enabled: false, label: "phone", detailLevel: "detailed", categories: {} };
+
+    expect(rebasePreferenceEdit(base, edited, latest)).toEqual({
+      enabled: false,
+      label: "phone",
+      categories: { b: true },
+    });
+  });
+
+  it("sends the edit unchanged when nothing has been saved yet", () => {
+    const edited = { enabled: true, label: "" };
+    expect(rebasePreferenceEdit(undefined, edited, undefined)).toBe(edited);
+  });
+});
