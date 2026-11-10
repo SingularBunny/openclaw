@@ -38,13 +38,15 @@ const PLAN_MODE_EDIT_DENIAL =
 /**
  * What the session mode adds to host policy for one native tool, as in Claude Code:
  * default asks for edits and shell commands, acceptEdits only for shell commands, plan refuses
- * edits. bypassPermissions, dontAsk, and auto, like no explicit mode, leave host policy as is.
+ * edits other than the plan file. bypassPermissions, dontAsk, and auto, like no explicit mode, leave host policy as is.
  */
 export function resolveClaudeCliModeGate(
   mode: ClaudeCliPermissionMode | undefined,
   toolName: string,
+  options: { planFileEdit?: boolean } = {},
 ): ClaudeCliModeGate {
-  const edit = EDIT_TOOLS.has(toolName);
+  // Plan mode still lets Claude write its own plan file, as Claude Code does.
+  const edit = EDIT_TOOLS.has(toolName) && !(mode === "plan" && options.planFileEdit);
   const shell = SHELL_TOOLS.has(toolName);
   switch (mode) {
     case "default":
