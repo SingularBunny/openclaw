@@ -49,6 +49,8 @@ export type StreamGroupOptions = MessageRenderOptions & {
   waitingApproval?: boolean;
   waitingSubagents?: ChatSubagentWait;
   runningSubagents?: number;
+  /** Fork (F33): Claude CLI background agents/tasks line. */
+  backgroundTasksLabel?: string;
   onOpenSubagents?: () => void;
   runOutputTokens?: number | null;
   questionPrompts?: ReadonlyMap<string, QuestionPrompt>;
@@ -133,6 +135,7 @@ export function StreamPartView(props: {
                 part().waitingOn === "subagents" ? props.options.waitingSubagents : undefined,
               sessionLinks: props.options.handoffSessionLinks,
               runningSubagents: props.options.runningSubagents,
+              backgroundTasksLabel: props.options.backgroundTasksLabel,
               onOpenSubagents: props.options.onOpenSubagents,
               startupLabel: props.options.startupLabel,
               retryAt: props.options.retryAt,

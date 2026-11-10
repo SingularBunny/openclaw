@@ -148,6 +148,8 @@ export type ChatThreadProps = Omit<
     failureActionsRunId?: string;
     onDismissPendingInput?: (inputId: string) => void;
     waitingApproval?: boolean;
+    /** Fork (F33): Claude CLI background agents/tasks line for the working indicator. */
+    backgroundTasksLabel?: string;
     questionPrompts?: readonly QuestionPrompt[];
     sessions: SessionsListResult | null;
     senderAgentAvatars?: ReadonlyMap<string, string | null>;
