@@ -37,7 +37,9 @@ export function createWebPushCapability(
     "PushManager" in globalThis &&
     "Notification" in globalThis;
   let owner: WebPushCapabilityRuntime | undefined;
-  const snapshot: WebPushSnapshot = {
+  // Replace, never mutate: Solid props compare this object by identity, so an
+  // in-place update would leave the settings page rendering the first snapshot.
+  let snapshot: WebPushSnapshot = {
     supported,
     ...readWebPushAccess(gateway.snapshot),
     permission: installed
@@ -53,7 +55,7 @@ export function createWebPushCapability(
   let render: (() => void) | undefined;
 
   const publish = (patch: WebPushCapabilityPatch) => {
-    Object.assign(snapshot, patch);
+    snapshot = { ...snapshot, ...patch };
     render?.();
   };
   const stopGateway = gateway.subscribe((next) => {
@@ -86,7 +88,9 @@ export function createWebPushCapability(
     return null;
   });
   return {
-    snapshot,
+    get snapshot() {
+      return snapshot;
+    },
     subscribe(listener: () => void) {
       render = listener;
       return () => {
