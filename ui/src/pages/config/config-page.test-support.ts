@@ -86,7 +86,10 @@ export function completeConfigContext(context: ApplicationContext): ApplicationC
     current: context.config.current ?? { assistantIdentity: { name: "OpenClaw" } },
   });
   Object.assign(context.overlays, { snapshot: context.overlays.snapshot ?? {} });
-  Object.assign(context.webPush, { snapshot: context.webPush.snapshot ?? {} });
+  if (!context.webPush.snapshot) {
+    // Real owners expose a read-only snapshot getter; only partial fixtures need a default.
+    Object.assign(context.webPush, { snapshot: {} });
+  }
   Object.assign(context.theme, {
     branding: context.theme.branding ?? resolveThemeBranding(undefined),
     serverSelection: context.theme.serverSelection ?? null,

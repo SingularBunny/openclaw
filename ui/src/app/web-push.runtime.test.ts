@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayBrowserClient } from "../api/gateway.ts";
 import {
   getExistingSubscription,
+  rebasePreferenceEdit,
   subscribeToWebPush,
   unsubscribeFromWebPush,
 } from "./web-push.runtime.ts";
@@ -217,5 +218,24 @@ describe("web push Gateway identity", () => {
     });
     expect(request).not.toHaveBeenCalledWith("push.web.subscribe", expect.anything());
     expect(subscribe).not.toHaveBeenCalled();
+  });
+});
+
+describe("web push preference edit rebasing", () => {
+  it("keeps only the fields this edit changed and applies them to the newest save", () => {
+    const base = { enabled: true, label: "", detailLevel: "detailed", categories: { a: false } };
+    const edited = { enabled: true, label: "", categories: { a: false, b: true } };
+    const latest = { enabled: false, label: "phone", detailLevel: "detailed", categories: {} };
+
+    expect(rebasePreferenceEdit(base, edited, latest)).toEqual({
+      enabled: false,
+      label: "phone",
+      categories: { b: true },
+    });
+  });
+
+  it("sends the edit unchanged when nothing has been saved yet", () => {
+    const edited = { enabled: true, label: "" };
+    expect(rebasePreferenceEdit(undefined, edited, undefined)).toBe(edited);
   });
 });
