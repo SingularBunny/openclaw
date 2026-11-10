@@ -405,7 +405,7 @@ const narrowPresentations = new WeakMap<SidebarLayout, SidebarLayout>();
 /**
  * How a narrow pane shows a layout. It can only stack its side panel under the
  * main view, which leaves a list-and-detail panel too little room, so an open
- * Subagents or Processes panel is shown focused in place. Mobile chrome uses
+ * Subagents, Processes, or Runs panel is shown focused in place. Mobile chrome uses
  * this presentation for every panel. The saved layout is unchanged, so a wider
  * pane shows the original split again.
  */
@@ -416,7 +416,10 @@ export function presentNarrowSidebarLayout(
   const slot =
     layout.open === true && !layout.expanded ? sidebarActivePanel(layout)?.slot : undefined;
   // Phone layouts show the selected side view, including Chat beside a page.
-  if (!slot || (!options?.allPanels && slot !== "subagents" && slot !== "processes")) {
+  if (
+    !slot ||
+    (!options?.allPanels && slot !== "subagents" && slot !== "processes" && slot !== "runs")
+  ) {
     return layout;
   }
   let presented = narrowPresentations.get(layout);

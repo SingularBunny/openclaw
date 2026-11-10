@@ -60,6 +60,8 @@ export type SidebarPanelDefinitionParams = {
   subagentsInputRegion: "page" | "dock";
   subagentsPresented: PresentationValue;
   processesPresented?: PresentationValue;
+  /** Fork (F56): automation run history panel. */
+  runsPresented?: PresentationValue;
   contextPresented?: PresentationValue;
   contextDetails?: ChatContextPanelProps["details"];
   subagentsAvailable: boolean;
