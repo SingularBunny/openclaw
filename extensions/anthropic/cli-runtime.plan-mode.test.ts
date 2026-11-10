@@ -162,7 +162,9 @@ describe("Claude CLI plan approval", () => {
       updatedInput: PLAN,
       updatedPermissions: [{ type: "setMode", mode, destination: "session" }],
     });
-    expect(detail.modeRequests).toEqual([mode]);
+    // Native checks ExitPlanMode against plan mode after these decisions; the chosen mode
+    // follows the tool result (cli-runtime.plan-mode-native.test.ts), never the decision.
+    expect(detail.modeRequests).toEqual([]);
     expect(onPermissionModeChange).toHaveBeenCalledOnce();
     expect(onPermissionModeChange).toHaveBeenCalledWith(mode);
     // One card for the hook and can_use_tool; host approvals are not involved.

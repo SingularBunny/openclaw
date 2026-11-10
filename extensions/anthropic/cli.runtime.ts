@@ -13,12 +13,18 @@ import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { isRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { hasClaudeRawToolInvocation } from "./cli-output.js";
 import {
+  applyPendingPermissionMode,
+  settlePermissionModeAtTurnStart,
+  switchPermissionMode,
+  type ClaudeCliPendingPermissionMode,
+} from "./cli-permission-mode-sync.js";
+import {
   createClaudeCliPlanApprover,
-  createSetPermissionModeRequest,
   readClaudeCliPermissionMode,
   resolveClaudeCliModeGate,
   type ClaudeCliPermissionMode,
 } from "./cli-permission-mode.js";
+import { isClaudeCliPlanFileEdit } from "./cli-plan-file.js";
 import type { ClaudeCliSecretInput } from "./cli-process.js";
 import { CLAUDE_CLI_INPUT_UUID_FIELD, requestClaudeCliRewindFiles } from "./cli-rewind-files.js";
 import { prepareClaudeCliTransportArgs } from "./cli-runtime-args.js";
@@ -80,8 +86,8 @@ type ClaudeCliSession = {
   reportPromptSuggestion?: (text: string) => void;
   /** Fork (F49): the mode the native process was launched with or last switched to. */
   permissionMode: ClaudeCliPermissionMode;
-  /** Re-sent after the approved ExitPlanMode result: the tool itself leaves plan mode. */
-  pendingPermissionMode?: ClaudeCliPermissionMode;
+  /** Sent after the approved ExitPlanMode result: the tool itself leaves plan mode. */
+  pendingPermissionMode?: ClaudeCliPendingPermissionMode;
   closed: boolean;
 };
 const sessions = new WeakMap<CliBackendLiveSessionHandle, ClaudeCliSession>();
@@ -129,11 +135,22 @@ async function authorizeTool(
         return { behavior: "deny", message: "The OpenClaw run is no longer active." };
       }
       if (planned.mode) {
-        await switchPermissionMode(session, turn, planned.mode);
+        // Native validates ExitPlanMode against its own mode after this decision; switching now
+        // fails the tool with "You are not in plan mode". The switch follows the tool result.
+        await switchPermissionMode(session, turn, planned.mode, toolUseId ?? null);
       }
       return planned.result;
     }
-    const gate = resolveClaudeCliModeGate(turn.permissionMode, toolName);
+    const gate = resolveClaudeCliModeGate(turn.permissionMode, toolName, {
+      planFileEdit:
+        turn.permissionMode === "plan" &&
+        (await isClaudeCliPlanFileEdit({
+          toolName,
+          input,
+          cwd: typeof request.cwd === "string" ? request.cwd : turn.context.cwd,
+          env: turn.context.env,
+        })),
+    });
     if (gate.kind === "deny") {
       return { behavior: "deny", message: gate.message };
     }
@@ -176,34 +193,6 @@ async function authorizeTool(
   } catch {
     return { behavior: "deny", message: "OpenClaw could not authorize this tool call." };
   }
-}
-
-/** Fork (F49): applies a mode to the rest of the turn, the native process, and the session. */
-async function switchPermissionMode(
-  session: ClaudeCliSession,
-  turn: ClaudeCliTurn,
-  mode: ClaudeCliPermissionMode,
-): Promise<void> {
-  // The hook and can_use_tool can both carry one ExitPlanMode decision.
-  if (turn.permissionMode === mode) {
-    return;
-  }
-  turn.permissionMode = mode;
-  if (session.permissionMode !== mode) {
-    session.pendingPermissionMode = mode;
-    syncPermissionMode(session, mode);
-  }
-  await turn.context.onPermissionModeChange?.(mode);
-}
-
-function syncPermissionMode(session: ClaudeCliSession, mode: ClaudeCliPermissionMode): void {
-  const transport = session.transport;
-  if (session.closed || !transport) {
-    return;
-  }
-  session.permissionMode = mode;
-  // Like stop_task, the control response carries nothing the turn waits for.
-  void transport.send(createSetPermissionModeRequest(mode, randomUUID())).catch(() => {});
 }
 
 function isInjectedPrompt(turn: ClaudeCliTurn, prompt: unknown): boolean {
@@ -394,12 +383,7 @@ async function acceptMessage(session: ClaudeCliSession, received: Record<string,
     received.type === "result" && session.currentTurn
       ? { ...received, [CLAUDE_CLI_INPUT_UUID_FIELD]: session.currentTurn.inputUuid }
       : received;
-  if (session.pendingPermissionMode && message.type === "user") {
-    // The approved ExitPlanMode has run (its result is this user record); restate the choice.
-    const mode = session.pendingPermissionMode;
-    session.pendingPermissionMode = undefined;
-    syncPermissionMode(session, mode);
-  }
+  applyPendingPermissionMode(session, message);
   if (message.type === "prompt_suggestion") {
     // A forked side request predicts the next prompt after the result. It is never turn
     // output, and once another turn has started the prediction is stale.
@@ -762,9 +746,7 @@ export async function* executeClaudeCli(
     let transport = session.transport;
     if (transport) {
       // Fork (F49): a warm process follows the session's mode chosen since its last turn.
-      if (session.permissionMode !== (turn.permissionMode ?? "default")) {
-        syncPermissionMode(session, turn.permissionMode ?? "default");
-      }
+      await settlePermissionModeAtTurnStart(session, turn.permissionMode ?? "default");
     } else {
       session.permissionMode = turn.permissionMode ?? "default";
       const { args, excludeDynamicSections } = prepareClaudeCliTransportArgs(context);

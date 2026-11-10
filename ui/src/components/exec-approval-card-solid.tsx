@@ -188,15 +188,20 @@ function renderExecBody(
 }
 
 function renderPluginBody(active: ExecApprovalRequest, variant: ExecApprovalCardProps["variant"]) {
+  // Fork: a native tool's untruncated input is both the description and the detail; show it once.
+  const detail =
+    active.pluginDetail && active.pluginDetail.trim() !== active.pluginDescription?.trim()
+      ? active.pluginDetail
+      : undefined;
   return (
     <>
       {" "}
       {active.pluginDescription ? (
         <pre class="exec-approval-command mono">{active.pluginDescription}</pre>
       ) : undefined}
-      {active.pluginDetail ? (
+      {detail ? (
         <pre class="exec-approval-command mono" dir="ltr">
-          {active.pluginDetail}
+          {detail}
         </pre>
       ) : undefined}
       {variant === "modal" && active.request.sessionKey

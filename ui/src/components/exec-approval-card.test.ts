@@ -231,6 +231,29 @@ describe("exec approval card", () => {
     },
   );
 
+  it("shows a native tool input once when the detail repeats the description", () => {
+    // Claude CLI native tools send the same compact JSON as description and detail.
+    const input = JSON.stringify({ file_path: "/tmp/notes.txt", old_string: "a", new_string: "b" });
+    const request = parseApprovalRequestedEvent("plugin.approval.requested", {
+      id: "plugin-native-edit",
+      request: {
+        title: "claude-cli native tool: Edit",
+        description: input,
+        detail: input,
+      },
+      createdAtMs: 1,
+      expiresAtMs: 61_000,
+    });
+    if (!request) {
+      throw new Error("Plugin approval event was not parsed");
+    }
+
+    const card = renderCard(request, "inline");
+    const previews = Array.from(card?.querySelectorAll("pre") ?? []);
+
+    expect(previews.map((preview) => preview.textContent)).toEqual([input]);
+  });
+
   it("labels an approval projected from a child session", () => {
     const card = renderCard(approval({ sourceSessionKey: "agent:main:cloud-child" }), "inline");
 

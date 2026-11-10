@@ -663,6 +663,24 @@ export async function cancelQuestionPrompt(state: QuestionPromptState, id: strin
   await resolveQuestionPrompt(state, id, { cancel: true });
 }
 
+/** Fork (F52): drops settled question summaries whose turn a rewind removed. */
+export function forgetSettledQuestionPrompts(
+  state: QuestionPromptState,
+  matches: (prompt: QuestionPrompt) => boolean,
+): void {
+  let changed = false;
+  for (const [id, prompt] of state.prompts) {
+    if (prompt.status !== "pending" && matches(prompt)) {
+      state.prompts.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) {
+    state.revision += 1;
+    state.onChange();
+  }
+}
+
 export function listQuestionPrompts(state: QuestionPromptState): QuestionPrompt[] {
   return [...state.prompts.values()].toSorted(
     (left, right) => left.createdAtMs - right.createdAtMs || left.id.localeCompare(right.id),
