@@ -610,8 +610,7 @@ export const SessionsCompactParamsSchema = closedObject({
   maxLines: Type.Optional(Type.Integer({ minimum: 1 })),
 });
 
-/** Repoints a session to the active-path state before one persisted user message. */
-export const SessionsRewindParamsSchema = closedObject({
+const SessionMessageCutParamsProperties = {
   sessionKey: NonEmptyString,
   agentId: Type.Optional(NonEmptyString),
   entryId: NonEmptyString,
@@ -626,10 +625,33 @@ export const SessionsRewindParamsSchema = closedObject({
    * user message to cut at, or `nativeMessageId` itself when no local message follows.
    */
   nativeOnly: Type.Optional(Type.Boolean()),
+};
+
+/** Repoints a session to the active-path state before one persisted user message. */
+export const SessionsRewindParamsSchema = closedObject({
+  ...SessionMessageCutParamsProperties,
+  /**
+   * Fork (F52): also restore files the bound Claude CLI session changed since that message,
+   * from Claude's own checkpoints. The rewind fails without changing history when the files
+   * cannot be restored.
+   */
+  restoreFiles: Type.Optional(Type.Boolean()),
 });
 
 /** Creates a new session from the active-path state before one persisted user message. */
-export const SessionsForkParamsSchema = closedObject(SessionsRewindParamsSchema.properties);
+export const SessionsForkParamsSchema = closedObject(SessionMessageCutParamsProperties);
+
+/** Fork (F52): which files a rewind before one message would restore; changes nothing. */
+export const SessionsRewindFilesParamsSchema = closedObject(SessionMessageCutParamsProperties);
+
+export const SessionsRewindFilesResultSchema = closedObject({
+  available: Type.Boolean(),
+  /** Why files cannot be restored, for the rewind confirmation. */
+  reason: Type.Optional(Type.String()),
+  files: Type.Optional(Type.Array(Type.String())),
+  insertions: Type.Optional(Type.Integer({ minimum: 0 })),
+  deletions: Type.Optional(Type.Integer({ minimum: 0 })),
+});
 
 const SessionEditorAttachmentSchema = closedObject({
   mimeType: Type.String(),
@@ -639,6 +661,13 @@ const SessionEditorAttachmentSchema = closedObject({
 export const SessionsRewindResultSchema = closedObject({
   editorText: Type.Optional(Type.String()),
   editorAttachments: Type.Optional(Type.Array(SessionEditorAttachmentSchema)),
+  /** Fork (F52): files restored with `restoreFiles`; `skipped` were left alone (links). */
+  filesRestored: Type.Optional(
+    closedObject({
+      count: Type.Integer({ minimum: 0 }),
+      skipped: Type.Optional(Type.Integer({ minimum: 0 })),
+    }),
+  ),
 });
 
 export const SessionsForkResultSchema = closedObject({
@@ -770,6 +799,8 @@ export type SessionsRewindParams = Static<typeof SessionsRewindParamsSchema>;
 export type SessionsForkParams = Static<typeof SessionsForkParamsSchema>;
 export type SessionsRewindResult = Static<typeof SessionsRewindResultSchema>;
 export type SessionsForkResult = Static<typeof SessionsForkResultSchema>;
+export type SessionsRewindFilesParams = Static<typeof SessionsRewindFilesParamsSchema>;
+export type SessionsRewindFilesResult = Static<typeof SessionsRewindFilesResultSchema>;
 export type SessionBranch = Static<typeof SessionBranchSchema>;
 export type SessionsBranchesListParams = Static<typeof SessionsBranchesListParamsSchema>;
 export type SessionsBranchesListResult = Static<typeof SessionsBranchesListResultSchema>;

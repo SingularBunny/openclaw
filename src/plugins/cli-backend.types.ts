@@ -201,6 +201,26 @@ export type CliBackendLiveSessionHandle = {
    * Resolves false when the process does not know the task or cannot take input.
    */
   stopTask?(taskId: string): Promise<boolean>;
+  /**
+   * Fork (F52): restores files the native runtime edited since one of its user messages
+   * (Claude CLI `rewind_files`); `dryRun` only reports what would change. Resolves undefined
+   * when the process cannot take the request (closed or running a turn).
+   */
+  rewindFiles?(
+    userMessageId: string,
+    options: { dryRun: boolean },
+  ): Promise<CliBackendRewindFilesResult | undefined>;
+};
+
+/** Fork (F52): the native answer to a file rewind, as Claude CLI reports it. */
+export type CliBackendRewindFilesResult = {
+  canRewind: boolean;
+  error?: string;
+  filesChanged?: string[];
+  insertions?: number;
+  deletions?: number;
+  /** Files a real rewind left alone because of links or unreadable backups. */
+  skippedLinks?: number;
 };
 
 /** Closure-bound host capability for one admitted reusable-runtime turn. */

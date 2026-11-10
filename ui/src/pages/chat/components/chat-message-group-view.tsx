@@ -262,7 +262,7 @@ function UserFooterActions(props: { frame: MessageGroupFrame }) {
           />
         </Show>
         <Show when={options().onRewind && !options().rewindDisabled}>
-          <RewindButton onRewind={options().onRewind!} />
+          <RewindButton onRewind={options().onRewind!} rewindFiles={options().rewindFiles} />
         </Show>
         <MessageActions
           details={frame().footerActionDetails}

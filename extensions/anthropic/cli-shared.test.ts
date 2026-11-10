@@ -707,6 +707,7 @@ describe("normalizeClaudeBackendConfig", () => {
     ).toEqual({
       env: {
         CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
+        CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
         CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000",
       },
     });
@@ -739,6 +740,7 @@ describe("normalizeClaudeBackendConfig", () => {
 
     expect(prepared.env).toEqual({
       CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
+      CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
       CLAUDE_CODE_OAUTH_TOKEN_FILE_DESCRIPTOR: "3",
     });
     expect(prepared.env).not.toHaveProperty("CLAUDE_CODE_OAUTH_TOKEN");
@@ -850,6 +852,7 @@ describe("normalizeClaudeBackendConfig", () => {
 
     expect(prepared.env).toEqual({
       CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
+      CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
       CLAUDE_CODE_API_KEY_FILE_DESCRIPTOR: "3",
     });
     expect(prepared.env).not.toHaveProperty("ANTHROPIC_API_KEY");
