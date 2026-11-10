@@ -23,6 +23,7 @@ import { applyPluginTextReplacements } from "../plugin-text-transforms.js";
 import { resolveCliToolTerminalReason } from "../run-termination.js";
 import { cliAssistantItemId } from "./assistant-identity.js";
 import type { CliToolTracking } from "./execute-tool-tracking.js";
+import type { CliBackgroundTasksState } from "./native-wait-state.js";
 import { normalizeCliToolName, stripOpenClawMcpToolPrefix } from "./tool-policy.js";
 import type { PreparedCliRunContext } from "./types.js";
 
@@ -432,6 +433,17 @@ export function createCliEventHandlers(params: {
     emitLiveEvent("thinking", () => ({ progressTokens }));
   };
 
+  // Fork (F33): Claude CLI background agents and tasks, as the Control UI progress line.
+  const emitCliBackgroundTasks = (state: CliBackgroundTasksState) => {
+    emitLiveEvent("background_tasks", () => ({
+      count: state.count,
+      agents: state.agents,
+      waiting: state.waiting && state.count > 0,
+      tasks: state.tasks.slice(0, 20),
+      backend: context.backendResolved.id,
+    }));
+  };
+
   const emitCliToolInputDelta = (progress: CliToolInputDelta) => {
     observedCliActivity = true;
     emitLiveEvent("tool", () => ({ phase: "input_delta", ...progress }));
@@ -452,6 +464,7 @@ export function createCliEventHandlers(params: {
     emitCliCompletedReply,
     emitCliThinkingDelta,
     emitCliThinkingProgress,
+    emitCliBackgroundTasks,
     hasObservedCliActivity: () => observedCliActivity,
     hasActiveCompaction: () => compactionActive,
     onCompactionActiveChange: (listener: () => void) =>

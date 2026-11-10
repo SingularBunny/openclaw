@@ -90,6 +90,8 @@ export type StreamGroupOptions = StreamMessageOptions & {
   waitingApproval?: boolean;
   waitingSubagents?: ChatSubagentWait;
   runningSubagents?: number;
+  /** Fork (F33): Claude CLI background agents/tasks line. */
+  backgroundTasksLabel?: string;
   subagentActivity?: LegacyTemplateResult;
   onOpenSubagents?: () => void;
   runOutputTokens?: number | null;
@@ -167,6 +169,7 @@ function NonstreamPart(props: {
         waitingSubagents:
           props.part.waitingOn === "subagents" ? props.options.waitingSubagents : undefined,
         runningSubagents: props.options.runningSubagents,
+        backgroundTasksLabel: props.options.backgroundTasksLabel,
         subagentActivity: props.options.subagentActivity,
         onOpenSubagents: props.options.onOpenSubagents,
         startupLabel: props.options.startupLabel,

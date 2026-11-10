@@ -32,6 +32,21 @@ describe("renderChatWorkingIndicator", () => {
     expect(container.textContent).toContain("Working");
   });
 
+  it("shows the Claude CLI background tasks line instead of a working phrase", () => {
+    const container = document.createElement("div");
+    render(
+      renderChatWorkingIndicator(
+        { kind: "reading-indicator", key: "background-test", startedAt: 1 },
+        { backgroundTasksLabel: "Waiting for 2 background agents to finish" },
+      ),
+      container,
+    );
+    expect(container.querySelector(".chat-working-indicator__background-tasks")?.textContent).toBe(
+      "Waiting for 2 background agents to finish",
+    );
+    expect(container.querySelector("openclaw-working-phrase")).toBeNull();
+  });
+
   it("renders neutral dots without claw surprises and forwards authored phrases", () => {
     const container = document.createElement("div");
     const workingPhrases = ["Building"];

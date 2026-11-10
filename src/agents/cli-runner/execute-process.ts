@@ -314,6 +314,7 @@ export async function executeCliProcess(params: {
         onNoOutputTimeout: (error) => {
           pluginTimeout.error = error;
         },
+        onBackgroundTasksChange: params.events.emitCliBackgroundTasks,
         onInterrupted: (reason) => {
           streamingParser?.finish();
           const partialOutput = streamingParser?.getOutput();
@@ -527,8 +528,9 @@ export async function executeCliProcess(params: {
     params.options?.onPhase?.("send");
     if (result.reason === "no-output-timeout" || result.noOutputTimedOut) {
       const timeoutSeconds = Math.round(params.noOutputTimeoutMs / 1000);
+      const awaitingModelResponse = pluginTimeout.error?.cliTimeout?.awaitingModelResponse === true;
       cliBackendLog.warn(
-        `cli watchdog timeout: provider=${runParams.provider} model=${context.modelId} session=${params.resolvedSessionId ?? runParams.sessionId} noOutputTimeoutMs=${params.noOutputTimeoutMs} pid=${managedRunPid ?? "node"}`,
+        `cli watchdog timeout: provider=${runParams.provider} model=${context.modelId} session=${params.resolvedSessionId ?? runParams.sessionId} noOutputTimeoutMs=${params.noOutputTimeoutMs} pid=${managedRunPid ?? "node"}${awaitingModelResponse ? " awaiting=model-response" : ""}`,
       );
       const observedActivity = params.events.hasObservedCliActivity();
       const timeoutDecision = pluginTimeout.error
@@ -560,8 +562,12 @@ export async function executeCliProcess(params: {
       if (runParams.sessionKey && params.events.emitLiveEvents && !deferNotice) {
         const stallNotice = [
           `CLI agent (${runParams.provider}) produced no output for ${timeoutSeconds}s and was terminated.`,
-          "It may have been waiting for interactive input or an approval prompt.",
-          "Check CLI permission settings and OpenClaw approval prompts.",
+          ...(awaitingModelResponse
+            ? ["It was waiting for the model API to start responding."]
+            : [
+                "It may have been waiting for interactive input or an approval prompt.",
+                "Check CLI permission settings and OpenClaw approval prompts.",
+              ]),
         ].join(" ");
         // Fork (F38): the notice is passive. It used to be queued as an `exec` session event,
         // which showed as "background command finished" and woke the agent for an extra turn

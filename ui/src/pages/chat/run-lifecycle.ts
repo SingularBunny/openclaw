@@ -426,6 +426,9 @@ function clearRunIndicators(host: RunLifecycleHost, runId?: string | null) {
   if (!runId || host.chatRunStartup?.runId === runId) {
     host.chatRunStartup = null;
   }
+  if (!runId || host.cliBackgroundTasks?.runId === runId) {
+    host.cliBackgroundTasks = null;
+  }
   if (
     (!runId || host.compactionStatus?.runId === runId) &&
     host.compactionStatus?.phase !== "complete"
