@@ -1,3 +1,5 @@
+import { isRecord } from "@openclaw/normalization-core/record-coerce";
+import { GatewayRequestError } from "../../api/gateway.ts";
 import type { GatewaySessionRow, SessionsListResult } from "../../api/types.ts";
 import { t } from "../../i18n/index.ts";
 import { formatUiError } from "../format-error.ts";
@@ -55,6 +57,19 @@ type DeletionHost = {
   ) => Promise<boolean>;
   retire: (key: string) => void;
 };
+
+/** Pause before the one retry of a delete the Gateway saw change underneath it. */
+export const SESSION_DELETE_CHANGED_RETRY_MS = 500;
+
+// The Gateway rejects a delete whose row changed while it ran. Right after an
+// archive that write can still be settling; the operator's retry then succeeds.
+function isSessionChangedError(error: unknown): boolean {
+  return (
+    error instanceof GatewayRequestError &&
+    isRecord(error.details) &&
+    error.details.reason === "session-changed"
+  );
+}
 
 export function createSessionDeletions(host: DeletionHost) {
   // Canonical generation and request order outlive an individual mutation,
@@ -189,7 +204,23 @@ export function createSessionDeletions(host: DeletionHost) {
     const { target } = deletion;
     deletion.operation = (async () => {
       try {
-        const response = await requestSessionDelete(scope.client, target.key, target);
+        let response;
+        try {
+          response = await requestSessionDelete(scope.client, target.key, target);
+        } catch (error) {
+          if (!isSessionChangedError(error)) {
+            throw error;
+          }
+          // One retry with the same expected session ID: a replaced session
+          // still fails, a settled write on the same session does not.
+          await new Promise<void>((resolve) => {
+            setTimeout(resolve, SESSION_DELETE_CHANGED_RETRY_MS);
+          });
+          if (!owns(deletion) || !host.connection.isCurrent(scope)) {
+            throw error;
+          }
+          response = await requestSessionDelete(scope.client, target.key, target);
+        }
         if (!owns(deletion)) {
           return { deleted: false };
         }

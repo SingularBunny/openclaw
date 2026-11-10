@@ -488,6 +488,9 @@ remain unchanged. A completed Claude turn saves only its final message in the
 OpenClaw transcript, tagged with that message's native id, so chat history joins it
 with Claude's native row. Narration written before tool calls appears once, from
 the native rows, ahead of the final answer; delivery still sends the whole reply.
+Claude records `is_error` on a tool result only when the call failed (MCP tools
+omit it on success), so an imported result without it counts as completed: the
+turn summary does not list it as "unknown".
 Native and OpenClaw history share bounded pages and
 message-anchor lookups. The history worker prepares a temporary merged index
 without modifying the stored transcript. A cold index scans bounded source pages to preserve

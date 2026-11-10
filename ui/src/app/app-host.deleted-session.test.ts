@@ -381,7 +381,7 @@ describe("OpenClaw shell deleted-session recovery", () => {
     expect(replace).toHaveBeenCalledOnce();
   });
   it.each(["rejection", "batch interruption", "different-client batch rejection"] as const)(
-    "navigates on delete intent and visibly reports %s without replacing newer navigation",
+    "stays on the chat while deletion is pending and visibly reports %s",
     async (failure) => {
       const response = createDeferred<{ deleted: boolean }>();
       const request = vi.fn(async (method: string) => {
@@ -409,12 +409,12 @@ describe("OpenClaw shell deleted-session recovery", () => {
           failure === "rejection"
             ? sessions.delete(deletedKey)
             : sessions.deleteMany([{ key: deletedKey }, { key: "agent:main:unsent" }]);
-        expect(shell.activeSessionKey).toBe(mainKey);
+        // A pending deletion can still be rejected: the chat stays until it is confirmed.
+        expect(shell.activeSessionKey).toBe(deletedKey);
         expect(sessions.deletionState(deletedKey)).toBe("pending");
         expect(sessions.state.deletedSessions).toEqual([]);
-        expect(replace).toHaveBeenCalledExactlyOnceWith("chat", { pathname: "/chat/main" });
+        expect(replace).not.toHaveBeenCalled();
         shell.activeSessionKey = "agent:main:another-thread";
-        replace.mockClear();
         if (failure === "rejection") {
           response.reject(new Error("delete rejected"));
           await expect(operation).rejects.toThrow("delete rejected");

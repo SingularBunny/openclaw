@@ -197,6 +197,12 @@ function normalizeClaudeCliContent(
           block.name = toolName;
         }
       }
+      // Claude writes `is_error` only when a result failed (MCP tools omit it on
+      // success). A recorded result is terminal, so absence means it succeeded;
+      // without the flag history shows the call as "outcome unknown".
+      if (typeof block.is_error !== "boolean") {
+        block.is_error = false;
+      }
     }
     return block;
   });
