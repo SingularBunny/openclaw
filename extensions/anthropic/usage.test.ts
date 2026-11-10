@@ -332,4 +332,82 @@ describe("Anthropic provider usage", () => {
       expect(JSON.stringify(limited)).not.toContain("cli-access");
     });
   });
+
+  describe("network retry (fork)", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      resetAnthropicUsageBackoffForTest();
+    });
+
+    const okResponse = () =>
+      new Response(JSON.stringify({ five_hour: { utilization: 7 } }), { status: 200 });
+    const fetchFailed = () =>
+      Object.assign(new TypeError("fetch failed"), {
+        cause: Object.assign(new Error("Client network socket disconnected"), {
+          code: "ECONNRESET",
+        }),
+      });
+    const usageCtx = (fetchFn: typeof fetch) => ({
+      config: {},
+      env: {},
+      provider: "anthropic",
+      token: "retry-token",
+      timeoutMs: 10_000,
+      fetchFn,
+    });
+
+    it("retries a network failure twice with 500 and 1500 ms delays", async () => {
+      vi.useFakeTimers();
+      const fetchFn = vi
+        .fn<typeof fetch>()
+        .mockRejectedValueOnce(fetchFailed())
+        .mockRejectedValueOnce(fetchFailed())
+        .mockResolvedValueOnce(okResponse());
+      const pending = fetchAnthropicUsage(usageCtx(fetchFn));
+      await vi.advanceTimersByTimeAsync(499);
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      await vi.advanceTimersByTimeAsync(1500);
+      const snapshot = await pending;
+      expect(fetchFn).toHaveBeenCalledTimes(3);
+      expect(snapshot.error).toBeUndefined();
+      expect(snapshot.windows[0]).toMatchObject({ label: "5h", usedPercent: 7 });
+    });
+
+    it("gives up after two retries and rethrows the network error", async () => {
+      vi.useFakeTimers();
+      const fetchFn = vi.fn<typeof fetch>().mockRejectedValue(fetchFailed());
+      const pending = fetchAnthropicUsage(usageCtx(fetchFn));
+      const settled = pending.then(
+        () => undefined,
+        (err: unknown) => err,
+      );
+      await vi.advanceTimersByTimeAsync(2000);
+      const err = await settled;
+      expect(String(err)).toContain("fetch failed");
+      expect(String(err)).not.toContain("retry-token");
+      expect(fetchFn).toHaveBeenCalledTimes(3);
+    });
+
+    it.each([401, 403, 500, 503])("does not retry HTTP %i", async (status) => {
+      const fetchFn = vi.fn<typeof fetch>(
+        async () => new Response(JSON.stringify({ error: { message: "nope" } }), { status }),
+      );
+      const snapshot = await fetchAnthropicUsage(usageCtx(fetchFn));
+      expect(snapshot.error).toBeDefined();
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not retry non-network errors or an aborted deadline", async () => {
+      const plain = vi.fn<typeof fetch>().mockRejectedValue(new Error("boom"));
+      await expect(fetchAnthropicUsage(usageCtx(plain))).rejects.toThrow("boom");
+      expect(plain).toHaveBeenCalledTimes(1);
+      const aborted = vi
+        .fn<typeof fetch>()
+        .mockRejectedValue(Object.assign(new Error("aborted"), { name: "TimeoutError" }));
+      await expect(fetchAnthropicUsage(usageCtx(aborted))).rejects.toThrow("aborted");
+      expect(aborted).toHaveBeenCalledTimes(1);
+    });
+  });
 });

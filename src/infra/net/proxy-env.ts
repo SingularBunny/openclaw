@@ -3,6 +3,7 @@ import { normalizeOptionalString } from "@openclaw/normalization-core/string-coe
 // Proxy environment helpers mirror undici EnvHttpProxyAgent selection while
 // adding OpenClaw NO_PROXY CIDR/wildcard bypass checks.
 import { readTrimmedStringAlias } from "../../utils/string-readers.js";
+import { isManagedProxyRouteDirect } from "./proxy/proxy-routes.js";
 
 const PROXY_ENV_KEYS = [
   "HTTP_PROXY",
@@ -94,7 +95,12 @@ export function shouldUseEnvHttpProxyForUrl(
     return false;
   }
   const protocol = parsed.protocol === "https:" ? "https" : "http";
-  return hasEnvHttpProxyConfigured(protocol, env) && !matchesNoProxy(parsed, env);
+  return (
+    hasEnvHttpProxyConfigured(protocol, env) &&
+    !matchesNoProxy(parsed, env) &&
+    // Fork: OPENCLAW_PROXY_ROUTES can send this host directly while a managed proxy is active.
+    !isManagedProxyRouteDirect(targetUrl, env)
+  );
 }
 
 /**

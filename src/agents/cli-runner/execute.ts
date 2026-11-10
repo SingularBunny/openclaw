@@ -9,6 +9,10 @@ import {
   installationTargetEnv,
   LOCAL_INSTALLATION_TARGET_UNSUPPORTED,
 } from "../../infra/installation-target-context.js";
+import {
+  applyCliBackendProxyEnv,
+  resolveCliBackendProxy,
+} from "../../infra/net/proxy/proxy-routes.js";
 import { compareValidSemver } from "../../infra/semver.js";
 import { getAgentScopedMediaLocalRoots } from "../../media/local-roots.js";
 import { enqueueCommandInLane } from "../../process/command-queue.js";
@@ -392,6 +396,11 @@ export async function executePreparedCliRun(
         if (!preservedEnv.has(key) || selectedClaudeClearEnv?.has(key)) {
           delete env[key];
         }
+      }
+      // Fork: per-backend child proxy env (OPENCLAW_CLI_BACKEND_PROXY, else the
+      // OPENCLAW_PROXY_ROUTES rule for the backend's API host); backend.env still wins.
+      if (!nodePlacement) {
+        applyCliBackendProxyEnv(env, resolveCliBackendProxy(context.backendResolved.id));
       }
       if (Object.keys(backendEnv).length > 0) {
         Object.assign(

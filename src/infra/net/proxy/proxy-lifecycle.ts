@@ -13,10 +13,12 @@ import { loadProxyline } from "../proxyline-runtime.js";
 import { forceResetGlobalDispatcher } from "../undici-global-dispatcher.js";
 import {
   getActiveManagedProxyLoopbackMode,
+  getActiveManagedProxyUrl,
   registerActiveManagedProxyUrl,
   stopActiveManagedProxyRegistration,
   type ActiveManagedProxyRegistration,
 } from "./active-proxy-state.js";
+import { isLoopbackRouteHost, resolveManagedProxyRoutes } from "./proxy-routes.js";
 import {
   loadManagedProxyTlsOptions,
   loadManagedProxyTlsOptionsSync,
@@ -38,8 +40,33 @@ export type ProxyHandle = {
 const PROXY_ENV_KEYS = ["http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"] as const;
 const NO_PROXY_ENV_KEYS = ["no_proxy", "NO_PROXY"] as const;
 const LOOPBACK_NO_PROXY = "127.0.0.1,localhost,localhost.,::1,[::1],127.0.0.0/8";
+let warnedInvalidProxyRoutes: string | undefined;
+
+// Fork: OPENCLAW_PROXY_ROUTES sends chosen hosts directly; read per request so a hot env reload
+// applies to the next connection. Loopback keeps proxy.loopbackMode.
+function isManagedProxyRouteBypass(url: string): boolean {
+  const parsed = URL.parse(url);
+  if (!parsed || isLoopbackRouteHost(parsed.hostname)) {
+    return false;
+  }
+  const resolution = resolveManagedProxyRoutes({
+    managedProxyUrl: getActiveManagedProxyUrl()?.href ?? process.env["HTTP_PROXY"],
+  });
+  if (resolution.kind === "invalid") {
+    if (warnedInvalidProxyRoutes !== resolution.error) {
+      warnedInvalidProxyRoutes = resolution.error;
+      logWarn(
+        `proxy: ignoring OPENCLAW_PROXY_ROUTES (${resolution.error}); routing everything through the proxy`,
+      );
+    }
+    return false;
+  }
+  return resolution.kind === "rules" && resolution.decide(parsed.hostname) === "direct";
+}
+
 const managedLoopbackBypassPolicy: ProxylineBypassPolicy = ({ url }) =>
-  getActiveManagedProxyLoopbackMode() === "gateway-only" && isLoopbackProxyUrl(url);
+  (getActiveManagedProxyLoopbackMode() === "gateway-only" && isLoopbackProxyUrl(url)) ||
+  isManagedProxyRouteBypass(url);
 const PROXY_ACTIVE_KEYS = [
   "OPENCLAW_PROXY_ACTIVE",
   "OPENCLAW_PROXY_LOOPBACK_MODE",

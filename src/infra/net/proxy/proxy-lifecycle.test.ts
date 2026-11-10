@@ -96,6 +96,7 @@ describe("startProxy", () => {
     "OPENCLAW_PROXY_CA_FILE",
     "OPENCLAW_PROXY_LOOPBACK_MODE",
     "OPENCLAW_PROXY_URL",
+    "OPENCLAW_PROXY_ROUTES",
   ];
   const tempDirs: string[] = [];
 
@@ -236,6 +237,67 @@ describe("startProxy", () => {
         call.some((value) => typeof value === "string" && value.includes("user:pass")),
       ),
     ).toBe(false);
+  });
+
+  function installedBypassPolicy(): (request: { surface: string; url: string }) => boolean {
+    const options = installGlobalProxyMock.mock.calls.at(-1)?.at(0) as unknown as {
+      bypassPolicy: (request: { surface: string; url: string }) => boolean;
+    };
+    return options.bypassPolicy;
+  }
+
+  describe("OPENCLAW_PROXY_ROUTES (fork)", () => {
+    const bypasses = (url: string) => installedBypassPolicy()({ surface: "undici", url });
+
+    it("routes everything through the proxy when unset (upstream)", async () => {
+      await startProxy({ proxyUrl: "http://127.0.0.1:3128" });
+      expect(bypasses("https://api.anthropic.com/v1/messages")).toBe(false);
+      expect(bypasses("https://registry.npmjs.org/openclaw")).toBe(false);
+      expect(bypasses("http://127.0.0.1:18789/")).toBe(true);
+    });
+
+    it("sends listed hosts and subdomains through the proxy and the rest directly", async () => {
+      process.env["OPENCLAW_PROXY_ROUTES"] = "anthropic.com,Claude.AI,claude.com=proxy;*=direct";
+      await startProxy({ proxyUrl: "http://127.0.0.1:3128" });
+      expect(bypasses("https://api.anthropic.com:443/v1/messages")).toBe(false);
+      expect(bypasses("https://anthropic.com/")).toBe(false);
+      expect(bypasses("https://CLAUDE.ai/api")).toBe(false);
+      expect(bypasses("wss://bridge.claude.com/socket")).toBe(false);
+      expect(bypasses("https://notanthropic.com/")).toBe(true);
+      expect(bypasses("https://api.openai.com/v1")).toBe(true);
+      // Loopback keeps proxy.loopbackMode (gateway-only bypasses it).
+      expect(bypasses("http://localhost:18789/")).toBe(true);
+    });
+
+    it("keeps loopback on the proxy under loopbackMode proxy", async () => {
+      process.env["OPENCLAW_PROXY_ROUTES"] = "*=direct";
+      await startProxy({ proxyUrl: "http://127.0.0.1:3128", loopbackMode: "proxy" });
+      expect(bypasses("http://127.0.0.1:18789/")).toBe(false);
+      expect(bypasses("https://example.com/")).toBe(true);
+    });
+
+    it("applies a changed value on the next request (hot reload)", async () => {
+      await startProxy({ proxyUrl: "http://127.0.0.1:3128" });
+      expect(bypasses("https://example.com/")).toBe(false);
+      process.env["OPENCLAW_PROXY_ROUTES"] = "example.com=direct";
+      expect(bypasses("https://example.com/")).toBe(true);
+      expect(bypasses("https://other.example.org/")).toBe(false);
+    });
+
+    it("accepts the managed proxy URL as a target and rejects other proxy URLs without logging them", async () => {
+      process.env["OPENCLAW_PROXY_ROUTES"] = "anthropic.com=http://127.0.0.1:3128;*=direct";
+      await startProxy({ proxyUrl: "http://127.0.0.1:3128" });
+      expect(bypasses("https://api.anthropic.com/")).toBe(false);
+      expect(bypasses("https://example.com/")).toBe(true);
+
+      process.env["OPENCLAW_PROXY_ROUTES"] =
+        "anthropic.com=http://user:secret@10.0.0.9:8080;*=direct";
+      expect(bypasses("https://example.com/")).toBe(false);
+      const warnings = mockLogWarn.mock.calls.map((call) => call[0]);
+      expect(warnings.some((line) => line.includes("OPENCLAW_PROXY_ROUTES"))).toBe(true);
+      expect(warnings.join("\n")).not.toContain("secret");
+      expect(warnings.join("\n")).not.toContain("10.0.0.9");
+    });
   });
 
   it("replaces ambient NO_PROXY with only runtime loopback destinations", async () => {
