@@ -26,6 +26,8 @@ export function createCliPluginWatchdog(params: {
   activeToolCount: () => number;
   backgroundTaskCount: () => number;
   compactionActive: () => boolean;
+  /** Fork (F36): grace while the CLI waits for the model's first response byte. */
+  modelRequestGraceMs?: () => number | undefined;
   hasObservedActivity: () => boolean;
   hasReplayUnsafeActivity: () => boolean;
   onNoOutputTimeout: (error: FailoverError) => void;
@@ -40,6 +42,7 @@ export function createCliPluginWatchdog(params: {
   let lastTickAtMs = clock.now();
   let scheduledTickAtMs = lastTickAtMs;
   let disposed = false;
+  let modelRequestDeferralLogged = false;
 
   const dispose = () => {
     disposed = true;
@@ -96,6 +99,7 @@ export function createCliPluginWatchdog(params: {
     if (noOutputTimeoutMs !== undefined && nowMs >= noOutputDeadlineMs) {
       const quietDurationMs = nowMs - lastOutputAtMs;
       const askUserDeadline = params.getActiveAskUserDeadline?.();
+      const modelRequestGraceMs = params.modelRequestGraceMs?.();
       const decision = noOutputPolicy.resolveCliNoOutputTimeoutDecision({
         context: {
           provider: params.provider,
@@ -112,6 +116,7 @@ export function createCliPluginWatchdog(params: {
           activeToolCount: params.activeToolCount(),
           backgroundTaskCount: params.backgroundTaskCount(),
           compactionActive: params.compactionActive(),
+          ...(modelRequestGraceMs === undefined ? {} : { awaitingModelResponse: true }),
         },
         hasOutputText: false,
         useResume: params.useResume,
@@ -121,8 +126,15 @@ export function createCliPluginWatchdog(params: {
           askUserDeadline === undefined
             ? BLOCKED_TOOL_CALL_ABORT_FLOOR_MS
             : Math.max(BLOCKED_TOOL_CALL_ABORT_FLOOR_MS, askUserDeadline - lastOutputAtMs),
+        ...(modelRequestGraceMs === undefined ? {} : { modelRequestGraceMs }),
       });
       if (decision.deferMs !== undefined) {
+        if (modelRequestGraceMs !== undefined && !modelRequestDeferralLogged) {
+          modelRequestDeferralLogged = true;
+          cliBackendLog.info(
+            `cli watchdog deferred: provider=${params.provider} model=${params.model} awaiting=model-response quietMs=${Math.round(quietDurationMs)} graceMs=${modelRequestGraceMs}`,
+          );
+        }
         noOutputDeadlineMs = nowMs + decision.deferMs;
       } else {
         dispose();
@@ -151,6 +163,7 @@ export function createCliPluginWatchdog(params: {
   return {
     noteOutput: () => {
       lastOutputAtMs = clock.now();
+      modelRequestDeferralLogged = false;
       reset();
     },
     reset,
