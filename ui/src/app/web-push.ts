@@ -35,7 +35,9 @@ export function createWebPushCapability(
     "serviceWorker" in nav &&
     "PushManager" in globalThis &&
     "Notification" in globalThis;
-  const snapshot: WebPushSnapshot = {
+  // Replace, never mutate: Solid props compare this object by identity, so an
+  // in-place update would leave the settings page rendering the first snapshot.
+  let snapshot: WebPushSnapshot = {
     supported,
     permission: installed
       ? supported
@@ -48,7 +50,7 @@ export function createWebPushCapability(
   const listeners = new Set<() => void>();
 
   const publish = (patch: WebPushCapabilityPatch) => {
-    Object.assign(snapshot, patch);
+    snapshot = { ...snapshot, ...patch };
     for (const listener of listeners) {
       listener();
     }
@@ -74,7 +76,9 @@ export function createWebPushCapability(
         })
     : null;
   return {
-    snapshot,
+    get snapshot() {
+      return snapshot;
+    },
     subscribe: (listener: () => void) => registerListener(listeners, listener),
     run: (action: WebPushCapabilityAction) =>
       runtime ? runtime.then((owner) => owner?.run(action)) : Promise.resolve(),

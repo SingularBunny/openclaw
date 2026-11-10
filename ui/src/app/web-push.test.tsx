@@ -330,6 +330,60 @@ describe("web push Gateway reconciliation", () => {
     capability.dispose();
   });
 
+  it("rebases a queued preference edit onto the earlier queued save", async () => {
+    const firstSave = createDeferred();
+    const saved = notificationPreferences(false);
+    let stored = saved;
+    let saveCount = 0;
+    const request = vi.fn(async (method: string, params?: unknown) => {
+      if (method === "push.web.vapidPublicKey") {
+        return { vapidPublicKey: encodedVapidKey([4, 1, 2, 3]) };
+      }
+      if (method === "push.web.preferences.get") {
+        return preferenceResult(stored);
+      }
+      if (method === "push.web.preferences.set") {
+        saveCount += 1;
+        if (saveCount === 1) {
+          await firstSave.promise;
+        }
+        stored = (params as { preferences: WebPushNotificationPreferences }).preferences;
+        return { scope: "user", preferences: stored };
+      }
+      return {};
+    });
+    const harness = gatewayHarness();
+    const capability = createWebPushCapability(harness.gateway);
+    harness.connect({ request } as unknown as GatewayBrowserClient);
+    await vi.waitFor(() => expect(capability.snapshot.preferences).toBeTruthy());
+
+    // Both toggles were built from the same rendered preferences before either save returned.
+    const toggle = (category: "agentFinished" | "agentQuestion") => ({
+      ...saved,
+      categories: { ...saved.categories, [category]: true },
+    });
+    const first = capability.run({
+      kind: "set",
+      scope: "user",
+      preferences: toggle("agentFinished"),
+    });
+    await vi.waitFor(() => expect(saveCount).toBe(1));
+    const second = capability.run({
+      kind: "set",
+      scope: "user",
+      preferences: toggle("agentQuestion"),
+    });
+    firstSave.resolve();
+    await Promise.all([first, second]);
+
+    expect(stored.categories).toMatchObject({ agentFinished: true, agentQuestion: true });
+    expect(capability.snapshot.preferences?.user.categories).toMatchObject({
+      agentFinished: true,
+      agentQuestion: true,
+    });
+    capability.dispose();
+  });
+
   it("refreshes routed canonical profile defaults without publishing a stale invalidation", async ({
     signal,
   }) => {
