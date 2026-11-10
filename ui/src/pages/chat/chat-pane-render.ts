@@ -55,7 +55,6 @@ import { chatSendPendingReason } from "./chat-send-support.ts";
 import { refreshChatCommands } from "./chat-state-refresh.ts";
 import { resolveChatAgentId, selectedChatSessionRow } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
-import { formatCliBackgroundTasksLabel } from "./cli-background-tasks.ts";
 import { openSessionWorkspaceFile } from "./components/chat-session-workspace.ts";
 import { chatFailureRunId, hasAbortableSessionRun, hasDirectSessionRun } from "./run-lifecycle.ts";
 import { lockChatScroll, scheduleChatScroll } from "./scroll.ts";
@@ -69,6 +68,20 @@ const emptyTranscriptItems: [] = [];
 
 export class ChatPaneRuntime extends ChatPaneLayoutRender {
   private readonly resourceProps = createChatPaneResourceProps();
+  /** Fork (F47): stops one Claude CLI background task of the selected session. */
+  private readonly stopCliBackgroundTask = async (taskId: string): Promise<boolean> => {
+    const state = this.state;
+    if (!state?.client) {
+      return false;
+    }
+    const agentId = resolveChatAgentId(state);
+    const result = await state.client.request<{ requested?: boolean }>("sessions.cliTasks.stop", {
+      sessionKey: state.sessionKey,
+      ...(agentId ? { agentId } : {}),
+      taskId,
+    });
+    return result?.requested === true;
+  };
 
   render(
     readProviderReview?: () => ChatProviderReviewOwner | undefined,
@@ -395,7 +408,13 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       environmentStartStatus:
         placement?.state === "provisioning" ? placement.startStatus : undefined,
       waitingApproval: state.waitingApprovalStatuses.size > 0,
-      backgroundTasksLabel: formatCliBackgroundTasksLabel(state.cliBackgroundTasks),
+      backgroundTasks: state.cliBackgroundTasks,
+      onStopBackgroundTask:
+        canWriteProgressCard &&
+        nativeConversation &&
+        isGatewayMethodAdvertised(gatewaySnapshot, "sessions.cliTasks.stop") === true
+          ? this.stopCliBackgroundTask
+          : undefined,
       compactionStatus: state.compactionStatus,
       fallbackStatus: state.fallbackStatus,
       providerPolicyNotice: catalogKey ? null : state.providerPolicyNotice,

@@ -7,6 +7,8 @@ import { ChatAvatar, type ChatAvatarProps } from "../chat-avatar-view.tsx";
 import type { ChatSubagentWait } from "../chat-subagent-wait.ts";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import type { MessageRenderOptions } from "./chat-message-bubble-options.ts";
+import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
 import { GroupedMessage } from "./chat-message-bubble-view.tsx";
 import {
   prepareChatStreamRender,
@@ -49,8 +51,9 @@ export type StreamGroupOptions = MessageRenderOptions & {
   waitingApproval?: boolean;
   waitingSubagents?: ChatSubagentWait;
   runningSubagents?: number;
-  /** Fork (F33): Claude CLI background agents/tasks line. */
-  backgroundTasksLabel?: string;
+  /** Fork (F33, F47): Claude CLI background agents/tasks line and rows. */
+  backgroundTasks?: CliBackgroundTasksStatus | null;
+  onStopBackgroundTask?: CliBackgroundTaskStop;
   onOpenSubagents?: () => void;
   runOutputTokens?: number | null;
   questionPrompts?: ReadonlyMap<string, QuestionPrompt>;
@@ -135,7 +138,8 @@ export function StreamPartView(props: {
                 part().waitingOn === "subagents" ? props.options.waitingSubagents : undefined,
               sessionLinks: props.options.handoffSessionLinks,
               runningSubagents: props.options.runningSubagents,
-              backgroundTasksLabel: props.options.backgroundTasksLabel,
+              backgroundTasks: props.options.backgroundTasks,
+              onStopBackgroundTask: props.options.onStopBackgroundTask,
               onOpenSubagents: props.options.onOpenSubagents,
               startupLabel: props.options.startupLabel,
               retryAt: props.options.retryAt,

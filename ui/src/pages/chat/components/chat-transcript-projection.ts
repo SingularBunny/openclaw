@@ -318,7 +318,8 @@ export function projectChatTranscript(
     startupLabel: props.startupLabel,
     retryAt: props.retryAt,
     waitingApproval: props.waitingApproval,
-    backgroundTasksLabel: props.backgroundTasksLabel,
+    backgroundTasks: props.backgroundTasks,
+    onStopBackgroundTask: props.onStopBackgroundTask,
     waitingSubagents: subagents.wait
       ? {
           ...subagents.wait,
@@ -475,7 +476,8 @@ export function projectChatTranscript(
     props.startupLabel,
     props.retryAt,
     Boolean(props.waitingApproval),
-    props.backgroundTasksLabel,
+    props.backgroundTasks,
+    props.onStopBackgroundTask,
     props.questionPrompts,
     state.asyncQuestionRevision,
     props.asyncQuestions?.historyKey,
