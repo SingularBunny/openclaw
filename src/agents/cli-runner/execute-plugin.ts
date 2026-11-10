@@ -38,6 +38,10 @@ import { runStructuredInput } from "../harness/structured-input-execution.js";
 import { compileStructuredInputQuestions } from "../harness/structured-input.js";
 import { resolveExecToolConfig } from "../lazy-exec-tool.js";
 import { resolveToolLoopDetectionConfig } from "../tool-loop-detection-config.js";
+import {
+  createClaudePermissionModeRecorder,
+  resolveRunClaudePermissionMode,
+} from "./claude-permission-mode.js";
 import { createClaudeCliTodoObserver } from "./claude-todos.js";
 import {
   restartCliLiveSession,
@@ -60,6 +64,16 @@ import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./nat
 import * as noOutputPolicy from "./no-output-timeout-policy.js";
 import { normalizeCliToolName } from "./tool-policy.js";
 import type { PreparedCliRunContext } from "./types.js";
+
+/** Fork (F49): explicit session mode plus the recorder for modes chosen during the run. */
+function claudePermissionModeContext(run: PreparedCliRunContext["params"]) {
+  const permissionMode = resolveRunClaudePermissionMode(run);
+  const onPermissionModeChange = createClaudePermissionModeRecorder(run);
+  return {
+    ...(permissionMode ? { permissionMode } : {}),
+    ...(onPermissionModeChange ? { onPermissionModeChange } : {}),
+  };
+}
 
 function denyTool(message: string): CliBackendToolPermissionResult {
   return { behavior: "deny", message };
@@ -237,7 +251,11 @@ async function createPluginToolPermissionHandler(params: {
       );
     }
     const currentGrants = getCliLiveSessionApprovalGrants(params.context) ?? grants;
-    if (plan === "allow" || (permission.ask !== "always" && currentGrants.has(toolName))) {
+    // Fork (F49): the session's Claude permission mode can ask where host policy would not.
+    if (
+      (plan === "allow" && !request.requireApproval) ||
+      (permission.ask !== "always" && currentGrants.has(toolName))
+    ) {
       assertActive();
       recordAdjustedParamsForToolCall(request.toolCallId, toolInput, run.runId);
       return { behavior: "allow", updatedInput: toolInput };
@@ -265,7 +283,8 @@ async function createPluginToolPermissionHandler(params: {
         },
         assertActive,
         abortSignal: signal,
-        ask: permission.ask,
+        // A mode-required prompt under ask=off still offers allow-always for the session.
+        ask: permission.ask === "off" ? "on-miss" : permission.ask,
       });
     } finally {
       params.onPendingApproval(-1);
@@ -651,6 +670,7 @@ export async function executePluginOwnedProcess(params: {
             }
           : {}),
         ...(params.onPromptSuggestion ? { onPromptSuggestion: params.onPromptSuggestion } : {}),
+        ...claudePermissionModeContext(run),
         // Warm transports retain their first turn's async context across plugin refreshes.
         requestToolPermission: AsyncLocalStorage.bind(requestToolPermission),
         requestUserInput: createPluginUserInputHandler({

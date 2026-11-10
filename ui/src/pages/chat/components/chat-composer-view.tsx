@@ -21,6 +21,7 @@ import { hasVisibleChatActivityPills } from "./chat-activity-pills-visibility.ts
 import { createChatAttachmentInputHandle } from "./chat-attachment-inputs.ts";
 import { ChatAttachmentInputs } from "./chat-attachment-inputs.tsx";
 import { AttachmentPreview, AttachmentReadStatus } from "./chat-attachments.tsx";
+import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ComposerContent } from "./chat-composer-content.tsx";
 import { ContextNotice } from "./chat-composer-context.tsx";
 import "../../../styles/chat/emoji-menu.css";
@@ -102,7 +103,14 @@ export function renderChatComposerView(
       : undefined;
   });
   const composerLeadControl = (
-    <Show when={props.permissionPicker}>{(picker) => <ChatPermissionPicker {...picker()} />}</Show>
+    <>
+      <Show when={props.permissionPicker}>
+        {(picker) => <ChatPermissionPicker {...picker()} />}
+      </Show>
+      <Show when={props.claudeModePicker}>
+        {(picker) => <ChatClaudeModePicker {...picker()} />}
+      </Show>
+    </>
   );
   const placeholder = createMemo(() =>
     context().goalComposer.active
@@ -712,6 +720,7 @@ export function renderChatComposerView(
             props.permissionPicker?.defaultMode ??
             props.selectedSession?.permissionMode
           }
+          claudeMode={props.claudeModePicker?.mode}
         />
       ) : undefined}
     </div>

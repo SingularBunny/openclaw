@@ -1,4 +1,5 @@
 import type { CliBackendExecuteContext } from "openclaw/plugin-sdk/cli-backend";
+import { readClaudeCliPermissionMode } from "./cli-permission-mode.js";
 
 const PROTOCOL_FLAGS = new Set([
   "-p",
@@ -32,6 +33,8 @@ export function prepareClaudeCliTransportArgs(context: CliBackendExecuteContext)
   let tools: string[] | undefined;
   let settingSources = "user";
   let excludeDynamicSections = false;
+  // Fork (F49): only an explicit session choice changes the established `default` argv.
+  const permissionMode = readClaudeCliPermissionMode(context.permissionMode);
   for (let index = 0; index < context.args.length; index += 1) {
     const raw = context.args[index]!;
     const equals = raw.indexOf("=");
@@ -99,7 +102,9 @@ export function prepareClaudeCliTransportArgs(context: CliBackendExecuteContext)
     "--permission-prompt-tool",
     "stdio",
     "--permission-mode",
-    "default",
+    permissionMode ?? "default",
+    // An explicit session mode may later switch to bypassPermissions over the control channel.
+    ...(permissionMode ? ["--allow-dangerously-skip-permissions"] : []),
     "--setting-sources",
     settingSources,
     "--model",
