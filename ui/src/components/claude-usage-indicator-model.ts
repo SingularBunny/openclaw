@@ -1,6 +1,7 @@
 // Fork: pure view model for the always-visible Claude subscription usage indicator.
 import type {
   ProviderUsageRateLimit,
+  ProviderUsageSnapshot,
   UsageSummary,
   UsageWindow,
 } from "../../../src/infra/provider-usage.types.js";
@@ -25,7 +26,31 @@ export type ClaudeUsageView = {
   plan?: string;
   /** Present only for a warning or a reached limit from the latest turn. */
   rateLimit?: ProviderUsageRateLimit & { label?: string };
+  /** When the shown windows were last read; set only while the latest read had none. */
+  staleSince?: number;
 };
+
+/** The last read that carried Claude windows, kept across failed or windowless reads. */
+export type ClaudeUsageLastGood = { snapshot: ProviderUsageSnapshot; at: number };
+
+/** How long the last good windows stay on screen while reads keep failing. */
+export const CLAUDE_USAGE_STALE_KEEP_MS = 6 * 60 * 60 * 1000;
+
+function claudeSnapshot(summary: UsageSummary | null | undefined) {
+  return summary?.providers.find((entry) => entry.provider === "anthropic");
+}
+
+/** Remembers a read with Claude windows; any other read keeps the previous one. */
+export function rememberClaudeUsage(
+  previous: ClaudeUsageLastGood | null,
+  summary: UsageSummary | null | undefined,
+  now: number,
+): ClaudeUsageLastGood | null {
+  const snapshot = claudeSnapshot(summary);
+  return snapshot && !snapshot.error && snapshot.windows.length > 0
+    ? { snapshot, at: now }
+    : previous;
+}
 
 const WARN_PERCENT = 70;
 const DANGER_PERCENT = 90;
@@ -75,8 +100,21 @@ export function resolveClaudeUsageView(
   summary: UsageSummary | null | undefined,
   now: number,
   t: Translate,
+  lastGood?: ClaudeUsageLastGood | null,
 ): ClaudeUsageView | null {
-  const snapshot = summary?.providers.find((entry) => entry.provider === "anthropic");
+  const latest = claudeSnapshot(summary);
+  // An expired Claude CLI token, a timeout or a 5xx drop the windows for a while; the last
+  // good ones stay, marked with their age, instead of the block vanishing.
+  const stale =
+    (!latest || latest.windows.length === 0) &&
+    lastGood !== undefined &&
+    lastGood !== null &&
+    now - lastGood.at < CLAUDE_USAGE_STALE_KEEP_MS
+      ? lastGood
+      : undefined;
+  const snapshot = stale
+    ? { ...stale.snapshot, rateLimit: latest?.rateLimit ?? stale.snapshot.rateLimit }
+    : latest;
   if (!snapshot) {
     return null;
   }
@@ -109,6 +147,7 @@ export function resolveClaudeUsageView(
     rows,
     ...(snapshot.plan ? { plan: snapshot.plan } : {}),
     ...(live ? { rateLimit: { ...live, ...(label ? { label } : {}) } } : {}),
+    ...(stale ? { staleSince: stale.at } : {}),
   };
 }
 
