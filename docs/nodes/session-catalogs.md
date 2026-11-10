@@ -236,6 +236,10 @@ offers **Delete session** when the row has `canArchive`; the provider's
 Gateway archives that session with `sessions.patch` as the caller, because a
 plugin may patch only sessions it created. A failed archive fails the request.
 
+A catalog row whose `sessionKey` is an automation session (`agent:<id>:cron:<job>`)
+follows the sidebar's **Show automation sessions** filter, as in the regular list:
+hidden while it is off, except the session that is open.
+
 ### Moving rows between folders
 
 A provider that also implements the optional `move` hook advertises

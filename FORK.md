@@ -49,3 +49,4 @@ handled by [ai-workbench](https://github.com/SingularBunny/ai-workbench) (`tools
 
 The converter and text extractor (`aiwb-office`) and the plugin that reports the effective settings (`aiwb-fork-settings`)
 live in [aiwb-plugins](https://github.com/SingularBunny/aiwb-plugins).
+| Catalog rows that are automation sessions (`agent:<id>:cron:<job>`, e.g. filed into a project folder by a catalog provider) follow **Show automation sessions** like the regular list: hidden while it is off, except the open session | Control UI `app-sidebar-session-snooze-visibility.ts` (`projectSidebarSnoozeCatalogs`), `sidebar-projection-memo.ts` (`memoizedSidebarCatalogs` inputs) | [Session catalogs](docs/nodes/session-catalogs.md#rows-that-are-gateway-sessions) |
