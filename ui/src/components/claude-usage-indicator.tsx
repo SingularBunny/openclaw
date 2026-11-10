@@ -9,7 +9,9 @@ import { t } from "../lib/reactive/i18n.ts";
 import "../styles/claude-usage.css";
 import {
   formatClaudeUsageCountdown,
+  rememberClaudeUsage,
   resolveClaudeUsageView,
+  type ClaudeUsageLastGood,
   type ClaudeUsageRow,
 } from "./claude-usage-indicator-model.ts";
 
@@ -47,6 +49,7 @@ export function ClaudeUsageIndicator(props: {
   gateway: () => ApplicationGateway | undefined;
 }): JSX.Element {
   const [summary, setSummary] = createSignal<UsageSummary | null>(null);
+  const [lastGood, setLastGood] = createSignal<ClaudeUsageLastGood | null>(null);
   const [now, setNow] = createSignal(Date.now());
   let inFlight: AbortController | null = null;
   let turnEndTimer: ReturnType<typeof setTimeout> | undefined;
@@ -87,8 +90,10 @@ export function ClaudeUsageIndicator(props: {
           return;
         }
         haveSummary = true;
+        const at = Date.now();
+        setLastGood((previous) => rememberClaudeUsage(previous, result.value, at));
         setSummary(result.value);
-        setNow(Date.now());
+        setNow(at);
       })
       .catch(() => {});
   };
@@ -108,6 +113,7 @@ export function ClaudeUsageIndicator(props: {
       // Another Gateway's figures must not linger under this connection.
       haveSummary = false;
       setSummary(null);
+      setLastGood(null);
     }
     if (!gateway) {
       return false;
@@ -157,7 +163,7 @@ export function ClaudeUsageIndicator(props: {
     }
   });
 
-  const view = createMemo(() => resolveClaudeUsageView(summary(), now(), t));
+  const view = createMemo(() => resolveClaudeUsageView(summary(), now(), t, lastGood()));
 
   return (
     <Show when={view()}>
@@ -166,6 +172,7 @@ export function ClaudeUsageIndicator(props: {
           class="claude-usage"
           aria-label={t("common.claudeUsage.title")}
           data-limit={current().rateLimit?.status}
+          data-stale={current().staleSince !== undefined ? "" : undefined}
         >
           <div class="claude-usage__header">
             <span class="claude-usage__title">
@@ -173,6 +180,15 @@ export function ClaudeUsageIndicator(props: {
                 ? t("common.claudeUsage.titleWithPlan", { plan: current().plan ?? "" })
                 : t("common.claudeUsage.title")}
             </span>
+            <Show when={current().staleSince}>
+              {(since) => (
+                <span class="claude-usage__stale" title={formatDateTimeMs(since())}>
+                  {t("common.claudeUsage.updated", {
+                    relative: formatRelativeTimestamp(since()),
+                  })}
+                </span>
+              )}
+            </Show>
           </div>
           <Show when={current().rateLimit}>
             {(limit) => (
