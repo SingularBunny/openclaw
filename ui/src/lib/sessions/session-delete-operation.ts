@@ -18,6 +18,19 @@ import type {
 
 registerSessionOrganizationEnglish();
 
+/** Pause before the one retry of a delete the Gateway saw change underneath it. */
+export const SESSION_DELETE_CHANGED_RETRY_MS = 500;
+
+// The Gateway rejects a delete whose row changed while it ran. Right after an
+// archive that write can still be settling; the operator's retry then succeeds.
+function isSessionChangedError(error: unknown): boolean {
+  return (
+    error instanceof GatewayRequestError &&
+    isRecord(error.details) &&
+    error.details.reason === "session-changed"
+  );
+}
+
 function performSessionDelete(
   deletion: Deletion,
   scope: SessionConnectionScope,
@@ -72,16 +85,34 @@ function performSessionDelete(
         }
         deletion.archiveBeforeDelete = false;
       }
-      const response = await scope.client.request<SessionsDeleteResult>(
-        "sessions.delete",
-        {
-          ...buildSessionRequestParams(target.key, target.agentId),
-          deleteTranscript: target.deleteTranscript ?? true,
-          ...(target.expectedSessionId ? { expectedSessionId: target.expectedSessionId } : {}),
-          ...(target.archivedOnly === true ? { archivedOnly: true } : {}),
-        },
-        SESSION_ARCHIVE_REQUEST_OPTIONS,
-      );
+      const requestDelete = () =>
+        scope.client.request<SessionsDeleteResult>(
+          "sessions.delete",
+          {
+            ...buildSessionRequestParams(target.key, target.agentId),
+            deleteTranscript: target.deleteTranscript ?? true,
+            ...(target.expectedSessionId ? { expectedSessionId: target.expectedSessionId } : {}),
+            ...(target.archivedOnly === true ? { archivedOnly: true } : {}),
+          },
+          SESSION_ARCHIVE_REQUEST_OPTIONS,
+        );
+      let response: SessionsDeleteResult;
+      try {
+        response = await requestDelete();
+      } catch (error) {
+        if (!isSessionChangedError(error)) {
+          throw error;
+        }
+        // Fork (F40): one retry with the same expected session ID: a replaced session still
+        // fails, a settled write on the same session does not.
+        await new Promise<void>((resolve) => {
+          setTimeout(resolve, SESSION_DELETE_CHANGED_RETRY_MS);
+        });
+        if (!host.owns(deletion) || !host.connection.isCurrent(scope)) {
+          throw error;
+        }
+        response = await requestDelete();
+      }
       if (!host.owns(deletion)) {
         return { deleted: false };
       }
