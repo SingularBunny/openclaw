@@ -40,6 +40,8 @@ const SESSION_ENTRY_RESERVED_SLOT_KEY_LIST = [
   "spawnedWorkspaceDir",
   "spawnedCwd",
   "permissionMode",
+  // Fork (F49): Claude CLI --permission-mode of claude-cli sessions.
+  "claudePermissionMode",
   "sessionRoot",
   "sessionDiffBaseline",
   "sessionDiffBaselineCapture",

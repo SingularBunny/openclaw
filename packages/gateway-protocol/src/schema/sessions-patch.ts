@@ -5,7 +5,11 @@ import { closedObject } from "./closed-object.js";
 import { ErrorShapeSchema } from "./frames.js";
 import { NonEmptyString, SessionLabelString } from "./primitives.js";
 import { SessionCommunicationPatchSchema } from "./sessions-communication.js";
-import { SessionPermissionModeSchema, SessionToolOverridesSchema } from "./sessions-row.js";
+import {
+  ClaudePermissionModeSchema,
+  SessionPermissionModeSchema,
+  SessionToolOverridesSchema,
+} from "./sessions-row.js";
 
 export const SESSIONS_PATCH_MANY_MAX_TARGETS = 100;
 
@@ -79,6 +83,8 @@ const SessionsPatchMutationProperties = {
   execAsk: Type.Optional(Type.Union([NonEmptyString, Type.Null()])),
   execNode: Type.Optional(Type.Union([NonEmptyString, Type.Null()])),
   permissionMode: Type.Optional(Type.Union([SessionPermissionModeSchema, Type.Null()])),
+  /** Fork (F49): Claude CLI `--permission-mode` for this session; null restores the default. */
+  claudePermissionMode: Type.Optional(Type.Union([ClaudePermissionModeSchema, Type.Null()])),
   communication: Type.Optional(Type.Union([SessionCommunicationPatchSchema, Type.Null()])),
   /** Null restores configured containment; required session isolation cannot be relaxed. */
   sandboxMode: Type.Optional(Type.Union([Type.Literal("off"), Type.Null()])),

@@ -30,6 +30,7 @@ import type { PluginToolIcons } from "../chat-tool-icon-controller.ts";
 import { HighlightedCommand } from "./chat-command-highlight.solid.tsx";
 import { DiffStatChips } from "./chat-diff-render.solid.tsx";
 import { renderChatPermissionCard } from "./chat-divider.ts";
+import { ClaudePlanCard, readClaudePlanMarkdown } from "./chat-plan-card.solid.tsx";
 import { ExpandedToolCardContent } from "./chat-tool-content.solid.tsx";
 import { ToolOutcomeSummary } from "./chat-tool-outcome-summary.solid.tsx";
 import {
@@ -591,9 +592,22 @@ const ToolCardHost = defineSolidBridge<{
   (props) => (
     <Show when={props.card}>
       {(card) => (
-        <ToolCardView card={card()} options={props.options} hasChildren={props.hasChildren}>
-          {props.children}
-        </ToolCardView>
+        // Fork (F49): Claude's ExitPlanMode plan renders as a Markdown card, not a tool row.
+        <Show
+          when={!props.hasChildren && readClaudePlanMarkdown(card())}
+          fallback={
+            <ToolCardView card={card()} options={props.options} hasChildren={props.hasChildren}>
+              {props.children}
+            </ToolCardView>
+          }
+        >
+          {(markdown) => (
+            <ClaudePlanCard
+              markdown={markdown()}
+              outcome={resolveToolCardOutcome(card(), props.options.runActive)}
+            />
+          )}
+        </Show>
       )}
     </Show>
   ),

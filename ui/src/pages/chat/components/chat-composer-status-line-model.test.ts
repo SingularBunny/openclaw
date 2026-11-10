@@ -106,3 +106,20 @@ describe("formatTurnElapsed", () => {
     expect(formatTurnElapsed(3_720_000)).toBe("1h 02m");
   });
 });
+
+describe("Claude Code mode in the status line (F49)", () => {
+  it("announces non-default modes only", () => {
+    const base = { session: session({ model: "claude-opus-4-6" }), now: 0 };
+    expect(resolveComposerStatusLine({ ...base, claudeMode: "plan" }).claudeMode).toBe("plan");
+    expect(resolveComposerStatusLine({ ...base, claudeMode: "acceptEdits" }).claudeMode).toBe(
+      "acceptEdits",
+    );
+    expect(resolveComposerStatusLine({ ...base, claudeMode: "default" })).not.toHaveProperty(
+      "claudeMode",
+    );
+    expect(resolveComposerStatusLine({ ...base, claudeMode: null })).not.toHaveProperty(
+      "claudeMode",
+    );
+    expect(hasComposerStatusLineParts({ claudeMode: "plan" })).toBe(true);
+  });
+});

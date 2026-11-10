@@ -30,6 +30,19 @@ export const SessionPermissionModeSchema = Type.Union([
   Type.Literal("full"),
 ]);
 
+/**
+ * Fork (F49): Claude Code's own permission mode for `claude-cli` sessions, passed to the CLI as
+ * `--permission-mode`. Independent of the OpenClaw permission mode above.
+ */
+export const ClaudePermissionModeSchema = Type.Union([
+  Type.Literal("default"),
+  Type.Literal("acceptEdits"),
+  Type.Literal("plan"),
+  Type.Literal("bypassPermissions"),
+  Type.Literal("dontAsk"),
+  Type.Literal("auto"),
+]);
+
 export const SessionRepositorySourceSchema = closedObject({
   url: Type.String({ minLength: 1, maxLength: 2048 }),
   ref: Type.Optional(Type.String({ minLength: 1, maxLength: 1024 })),
@@ -234,6 +247,8 @@ export const SessionRowSchema = Type.Object(
     /** Administrator consent to the exact external runtime's own permissions for this incarnation. */
     nativeRuntimeConsent: Type.Optional(NonEmptyString),
     permissionModePending: Type.Optional(Type.Boolean()),
+    /** Fork (F49): explicit Claude CLI permission mode; omitted keeps the runtime default. */
+    claudePermissionMode: Type.Optional(ClaudePermissionModeSchema),
     sessionRoot: Type.Optional(Type.String()),
     createdVia: Type.Optional(
       Type.Union([
@@ -316,6 +331,7 @@ export const SessionEventAncestorsSchema = closedObject({
 
 export type SessionCreatedActor = Static<typeof SessionCreatedActorSchema>;
 export type SessionPermissionMode = Static<typeof SessionPermissionModeSchema>;
+export type ClaudePermissionMode = Static<typeof ClaudePermissionModeSchema>;
 export type SessionOwner = Static<typeof SessionOwnerSchema>;
 export type SessionRunStatus = Static<typeof SessionRunStatusSchema>;
 export type SessionToolOverrides = Static<typeof SessionToolOverridesSchema>;

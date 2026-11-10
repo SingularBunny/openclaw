@@ -275,7 +275,15 @@ export type RestartRecoveryRun = {
 
 type SessionEntryCore = SessionRestartRecoveryState &
   SessionEntryProvenance &
-  Pick<SessionRow, "permissionMode" | "sandboxMode" | "nativeRuntimeConsent" | "sessionRoot"> & {
+  Pick<
+    SessionRow,
+    // Fork (F49): claudePermissionMode is the Claude CLI's own --permission-mode.
+    | "permissionMode"
+    | "claudePermissionMode"
+    | "sandboxMode"
+    | "nativeRuntimeConsent"
+    | "sessionRoot"
+  > & {
     /** Collaboration mode. Missing legacy values are equivalent to "shared". */
     visibility?: NonNullable<SessionRow["visibility"]>;
     /**

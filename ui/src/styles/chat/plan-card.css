@@ -1,0 +1,36 @@
+/* Fork (F49): Claude's plan (ExitPlanMode) as a Markdown card in the chat transcript. */
+.chat-plan-card {
+  margin-block: 6px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--card, transparent);
+  overflow: hidden;
+}
+
+.chat-plan-card__header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chat-plan-card__title {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.chat-plan-card__state {
+  margin-inline-start: auto;
+}
+
+.chat-plan-card[data-plan-outcome="succeeded"] .chat-plan-card__state {
+  color: var(--ok, var(--muted));
+}
+
+.chat-plan-card__body {
+  padding: 8px 12px;
+  overflow-wrap: anywhere;
+}

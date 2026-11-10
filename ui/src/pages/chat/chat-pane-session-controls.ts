@@ -17,6 +17,7 @@ import {
   type SessionPatch,
 } from "../../lib/sessions/index.ts";
 import { areUiSessionKeysEquivalent } from "../../lib/sessions/session-key.ts";
+import { buildChatClaudeModePicker } from "./chat-claude-mode-controls.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { switchChatModel, switchChatSetting } from "./chat-session.ts";
@@ -25,6 +26,7 @@ import type { ChatPageHost } from "./chat-state-host.ts";
 import { refreshChatModelCatalogOnDemand } from "./chat-state-refresh.ts";
 import { selectedChatSessionRow } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
+import type { ChatClaudeModePickerProps } from "./components/chat-claude-mode.ts";
 import { renderChatModelAccountControl } from "./components/chat-model-account-control.ts";
 import { renderChatModelControls } from "./components/chat-model-controls.tsx";
 import type { ChatPermissionPickerProps } from "./components/chat-permission-picker.tsx";
@@ -140,6 +142,7 @@ export function renderChatPaneComposerControls(params: {
 }): {
   composerControls: NonNullable<ChatProps["composerControls"]>;
   permissionPicker: ChatPermissionPickerProps;
+  claudeModePicker?: ChatClaudeModePickerProps;
 } {
   const {
     state,
@@ -326,6 +329,17 @@ export function renderChatPaneComposerControls(params: {
         })}
       </div>
     `,
+    claudeModePicker: buildChatClaudeModePicker({
+      state,
+      selectedSession,
+      sessionKey,
+      agentId: agentScope.agentId,
+      expectedSessionId,
+      access: permissionAccess,
+      canSelectBypass: canSelectFull,
+      canPatch: (patch) => canPatch(patch),
+      ownsSelection,
+    }),
     permissionPicker: {
       canSelectFull,
       defaultMode: agentDefaultPermissionMode,
