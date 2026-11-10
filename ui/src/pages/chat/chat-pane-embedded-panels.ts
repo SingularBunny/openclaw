@@ -3,10 +3,12 @@ import type { IconName } from "../../components/solid/icon.tsx";
 import { t } from "../../i18n/index.ts";
 import { registerChatSessionEnglish } from "../../i18n/locales/en-chat-session.ts";
 import { registerFilePreviewEnglish } from "../../i18n/locales/en-file-preview.ts";
+import { automationSessionJobId } from "../../lib/cron/automation-session.ts";
 import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
 import type { ControlUiRegistration } from "../../plugins/control-ui-capability.ts";
 import type { SidebarPanelDefinitionParams, SidebarPanelData } from "./chat-pane-embedded-types.ts";
 import { SIDEBAR_PANEL_SHORTCUTS } from "./chat-pane-panel-shortcuts.ts";
+import type { ChatPageHost } from "./chat-state-host.ts";
 import { getSessionWorkspace } from "./components/chat-session-workspace-state.ts";
 import { resolveSessionDiffSidebarContent } from "./components/chat-session-workspace.ts";
 import type { SidebarPanelDefinition } from "./components/chat-sidebar-region-types.ts";
@@ -19,6 +21,22 @@ registerFilePreviewEnglish();
 
 function panelExternalLink(href: string | null | undefined, label: string) {
   return href ? { href, label } : undefined;
+}
+
+/** Runs is offered only in an isolated automation's chat, on a connection that may read its history. */
+function runsAvailable(state: ChatPageHost): boolean {
+  return (
+    automationSessionJobId(state.sessionKey) !== null &&
+    canCallGatewayMethod(
+      {
+        hello: state.hello,
+        client: state.client,
+        phase: state.connected ? "connected" : "stopped",
+      },
+      "cron.runs",
+      "operator.read",
+    )
+  );
 }
 
 /** One ordered declaration for every chat side-panel slot. */
@@ -58,7 +76,9 @@ export function sidebarPanelDefinitions(
             )
           : slot === "subagents" || slot === "processes"
             ? panelContext.subagentsAvailable
-            : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
+            : slot === "runs"
+              ? state && runsAvailable(state)
+              : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
       ),
       content: null,
       view: hasContent ? data : undefined,
@@ -66,7 +86,10 @@ export function sidebarPanelDefinitions(
         variant:
           textKey === "conversation" || textKey === "companion"
             ? "chat"
-            : textKey === "subagents" || textKey === "processes" || textKey === "context"
+            : textKey === "subagents" ||
+            textKey === "processes" ||
+            textKey === "context" ||
+            textKey === "runs"
               ? "file-list"
               : textKey === "portal"
                 ? "browser"
@@ -99,6 +122,7 @@ export function sidebarPanelDefinitions(
     definePanel("conversation", "messageSquare", false),
     definePanel("subagents", "bot"),
     definePanel("processes", "terminal"),
+    definePanel("runs", "calendarClock"),
     definePanel("context", "layers"),
     definePanel("detail", "diff", Boolean(data?.detailContent)),
     definePanel("terminal", "terminal", Boolean(state?.terminalAvailable)),
