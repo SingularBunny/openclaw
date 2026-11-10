@@ -80,6 +80,65 @@ In the default `gateway-only` mode, loopback HTTP and WebSocket requests connect
 
 Some plugins own a custom transport that needs its own proxy wiring even with process-level routing active. Telegram's Bot API client uses its own HTTP/1 undici dispatcher and separately honors process proxy env plus the `OPENCLAW_PROXY_URL` fallback.
 
+### Fork: per-host routes
+
+This fork can limit the managed proxy to chosen hosts. `OPENCLAW_PROXY_ROUTES` holds rules
+`<host suffixes>=<target>` separated by `;`:
+
+- hosts are comma-separated suffixes: `anthropic.com` matches `anthropic.com` and every
+  subdomain such as `api.anthropic.com`, case-insensitively and on any port; a leading `.` or `*.`
+  is ignored. `*` is the rule for every other host;
+- the target is `proxy` (the managed proxy, `proxy.proxyUrl`), `direct`, or a proxy URL. In-process
+  routing (Proxyline) holds one proxy URL, so a URL target must equal `proxy.proxyUrl`; a rule set
+  that names another proxy URL is ignored with a warning (the URL is not logged) and everything uses
+  the proxy, as upstream;
+- the most specific matching suffix wins; without a `*` rule unmatched hosts use the proxy.
+
+```bash
+# Anthropic and Claude through the proxy, everything else (other providers, updates, plugins,
+# web fetch, channels) directly.
+openclaw config set proxy.proxyUrl http://127.0.0.1:3128
+openclaw config set env.vars.OPENCLAW_PROXY_ROUTES '"anthropic.com,claude.ai,claude.com=proxy;*=direct"' --strict-json
+
+# The reverse: everything through the proxy except one host.
+openclaw config set env.vars.OPENCLAW_PROXY_ROUTES '"internal.example.com=direct"' --strict-json
+```
+
+Unset, the fork routes like upstream. Loopback destinations always follow `proxy.loopbackMode`. A
+direct route also applies to guarded fetches (web fetch, media downloads), which then keep local DNS
+pinning instead of delegating DNS to the proxy, and to provider transports that check proxy
+environment variables. The variable is read on every connection, so a config `env.vars` change applies
+without a Gateway restart; turning the managed proxy on or off (`proxy.*`) still restarts.
+
+Limits: a plugin that builds its own environment-proxy client for every request (for example
+Telegram's Bot API transport) still sends its hosts through `HTTP(S)_PROXY`. OpenClaw child
+processes inherit the variable and apply the same rules; other child programs see `HTTP(S)_PROXY`
+and `NO_PROXY` (loopback only) and send everything through the proxy, because `NO_PROXY` cannot
+express "only these hosts".
+
+CLI agent backends (`claude-cli`, `google-gemini-cli`, and others) are such children. Their proxy env
+is chosen per backend with `OPENCLAW_CLI_BACKEND_PROXY` = `<backend id>=<proxy|direct|URL>;...`:
+
+- `proxy` keeps the inherited managed proxy env (upstream);
+- `direct` removes `HTTP(S)_PROXY`, `ALL_PROXY`, `NO_PROXY` and the managed proxy markers;
+- a URL sets `HTTP(S)_PROXY` to it with a loopback `NO_PROXY`. Children are separate processes, so
+  this URL may differ from `proxy.proxyUrl` and works without a managed proxy.
+
+Without a rule for it, a backend with a known API host (`claude-cli`: `api.anthropic.com`,
+`google-gemini-cli`: `generativelanguage.googleapis.com`) follows the `OPENCLAW_PROXY_ROUTES` rule for
+that host, and any other backend inherits the Gateway env. A backend's own `env` in config still wins.
+Claude Code also applies the `env` block of its user settings (`~/.claude/settings.json`) on start, and
+OpenClaw runs it with user settings loaded, so proxy variables set there override what the Gateway
+passes. Read on each CLI run.
+
+```bash
+# Claude CLI through the managed proxy, Gemini CLI through a second proxy.
+openclaw config set env.vars.OPENCLAW_CLI_BACKEND_PROXY '"claude-cli=proxy;google-gemini-cli=http://10.0.0.5:8080"' --strict-json
+```
+
+Proxy URLs can hold credentials; keep them in config or the state-dir `.env` and do not paste them
+into logs or issues.
+
 ### Gateway loopback mode
 
 Local Gateway control-plane clients normally connect to a loopback WebSocket such as `ws://127.0.0.1:18789`. `proxy.loopbackMode` controls whether that traffic bypasses the managed proxy:
@@ -235,7 +294,7 @@ Add any additional metadata hosts or reserved ranges your cloud provider or netw
 | Other raw `net`, `tls`, or `http2` client calls              | Must be classified by the raw socket guard before landing.                                                                                               |
 
 - This is process-level coverage for JavaScript HTTP/WebSocket clients, not an OS-level network sandbox.
-- Raw `net`, `tls`, `http2` sockets, native addons, and non-OpenClaw child processes may bypass Node-level routing unless they inherit and respect proxy environment variables. Forked OpenClaw child CLIs inherit the managed proxy URL and `proxy.loopbackMode` state.
+- Raw `net`, `tls`, `http2` sockets, native addons, and non-OpenClaw child processes may bypass Node-level routing unless they inherit and respect proxy environment variables. Forked OpenClaw child CLIs inherit the managed proxy URL and `proxy.loopbackMode` state (fork: and `OPENCLAW_PROXY_ROUTES`; see [per-host routes](#fork-per-host-routes)).
 - Loopback routing is direct in the default mode; this is not a general local-network bypass. LAN, tailnet, private-network, and public model hosts still use the managed proxy. Guarded local providers retain their configured-origin and DNS checks.
 - The local debug proxy's direct upstream forwarding (for proxy requests and `CONNECT` tunnels) is disabled by default while managed proxy mode is active; enable it only for approved local diagnostics.
 - OpenClaw does not inspect, test, or certify your proxy policy. Treat proxy policy changes as security-sensitive operational changes.

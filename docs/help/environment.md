@@ -182,6 +182,8 @@ is stored without a restart and takes effect on the next Gateway start.
 | `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` | `12000`     | Minimum gap between live progress digests of one run (utility model; only while a visible Control UI tab is open). |
 | `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps requested by transcript growth; a run end or archive still refreshes at once.  |
 | `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`        | off         | How long a restart or a stop waits for running agent turns; see below.                                             |
+| `OPENCLAW_PROXY_ROUTES`                     | none        | Per-host managed proxy routes, e.g. `anthropic.com,claude.ai,claude.com=proxy;*=direct`; see below.                |
+| `OPENCLAW_CLI_BACKEND_PROXY`                | none        | Proxy env of CLI agent backend children, e.g. `claude-cli=proxy;google-gemini-cli=direct`; see below.              |
 
 `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` and `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS` set how
 often the utility model is called for a running chat; both read on use. Each progress digest and
@@ -238,6 +240,15 @@ Wildcards are ignored. Granted requests run with `operator.write` (scopes the pl
 ignored), so admin-only methods stay out of reach. A native plugin already runs inside the Gateway
 process; the grant opens a documented call path rather than a sandbox boundary, and lists exactly
 what the operator agreed to.
+
+`OPENCLAW_PROXY_ROUTES` decides, per destination host, whether the managed proxy (`proxy.proxyUrl`)
+carries a request or it connects directly: rules `<host suffixes>=<proxy|direct|URL>` separated by
+`;`, where a suffix matches the host and its subdomains and `*` covers every other host. A URL target
+must equal `proxy.proxyUrl`, because in-process routing uses one proxy. Unset, everything goes through
+the proxy as upstream. It is read on every connection. `OPENCLAW_CLI_BACKEND_PROXY` sets the proxy env
+of CLI agent backend children per backend id (`proxy`, `direct`, or any proxy URL); without a rule, a
+known backend follows the route of its API host. Read on each CLI run. Both are described in
+[Network proxy](/security/network-proxy#fork-per-host-routes).
 
 ### Filesystem observation
 
