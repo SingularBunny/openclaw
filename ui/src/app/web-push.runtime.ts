@@ -181,11 +181,52 @@ async function reconcileWebPushCapability(
   return await resolveWebPushCapabilityPatch(client, result);
 }
 
-export function createWebPushCapabilityRuntime(params: {
+function isPreferenceRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Fork: re-applies one edit onto the newest saved preferences. The UI sends whole
+ * objects built from what it rendered, so a queued edit would otherwise
+ * overwrite fields that an earlier queued edit changed.
+ */
+export function rebasePreferenceEdit(base: unknown, edited: unknown, latest: unknown): unknown {
+  if (!isPreferenceRecord(base) || !isPreferenceRecord(edited) || !isPreferenceRecord(latest)) {
+    return edited;
+  }
+  const next: Record<string, unknown> = { ...latest };
+  for (const key of new Set([...Object.keys(base), ...Object.keys(edited)])) {
+    const before = base[key];
+    const after = edited[key];
+    if (isPreferenceRecord(before) && isPreferenceRecord(after)) {
+      next[key] = rebasePreferenceEdit(before, after, latest[key]);
+    } else if (JSON.stringify(before) !== JSON.stringify(after)) {
+      if (after === undefined) {
+        delete next[key];
+      } else {
+        next[key] = after;
+      }
+    }
+  }
+  return next;
+}
+
+export function createWebPushCapabilityRuntime(runtimeParams: {
   connectionBootstrap?: ConnectionBootstrapCoordinator;
   gateway: ApplicationGateway;
   publish: (patch: WebPushCapabilityPatch) => void;
 }): WebPushCapabilityRuntime {
+  // Fork: the latest saved preferences, so queued edits rebase onto later saves.
+  let preferences: WebPushCapabilityPatch["preferences"] = null;
+  const params = {
+    ...runtimeParams,
+    publish: (patch: WebPushCapabilityPatch) => {
+      if (patch.preferences !== undefined) {
+        preferences = patch.preferences;
+      }
+      runtimeParams.publish(patch);
+    },
+  };
   let operation: Promise<void> | null = null;
   let connectedClient: GatewayBrowserClient | null = null;
   let profileId: string | undefined;
@@ -280,11 +321,13 @@ export function createWebPushCapabilityRuntime(params: {
     get pending() {
       return operation !== null;
     },
-    run(action) {
+    run(requested) {
       const client = params.gateway.snapshot.client;
       if (!client || disposed) {
         return Promise.resolve();
       }
+      // The edit was made against what is saved now; queued writes rebase onto later saves.
+      const base = requested.kind === "set" ? preferences?.[requested.scope] : undefined;
       const admitted = scope;
       const isCurrent = () => !disposed && admitted === scope;
       // This command's readback supersedes any earlier passive reconciliation.
@@ -295,6 +338,17 @@ export function createWebPushCapabilityRuntime(params: {
             return;
           }
           params.publish({ command: undefined });
+          const action: WebPushCapabilityAction =
+            requested.kind === "set"
+              ? {
+                  ...requested,
+                  preferences: rebasePreferenceEdit(
+                    base,
+                    requested.preferences,
+                    preferences?.[requested.scope],
+                  ) as typeof requested.preferences,
+                }
+              : requested;
           const patch = await runWebPushCapabilityAction(
             webPushClient(params.gateway, client),
             action,
