@@ -24,6 +24,12 @@ host is pending. Providers own their
 host snapshot freshness and invalidation. Other providers remain usable. Late results refresh the page for the next list;
 existing host progress updates remain supported.
 
+A client that already shows the catalog keeps its rows for a pending host, so a
+provider's fresh rows reach it only through host progress: a provider that lists in one
+step should still pass its finished host to `onHost`. The fork's Control UI also keeps the
+rows on screen when a catalog answers with an error and no hosts (a cold page past the
+budget, or a failed provider), until the host event or the next refresh replaces them.
+
 These fallback pages are bounded in memory and invalidated by configuration or
 provider registration changes and catalog archive operations. Every delivery
 rechecks current visibility and local session identity. The one-second budget

@@ -151,7 +151,7 @@ describe("AppSidebar session catalog pagination", () => {
     }
   });
 
-  it("retires visible catalog rows and expanded cursors when the agent changes", async () => {
+  it("keeps visible catalog rows until the new agent's page replaces them and retires expanded cursors when the agent changes", async () => {
     vi.useFakeTimers();
     try {
       const pendingResearch = deferred<SessionsCatalogListResult>();
@@ -203,14 +203,16 @@ describe("AppSidebar session catalog pagination", () => {
       await vi.advanceTimersByTimeAsync(200);
       await sidebar.updateComplete;
 
-      expect(sidebar.textContent).not.toContain("Main newest");
-      expect(sidebar.textContent).not.toContain("Main older");
+      // Fork (F31): the rows stay on screen while the new agent's listing loads.
+      expect(sidebar.textContent).toContain("Main newest");
       expect(sidebar.sessionData.sessionCatalogPageDepths.size).toBe(0);
 
       pendingResearch.resolve(researchFirstPage);
       await vi.advanceTimersByTimeAsync(0);
       await sidebar.updateComplete;
 
+      expect(sidebar.textContent).not.toContain("Main newest");
+      expect(sidebar.textContent).not.toContain("Main older");
       expect(sidebar.textContent).toContain("Research newest");
       expect(sidebar.textContent).not.toContain("Research older");
       expect(request).not.toHaveBeenCalledWith(
