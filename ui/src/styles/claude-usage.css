@@ -27,6 +27,16 @@
   text-overflow: ellipsis;
 }
 
+.claude-usage__stale {
+  flex: none;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.claude-usage[data-stale] .claude-usage__rows {
+  opacity: 0.6;
+}
+
 .claude-usage__status {
   padding: 2px 6px;
   border-radius: var(--radius-sm, 4px);
