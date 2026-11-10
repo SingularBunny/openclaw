@@ -610,7 +610,8 @@ describe("Claude native stdio boundary", () => {
     expect(args).not.toContain("bypassPermissions");
     expect([flag("--permission-mode"), flag("--tools"), flag("--allowedTools")]).toEqual([
       ["default"],
-      ["Read", "ToolSearch"],
+      // Fork (F60): Claude's todo tools follow the explicit native list.
+      ["Read", "TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet", "ToolSearch"],
       ["mcp__openclaw__message"],
     ]);
     expect(detail).toMatchObject({
