@@ -1,5 +1,9 @@
 import { sanitizeHostExecEnv } from "../../infra/host-env-security.js";
 import {
+  applyCliBackendProxyEnv,
+  resolveCliBackendProxy,
+} from "../../infra/net/proxy/proxy-routes.js";
+import {
   listKnownProviderAuthEnvVarNamesCore,
   type ProviderEnvVarLookupParams,
 } from "../../secrets/provider-env-vars.js";
@@ -56,6 +60,8 @@ export function resolveCliChildEnv(
   preparedBackend: ChildEnvBackend,
   params: Pick<ProviderEnvVarLookupParams, "config" | "workspaceDir"> & {
     nativeAuthOnly?: true;
+    /** Fork: local child of this CLI backend gets its proxy route (proxy-routes.ts). */
+    proxyBackendId?: string;
   } = {},
   overrides?: Record<string, string>,
 ): {
@@ -80,6 +86,11 @@ export function resolveCliChildEnv(
     if (!preservedEnv.has(key) || selectedClaudeClearEnv?.has(key)) {
       delete env[key];
     }
+  }
+  // Fork: per-backend child proxy env (OPENCLAW_CLI_BACKEND_PROXY, else the
+  // OPENCLAW_PROXY_ROUTES rule for the backend's API host); backend.env still wins.
+  if (params.proxyBackendId) {
+    applyCliBackendProxyEnv(env, resolveCliBackendProxy(params.proxyBackendId));
   }
   if (Object.keys(backendEnv).length > 0) {
     Object.assign(
