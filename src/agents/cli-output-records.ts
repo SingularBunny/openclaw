@@ -465,6 +465,18 @@ export function pickCliResumeCheckpointId(params: {
   return checkpointId || undefined;
 }
 
+/**
+ * Fork (F52): the Claude runtime tags its result with the uuid it gave the turn's user
+ * message, which is the key of Claude's file checkpoint for that turn.
+ */
+export function readCliResultInputMessageId(parsed: Record<string, unknown>): {
+  inputMessageId?: string;
+} {
+  const id =
+    typeof parsed.openclaw_input_uuid === "string" ? parsed.openclaw_input_uuid.trim() : "";
+  return id ? { inputMessageId: id } : {};
+}
+
 function hasExplicitCliErrorPayload(parsed: Record<string, unknown>): boolean {
   if (typeof parsed.error === "string") {
     return Boolean(parsed.error.trim());

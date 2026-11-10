@@ -390,6 +390,7 @@ export const validateSessionsBranchesListParams = compile(S.SessionsBranchesList
 export const validateSessionsBranchesSwitchParams = compile(S.SessionsBranchesSwitchParamsSchema);
 export const validateSessionsRewindParams = compile(S.SessionsRewindParamsSchema);
 export const validateSessionsForkParams = compile(S.SessionsForkParamsSchema);
+export const validateSessionsRewindFilesParams = compile(S.SessionsRewindFilesParamsSchema);
 export const validateSessionsUsageParams = compile(S.SessionsUsageParamsSchema);
 export const validateSessionDiscussionInfoParams = compile(S.SessionDiscussionInfoParamsSchema);
 export const validateSessionDiscussionInfoResult = compile(S.SessionDiscussionInfoResultSchema);

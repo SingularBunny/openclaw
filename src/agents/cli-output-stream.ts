@@ -36,6 +36,7 @@ import {
   parseClaudeCliJsonlResult,
   parseClaudeCliStreamingDelta,
   pickCliResumeCheckpointId,
+  readCliResultInputMessageId,
   pickCliSessionId,
   preferGeminiCliStreamJsonError,
   readClaudeAttributedSubagentProgressId,
@@ -512,6 +513,7 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
           ? { text: "", errorText: stoppedTurnErrorText, terminalFailure: stoppedTurn }
           : {}),
         ...(resumeCheckpointId ? { resumeCheckpointId } : {}),
+        ...(claudeStreamJson ? readCliResultInputMessageId(parsed) : {}),
         ...(diagnosticUsage ? { diagnosticUsage } : {}),
       };
       // The result envelope carries the final message when present.

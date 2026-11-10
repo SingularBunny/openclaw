@@ -13,6 +13,7 @@ import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { isRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { hasClaudeRawToolInvocation } from "./cli-output.js";
 import type { ClaudeCliSecretInput } from "./cli-process.js";
+import { CLAUDE_CLI_INPUT_UUID_FIELD, requestClaudeCliRewindFiles } from "./cli-rewind-files.js";
 import { prepareClaudeCliTransportArgs } from "./cli-runtime-args.js";
 import { readReplayedTaskId, recordTaskOwnership } from "./cli-runtime-tasks.js";
 import { createClaudeCliTransport } from "./cli-transport.js";
@@ -316,7 +317,12 @@ async function emitHeldInterimResult(turn: ClaudeCliTurn) {
   }
 }
 
-async function acceptMessage(session: ClaudeCliSession, message: Record<string, unknown>) {
+async function acceptMessage(session: ClaudeCliSession, received: Record<string, unknown>) {
+  // Fork (F52): the result names the turn's input uuid, Claude's file checkpoint key.
+  const message =
+    received.type === "result" && session.currentTurn
+      ? { ...received, [CLAUDE_CLI_INPUT_UUID_FIELD]: session.currentTurn.inputUuid }
+      : received;
   if (message.type === "prompt_suggestion") {
     // A forked side request predicts the next prompt after the result. It is never turn
     // output, and once another turn has started the prediction is stale.
@@ -609,6 +615,14 @@ function createSession(capability?: CliBackendLiveSessionCapability): ClaudeCliS
           request: { subtype: "stop_task", task_id: taskId },
         });
         return true;
+      },
+      // Fork (F52): only an idle process may restore files; a running turn could still edit.
+      rewindFiles: async (userMessageId, { dryRun }) => {
+        const transport = session.transport;
+        if (session.closed || !transport || session.currentTurn) {
+          return undefined;
+        }
+        return await requestClaudeCliRewindFiles(transport, userMessageId, dryRun);
       },
     },
   };

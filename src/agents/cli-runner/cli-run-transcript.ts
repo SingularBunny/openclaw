@@ -156,7 +156,10 @@ export function resolveCliTranscriptResumePoint(params: {
     PreparedCliRunContext,
     "authEpoch" | "authEpochVersion" | "cwdHash" | "effectiveAuthProfileId" | "preparedBackend"
   > & { params: Pick<RunCliAgentParams, "provider"> };
-  output: Pick<CliOutput, "resumeCheckpointId" | "terminalInterruption" | "yielded">;
+  output: Pick<
+    CliOutput,
+    "resumeCheckpointId" | "inputMessageId" | "terminalInterruption" | "yielded"
+  >;
   cliSessionId?: string;
   bindingKept: boolean;
 }): CliSessionResumePoint | undefined {
@@ -164,6 +167,7 @@ export function resolveCliTranscriptResumePoint(params: {
   const backend = context.preparedBackend.backend;
   const sessionId = params.cliSessionId?.trim();
   const checkpointId = output.resumeCheckpointId?.trim();
+  const inputMessageId = output.inputMessageId?.trim();
   if (
     !params.bindingKept ||
     !sessionId ||
@@ -186,6 +190,7 @@ export function resolveCliTranscriptResumePoint(params: {
       authEpochVersion: context.authEpochVersion,
       cwdHash: context.cwdHash,
     }),
+    ...(inputMessageId ? { inputMessageId } : {}),
   };
 }
 

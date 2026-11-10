@@ -35,6 +35,7 @@ registerModelControlsEnglish();
 type SessionActionAccess = ReturnType<typeof readChatSessionActionAccess>;
 type SessionAction = keyof SessionActionAccess;
 type SessionActionCallbacks = Pick<ChatProps, "onAbort" | "onForkMessage" | "onRewindMessage">;
+type ChatRewindChoice = Parameters<NonNullable<ChatProps["onRewindMessage"]>>[1];
 
 type PendingPermissionChange = {
   expectedSessionId?: string;
@@ -418,7 +419,7 @@ export function createChatPaneSessionActionCallbacks(params: {
   sessionParticipationBlocked: boolean;
   onDenied: (reason: string) => void;
   onAbort: () => void;
-  onRewind: (entryId: string) => Promise<boolean>;
+  onRewind: (entryId: string, choice?: ChatRewindChoice) => Promise<boolean>;
   onFork: (entryId: string) => Promise<void>;
 }): SessionActionCallbacks {
   const { state } = params;
@@ -492,7 +493,7 @@ export function createChatPaneSessionActionCallbacks(params: {
             }
           },
     onRewindMessage: access.rewind.allowed
-      ? (entryId) => (requireCurrent("rewind") ? params.onRewind(entryId) : false)
+      ? (entryId, choice) => (requireCurrent("rewind") ? params.onRewind(entryId, choice) : false)
       : undefined,
     onForkMessage: access.fork.allowed
       ? (entryId) => (requireCurrent("fork") ? params.onFork(entryId) : undefined)

@@ -192,6 +192,8 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
         ...buildTranscriptMutationParams(key, options.agentId),
         entryId,
         ...nativeCutParams(options),
+        // Fork (F52): restore Claude's file changes too.
+        ...(options.restoreFiles ? { restoreFiles: true } : {}),
       },
       options.agentId,
     );

@@ -381,7 +381,7 @@ export type SessionCapability = {
   rewind: (
     key: string,
     entryId: string,
-    options?: { agentId?: string | null } & SessionMessageCutNativeTarget,
+    options?: { agentId?: string | null; restoreFiles?: boolean } & SessionMessageCutNativeTarget,
   ) => Promise<SessionsRewindResult>;
   forkAtMessage: (
     key: string,

@@ -2099,3 +2099,31 @@ button.chat-reply-attribution__target:disabled {
     animation-delay: 0.3s;
   }
 }
+
+/* Fork (F52): Claude's file restore in the rewind confirmation. */
+.chat-confirm-popover__files {
+  max-width: 320px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-confirm-popover__files[hidden] {
+  display: none;
+}
+
+.chat-confirm-popover__files-note {
+  margin: 0 0 4px;
+}
+
+.chat-confirm-popover__files .chat-confirm-popover__files-option {
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.chat-confirm-popover__files-list {
+  margin: 0 0 4px;
+  padding-left: 20px;
+  font-family: var(--font-mono, monospace);
+  overflow-wrap: anywhere;
+}

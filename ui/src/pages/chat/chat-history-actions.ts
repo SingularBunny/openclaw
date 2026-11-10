@@ -12,6 +12,7 @@ import { loadChatBranches } from "./chat-history-branches.ts";
 import type { ChatHistoryResult } from "./chat-history-snapshot.ts";
 import { resetChatHistoryProjection, setChatError } from "./chat-history-state.ts";
 import { loadChatHistory } from "./chat-history.ts";
+import type { ChatRewindChoice } from "./chat-rewind-files.ts";
 import { CHAT_MESSAGE_CUT_UNAVAILABLE, resolveChatMessageCutTarget } from "./chat-rewind-target.ts";
 import type { ChatHistoryHost, ChatState } from "./chat-state-contract.ts";
 import type { ChatAttachmentReadLifecycle } from "./components/chat-attachment-reads.ts";
@@ -220,6 +221,7 @@ export async function rewindChatHistory(
   state: RewindChatHistoryState,
   entryId: string,
   attachmentReads: Pick<ChatAttachmentReadLifecycle, "abortReads" | "readSignal">,
+  choice?: ChatRewindChoice,
 ): Promise<{ editorText?: string } | null> {
   if (!state.client || !state.connected) {
     return null;
@@ -247,6 +249,7 @@ export async function rewindChatHistory(
     const result = await state.sessions.rewind(sessionKey, cut.entryId, {
       ...agentParams,
       ...cut.native,
+      ...(choice?.restoreFiles ? { restoreFiles: true } : {}),
     });
     const editorText = result.editorText ?? "";
     clearCachedChatMessagesForSession(state, sessionKey, agentParams.agentId, "cache-eviction");
