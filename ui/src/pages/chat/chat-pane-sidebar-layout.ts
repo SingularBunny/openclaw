@@ -75,6 +75,10 @@ const LAZY_SIDEBAR_ELEMENTS: Partial<Record<LazyElementKey, LazyElement>> = {
     "openclaw-chat-processes-panel",
     () => import("./components/chat-processes-panel.tsx"),
   ],
+  runs: [
+    "openclaw-chat-automation-runs-panel",
+    () => import("./components/chat-automation-runs-panel.tsx"),
+  ],
   subagents: [
     "openclaw-chat-subagents-panel",
     () => import("./components/chat-subagents-panel.tsx"),

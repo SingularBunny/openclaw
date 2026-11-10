@@ -17,6 +17,7 @@ import { renderPanelLoadingSkeleton } from "../../components/panel-loading-skele
 import { t } from "../../i18n/index.ts";
 import { registerFilePreviewEnglish } from "../../i18n/locales/en-file-preview.ts";
 import type { ChatAttachment } from "../../lib/chat/chat-types.ts";
+import { automationSessionJobId } from "../../lib/cron/automation-session.ts";
 import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
 import {
   livePresentation,
@@ -56,6 +57,7 @@ type SidebarPanelDefinitionParams = {
   subagentsInputRegion: "page" | "dock";
   subagentsPresented: PresentationValue;
   processesPresented?: PresentationValue;
+  runsPresented?: PresentationValue;
   subagentsAvailable: boolean;
   subagentsShowRequest?: () => string | null | undefined;
   onSubagentSessionSelect: (
@@ -121,6 +123,22 @@ function panelExternalLink(href: string | null | undefined, label: string) {
     : undefined;
 }
 
+/** Runs is offered only in an isolated automation's chat, on a connection that may read its history. */
+function runsAvailable(state: ChatPageHost): boolean {
+  return (
+    automationSessionJobId(state.sessionKey) !== null &&
+    canCallGatewayMethod(
+      {
+        hello: state.hello,
+        client: state.client,
+        phase: state.connected ? "connected" : "stopped",
+      },
+      "cron.runs",
+      "operator.read",
+    )
+  );
+}
+
 /** One ordered declaration for every chat side-panel slot. */
 export function sidebarPanelDefinitions(
   params?: SidebarPanelDefinitionParams,
@@ -158,13 +176,15 @@ export function sidebarPanelDefinitions(
             )
           : slot === "subagents" || slot === "processes"
             ? panelContext.subagentsAvailable
-            : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
+            : slot === "runs"
+              ? state && runsAvailable(state)
+              : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
       ),
       content,
       loading: renderPanelLoadingSkeleton(
         textKey === "conversation" || textKey === "companion"
           ? "chat"
-          : textKey === "subagents" || textKey === "processes"
+          : textKey === "subagents" || textKey === "processes" || textKey === "runs"
             ? "file-list"
             : textKey === "portal"
               ? "browser"
@@ -320,6 +340,17 @@ export function sidebarPanelDefinitions(
             .agentId=${params.agentId ?? "main"}
             .presented=${livePresentation(params.processesPresented ?? false)}
           ></openclaw-chat-processes-panel>`
+        : null,
+    ),
+    definePanel(
+      "runs",
+      icons.calendarClock,
+      state && params && runsAvailable(state)
+        ? html`<openclaw-chat-automation-runs-panel
+            .sessionKey=${state.sessionKey}
+            .agentId=${params.agentId ?? "main"}
+            .presented=${livePresentation(params.runsPresented ?? false)}
+          ></openclaw-chat-automation-runs-panel>`
         : null,
     ),
     definePanel(

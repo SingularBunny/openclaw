@@ -36,4 +36,5 @@ export const SIDEBAR_PANEL_SHORTCUTS = {
   portal: undefined,
   subagents: undefined,
   processes: undefined,
+  runs: undefined,
 };
