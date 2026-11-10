@@ -38,6 +38,7 @@ import type { ChatRunError, ChatRunUiStatus } from "../run-lifecycle.ts";
 import type { FallbackStatus } from "../tool-stream-contract.ts";
 import type { ChatActivityPillsProps } from "./chat-activity-pills-types.ts";
 import type { ChatAttachmentControlsProps } from "./chat-attachment-controls.types.ts";
+import type { ChatClaudeModePickerProps } from "./chat-claude-mode.ts";
 import type { ComposerEmojiMenu } from "./chat-composer-emoji-state.ts";
 import type {
   HumanMentionAccess,
@@ -206,6 +207,8 @@ export type ChatComposerProps = ChatAttachmentControlsProps & {
     | null;
   notices?: JSX.Element;
   permissionPicker?: ChatPermissionPickerProps;
+  /** Fork (F49): Claude Code permission mode picker, present for claude-cli sessions. */
+  claudeModePicker?: ChatClaudeModePickerProps;
   onDraftChange: (next: string, mentions?: readonly HumanMention[]) => void;
   onHistoryKeydown?: (input: ChatInputHistoryKeyInput) => ChatInputHistoryKeyResult;
   onSlashIntent?: () => void | Promise<void>;

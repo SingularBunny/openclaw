@@ -26,6 +26,7 @@ export type SessionPatch = Pick<
   | "verboseLevel"
   | "reasoningLevel"
   | "permissionMode"
+  | "claudePermissionMode"
   | "toolOverrides"
   | "communication"
   | "archived"

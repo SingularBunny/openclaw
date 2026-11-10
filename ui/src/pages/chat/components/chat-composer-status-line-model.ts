@@ -17,6 +17,8 @@ export type ComposerStatusLineInput = {
   /** Provider plan windows the composer context popover already has (models.authStatus). */
   quotaGroups?: readonly ProviderQuotaGroup[];
   permissionMode?: string | null;
+  /** Fork (F49): explicit Claude Code mode of a claude-cli session. */
+  claudeMode?: string | null;
 };
 
 export type ComposerStatusLineView = {
@@ -25,7 +27,17 @@ export type ComposerStatusLineView = {
   turnElapsedMs?: number;
   fiveHour?: { percent: number; tone: ClaudeUsageTone; resetAt?: number; reached: boolean };
   permissionMode?: string;
+  /** Like Claude Code, the default mode is not announced. */
+  claudeMode?: string;
 };
+
+const CLAUDE_STATUS_MODES = new Set([
+  "acceptEdits",
+  "plan",
+  "bypassPermissions",
+  "dontAsk",
+  "auto",
+]);
 
 const WARN_PERCENT = 70;
 const DANGER_PERCENT = 90;
@@ -100,6 +112,7 @@ export function resolveComposerStatusLine(input: ComposerStatusLineInput): Compo
   const turnElapsedMs = resolveTurnElapsed(input);
   const fiveHour = resolveFiveHour(input);
   const permissionMode = input.permissionMode?.trim();
+  const claudeMode = input.claudeMode?.trim();
   return {
     ...(model ? { model } : {}),
     ...(context
@@ -115,6 +128,7 @@ export function resolveComposerStatusLine(input: ComposerStatusLineInput): Compo
     ...(turnElapsedMs !== undefined ? { turnElapsedMs } : {}),
     ...(fiveHour ? { fiveHour } : {}),
     ...(permissionMode ? { permissionMode } : {}),
+    ...(claudeMode && CLAUDE_STATUS_MODES.has(claudeMode) ? { claudeMode } : {}),
   };
 }
 
@@ -124,7 +138,8 @@ export function hasComposerStatusLineParts(view: ComposerStatusLineView): boolea
     view.context ||
     view.turnElapsedMs !== undefined ||
     view.fiveHour ||
-    view.permissionMode,
+    view.permissionMode ||
+    view.claudeMode,
   );
 }
 
