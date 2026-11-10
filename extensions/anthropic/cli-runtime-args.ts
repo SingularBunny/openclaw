@@ -1,5 +1,6 @@
 import type { CliBackendExecuteContext } from "openclaw/plugin-sdk/cli-backend";
 import { readClaudeCliPermissionMode } from "./cli-permission-mode.js";
+import { withClaudeCliTodoTools } from "./cli-todo-tools.js";
 
 const PROTOCOL_FLAGS = new Set([
   "-p",
@@ -111,7 +112,8 @@ export function prepareClaudeCliTransportArgs(context: CliBackendExecuteContext)
     context.modelId,
   );
   if (tools) {
-    args.push("--tools", tools.join(","));
+    // Fork (F60): Claude's local todo list stays available whenever native tools are.
+    args.push("--tools", withClaudeCliTodoTools(tools).join(","));
   }
   if (approvedTools.length) {
     args.push("--allowedTools", approvedTools.join(","));

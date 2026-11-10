@@ -956,7 +956,7 @@ describe("Claude native stdio boundary", () => {
 
     expect(args).not.toContain("bypassPermissions");
     expect(flagValues("--permission-mode")).toEqual(["default"]);
-    expect(flagValues("--tools")).toEqual(["Read"]);
+    expect(flagValues("--tools").slice(0, 2)).toEqual(["Read", "TodoWrite"]);
     expect(flagValues("--allowedTools")).toEqual(["mcp__openclaw__message"]);
     expect(context.requestToolPermission).toHaveBeenCalledTimes(2);
   });
