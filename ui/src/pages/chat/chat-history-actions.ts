@@ -234,6 +234,8 @@ export async function rewindChatHistory(
   entryId: string,
   attachmentReads: Pick<ChatAttachmentReadLifecycle, "abortReads" | "readSignal">,
   choice?: ChatRewindChoice,
+  /** Fork (F52): runs once the Gateway has cut the transcript, before history reloads. */
+  onRewound?: () => void,
 ): Promise<{ editorText?: string } | null> {
   if (!state.client || !state.connected) {
     return null;
@@ -264,6 +266,7 @@ export async function rewindChatHistory(
       ...(choice?.restoreFiles ? { restoreFiles: true } : {}),
     });
     const editorText = result.editorText ?? "";
+    onRewound?.();
     clearCachedChatMessagesForSession(state, sessionKey, agentParams.agentId, "cache-eviction");
     if (viewMatches()) {
       resetChatHistoryProjection(state, agentParams.agentId);
