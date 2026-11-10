@@ -536,6 +536,37 @@ describe("sidebar projection memo", () => {
     },
   );
 
+  it("files catalog automation rows under the automation toggle, keeping the open one", async () => {
+    const automation = session("cron:nightly", { label: "Automation: nightly" });
+    const { sidebar, row } = await mount([automation]);
+    sidebar.sessionData.sessionCatalogs = catalogPage([
+      {
+        threadId: `s:${automation.key}`,
+        sessionKey: automation.key,
+        name: "Automation: nightly",
+        customGroup: "Work",
+      },
+    ]).catalogs;
+    sidebar.requestUpdate();
+    await settleLitElement(sidebar);
+    expect(sidebar.sessionsShowCron).toBe(false);
+    expect(row(automation.key)).toBeNull();
+
+    sidebar.sessionsShowCron = true;
+    await settleLitElement(sidebar);
+    expect(row(automation.key)?.hasAttribute("data-catalog-session-key")).toBe(true);
+    expect(sidebar.querySelectorAll(`[data-session-key="${automation.key}"]`)).toHaveLength(1);
+
+    sidebar.sessionsShowCron = false;
+    await settleLitElement(sidebar);
+    expect(row(automation.key)).toBeNull();
+
+    sidebar.activeRouteId = "chat";
+    sidebar.sessionKey = automation.key;
+    await settleLitElement(sidebar);
+    expect(row(automation.key)?.hasAttribute("data-catalog-session-key")).toBe(true);
+  });
+
   it("re-arms snoozed visibility for the next deadline without a new list", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(10_000);
