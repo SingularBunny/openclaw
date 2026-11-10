@@ -2888,6 +2888,17 @@ export const en: TranslationMap & {
       waitingAgentOne: "Waiting for 1 background agent to finish",
       waitingTasks: "Waiting for {count} background tasks to finish",
       waitingTaskOne: "Waiting for 1 background task to finish",
+      listLabel: "Background tasks",
+      status: {
+        running: "Running",
+        completed: "Completed",
+        failed: "Failed",
+        stopped: "Stopped",
+      },
+      stop: "Stop",
+      stopLabel: "Stop {name}",
+      stopping: "Stopping…",
+      stopUnavailable: "This task is no longer running in this Claude session.",
     },
     startupStatus: {
       retrying: "Retrying… {attempt}/{maxAttempts}",

@@ -1,6 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
-import { formatCliBackgroundTasksLabel } from "./cli-background-tasks.ts";
+import {
+  formatCliBackgroundTasksLabel,
+  formatCliBackgroundTaskType,
+  readCliBackgroundTaskRows,
+} from "./cli-background-tasks.ts";
 import { agentEvent, createHost } from "./tool-stream.test-helpers.ts";
 import { handleAgentEvent } from "./tool-stream.ts";
 
@@ -54,5 +58,43 @@ describe("Claude CLI background tasks line", () => {
     expect(formatCliBackgroundTasksLabel({ runId: "r", count: 1, agents: 0, waiting: false })).toBe(
       "1 background task running",
     );
+  });
+
+  it("keeps per-task rows from the event", () => {
+    const host = createHost({ chatRunId: "run-1" });
+    handleAgentEvent(
+      host,
+      agentEvent("run-1", 1, "background_tasks", {
+        count: 1,
+        agents: 1,
+        tasks: [
+          {
+            taskId: "a1",
+            taskType: "local_agent",
+            subagentType: "general-purpose",
+            description: "Review",
+            status: "running",
+            startedAt: 10,
+          },
+          { taskId: "b1", taskType: "local_bash", status: "stopped", startedAt: 5, endedAt: 9 },
+          { taskType: "local_bash" },
+        ],
+      }),
+    );
+    expect(host.cliBackgroundTasks?.tasks).toEqual([
+      {
+        taskId: "a1",
+        taskType: "local_agent",
+        subagentType: "general-purpose",
+        description: "Review",
+        status: "running",
+        startedAt: 10,
+      },
+      { taskId: "b1", taskType: "local_bash", status: "stopped", startedAt: 5, endedAt: 9 },
+    ]);
+    expect(readCliBackgroundTaskRows("x")).toEqual([]);
+    expect(
+      formatCliBackgroundTaskType({ taskId: "w", taskType: "local_workflow", status: "running" }),
+    ).toBe("workflow");
   });
 });

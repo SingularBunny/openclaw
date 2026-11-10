@@ -24,7 +24,6 @@ import type { PersonActivityRouting } from "../../../components/person-activity-
 import { t } from "../../../i18n/index.ts";
 import { registerChatMessageMetadataEnglish } from "../../../i18n/locales/en-chat-message-metadata.ts";
 import type { BoardProvider } from "../../../lib/board/provider.ts";
-import "../../../components/tooltip.ts";
 import type {
   ChatAttachment,
   ChatGuardianNotice,
@@ -33,6 +32,7 @@ import type {
   ChatStreamSegment,
 } from "../../../lib/chat/chat-types.ts";
 import type { EmbedSandboxMode } from "../../../lib/chat/tool-display.ts";
+import "../../../components/tooltip.ts";
 import type { UiSessionDefaultsHost } from "../../../lib/sessions/session-key.ts";
 import type { PresentationValue } from "../../../lit/presentation-binding.ts";
 import type { TurnRecapWatch } from "../chat-progress.ts";
@@ -43,8 +43,13 @@ import type { ChatTypingActorView, ChatTypingOverflow } from "../chat-typing-pre
 import type { LinkFaviconFetcher } from "../link-favicon-cache.ts";
 import type { ChatTranscriptMetadata } from "../session-message-cache.ts";
 import type { RealtimeTalkConversationEntry } from "../talk/conversation.ts";
-import type { CompactionStatus, RunOutputUsage } from "../tool-stream-contract.ts";
+import type {
+  CliBackgroundTasksStatus,
+  CompactionStatus,
+  RunOutputUsage,
+} from "../tool-stream-contract.ts";
 import type { AsyncQuestionDraft, AsyncQuestionPresentation } from "./chat-async-question.types.ts";
+import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.ts";
 import { resolveChatContextCopy, usesNativeContextMenu } from "./chat-context-copy.ts";
 import type { ChatHistoryBoundaryProps } from "./chat-history-boundary.ts";
 import {
@@ -157,8 +162,10 @@ export type ChatThreadProps = ChatSendStatusActions &
     onRetryRun?: (runId: string) => void;
     failureActionsRunId?: string;
     waitingApproval?: boolean;
-    /** Fork (F33): Claude CLI background agents/tasks line for the working indicator. */
-    backgroundTasksLabel?: string;
+    /** Fork (F33, F47): Claude CLI background agents/tasks for the working indicator. */
+    backgroundTasks?: CliBackgroundTasksStatus | null;
+    /** Fork (F47): stops one Claude CLI background task. */
+    onStopBackgroundTask?: CliBackgroundTaskStop;
     questionPrompts?: readonly QuestionPrompt[];
     asyncQuestions?: AsyncQuestionPresentation;
     sessions: SessionsListResult | null;

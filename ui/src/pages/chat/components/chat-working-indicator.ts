@@ -15,6 +15,11 @@ import { formatDurationLong } from "../../../lib/format-duration.ts";
 import { formatCompactTokenCount } from "../../../lib/format.ts";
 import type { TurnRecap } from "../chat-progress.ts";
 import type { ChatSubagentWait } from "../chat-subagent-wait.ts";
+import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import {
+  renderCliBackgroundTasks,
+  type CliBackgroundTaskStop,
+} from "./chat-cli-background-tasks.ts";
 import { selectWorkingClawSurprise } from "./chat-working-indicator-surprise.ts";
 
 function renderChatBubbleDots(working = false) {
@@ -57,8 +62,10 @@ export function renderChatWorkingIndicator(
     waitingSubagents?: ChatSubagentWait;
     /** Unfinished subagents to mention while the session itself is still working. */
     runningSubagents?: number;
-    /** Fork (F33): Claude CLI background agents/tasks, e.g. "2 background agents running". */
-    backgroundTasksLabel?: string;
+    /** Fork (F33, F47): Claude CLI background agents/tasks: counter line and per-task rows. */
+    backgroundTasks?: CliBackgroundTasksStatus | null;
+    /** Fork (F47): stops one background task; without it rows have no Stop button. */
+    onStopBackgroundTask?: CliBackgroundTaskStop;
     subagentActivity?: TemplateResult;
     /** Shows the session's subagents; without it their count is plain text. */
     onOpenSubagents?: () => void;
@@ -98,6 +105,9 @@ export function renderChatWorkingIndicator(
     ${label}
   </button>`;
   const working = !waitingApproval && !options.startupLabel;
+  const backgroundTasks = (options.backgroundTasks?.count ?? 0) > 0;
+  // With rows, the counter line becomes the summary of a list below the status row.
+  const backgroundTaskList = backgroundTasks && (options.backgroundTasks?.tasks?.length ?? 0) > 0;
   // Providers report exact usage at response boundaries, not per text delta.
   // Keep the latest count visible while the run continues through tools.
   const outputTokens = options.outputTokens;
@@ -167,7 +177,7 @@ export function renderChatWorkingIndicator(
               `
         }
         ${
-          !hasOutputTokens && working && !options.backgroundTasksLabel
+          !hasOutputTokens && working && !backgroundTasks
             ? html`
                 <openclaw-working-phrase
                   aria-hidden="true"
@@ -191,21 +201,22 @@ export function renderChatWorkingIndicator(
             : nothing
         }
         ${
-          options.backgroundTasksLabel
+          backgroundTasks && !backgroundTaskList
             ? html`
                 <span aria-hidden="true">·</span>
-                <span class="chat-working-indicator__background-tasks"
-                  >${options.backgroundTasksLabel}</span
-                >
+                ${renderCliBackgroundTasks(options.backgroundTasks)}
               `
             : nothing
         }
       </span>
     </div>
   `;
-  const content = html`${status}${options.subagentActivity ?? nothing}`;
+  const taskList = backgroundTaskList
+    ? renderCliBackgroundTasks(options.backgroundTasks, options.onStopBackgroundTask)
+    : nothing;
+  const content = html`${status}${taskList}${options.subagentActivity ?? nothing}`;
   // Human-action and child-wait states keep their existing visible controls.
-  return options.bubbleMode && working && runningSubagents === 0 && !options.backgroundTasksLabel
+  return options.bubbleMode && working && runningSubagents === 0 && !backgroundTasks
     ? renderChatBubbleActivity(content, t("chat.view.workingDetails"), true)
     : content;
 }

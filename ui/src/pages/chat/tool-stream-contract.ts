@@ -13,6 +13,17 @@ import type { SessionCapability } from "../../lib/sessions/index.ts";
 import type { UiSessionDefaultsHost } from "../../lib/sessions/session-key.ts";
 import type { ChatRunStartupState } from "./chat-run-startup.ts";
 
+/** Fork (F47): one Claude CLI background agent or task. */
+export type CliBackgroundTaskRow = {
+  taskId: string;
+  taskType: string;
+  description?: string;
+  subagentType?: string;
+  status: "running" | "completed" | "failed" | "stopped";
+  startedAt?: number;
+  endedAt?: number;
+};
+
 /** Fork (F33): Claude CLI background agents and tasks of the visible run. */
 export type CliBackgroundTasksStatus = {
   runId: string;
@@ -20,6 +31,8 @@ export type CliBackgroundTasksStatus = {
   agents: number;
   /** The answer is in; the run stays open only for this background work. */
   waiting: boolean;
+  /** Fork (F47): running tasks first, then those that ended while others still run. */
+  tasks?: CliBackgroundTaskRow[];
 };
 
 export type ChatReasoning = {

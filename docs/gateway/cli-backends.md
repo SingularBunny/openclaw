@@ -195,7 +195,16 @@ agents to finish** once the answer is in and the turn stays open only for them (
 tasks** when the set mixes agents with shells or workflows). The count follows Claude's
 `system/background_tasks_changed` set without `ambient` entries, and the line clears when the set
 is empty or the turn ends. Gateway clients receive it as the `background_tasks` agent event stream
-(`count`, `agents`, `waiting`, `tasks`).
+(`count`, `agents`, `waiting`, `tasks`). Each entry of `tasks` (at most 20) has `taskId`,
+`taskType`, `description`, `subagentType`, `status` (`running`, `completed`, `failed` or
+`stopped`), `startedAt` and, once ended, `endedAt`; ended tasks stay listed while others still
+run. `sessions.cliTasks.stop` stops one of them through Claude's `stop_task` control request when
+the session's Claude CLI process runs in this Gateway.
+
+Claude's todo list (`TodoWrite`, `TaskCreate`, `TaskUpdate`, `TaskList` of the main thread) is
+saved as the session progress card with `progressCard.put` and emitted as the `plan` agent event
+with `source: "claude-cli"`; see
+[Claude CLI todo list and background tasks](/web/control-ui/chat#claude-cli-todo-list-and-background-tasks).
 
 While native background agents or workflows continue, a completed Claude answer can reach the
 channel through the normal reply pipeline without waiting for the continuation to finish.

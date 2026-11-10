@@ -748,4 +748,6 @@ export const CORE_GATEWAY_METHOD_SPECS = [
   ["canvas.storage.list", "canvas", "operator.read", "2026.10"],
   ["canvas.storage.set", "canvas", "operator.write", "2026.10"],
   ["canvas.storage.delete", "canvas", "operator.write", "2026.10"],
+  // Fork (F47): stop one Claude CLI background task of the session.
+  ["sessions.cliTasks.stop", "sessions-cli-tasks", "operator.write", "2026.10"],
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];

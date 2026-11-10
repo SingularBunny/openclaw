@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized module. */
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { PassThrough } from "node:stream";
@@ -619,6 +620,19 @@ function createSession(capability?: CliBackendLiveSessionCapability): ClaudeCliS
       waitForExit: async () => {
         const transport = session.transport ?? (await session.transportStartup);
         await transport?.waitForExit();
+      },
+      // Fork (F47): the CLI answers with task_notification status "stopped".
+      stopTask: async (taskId) => {
+        const transport = session.transport;
+        if (session.closed || !transport || !session.taskOwners.has(taskId)) {
+          return false;
+        }
+        await transport.send({
+          type: "control_request",
+          request_id: `stop_task_${randomUUID()}`,
+          request: { subtype: "stop_task", task_id: taskId },
+        });
+        return true;
       },
     },
   };

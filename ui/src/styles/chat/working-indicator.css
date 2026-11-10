@@ -96,6 +96,80 @@ button.chat-working-indicator__subagents:is(:hover, :focus-visible) {
   text-decoration: underline;
 }
 
+/* Fork (F47): Claude CLI background tasks, one row each under the counter line. */
+.chat-cli-tasks {
+  margin: 2px 0 4px;
+  color: var(--muted);
+  font-size: var(--control-ui-text-sm);
+}
+
+.chat-cli-tasks__summary {
+  width: fit-content;
+  cursor: pointer;
+  color: color-mix(in srgb, var(--text) 50%, var(--muted));
+}
+
+.chat-cli-tasks__summary:is(:hover, :focus-visible) {
+  text-decoration: underline;
+}
+
+.chat-cli-tasks__list {
+  display: grid;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0 0 0 16px;
+  list-style: none;
+}
+
+.chat-cli-tasks__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.chat-cli-tasks__name {
+  min-width: 0;
+  max-width: 40ch;
+  overflow: hidden;
+  color: var(--text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-cli-tasks__type {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.9em;
+}
+
+.chat-cli-tasks__row--failed .chat-cli-tasks__status {
+  color: var(--danger, var(--muted));
+}
+
+.chat-cli-tasks__stop {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chat-cli-tasks__stop:is(:hover, :focus-visible):not(:disabled) {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.chat-cli-tasks__stop:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
 .chat-working-indicator--continuation {
   gap: 6px;
   min-height: 0;

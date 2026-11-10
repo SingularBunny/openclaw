@@ -1,4 +1,5 @@
 /* @vitest-environment jsdom */
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized test file. */
 
 import { render as renderLit } from "lit";
 import { describe, expect, it, onTestFinished, vi } from "vitest";
@@ -836,6 +837,24 @@ describe("tool-card outcomes", () => {
     expect(container.querySelector("button")).toBeNull();
     expect(container.querySelector(".chat-tool-msg-body")).toBeNull();
     expect(container.textContent).not.toContain("Waiting on review.");
+  });
+
+  it("renders Claude CLI TodoWrite as the same compact receipt", async () => {
+    const container = await mountCard({
+      id: "todo-write",
+      name: "TodoWrite",
+      args: {
+        todos: [
+          { content: "Inspect", status: "completed", activeForm: "Inspecting" },
+          { content: "Implement", status: "in_progress", activeForm: "Implementing" },
+        ],
+      },
+      outputText: "Todos have been modified successfully.",
+      completed: true,
+    });
+
+    expect(container.textContent?.trim()).toBe("Progress updated — 1/2 · Implement");
+    expect(container.querySelector("button")).toBeNull();
   });
 });
 
