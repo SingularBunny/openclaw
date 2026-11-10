@@ -7,6 +7,7 @@ import { projectSidebarSessionCatalogs } from "./app-sidebar-session-catalogs.ts
 import type { SidebarSessionNavigationState } from "./app-sidebar-session-navigation-logic.ts";
 import type { SidebarSessionStatusFilter } from "./app-sidebar-session-types.ts";
 import type { SessionDataOwner } from "./session-data.ts";
+import { catalogStatusRows } from "./session-catalog-status-rows.ts";
 
 type SidebarSnoozeVisibilityHost = {
   readonly sessionData: SessionDataOwner;
@@ -28,10 +29,12 @@ export function visibleSidebarSessionCatalogs(host: SidebarSnoozeVisibilityHost)
       ).filter((catalog) => !host.hiddenSessionCatalogIds.has(catalog.id));
 }
 
+// The selected agent's list wins; the all-agent status rows back every other catalog row (F58).
 export function sidebarCatalogLiveRows(sessionData: SessionDataOwner) {
   return [
     ...(sessionData.sessionsResult?.sessions ?? []),
     ...Object.values(sessionData.sessionResultsByAgent).flatMap((result) => result.sessions),
+    ...catalogStatusRows(sessionData).rows,
   ];
 }
 
