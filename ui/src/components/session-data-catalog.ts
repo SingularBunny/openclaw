@@ -45,6 +45,7 @@ import {
   type PanelRefreshStatus,
 } from "./panel-refresh-status-state.ts";
 import type { ContextualSidebar } from "./sidebar-context-state.ts";
+import { catalogStatusRows } from "./session-catalog-status-rows.ts";
 
 export interface SessionDataInputs {
   readonly isConnected: boolean;
@@ -99,6 +100,9 @@ export function retireSessionCatalogData(owner: SessionCatalogResetOwner): void 
   owner.loadingMoreSessionCatalogIds = new Set();
   owner.sessionCatalogLive.clear();
   withdrawFreshSessionCatalogs(owner);
+  if (!owner.isSessionDataHostConnected) {
+    catalogStatusRows(owner).dispose();
+  }
 }
 
 function withdrawFreshSessionCatalogs(
@@ -280,6 +284,8 @@ function requestSessionCatalogRefresh(owner: SessionCatalogDataOwner): Promise<v
 
 export function updateSessionCatalogData(owner: SessionCatalogDataOwner): void {
   owner.synchronizeSessionScope();
+  // Fork (F58): other agents' catalog rows follow one all-agent status window.
+  catalogStatusRows(owner).synchronize(owner.sessionCatalogs);
   if (
     !visibleSessionCatalogClient(owner) ||
     owner.sessionCatalogLive.hasRequested ||
