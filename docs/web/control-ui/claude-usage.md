@@ -55,3 +55,8 @@ Claude CLI reports the subscription status on every turn (`rate_limit_event` in
 `resetAt`), so a reached limit shows at once as "5h limit reached · resets in 1h 20m"
 with that bar at 100 %, without waiting for the next usage read. The status clears
 when its reset time passes.
+
+## Status line
+
+The status line under the chat composer repeats the 5-hour figure (`5h 42%`) for sessions on
+Claude, from the same data; see [Chat](/web/control-ui/chat#status-line).

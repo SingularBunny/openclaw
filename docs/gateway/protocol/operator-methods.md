@@ -25,6 +25,17 @@ Methods an operator client calls on behalf of a person: helper reads, exec appro
   - `provider` is optional and only affects native naming plus native plugin
     command availability.
   - `includeArgs=false` omits serialized argument metadata from the response.
+- `commands.claude` (`operator.read`) lists Claude CLI's own slash commands and
+  skills for a session that runs on the `claude-cli` backend, as Claude reported
+  them in its `system/init` record.
+  - `sessionKey` is required; `agentId` is optional.
+  - Each entry has `name` (without the leading `/`) and `kind` (`command` or
+    `skill`). Clients send `/name args` as message text; Claude CLI runs it.
+  - The Gateway keeps the latest list per session in memory. A session that has
+    not run yet (or is bound to `claude-cli`) gets the agent's latest list,
+    marked `fromAgent: true`; `capturedAt` is when it was reported. Before any
+    Claude turn, and after a Gateway restart until the next one, the list is
+    empty.
 - `tools.catalog` (`operator.read`) fetches the runtime tool catalog for an
   agent. The response includes grouped tools and provenance metadata:
   - `source`: `core` or `plugin`
