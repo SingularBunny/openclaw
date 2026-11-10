@@ -2,6 +2,7 @@ import { asNullableRecord as asRecord } from "@openclaw/normalization-core/recor
 import { normalizeLowercaseStringOrEmpty } from "@openclaw/normalization-core/string-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import type { CommandEntry } from "../../../../packages/gateway-protocol/src/index.js";
+import type { ClaudeCommandEntry } from "../../../../packages/gateway-protocol/src/schema/commands.js";
 import type { CommandArgValues } from "../../../../src/auto-reply/commands-args.types.js";
 import {
   buildBuiltinChatCommands,
@@ -14,9 +15,11 @@ import {
 } from "../../../../src/auto-reply/reply/directive-handling.parse.js";
 import type { IconName } from "../../components/icons.ts";
 import { t } from "../../i18n/index.ts";
+import { registerClaudeComposerEnglish } from "../../i18n/locales/en-claude-composer.ts";
 import { registerCommandPaletteEnglish } from "../../i18n/locales/en-command-palette.ts";
 
 registerCommandPaletteEnglish();
+registerClaudeComposerEnglish();
 
 export type SlashCommandCategory = "session" | "model" | "agents" | "tools";
 
@@ -40,7 +43,10 @@ export type SlashCommandDef = {
   allowsInlineMultiWordArgs?: boolean;
   /** Progressive disclosure tier. Defaults to "standard" when omitted. */
   tier?: SlashCommandTier;
-  source?: "native" | "plugin" | "skill";
+  /** `claude`: Claude CLI's own command or skill (fork, F51), sent as text for Claude to run. */
+  source?: "native" | "plugin" | "skill" | "claude";
+  /** For `claude` entries: whether Claude reported the entry as a skill. */
+  claudeKind?: ClaudeCommandEntry["kind"];
   skillDisplayName?: string;
   skillModelVisible?: boolean;
   clientPresentation?: NonNullable<CommandEntry["clientPresentation"]>;
@@ -69,7 +75,7 @@ type CommandLike = {
 };
 
 export function executesInlineImmediately(command: SlashCommandDef): boolean {
-  return command.source !== "skill";
+  return command.source !== "skill" && command.source !== "claude";
 }
 
 const REMOTE_SLASH_IDENTIFIER_PATTERN = /^[a-z0-9][a-z0-9_-]*$/u;
@@ -425,6 +431,55 @@ export function getRemoteCommandEntries(
     .filter((entry): entry is CommandEntry => entry !== null);
 }
 
+const CLAUDE_COMMAND_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/u;
+const MAX_CLAUDE_COMMANDS = 400;
+
+/**
+ * Fork (F51): appends Claude CLI's own commands and skills after OpenClaw's. A Claude entry whose
+ * name an OpenClaw command, alias or skill already uses is dropped: typing it runs OpenClaw's.
+ */
+export function mergeClaudeSlashCommands(
+  base: readonly SlashCommandDef[],
+  entries: readonly ClaudeCommandEntry[] | null | undefined,
+): SlashCommandDef[] {
+  const taken = new Set<string>();
+  for (const command of base) {
+    for (const name of [command.name, ...(command.aliases ?? [])]) {
+      taken.add(normalizeLowercaseStringOrEmpty(name.replace(/^\//u, "")));
+    }
+  }
+  const merged = [...base];
+  for (const entry of (entries ?? []).slice(0, MAX_CLAUDE_COMMANDS)) {
+    const name = typeof entry?.name === "string" ? entry.name.trim().replace(/^\//u, "") : "";
+    const key = normalizeLowercaseStringOrEmpty(name);
+    if (
+      !name ||
+      name.length > MAX_REMOTE_NAME_LENGTH ||
+      !CLAUDE_COMMAND_NAME_PATTERN.test(name) ||
+      taken.has(key)
+    ) {
+      continue;
+    }
+    taken.add(key);
+    const kind = entry.kind === "skill" ? "skill" : "command";
+    const descriptionKey =
+      kind === "skill" ? "chat.commands.claudeSkillDescription" : "chat.commands.claudeDescription";
+    merged.push({
+      key: `claude:${name}`,
+      name,
+      description: t(descriptionKey),
+      descriptionKey,
+      icon: "asterisk",
+      category: "tools",
+      executeLocal: false,
+      tier: "standard",
+      source: "claude",
+      claudeKind: kind,
+    });
+  }
+  return merged;
+}
+
 export const SLASH_COMMANDS: SlashCommandDef[] = buildFallbackSlashCommands();
 
 const CATEGORY_ORDER: SlashCommandCategory[] = ["session", "model", "tools", "agents"];
@@ -471,6 +526,7 @@ export function getSlashCommandCompletions(
 ): SlashCommandDef[] {
   const lower = normalizeLowercaseStringOrEmpty(filter);
   const showAll = options?.showAll ?? false;
+  // Claude CLI runs its own commands only at the start of a message.
   let commands = options?.inlineOnly
     ? SLASH_COMMANDS.filter(
         (command) =>

@@ -1,5 +1,6 @@
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
+import { readClaudeInitCommands } from "../infra/claude-native-commands.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import type {
   CliBackendParseJsonlEvent,
@@ -341,6 +342,14 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
       } catch (error) {
         parseErrorText = truncateUtf16Safe(formatErrorMessage(error), 500);
         return;
+      }
+      const nativeCommands = params.onNativeCommands ? readClaudeInitCommands(parsed) : undefined;
+      if (nativeCommands) {
+        try {
+          params.onNativeCommands?.(nativeCommands);
+        } catch {
+          // Autocomplete hints only; a failed sink must not fail the turn.
+        }
       }
     }
     if (

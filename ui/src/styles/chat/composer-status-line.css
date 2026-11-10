@@ -1,0 +1,58 @@
+/* Fork (F48): one-line session status under the chat composer, like Claude Code's. */
+.agent-chat__status-line {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: baseline;
+  gap: 0;
+  min-width: 0;
+  padding-block: 3px 0;
+  padding-inline: 12px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.agent-chat__status-line-part {
+  flex: none;
+}
+
+.agent-chat__status-line-part + .agent-chat__status-line-part::before {
+  content: "·";
+  padding-inline: 6px;
+  color: color-mix(in srgb, var(--muted) 60%, transparent);
+}
+
+.agent-chat__status-line-model {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.agent-chat__status-line-part[data-tone="warn"] {
+  color: var(--warn);
+}
+
+.agent-chat__status-line-part[data-tone="danger"] {
+  color: var(--danger);
+}
+
+/* Narrow composers keep the figures and drop the labels that take the most room. */
+@container chat-composer (max-width: 420px) {
+  .agent-chat__status-line-permission {
+    display: none;
+  }
+}
+
+@container chat-composer (max-width: 300px) {
+  .agent-chat__status-line-model {
+    display: none;
+  }
+
+  .agent-chat__status-line-model + .agent-chat__status-line-part::before {
+    content: none;
+  }
+}

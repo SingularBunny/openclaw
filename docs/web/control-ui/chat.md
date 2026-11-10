@@ -317,6 +317,33 @@ or the process is gone, the button stays and its tooltip says so. Gateway client
 `sessions.cliTasks.stop` with `{ sessionKey, agentId?, taskId }`; the result is
 `{ requested: boolean }`.
 
+## Status line
+
+A single line under the composer shows, like Claude Code's status line:
+
+- the session's model;
+- context used, as on the composer's context ring (`ctx 34%`; `~` while the figure is stale);
+- the running turn's time (`turn 1m 05s`), only while a turn runs;
+- the Claude 5-hour limit (`5h 42%`, **5h limit reached** after a rejected turn) for sessions on
+  Claude: the figures of the [Claude usage indicator](/web/control-ui/claude-usage), or the plan
+  windows of the context popover when the indicator has none; hover for the reset time;
+- the permission mode (`Permissions: Workspace`).
+
+Parts with no data are left out. In a narrow composer the permission mode and then the model are
+hidden first.
+
+## Claude Code commands
+
+In sessions that run on the Claude CLI backend (`claude-cli`), the `/` menu also lists Claude
+Code's own commands and skills under **Claude Code**, after OpenClaw's commands and skills. The
+list comes from Claude's `system/init` record (`slash_commands`, `skills`) and appears after the
+session's first Claude turn; a new session shows the list of the agent's latest Claude session
+until then. Picking one inserts `/name ` into the composer; the message is sent as typed and
+Claude CLI runs the command (for example a Claude skill with its arguments). Names that OpenClaw
+already uses (such as `/compact` or `/model`) stay OpenClaw's commands and are not repeated.
+Claude commands work only at the start of a message, not inline. The Gateway reads the list with
+[`commands.claude`](/gateway/protocol/operator-methods#operator-helper-methods).
+
 ## Composer capability menu
 
 Select **+** beside the chat composer to open attachments and session capabilities in one menu:

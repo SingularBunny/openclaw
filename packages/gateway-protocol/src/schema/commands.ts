@@ -101,8 +101,33 @@ export const CommandsListResultSchema = closedObject({
   commands: Type.Array(CommandEntrySchema, { maxItems: COMMAND_LIST_MAX_ITEMS }),
 });
 
+/** Fork (F51): Claude CLI's own slash commands and skills reported by its `system/init`. */
+export const CLAUDE_COMMAND_LIST_MAX_ITEMS = 400;
+
+export const CommandsClaudeParamsSchema = closedObject({
+  sessionKey: NonEmptyString,
+  agentId: Type.Optional(NonEmptyString),
+});
+
+export const ClaudeCommandEntrySchema = closedObject({
+  /** Command name without the leading slash, sent to Claude CLI as `/name args`. */
+  name: BoundedNonEmptyString(COMMAND_NAME_MAX_LENGTH),
+  kind: Type.Union([Type.Literal("command"), Type.Literal("skill")]),
+});
+
+export const CommandsClaudeResultSchema = closedObject({
+  commands: Type.Array(ClaudeCommandEntrySchema, { maxItems: CLAUDE_COMMAND_LIST_MAX_ITEMS }),
+  /** When the list was reported; absent when no Claude CLI turn reported one yet. */
+  capturedAt: Type.Optional(Type.Integer({ minimum: 0 })),
+  /** True when the list came from another session of the same agent. */
+  fromAgent: Type.Optional(Type.Boolean()),
+});
+
 // Wire types derive directly from local schema consts so public d.ts graphs never
 // pull in the ProtocolSchemas registry.
 export type CommandEntry = Static<typeof CommandEntrySchema>;
 export type CommandsListParams = Static<typeof CommandsListParamsSchema>;
 export type CommandsListResult = Static<typeof CommandsListResultSchema>;
+export type ClaudeCommandEntry = Static<typeof ClaudeCommandEntrySchema>;
+export type CommandsClaudeParams = Static<typeof CommandsClaudeParamsSchema>;
+export type CommandsClaudeResult = Static<typeof CommandsClaudeResultSchema>;

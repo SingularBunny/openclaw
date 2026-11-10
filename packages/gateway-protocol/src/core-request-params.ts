@@ -11,7 +11,7 @@ import type {
   CanvasStorageSetParams,
 } from "./schema/canvas.js";
 import type { CatalogBrowseParams, CatalogSearchKeywordsParams } from "./schema/catalog.js";
-import type { CommandsListParams } from "./schema/commands.js";
+import type { CommandsClaudeParams, CommandsListParams } from "./schema/commands.js";
 import type { CronHistoryParams } from "./schema/cron.js";
 import type {
   EnvironmentsSessionCreateParams,
@@ -64,6 +64,7 @@ export type GatewayCoreRequestParams = {
   "board.widget.grant": BoardSchema.BoardWidgetGrantParams;
   "board.widget.put": BoardSchema.BoardWidgetPutParams;
   "commands.list": CommandsListParams;
+  "commands.claude": CommandsClaudeParams;
   "environments.session.create": EnvironmentsSessionCreateParams;
   "environments.session.status": EnvironmentsSessionStatusParams;
   "environments.session.destroy": EnvironmentsSessionDestroyParams;
