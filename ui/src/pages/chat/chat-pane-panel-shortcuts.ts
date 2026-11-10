@@ -43,6 +43,7 @@ export const SIDEBAR_PANEL_SHORTCUTS = {
   portal: undefined,
   subagents: undefined,
   processes: undefined,
+  runs: undefined,
 };
 
 /** Keyboard and panel metadata use the same availability policy. */
