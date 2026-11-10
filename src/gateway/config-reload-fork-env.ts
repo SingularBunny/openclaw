@@ -9,7 +9,9 @@
  * - OPENCLAW_WORKER_PENDING_*: on the next queue admission; OPENCLAW_WORKER_HEAP_MB: for workers
  *   started after the change (running workers keep their heap ceiling);
  * - OPENCLAW_MEMORY_INDEX_ON_START: read when the memory index service starts, so on the next start;
- * - OPENCLAW_RESTART_AGENT_RUN_WAIT_MS: on the next restart deferral.
+ * - OPENCLAW_RESTART_AGENT_RUN_WAIT_MS: on the next restart deferral;
+ * - OPENCLAW_PROXY_ROUTES: on the next connection (the managed proxy itself, `proxy.*`, still
+ *   needs a restart); OPENCLAW_CLI_BACKEND_PROXY: on the next CLI backend run.
  */
 export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_WORKER_PENDING_TASKS",
@@ -25,6 +27,8 @@ export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS",
   "OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS",
   "OPENCLAW_RESTART_AGENT_RUN_WAIT_MS",
+  "OPENCLAW_PROXY_ROUTES",
+  "OPENCLAW_CLI_BACKEND_PROXY",
 ] as const;
 
 /** Both config spellings: `env.vars.<NAME>` and the `env.<NAME>` shorthand. */

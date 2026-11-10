@@ -319,7 +319,10 @@ export async function executePreparedCliRun(
           });
       cleanupMcpCaptureAttempt = mcpCaptureAttempt.cleanup;
       const preparedBackendEnv = context.preparedBackend.env ?? {};
-      const { env, selectedClaudeClearEnv } = resolveCliChildEnv(context.preparedBackend, params, {
+      const { env, selectedClaudeClearEnv } = resolveCliChildEnv(
+        context.preparedBackend,
+        nodePlacement ? params : { ...params, proxyBackendId: context.backendResolved.id },
+        {
         ...mcpCaptureAttempt.env,
         ...localProcessEnv,
       });
