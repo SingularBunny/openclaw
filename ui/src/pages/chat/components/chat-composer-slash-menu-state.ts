@@ -247,10 +247,7 @@ export function createSlashMenu() {
         (!completion.inline || command.source === "skill" || host.canRun(true, command)),
     );
     state.slashMenuCompletion = completion;
-    state.slashMenuItems = [
-      ...items.filter((command) => command.source !== "skill"),
-      ...items.filter((command) => command.source === "skill"),
-    ];
+    state.slashMenuItems = orderSlashMenuItems(items);
     state.slashMenuOpen = items.length > 0;
     state.slashMenuIndex = 0;
     state.slashMenuMode = "command";
@@ -522,3 +519,12 @@ export function createSlashMenu() {
 }
 
 export type SlashMenu = ReturnType<typeof createSlashMenu>;
+
+/** OpenClaw commands, then OpenClaw skills, then Claude CLI's own commands (fork, F51). */
+export function orderSlashMenuItems(items: readonly SlashCommandDef[]): SlashCommandDef[] {
+  return [
+    ...items.filter((command) => command.source !== "skill" && command.source !== "claude"),
+    ...items.filter((command) => command.source === "skill"),
+    ...items.filter((command) => command.source === "claude"),
+  ];
+}

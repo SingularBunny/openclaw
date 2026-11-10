@@ -37,6 +37,7 @@ import { ComposerQuestionDock } from "./chat-composer-question.tsx";
 import { ComposerQueue, ComposerInputScope, ComposerProgress } from "./chat-composer-regions.tsx";
 import { SelectedHumanMentions } from "./chat-composer-selected-mentions.tsx";
 import { commitComposerDraft } from "./chat-composer-state.ts";
+import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import { renderFallbackIndicatorSolid } from "./chat-composer-status.tsx";
 import { renderComposerTextarea, type ComposerTextareaProps } from "./chat-composer-textarea.tsx";
 import type { ChatComposerProps, ChatComposerState } from "./chat-composer-types.ts";
@@ -700,6 +701,18 @@ export function renderChatComposerView(
         </ComposerInputScope>
       ) : props.disabledBanner?.kind === "composer-replacement" ? (
         disabledBanner
+      ) : undefined}
+      {showComposerInput() ? (
+        <ComposerStatusLine
+          session={props.selectedSession}
+          runActive={props.runActive}
+          providerUsage={props.providerUsage}
+          permissionMode={
+            props.permissionPicker?.mode ??
+            props.permissionPicker?.defaultMode ??
+            props.selectedSession?.permissionMode
+          }
+        />
       ) : undefined}
     </div>
   );

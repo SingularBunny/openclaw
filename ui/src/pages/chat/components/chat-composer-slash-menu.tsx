@@ -33,10 +33,19 @@ export function SlashMenu(props: { menu: SlashMenuState; host: SlashMenuHost; dr
     isSlashMenuVisible(state()) ? (state().slashMenuMode === "args" ? "args" : "command") : null;
   const grouped = createMemo(() => {
     const groups: Array<
-      [SlashCommandCategory | "skills", Array<{ command: SlashCommandDef; index: number }>]
+      [
+        SlashCommandCategory | "skills" | "claude",
+        Array<{ command: SlashCommandDef; index: number }>,
+      ]
     > = [];
     for (const [index, command] of state().slashMenuItems.entries()) {
-      const category = command.source === "skill" ? "skills" : (command.category ?? "session");
+      // Fork (F51): Claude CLI's own commands form their own group after OpenClaw's skills.
+      const category =
+        command.source === "skill"
+          ? "skills"
+          : command.source === "claude"
+            ? "claude"
+            : (command.category ?? "session");
       const group = props.draft === "/" ? groups.find(([key]) => key === category) : groups.at(-1);
       if (group?.[0] === category) {
         group[1].push({ command, index });
@@ -94,13 +103,18 @@ export function SlashMenu(props: { menu: SlashMenuState; host: SlashMenuHost; dr
                   const category = group()[0];
                   return category === "skills"
                     ? t("chat.skills.label")
-                    : getSlashCommandCategoryLabel(category);
+                    : category === "claude"
+                      ? t("chat.commands.claudeGroup")
+                      : getSlashCommandCategoryLabel(category);
                 });
                 return (
                   <div
                     class={[
                       "slash-menu-group",
-                      { "slash-menu-group--skills": group()[0] === "skills" },
+                      {
+                        "slash-menu-group--skills": group()[0] === "skills",
+                        "slash-menu-group--claude": group()[0] === "claude",
+                      },
                     ]}
                   >
                     <div class="slash-menu-group__label">{label()}</div>
