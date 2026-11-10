@@ -19,6 +19,7 @@ import { ChatImportBoundary } from "./chat-import-boundary.tsx";
 import { ChatPermissionCard } from "./chat-permission-card.tsx";
 import { ToolIcon } from "./chat-tool-card-chrome.tsx";
 import type { ToolCardProps } from "./chat-tool-card-types.ts";
+import { ClaudePlanCard, readClaudePlanMarkdown } from "./chat-plan-card.solid.tsx";
 import { ExpandedToolCardContent } from "./chat-tool-content.solid.tsx";
 import { ToolOutcomeSummary } from "./chat-tool-outcome-summary.solid.tsx";
 import { toolResultSurfaceProps } from "./chat-tool-render-model.ts";
@@ -293,13 +294,28 @@ export function ChatToolCard(props: ToolCardProps) {
       enabled={props.options.mediaReadAllowed !== false}
       renderDefault={() => (
         <openclaw-chat-tool-card style={{ display: "contents" }}>
-          <ToolCardView
-            card={props.card}
-            options={props.options}
-            hasChildren={props.hasChildren ?? Boolean(props.children)}
+          {/* Fork (F49): Claude's ExitPlanMode plan renders as a Markdown card, not a tool row. */}
+          <Show
+            when={
+              !(props.hasChildren ?? Boolean(props.children)) && readClaudePlanMarkdown(props.card)
+            }
+            fallback={
+              <ToolCardView
+                card={props.card}
+                options={props.options}
+                hasChildren={props.hasChildren ?? Boolean(props.children)}
+              >
+                {props.children}
+              </ToolCardView>
+            }
           >
-            {props.children}
-          </ToolCardView>
+            {(markdown) => (
+              <ClaudePlanCard
+                markdown={markdown()}
+                outcome={resolveToolCardOutcome(props.card, props.options.runActive)}
+              />
+            )}
+          </Show>
         </openclaw-chat-tool-card>
       )}
     />

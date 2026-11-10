@@ -565,6 +565,7 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       },
       composerControls: composerControls?.composerControls,
       permissionPicker: composerControls?.permissionPicker,
+      claudeModePicker: composerControls?.claudeModePicker,
       ...this.suggestionChatProps(state.connected, selectedSessionArchived, multiIdentity),
       messageReactions: this.collaboration.reactions,
       onReact: this.canReactToCurrentSession() ? this.handleMessageReaction : undefined,

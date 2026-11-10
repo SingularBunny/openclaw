@@ -26,6 +26,7 @@ export function ComposerStatusLine(props: {
   runActive?: boolean;
   providerUsage?: ProviderUsageDisplayProps;
   permissionMode?: string | null;
+  claudeMode?: string | null;
 }) {
   const [now, setNow] = createSignal(Date.now(), { ownedWrite: true });
   // The clock runs only while a turn is running; the other parts follow their own data.
@@ -54,6 +55,7 @@ export function ComposerStatusLine(props: {
       claudeUsage: readSharedClaudeUsage(),
       quotaGroups: quotaGroups(),
       permissionMode: props.permissionMode,
+      claudeMode: props.claudeMode,
     }),
   );
   const fiveHourTitle = () => {
@@ -124,6 +126,18 @@ export function ComposerStatusLine(props: {
               {fiveHour().reached
                 ? t("chat.composerStatus.limitReached")
                 : t("chat.composerStatus.fiveHour", { percent: String(fiveHour().percent) })}
+            </span>
+          )}
+        </Show>
+        <Show when={view().claudeMode}>
+          {(mode) => (
+            <span
+              class="agent-chat__status-line-part agent-chat__status-line-claude-mode"
+              data-claude-mode={mode()}
+              data-tone={mode() === "bypassPermissions" ? "warn" : undefined}
+              title={t("chat.claudeMode.label")}
+            >
+              {t(`chat.claudeMode.status.${mode()}`)}
             </span>
           )}
         </Show>

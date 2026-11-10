@@ -1,4 +1,5 @@
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
+import { isClaudePermissionModeAdminOnly } from "./claude-permission-mode.js";
 import { isIncognitoSessionKey } from "./incognito-session-key.js";
 
 export type SessionMutationOperatorScope = "operator.write" | "operator.admin";
@@ -130,6 +131,8 @@ const SESSIONS_PATCH_WRITE_SCOPE_MUTATIONS: ReadonlySet<string> = new Set([
   "cyberAccessProgram",
   "fastMode",
   "permissionMode",
+  // Fork (F49): bypassPermissions is raised to admin below, like permissionMode "full".
+  "claudePermissionMode",
   "communication",
 ]);
 
@@ -180,7 +183,11 @@ export function resolveBaseSessionMutationRequiredScope(
     if (!isRecord(params)) {
       return "operator.write";
     }
-    if (params.permissionMode === "full" || Object.hasOwn(params, "sandboxMode")) {
+    if (
+      params.permissionMode === "full" ||
+      isClaudePermissionModeAdminOnly(params.claudePermissionMode) ||
+      Object.hasOwn(params, "sandboxMode")
+    ) {
       return "operator.admin";
     }
     return Object.keys(params).every(
@@ -195,7 +202,11 @@ export function resolveBaseSessionMutationRequiredScope(
     if (!isRecord(params) || !isRecord(params.patch)) {
       return "operator.write";
     }
-    if (params.patch.permissionMode === "full" || Object.hasOwn(params.patch, "sandboxMode")) {
+    if (
+      params.patch.permissionMode === "full" ||
+      isClaudePermissionModeAdminOnly(params.patch.claudePermissionMode) ||
+      Object.hasOwn(params.patch, "sandboxMode")
+    ) {
       return "operator.admin";
     }
     return Object.keys(params.patch).every((key) => SESSIONS_PATCH_WRITE_SCOPE_MUTATIONS.has(key))
