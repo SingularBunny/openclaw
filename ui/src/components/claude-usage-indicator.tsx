@@ -1,5 +1,13 @@
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
+import {
+  createMemo,
+  createRenderEffect,
+  createSignal,
+  For,
+  onCleanup,
+  Show,
+  untrack,
+} from "solid-js";
 import type { UsageSummary } from "../../../src/infra/provider-usage.types.js";
 import type { ApplicationGateway } from "../app/gateway.ts";
 import { formatDateTimeMs, formatRelativeTimestamp } from "../lib/format.ts";
@@ -14,6 +22,7 @@ import {
   type ClaudeUsageLastGood,
   type ClaudeUsageRow,
 } from "./claude-usage-indicator-model.ts";
+import { publishSharedClaudeUsage } from "./claude-usage-store.ts";
 
 /**
  * usage.status is answered from the Gateway's minute cache, so this poll never reaches the
@@ -164,6 +173,9 @@ export function ClaudeUsageIndicator(props: {
   });
 
   const view = createMemo(() => resolveClaudeUsageView(summary(), now(), t, lastGood()));
+  // Fork (F48): the composer status line reads the same figures.
+  createRenderEffect(view, (current) => publishSharedClaudeUsage(current));
+  onCleanup(() => publishSharedClaudeUsage(null));
 
   return (
     <Show when={view()}>

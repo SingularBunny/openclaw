@@ -1,3 +1,4 @@
+import type { ClaudeNativeCommand } from "../infra/claude-native-commands.js";
 import type {
   CliBackendConfig,
   CliBackendJsonlUsage,
@@ -153,6 +154,8 @@ export type CliJsonlStreamingParserOptions = {
   onNativeTools?: (tools: unknown) => void;
   /** Claude `prompt_suggestion` record: a predicted next user prompt, never reply content. */
   onPromptSuggestion?: (text: string) => void;
+  /** Claude `system/init` slash commands and skills (fork, F51); presentation only. */
+  onNativeCommands?: (commands: ClaudeNativeCommand[]) => void;
   onAssistantMessage?: (message: unknown) => void;
   onUsage?: (usage: CliUsage, terminal: boolean) => void;
   /** Semantic subagent work for an active parent Agent call. Not a parent-lane event. */

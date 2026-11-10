@@ -3,6 +3,8 @@ import type { SessionEventTarget } from "../../auto-reply/reply/session-event-co
 import type { SessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { shouldLogVerbose } from "../../globals.js";
 import { getAgentRunContext } from "../../infra/agent-run-registry.js";
+import { recordClaudeNativeCommands } from "../../infra/claude-native-commands.js";
+import type { ClaudeNativeCommand } from "../../infra/claude-native-commands.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import {
   resolveEventSessionKeyForPolicy,
@@ -149,6 +151,20 @@ export async function executeCliProcess(params: {
         });
       }
     : undefined;
+  // Fork (F51): Claude's own commands and skills for the composer `/` autocomplete. Side
+  // questions, isolated completions and restricted runs start Claude without the user's setup.
+  const reportNativeCommands =
+    runParams.executionMode !== "side-question" &&
+    !runParams.isolatedCompletion &&
+    !runParams.cliToolAvailability
+      ? (commands: ClaudeNativeCommand[]) => {
+          recordClaudeNativeCommands({
+            sessionId: runParams.sessionId,
+            agentId: eventAgentId ?? runParams.agentId,
+            commands,
+          });
+        }
+      : undefined;
   let eventTarget: SessionEventTarget | undefined;
   if (eventSessionKey && eventAgentId && params.events.emitLiveEvents) {
     try {
@@ -187,6 +203,7 @@ export async function executeCliProcess(params: {
         onAssistantMessage: params.diagnostics?.observeAssistantMessage,
         onUsage: params.diagnostics?.observeUsage,
         onPromptSuggestion: reportPromptSuggestion,
+        onNativeCommands: reportNativeCommands,
         onAttributedSubagentProgress: (parentToolUseId) => {
           if (!params.events.isActiveForegroundAgentTool(parentToolUseId)) {
             return;

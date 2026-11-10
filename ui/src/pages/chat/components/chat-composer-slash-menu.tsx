@@ -199,16 +199,22 @@ export function updateSlashMenu(
       (!completion.inline || command.source === "skill" || host.canRun(true, command)),
   );
   state.slashMenuCompletion = completion;
-  state.slashMenuItems = [
-    ...items.filter((command) => command.source !== "skill"),
-    ...items.filter((command) => command.source === "skill"),
-  ];
+  state.slashMenuItems = orderSlashMenuItems(items);
   state.slashMenuOpen = items.length > 0;
   state.slashMenuIndex = 0;
   state.slashMenuMode = "command";
   state.slashMenuCommand = null;
   state.slashMenuArgItems = [];
   requestUpdate();
+}
+
+/** OpenClaw commands, then OpenClaw skills, then Claude CLI's own commands (fork, F51). */
+export function orderSlashMenuItems(items: readonly SlashCommandDef[]): SlashCommandDef[] {
+  return [
+    ...items.filter((command) => command.source !== "skill" && command.source !== "claude"),
+    ...items.filter((command) => command.source === "skill"),
+    ...items.filter((command) => command.source === "claude"),
+  ];
 }
 
 function beginInlineSlashArguments(
@@ -607,8 +613,11 @@ function renderSlashMenuContents(
       ),
       description: getSlashCommandDescription(cmd),
     });
-  const commands = state.slashMenuItems.filter((command) => command.source !== "skill");
+  const commands = state.slashMenuItems.filter(
+    (command) => command.source !== "skill" && command.source !== "claude",
+  );
   const skills = state.slashMenuItems.filter((command) => command.source === "skill");
+  const claudeCommands = state.slashMenuItems.filter((command) => command.source === "claude");
   const groups: Array<[SlashCommandCategory, Array<{ command: SlashCommandDef; index: number }>]> =
     [];
   for (const [index, command] of commands.entries()) {
@@ -639,6 +648,16 @@ function renderSlashMenuContents(
           <div class="slash-menu-group__label">{t("chat.skills.label")}</div>
           <For keyed={(item) => item} each={skills}>
             {(command, index) => <>{renderCommandOption(command(), commands.length + index())}</>}
+          </For>
+        </div>
+      ) : null}
+      {claudeCommands.length > 0 ? (
+        <div class="slash-menu-group slash-menu-group--claude">
+          <div class="slash-menu-group__label">{t("chat.commands.claudeGroup")}</div>
+          <For keyed={(item) => item} each={claudeCommands}>
+            {(command, index) => (
+              <>{renderCommandOption(command(), commands.length + skills.length + index())}</>
+            )}
           </For>
         </div>
       ) : null}

@@ -41,6 +41,7 @@ import { SelectedHumanMentions } from "./chat-composer-selected-mentions.tsx";
 import { resetSkillMenuState, SkillMenu } from "./chat-composer-skill-menu.tsx";
 import { SlashMenu, resetSlashMenuState } from "./chat-composer-slash-menu.tsx";
 import { commitComposerDraft } from "./chat-composer-state.ts";
+import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import { renderFallbackIndicatorSolid } from "./chat-composer-status.tsx";
 import { isPastedTextAttachment } from "./chat-pasted-text.ts";
 import { ChatPermissionPicker } from "./chat-permission-picker.tsx";
@@ -500,6 +501,18 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
           </ComposerInputScope>
         ) : props.disabledBanner?.kind === "composer-replacement" ? (
           disabledBanner
+        ) : undefined}
+        {showComposerInput() ? (
+          <ComposerStatusLine
+            session={activeSession()}
+            runActive={props.runActive}
+            providerUsage={props.providerUsage}
+            permissionMode={
+              props.permissionPicker?.mode ??
+              props.permissionPicker?.defaultMode ??
+              activeSession()?.permissionMode
+            }
+          />
         ) : undefined}
       </div>
     </>
