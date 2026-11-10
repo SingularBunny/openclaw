@@ -1,3 +1,4 @@
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized pane renderer. */
 import { html, nothing } from "lit";
 import { resolveArtifactDownloadSource } from "../../api/artifact-download.ts";
 import { resolveControlUiAuthToken } from "../../app/control-ui-auth.ts";
@@ -67,6 +68,7 @@ import {
   selectedChatSessionRow,
 } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
+import { formatCliBackgroundTasksLabel } from "./cli-background-tasks.ts";
 import { getChatComposerState } from "./components/chat-composer-state.ts";
 import { openSessionWorkspaceFile } from "./components/chat-session-workspace.ts";
 import { resolveChatLinkFaviconFetcher } from "./link-favicon-loader.ts";
@@ -404,6 +406,7 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       environmentStartStatus:
         placement?.state === "provisioning" ? placement.startStatus : undefined,
       waitingApproval: state.waitingApprovalStatuses.size > 0,
+      backgroundTasksLabel: formatCliBackgroundTasksLabel(state.cliBackgroundTasks),
       compactionStatus: state.compactionStatus,
       fallbackStatus: state.fallbackStatus,
       providerPolicyNotice: catalogKey ? null : state.providerPolicyNotice,

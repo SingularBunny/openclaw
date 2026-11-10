@@ -89,6 +89,10 @@ export function runPlugin(
     getActiveLoopbackAskUserDeadline?: () => number | undefined;
     onActiveLoopbackAskUserDeadlineChange?: (listener: () => void) => () => void;
     onInterrupted?: (reason: "aborted" | "timeout") => boolean;
+    env?: Record<string, string>;
+    onBackgroundTasksChange?: NonNullable<
+      Parameters<typeof executePluginOwnedProcess>[0]["onBackgroundTasksChange"]
+    >;
   } = {},
 ) {
   return executePluginOwnedProcess({
@@ -96,7 +100,7 @@ export function runPlugin(
     execute,
     executionCommand: "/bin/sh",
     executionArgs: ["-p", "--permission-mode", "bypassPermissions"],
-    env: { PATH: "/bin:/usr/bin", OPENCLAW_TEST_MARKER: "host-owned" },
+    env: { PATH: "/bin:/usr/bin", OPENCLAW_TEST_MARKER: "host-owned", ...options.env },
     prompt: context.params.prompt,
     promptContext: context.promptContext,
     useResume: options.useResume ?? Boolean(options.requiredGeneration),
@@ -116,6 +120,9 @@ export function runPlugin(
     getActiveLoopbackAskUserDeadline: options.getActiveLoopbackAskUserDeadline,
     onActiveLoopbackAskUserDeadlineChange: options.onActiveLoopbackAskUserDeadlineChange,
     ...(options.onInterrupted ? { onInterrupted: options.onInterrupted } : {}),
+    ...(options.onBackgroundTasksChange
+      ? { onBackgroundTasksChange: options.onBackgroundTasksChange }
+      : {}),
     noOutputTimeoutMs: options.noOutputTimeoutMs ?? 2_000,
     consumeStdout: options.consumeStdout ?? (() => {}),
   });

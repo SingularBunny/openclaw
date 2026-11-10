@@ -151,6 +151,7 @@ CLI backends have two independent limits:
 
 - `agents.defaults.timeoutSeconds` limits the whole agent turn. Normal Gateway turns inherit the 48-hour default. `0` makes the turn budget unlimited. A stored override such as `600` replaces that default.
 - The CLI no-output watchdog stops a subprocess that remains silent. Each backend plugin owns separate fresh/resume profiles, and the watchdog remains active even when the overall turn budget is unlimited. When it stops a run, the reason is queued for the session as a passive system event: the agent reads it at the start of its next turn, and the notice does not start a turn of its own.
+- Known silent states do not count as silence. A pending tool approval, a tool call without its result, native background tasks, and native compaction keep the run alive up to the blocked-tool floor (15 minutes). While Claude CLI waits for the model API to start answering (after its `system/status` `requesting` frame), the watchdog waits for Claude's own first-byte window plus 30 seconds: 180 seconds by default, or `CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS` from the CLI environment. Claude retries a request that got no response once, with a longer window that it announces as `system/api_retry` with `no_response.retry_wait_ms`; the watchdog then waits for that window instead. A run stopped during such a wait logs `awaiting=model-response`, and its session notice says the CLI was waiting for the model API.
 
 Cancellation also reaches `before_agent_reply` hooks that run before the CLI
 subprocess starts. When a cron deadline aborts the turn, the hook's next admission
@@ -196,6 +197,14 @@ commands still needs a follow-up, OpenClaw closes that subprocess and starts a f
 Discarded, semantically attributed Claude child messages use a bounded progress charge rather than
 consuming the parent reply budget. Retained stream deltas, individual JSONL lines, and ordinary
 frame counts remain bounded. Mixed-format records with retained item content keep their full charge.
+
+The Control UI shows Claude CLI background work in the working indicator of the running turn:
+**2 background agents running** while they run beside the turn, and **Waiting for 2 background
+agents to finish** once the answer is in and the turn stays open only for them (**background
+tasks** when the set mixes agents with shells or workflows). The count follows Claude's
+`system/background_tasks_changed` set without `ambient` entries, and the line clears when the set
+is empty or the turn ends. Gateway clients receive it as the `background_tasks` agent event stream
+(`count`, `agents`, `waiting`, `tasks`).
 
 While native background agents or workflows continue, a completed Claude answer can reach the
 channel through the normal reply pipeline without waiting for the continuation to finish.

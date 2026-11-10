@@ -333,6 +333,7 @@ export function projectChatTranscript(props: ChatThreadProps, transcript: ChatTr
     waitingApproval: props.waitingApproval,
     waitingSubagents: subagents.wait ?? undefined,
     runningSubagents: subagents.running,
+    backgroundTasksLabel: props.backgroundTasksLabel,
     subagentActivity: subagents.activity.length
       ? html`<openclaw-chat-subagent-activity
           .rows=${subagents.activity}
@@ -605,6 +606,7 @@ export function projectChatTranscript(props: ChatThreadProps, transcript: ChatTr
     props.onRetryRun,
     props.failureActionsRunId,
     Boolean(props.waitingApproval),
+    props.backgroundTasksLabel,
     props.questionPrompts,
     state.asyncQuestionRevision,
     props.asyncQuestions?.historyKey,

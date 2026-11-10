@@ -47,6 +47,7 @@ import { createCliPluginWatchdog, type CliWatchdogClock } from "./execute-plugin
 import { createSteeredCliMessageInjection } from "./execute-plugin.steered-transcript.js";
 import { attachCliReplyBackend, createCliRunCurrentAssertion } from "./execution-target.js";
 import { createCliFailoverError as failover } from "./exit-error.js";
+import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./native-wait-state.js";
 import * as noOutputPolicy from "./no-output-timeout-policy.js";
 import { normalizeCliToolName } from "./tool-policy.js";
 import type { PreparedCliRunContext } from "./types.js";
@@ -429,6 +430,8 @@ export async function executePluginOwnedProcess(params: {
   getActiveLoopbackAskUserDeadline?: () => number | undefined;
   onActiveLoopbackAskUserDeadlineChange?: (listener: () => void) => () => void;
   onNoOutputTimeout?: (error: FailoverError) => void;
+  /** Fork (F33): live background tasks of the CLI; `waiting` once the main answer is in. */
+  onBackgroundTasksChange?: (state: CliBackgroundTasksState) => void;
   onInterrupted?: (reason: CliTerminalInterruption["reason"]) => boolean;
   /** Late-arriving next-prompt prediction; outlives the run like the warm process. */
   onPromptSuggestion?: (text: string) => void;
@@ -495,6 +498,8 @@ export async function executePluginOwnedProcess(params: {
     outstanding.approvals = Math.max(0, outstanding.approvals + delta);
     reportOutstandingWork();
   };
+  // Fork (F33, F36): silent native waits (model request, background tasks).
+  const nativeWait = createCliNativeWaitObserver(params.env, params.onBackgroundTasksChange);
   let watchdog: ReturnType<typeof createCliPluginWatchdog> | undefined;
   let stopAskUserDeadlineListener: (() => void) | undefined;
   let stopCompactionWorkListener: (() => void) | undefined;
@@ -546,6 +551,7 @@ export async function executePluginOwnedProcess(params: {
         activeToolCount: () => Math.max(params.activeToolCount?.() ?? 0, outstanding.approvals),
         backgroundTaskCount: () => outstanding.background,
         compactionActive: () => params.compactionActive?.() ?? false,
+        modelRequestGraceMs: nativeWait.modelRequestGraceMs,
         hasObservedActivity: () => outstanding.observed,
         hasReplayUnsafeActivity: () => outstanding.replayUnsafe,
         onNoOutputTimeout: (error) => {
@@ -664,6 +670,7 @@ export async function executePluginOwnedProcess(params: {
         outstanding.background = next.value.tasks.filter(isRecord).length;
         reportOutstandingWork();
       }
+      nativeWait.observe(next.value);
       params.consumeStdout(`${JSON.stringify(next.value)}\n`);
       outstanding.observed = true;
       if (
@@ -709,6 +716,7 @@ export async function executePluginOwnedProcess(params: {
     }
   } finally {
     watchdog?.dispose();
+    nativeWait.finish();
     stopAskUserDeadlineListener?.();
     stopCompactionWorkListener?.();
     params.onOutstandingWorkChange?.(false);

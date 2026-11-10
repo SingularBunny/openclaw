@@ -21,6 +21,8 @@ export type CliTimeoutContext = {
   backgroundTaskCount: number;
   /** Native compaction (or similar backend maintenance) is running: silent but busy. */
   compactionActive?: boolean;
+  /** Fork (F36): the CLI was waiting for the model API to start responding. */
+  awaitingModelResponse?: boolean;
 };
 
 export type FallbackAttemptRecord = {
