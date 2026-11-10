@@ -137,7 +137,7 @@ describe("AppSidebar session catalog pagination", () => {
     expect(sidebar.textContent).toContain("Fresh page");
   });
 
-  it("retires visible catalog rows and expanded cursors when the agent changes", async () => {
+  it("keeps visible catalog rows until the new agent's page replaces them and retires expanded cursors when the agent changes", async () => {
     const pendingResearch = deferred<SessionsCatalogListResult>();
     const mainFirstPage = page("main-newest", "Main newest", "main-page-2");
     const mainSecondPage = page("main-older", "Main older");
@@ -163,12 +163,15 @@ describe("AppSidebar session catalog pagination", () => {
     await sidebar.updateComplete;
     await advance(sidebar, 200);
 
-    expect(sidebar.textContent).not.toContain("Main newest");
-    expect(sidebar.textContent).not.toContain("Main older");
+    // Fork (F31): the rows stay on screen while the new agent's listing loads.
+    expect(sidebar.textContent).toContain("Main newest");
     expect(sidebar.sessionData.sessionCatalogPageDepths.size).toBe(0);
 
     pendingResearch.resolve(researchFirstPage);
     await advance(sidebar);
+
+    expect(sidebar.textContent).not.toContain("Main newest");
+    expect(sidebar.textContent).not.toContain("Main older");
 
     expect(sidebar.textContent).toContain("Research newest");
     expect(sidebar.textContent).not.toContain("Research older");
