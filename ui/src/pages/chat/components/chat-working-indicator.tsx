@@ -15,6 +15,8 @@ import type { ChatSubagentWait, HandoffSessionLinks } from "../chat-subagent-wai
 import { ChatSubagentWaitLine } from "./chat-handoff-sessions.tsx";
 import { ChatRetryStatus } from "./chat-retry-status.tsx";
 import { outputTokensLabel, WorkingBrandGlyph } from "./chat-working-indicator-branding.tsx";
+import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import { CliBackgroundTasks, type CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
 import { selectWorkingClawSurprise } from "./chat-working-indicator-surprise.ts";
 
 registerEnglishCatalog(registerChatSessionEnglish);
@@ -30,8 +32,10 @@ type ChatWorkingIndicatorOptions = {
   waitingSubagents?: ChatSubagentWait;
   sessionLinks?: HandoffSessionLinks;
   runningSubagents?: number;
-  /** Fork (F33): Claude CLI background agents/tasks, e.g. "2 background agents running". */
-  backgroundTasksLabel?: string;
+  /** Fork (F33, F47): Claude CLI background agents/tasks: counter line and per-task rows. */
+  backgroundTasks?: CliBackgroundTasksStatus | null;
+  /** Fork (F47): stops one background task; without it rows have no Stop button. */
+  onStopBackgroundTask?: CliBackgroundTaskStop;
   onOpenSubagents?: () => void;
   startupLabel?: string;
   retryAt?: number;
@@ -40,6 +44,11 @@ type ChatWorkingIndicatorOptions = {
 };
 
 type WorkingProps = { part: ReadingIndicator; options: ChatWorkingIndicatorOptions };
+
+const hasBackgroundTasks = (options: ChatWorkingIndicatorOptions) =>
+  (options.backgroundTasks?.count ?? 0) > 0;
+const hasBackgroundTaskList = (options: ChatWorkingIndicatorOptions) =>
+  hasBackgroundTasks(options) && (options.backgroundTasks?.tasks?.length ?? 0) > 0;
 
 // The New Session preview hands its claw to Chat, and keyed rerenders replace
 // it in place. A claw that mounts right after another retired continues that
@@ -167,7 +176,7 @@ function WorkingStatus(props: WorkingProps & { branding: ThemeBranding }) {
               props.options.outputTokens == null &&
               working() &&
               !props.options.bubbleMode &&
-              !props.options.backgroundTasksLabel
+              !hasBackgroundTasks(props.options)
             }
           >
             <openclaw-working-phrase
@@ -192,15 +201,18 @@ function WorkingStatus(props: WorkingProps & { branding: ThemeBranding }) {
               </button>
             </Show>
           </Show>
-          <Show when={props.options.backgroundTasksLabel}>
-            {(label) => (
-              <>
-                <span aria-hidden="true">·</span>
-                <span class="chat-working-indicator__background-tasks">{label()}</span>
-              </>
-            )}
+          <Show when={hasBackgroundTasks(props.options) && !hasBackgroundTaskList(props.options)}>
+            <span aria-hidden="true">·</span>
+            <CliBackgroundTasks status={props.options.backgroundTasks} />
           </Show>
         </span>
+      </Show>
+      {/* Fork (F47): with rows, the counter line becomes the summary of a list below. */}
+      <Show when={hasBackgroundTaskList(props.options)}>
+        <CliBackgroundTasks
+          status={props.options.backgroundTasks}
+          onStop={props.options.onStopBackgroundTask}
+        />
       </Show>
     </div>
   );
@@ -214,7 +226,7 @@ export function ChatWorkingIndicator(props: WorkingProps) {
       when={
         props.options.bubbleMode &&
         !props.options.waitingSubagents?.sessions.length &&
-        !props.options.backgroundTasksLabel
+        !hasBackgroundTasks(props.options)
       }
       fallback={<WorkingStatus {...props} branding={branding.read()} />}
     >

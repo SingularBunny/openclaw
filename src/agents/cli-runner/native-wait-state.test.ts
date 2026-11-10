@@ -3,6 +3,8 @@ import {
   CLAUDE_CLI_FIRST_BYTE_WINDOW_MS,
   CLI_MODEL_REQUEST_GRACE_MARGIN_MS,
   createCliModelRequestWait,
+  createCliNativeWaitObserver,
+  type CliBackgroundTasksState,
   readCliBackgroundTasksSnapshot,
   resolveClaudeCliFirstByteWindowMs,
 } from "./native-wait-state.js";
@@ -92,5 +94,74 @@ describe("Claude CLI background tasks snapshot", () => {
       ],
     });
     expect(readCliBackgroundTasksSnapshot({ type: "system", subtype: "init" })).toBeUndefined();
+  });
+});
+
+describe("Claude CLI background task rows", () => {
+  const changed = (tasks: unknown[]) => ({
+    type: "system",
+    subtype: "background_tasks_changed",
+    tasks,
+  });
+
+  it("lists each task with its type, start time and final status", () => {
+    let clock = 1_000;
+    const states: CliBackgroundTasksState[] = [];
+    const observer = createCliNativeWaitObserver(
+      {},
+      (state) => states.push(state),
+      () => clock,
+    );
+    observer.observe({ type: "system", subtype: "task_started", task_id: "a" });
+    clock = 2_000;
+    observer.observe(
+      changed([
+        {
+          task_id: "a",
+          task_type: "local_agent",
+          subagent_type: "general-purpose",
+          description: "Review",
+        },
+        { task_id: "b", task_type: "local_bash", description: "npm test" },
+      ]),
+    );
+    expect(states.at(-1)?.tasks).toEqual([
+      {
+        taskId: "a",
+        taskType: "local_agent",
+        subagentType: "general-purpose",
+        description: "Review",
+        status: "running",
+        startedAt: 1_000,
+      },
+      {
+        taskId: "b",
+        taskType: "local_bash",
+        description: "npm test",
+        status: "running",
+        startedAt: 2_000,
+      },
+    ]);
+
+    clock = 5_000;
+    observer.observe({
+      type: "system",
+      subtype: "task_notification",
+      task_id: "b",
+      status: "failed",
+    });
+    observer.observe(
+      changed([{ task_id: "a", task_type: "local_agent", subagent_type: "general-purpose" }]),
+    );
+    expect(states.at(-1)).toMatchObject({
+      count: 1,
+      tasks: [
+        { taskId: "a", status: "running", startedAt: 1_000 },
+        { taskId: "b", status: "failed", startedAt: 2_000, endedAt: 5_000 },
+      ],
+    });
+
+    observer.observe(changed([]));
+    expect(states.at(-1)).toEqual({ count: 0, agents: 0, tasks: [], waiting: false });
   });
 });

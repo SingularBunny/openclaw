@@ -1,8 +1,10 @@
+/* oxlint-disable max-lines -- TODO: split this grandfathered oversized module. */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { stripSystemPromptCacheBoundary } from "@openclaw/ai/internal/shared";
 import { clampPositiveTimerTimeoutMs } from "@openclaw/normalization-core/number-coercion";
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { racePromiseWithAbortSignal } from "@openclaw/retry";
+import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
 import { resolveExecutablePath } from "../../infra/executable-path.js";
 import { mergePathPrepend } from "../../infra/path-prepend.js";
 import {
@@ -35,6 +37,7 @@ import { runStructuredInput } from "../harness/structured-input-execution.js";
 import { compileStructuredInputQuestions } from "../harness/structured-input.js";
 import { resolveExecToolConfig } from "../lazy-exec-tool.js";
 import { resolveToolLoopDetectionConfig } from "../tool-loop-detection-config.js";
+import { createClaudeCliTodoObserver } from "./claude-todos.js";
 import {
   restartCliLiveSession,
   createCliLiveSessionCapability,
@@ -404,6 +407,8 @@ export async function executePluginOwnedProcess(params: {
   onNoOutputTimeout?: (error: FailoverError) => void;
   /** Fork (F33): live background tasks of the CLI; `waiting` once the main answer is in. */
   onBackgroundTasksChange?: (state: CliBackgroundTasksState) => void;
+  /** Fork (F45): Claude's todo list as progress-card steps, whenever it changes. */
+  onTodosChange?: (steps: ProgressCardStep[]) => void;
   onInterrupted?: (reason: CliTerminalInterruption["reason"]) => boolean;
   /** Late-arriving next-prompt prediction; outlives the run like the warm process. */
   onPromptSuggestion?: (text: string) => void;
@@ -469,6 +474,13 @@ export async function executePluginOwnedProcess(params: {
   };
   // Fork (F33, F36): silent native waits (model request, background tasks).
   const nativeWait = createCliNativeWaitObserver(params.env, params.onBackgroundTasksChange);
+  const onTodosChange = params.onTodosChange;
+  const todos = onTodosChange
+    ? createClaudeCliTodoObserver({
+        stateKey: JSON.stringify([run.agentId, run.sessionKey, run.sessionId]),
+        onChange: onTodosChange,
+      })
+    : undefined;
   let watchdog: ReturnType<typeof createCliPluginWatchdog> | undefined;
 
   let messageInjection: CliBackendMessageInjection | undefined;
@@ -676,6 +688,7 @@ export async function executePluginOwnedProcess(params: {
         reportOutstandingWork();
       }
       nativeWait.observe(next.value);
+      todos?.observe(next.value);
       params.consumeStdout(`${JSON.stringify(next.value)}\n`);
       outstanding.observed = true;
       if (

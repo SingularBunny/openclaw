@@ -1,12 +1,79 @@
 import { t } from "../../i18n/index.ts";
 import type {
   AgentEventPayload,
+  CliBackgroundTaskRow,
   CliBackgroundTasksStatus,
   ToolStreamHost,
 } from "./tool-stream-contract.ts";
 
+const MAX_TASK_ROWS = 20;
+
 function readCount(value: unknown): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value > 0 ? value : 0;
+}
+
+function readString(value: unknown, max: number): string | undefined {
+  return typeof value === "string" && value.trim() ? value.trim().slice(0, max) : undefined;
+}
+
+function readTime(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value > 0 ? value : undefined;
+}
+
+function readTaskStatus(value: unknown): CliBackgroundTaskRow["status"] {
+  return value === "completed" || value === "failed" || value === "stopped" ? value : "running";
+}
+
+/** Fork (F47): the per-task rows of a `background_tasks` event. */
+export function readCliBackgroundTaskRows(value: unknown): CliBackgroundTaskRow[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+  const rows: CliBackgroundTaskRow[] = [];
+  for (const entry of value) {
+    if (!entry || typeof entry !== "object") {
+      continue;
+    }
+    const task = entry as Record<string, unknown>;
+    const taskId = readString(task.taskId, 200);
+    if (!taskId) {
+      continue;
+    }
+    const description = readString(task.description, 200);
+    const subagentType = readString(task.subagentType, 80);
+    const startedAt = readTime(task.startedAt);
+    const endedAt = readTime(task.endedAt);
+    rows.push({
+      taskId,
+      taskType: readString(task.taskType, 80) ?? "unknown",
+      status: readTaskStatus(task.status),
+      ...(description ? { description } : {}),
+      ...(subagentType ? { subagentType } : {}),
+      ...(startedAt ? { startedAt } : {}),
+      ...(endedAt ? { endedAt } : {}),
+    });
+    if (rows.length >= MAX_TASK_ROWS) {
+      break;
+    }
+  }
+  return rows;
+}
+
+/** "Explore", "Bash", "Workflow" … for a task row's type chip. */
+export function formatCliBackgroundTaskType(task: CliBackgroundTaskRow): string {
+  if (task.subagentType) {
+    return task.subagentType;
+  }
+  switch (task.taskType) {
+    case "local_agent":
+      return "agent";
+    case "local_bash":
+      return "shell";
+    case "local_workflow":
+      return "workflow";
+    default:
+      return task.taskType.replace(/^local_/, "").replace(/_/g, " ");
+  }
 }
 
 /**
@@ -24,11 +91,13 @@ export function applyCliBackgroundTasksEvent(
     }
     return;
   }
+  const tasks = readCliBackgroundTaskRows(payload.data?.tasks);
   host.cliBackgroundTasks = {
     runId: payload.runId,
     count,
     agents: Math.min(count, readCount(payload.data?.agents)),
     waiting: payload.data?.waiting === true,
+    ...(tasks.length > 0 ? { tasks } : {}),
   };
 }
 
