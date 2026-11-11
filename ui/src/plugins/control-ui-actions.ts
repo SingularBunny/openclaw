@@ -1,5 +1,9 @@
 import type { BoardGetParams } from "@openclaw/gateway-protocol";
-import type { ControlUiAction, ControlUiSession } from "../../../src/plugin-sdk/control-ui.js";
+import type {
+  ControlUiAction,
+  ControlUiMessage,
+  ControlUiSession,
+} from "../../../src/plugin-sdk/control-ui.js";
 import type { PluginSessionMenuAction } from "../components/session-menu.ts";
 import type { ControlUiPluginCapability } from "./control-ui-capability.ts";
 import { scopeControlUiHost } from "./control-ui-scope.ts";
@@ -40,6 +44,8 @@ export async function runControlUiPluginAction(
     id: string;
     placement: ControlUiAction["placement"];
     session?: ControlUiSession;
+    /** Fork: the chat message a "message" action runs on. */
+    message?: ControlUiMessage;
     signal: AbortSignal;
     isCurrent?: () => boolean;
   },
@@ -48,6 +54,9 @@ export async function runControlUiPluginAction(
     params.placement === "session"
       ? "Reopen the session menu."
       : "Try again from the current view.";
+  if (params.placement === "message" && !params.message) {
+    throw new Error(`This message is no longer available. ${retry}`);
+  }
   if (params.placement === "session" && !params.session) {
     throw new Error(`This session is no longer available. ${retry}`);
   }
@@ -71,6 +80,7 @@ export async function runControlUiPluginAction(
     sessionKey: params.sessionKey,
     agentId: params.agentId ?? params.session?.agentId,
     session: params.session ? structuredClone(params.session) : undefined,
+    ...(params.message ? { message: structuredClone(params.message) } : {}),
   };
   const state = entry.value.resolve?.(context);
   // A resolver can synchronously withdraw its registration or remove the view.
