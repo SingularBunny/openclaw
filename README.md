@@ -1,3 +1,12 @@
+> [!NOTE]
+> **The ai-workbench fork of OpenClaw.** Branch `aiwb/2026.10.10` is OpenClaw `v2026.10.10` with the changes listed in
+> [FORK.md](FORK.md); without their settings it behaves as upstream. It is installed by
+> [ai-workbench](https://github.com/SingularBunny/ai-workbench). Upstream: [openclaw/openclaw](https://github.com/openclaw/openclaw).
+>
+> [![aiwb package](https://github.com/SingularBunny/openclaw/actions/workflows/aiwb-package.yml/badge.svg?branch=aiwb%2F2026.10.10)](https://github.com/SingularBunny/openclaw/actions/workflows/aiwb-package.yml)
+> [![Release](https://img.shields.io/github/v/release/SingularBunny/openclaw?style=flat-square&label=fork%20release)](https://github.com/SingularBunny/openclaw/releases)
+> [![License: MIT](https://img.shields.io/badge/license-MIT-green?style=flat-square)](LICENSE)
+
 # OpenClaw 🦞 — Your assistant, on your devices, in your chats
 
 <p align="center">
