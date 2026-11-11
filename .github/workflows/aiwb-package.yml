@@ -1,0 +1,97 @@
+# ai-workbench fork: the npm package (.tgz) the ai-workbench installer takes as WORKBENCH_OPENCLAW_PACKAGE,
+# built on a GitHub-hosted runner with signed build provenance (SLSA Build L2 via GitHub artifact attestations).
+# Verify a downloaded package: gh attestation verify <file>.tgz -R SingularBunny/openclaw
+#
+# Same steps as tools/openclaw-fork-build.sh in ai-workbench: pnpm install --frozen-lockfile, a build with
+# OPENCLAW_CONTROL_UI_RELEASE_BUILD=1, Control UI, a self-contained package (scripts/package-openclaw-for-docker.mjs).
+# A push to an aiwb/* branch runs the fast build (build:ci-artifacts, no shared .d.ts); an aiwb-* tag runs the
+# full build and publishes a GitHub release with the package and its sha256.
+name: aiwb package
+
+on:
+  push:
+    branches: ["aiwb/**"]
+    tags: ["aiwb-*"]
+  workflow_dispatch:
+    inputs:
+      full:
+        description: Full build (like a release, slower)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: aiwb-package-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      OPENCLAW_CONTROL_UI_RELEASE_BUILD: "1"
+      CI: "1"
+      GIT_COMMIT: ${{ github.sha }}
+      BUILD: ${{ (startsWith(github.ref, 'refs/tags/aiwb-') || inputs.full) && 'build' || 'build:ci-artifacts' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24.22.1
+      - name: pnpm
+        run: corepack enable
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Build
+        run: |
+          pnpm "$BUILD"
+          [[ -f dist/control-ui/index.html ]] || pnpm ui:build
+          test -f dist/control-ui/index.html
+      - name: Package
+        id: pack
+        run: |
+          node scripts/package-openclaw-for-docker.mjs --allow-unreleased-changelog --skip-build --output-dir "$RUNNER_TEMP/pack"
+          mkdir -p out
+          f=$(ls "$RUNNER_TEMP"/pack/*.tgz)
+          name="$(basename "$f" .tgz)-${GITHUB_SHA::12}.tgz"
+          cp "$f" "out/$name"
+          (cd out && sha256sum "$name" > "$name.sha256")
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "### $name" >> "$GITHUB_STEP_SUMMARY"
+          echo "sha256: \`$(cut -d' ' -f1 "out/$name.sha256")\` · build: \`$BUILD\`" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/${{ steps.pack.outputs.name }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ${{ steps.pack.outputs.name }}
+          path: out/
+          retention-days: 30
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/aiwb-')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          NAME: ${{ steps.pack.outputs.name }}
+        run: |
+          {
+            echo "OpenClaw with the ai-workbench changes listed in [FORK.md](https://github.com/${GITHUB_REPOSITORY}/blob/${GITHUB_SHA}/FORK.md), built from \`${GITHUB_SHA::12}\`."
+            echo
+            echo "- \`WORKBENCH_OPENCLAW_PACKAGE=https://github.com/${GITHUB_REPOSITORY}/releases/download/${TAG}/${NAME}\`"
+            echo "- \`WORKBENCH_OPENCLAW_PACKAGE_SHA256=$(cut -d' ' -f1 "out/$NAME.sha256")\`"
+            echo
+            echo "Check the build provenance: \`gh attestation verify ${NAME} -R ${GITHUB_REPOSITORY}\`"
+          } > "$RUNNER_TEMP/notes.md"
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" out/* --clobber -R "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" out/* -R "$GITHUB_REPOSITORY" --title "OpenClaw ${TAG#aiwb-} · ai-workbench" --notes-file "$RUNNER_TEMP/notes.md" --verify-tag
+          fi
