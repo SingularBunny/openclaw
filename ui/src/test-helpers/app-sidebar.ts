@@ -664,7 +664,13 @@ export const TWO_AGENTS = {
 export { manyAgents } from "./app-sidebar-setup.ts";
 
 export const catalogPage = (
-  sessions: Array<{ threadId: string; name: string; sessionKey?: string; color?: string }>,
+  sessions: Array<{
+    threadId: string;
+    name: string;
+    sessionKey?: string;
+    color?: string;
+    customGroup?: string;
+  }>,
   nextCursor?: string,
   catalogId = "codex",
 ): SessionsCatalogListResult => ({
