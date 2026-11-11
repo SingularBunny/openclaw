@@ -164,11 +164,23 @@ export type ControlUiPanel = {
   mount: ControlUiView<BoardGetParams>;
 };
 
+/** The chat message a message action runs on (fork: placement "message"). */
+export type ControlUiMessage = {
+  role: string;
+  /** The message text as Markdown, as "Copy Markdown" copies it. */
+  text: string;
+  /** Transcript entry id, when the message is persisted. */
+  id?: string;
+};
+
 export type ControlUiAction = {
   id: string;
   label: string;
-  placement: "composer" | "header" | "session";
-  resolve?: (context: BoardGetParams & { session?: ControlUiSession }) => {
+  /** Fork: "message" adds the action to the actions under each chat message, next to Reply and Copy Markdown. */
+  placement: "composer" | "header" | "session" | "message";
+  /** Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. */
+  icon?: string;
+  resolve?: (context: BoardGetParams & { session?: ControlUiSession; message?: ControlUiMessage }) => {
     label?: string;
     disabled?: boolean;
     hidden?: boolean;
@@ -176,6 +188,7 @@ export type ControlUiAction = {
   run: (
     context: BoardGetParams & {
       session?: ControlUiSession;
+      message?: ControlUiMessage;
       host: ControlUiHost;
       signal: AbortSignal;
     },

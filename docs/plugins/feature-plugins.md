@@ -146,6 +146,12 @@ Its id must match the plugin manifest. Register contributions through
 | `registerWidget`                        | Native dashboard widget views.                                                                                                          |
 | `registerReplacement`                   | `workspace`, `session-list`, `composer`, `transcript`, or `tool-result`.                                                                |
 
+In this OpenClaw build (the ai-workbench fork), `registerAction` also takes `placement: "message"`: the action
+appears under every user and assistant message, next to **Reply** and **Copy Markdown**, as an icon button when it
+sets `icon` (a Control UI icon name) and as its label otherwise. `resolve` and `run` receive the chat's `sessionKey`
+and `agentId` and `message`: `{ role, text, id? }`, where `text` is the message as Markdown, as **Copy Markdown**
+copies it, and `id` its transcript entry when persisted. Messages still streaming have no message actions.
+
 Set a navigation item's `parent` to another navigation ID in the same plugin to
 show it nested while the parent or a child destination is active; children only
 appear as top-level entries when pinned. Set `defaultVisible: false` to offer an

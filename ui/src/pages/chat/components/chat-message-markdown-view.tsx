@@ -29,6 +29,7 @@ import {
   ownReactionEmoji,
 } from "./chat-message-reaction-model.ts";
 import { MessageReactionPicker } from "./chat-message-reactions-view.tsx";
+import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import { ReadAloud } from "./chat-read-aloud.tsx";
 
 registerEnglishCatalog(registerChatMessageMetadataEnglish);
@@ -83,6 +84,9 @@ export function resolveMessageActionDetails(
     ) => AssistantMessageExpansionState | undefined;
     onReply?: (target: MessageReplyTarget) => void;
     senderLabel: string;
+    /** Fork: the chat's session, for plugin "message" actions. */
+    sessionKey?: string;
+    agentId?: string;
   },
 ): MessageActionDetails | null {
   const { messageId: renderMessageId, canFetchFullMessage, onReply, senderLabel } = params;
@@ -111,6 +115,15 @@ export function resolveMessageActionDetails(
     ...(role === "assistant" && visibleMarkdown ? { readAloudText: visibleMarkdown } : {}),
     ...(reactionMessageId ? { reactionMessageId } : {}),
     ...(markdown === undefined ? {} : { markdown }),
+    ...(isConversationMessage && !pendingInput && copyMarkdown && params.sessionKey
+      ? {
+          pluginMessage: {
+            sessionKey: params.sessionKey,
+            ...(params.agentId ? { agentId: params.agentId } : {}),
+            message: { role, text: copyMarkdown, ...(sourceMessageId ? { id: sourceMessageId } : {}) },
+          },
+        }
+      : {}),
     fullMessage,
     ...(replyText
       ? {
@@ -155,6 +168,13 @@ export function MessageActions(props: {
       </Show>
       <Show when={props.details?.readAloudText}>
         <ReadAloud text={props.details!.readAloudText!} />
+      </Show>
+      <Show when={props.details?.pluginMessage}>
+        <PluginMessageActions
+          sessionKey={props.details!.pluginMessage!.sessionKey}
+          agentId={props.details!.pluginMessage!.agentId}
+          message={props.details!.pluginMessage!.message}
+        />
       </Show>
       <Show when={props.details?.reactionMessageId && props.options.onReact}>
         <MessageReactionPicker
