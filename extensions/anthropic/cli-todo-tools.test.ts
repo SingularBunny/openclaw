@@ -20,6 +20,10 @@ function transportContext(
     systemPrompt: "system",
     useResume: false,
     timeoutMs: 1_000,
+    requestToolPermission: async () => ({ behavior: "deny", message: "unused" }),
+    requestUserInput: async () => {
+      throw new Error("unused");
+    },
     ...overrides,
   };
 }
