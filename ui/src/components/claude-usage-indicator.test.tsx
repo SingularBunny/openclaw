@@ -86,3 +86,27 @@ it("renders bars from usage.status, polls, and re-reads after a turn ends", asyn
   expect(view.container.querySelector(".claude-usage__row--danger")).not.toBeNull();
   view.unmount();
 });
+
+// Fork (V1): other providers' limits show as their own blocks after Claude.
+it("renders a block per provider with usage windows, Claude first", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(Date.parse("2026-11-10T12:00:00Z"));
+  const summary = claude(30);
+  summary.providers.unshift({
+    provider: "openai",
+    displayName: "OpenAI",
+    windows: [{ label: "Week", usedPercent: 80, resetAt: Date.now() + 90 * 60_000 }],
+  });
+  const { gateway } = fakeGateway([summary]);
+  const view = mountSolid(() => <ClaudeUsageIndicator gateway={() => gateway} />);
+  await vi.advanceTimersByTimeAsync(0);
+  flush();
+  const blocks = [...view.container.querySelectorAll(".claude-usage")];
+  expect(blocks.map((block) => block.getAttribute("data-provider"))).toEqual([
+    "anthropic",
+    "openai",
+  ]);
+  expect(blocks[1]?.querySelector(".claude-usage__title")?.textContent).toBe("OpenAI usage");
+  expect(blocks[1]?.querySelector(".claude-usage__row--warn")?.textContent).toContain("80%");
+  view.unmount();
+});
