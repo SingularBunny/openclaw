@@ -1,7 +1,9 @@
+/* @vitest-environment jsdom */
+
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewaySessionRow } from "../../../api/types.ts";
 import { cleanupSolid, mountSolid } from "../../../test-helpers/mount-solid.ts";
-import { flush } from "../../../test-helpers/solid-settle.ts";
+import { flush, waitForSolid } from "../../../test-helpers/solid-settle.ts";
 import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { isClaudeCliSessionRow } from "./chat-claude-mode.ts";
 
@@ -9,29 +11,46 @@ afterEach(() => {
   cleanupSolid();
 });
 
-function selectItem(container: HTMLElement, value: string) {
-  container
-    .querySelector("wa-dropdown")!
-    .dispatchEvent(new CustomEvent("wa-select", { detail: { item: { value } } }));
+const trigger = (container: HTMLElement) =>
+  container.querySelector<HTMLButtonElement>("[data-chat-claude-mode-select]")!;
+const option = (container: HTMLElement, value: string) =>
+  container.querySelector<HTMLButtonElement>(`[data-chat-claude-mode-option="${value}"]`);
+
+async function openMenu(container: HTMLElement) {
+  const menu = container.querySelector<HTMLElement>('[role="menu"]')!;
+  if (!menu.matches(":popover-open")) {
+    trigger(container).dispatchEvent(
+      new MouseEvent("click", { detail: 1, bubbles: true, cancelable: true }),
+    );
+  }
+  await waitForSolid(() => expect(menu.matches(":popover-open")).toBe(true));
+  return menu;
+}
+
+async function selectItem(container: HTMLElement, value: string) {
+  await openMenu(container);
+  option(container, value)!.click();
+  await Promise.resolve();
+  flush();
 }
 
 describe("ChatClaudeModePicker", () => {
-  it("shows the stored mode and lists every Claude Code mode once opened", () => {
+  it("shows the stored mode and lists every Claude Code mode once opened", async () => {
     const onSelect = vi.fn();
     const view = mountSolid(() => (
       <ChatClaudeModePicker mode="plan" canSelectBypass={true} onSelect={onSelect} />
     ));
-    const trigger = view.container.querySelector<HTMLElement>("[data-chat-claude-mode-select]");
-    expect(trigger?.getAttribute("aria-label")).toBe("Claude Code mode: Plan mode");
-    expect(trigger?.textContent).toContain("Plan mode");
-    expect(view.container.querySelector("wa-dropdown-item")).toBeNull();
-
-    view.container.querySelector("wa-dropdown")!.dispatchEvent(new Event("wa-show"));
     flush();
+    expect(trigger(view.container).getAttribute("aria-label")).toBe("Claude Code mode: Plan mode");
+    expect(trigger(view.container).textContent).toContain("Plan mode");
+    // The lazy menu builds its options only once it is opened.
+    expect(view.container.querySelector("[data-chat-claude-mode-option]")).toBeNull();
+
+    await openMenu(view.container);
     const options = [
       ...view.container.querySelectorAll<HTMLElement>("[data-chat-claude-mode-option]"),
     ];
-    expect(options.map((option) => option.dataset.chatClaudeModeOption)).toEqual([
+    expect(options.map((entry) => entry.dataset.chatClaudeModeOption)).toEqual([
       "unset",
       "default",
       "acceptEdits",
@@ -40,47 +59,48 @@ describe("ChatClaudeModePicker", () => {
       "dontAsk",
       "auto",
     ]);
-    expect(
-      view.container
-        .querySelector('[data-chat-claude-mode-option="plan"]')
-        ?.getAttribute("aria-checked"),
-    ).toBe("true");
+    expect(options.map((entry) => entry.getAttribute("role"))).toEqual(
+      Array(7).fill("menuitemradio"),
+    );
+    expect(option(view.container, "plan")?.getAttribute("aria-checked")).toBe("true");
+    expect(option(view.container, "default")?.getAttribute("aria-checked")).toBe("false");
   });
 
-  it("selects a mode, clears it, and ignores the current one", () => {
+  it("selects a mode, clears it, and ignores the current one", async () => {
     const onSelect = vi.fn();
     const view = mountSolid(() => (
       <ChatClaudeModePicker mode="plan" canSelectBypass={true} onSelect={onSelect} />
     ));
-    selectItem(view.container, "acceptEdits");
-    selectItem(view.container, "unset");
-    selectItem(view.container, "plan");
-    selectItem(view.container, "bogus");
+    flush();
+    await selectItem(view.container, "acceptEdits");
+    await selectItem(view.container, "unset");
+    await selectItem(view.container, "plan");
     expect(onSelect.mock.calls).toEqual([["acceptEdits"], [null]]);
   });
 
-  it("locks bypass permissions without admin access and everything while disabled", () => {
+  it("locks bypass permissions without admin access and everything while disabled", async () => {
     const onSelect = vi.fn();
     const view = mountSolid(() => (
       <ChatClaudeModePicker canSelectBypass={false} onSelect={onSelect} />
     ));
-    view.container.querySelector("wa-dropdown")!.dispatchEvent(new Event("wa-show"));
     flush();
-    expect(
-      view.container
-        .querySelector('[data-chat-claude-mode-option="bypassPermissions"]')
-        ?.hasAttribute("disabled"),
-    ).toBe(true);
-    selectItem(view.container, "bypassPermissions");
+    await openMenu(view.container);
+    expect(option(view.container, "bypassPermissions")?.matches(":disabled")).toBe(true);
+    await selectItem(view.container, "bypassPermissions");
     expect(onSelect).not.toHaveBeenCalled();
-    expect(
-      view.container.querySelector("[data-chat-claude-mode-select]")?.getAttribute("aria-label"),
-    ).toBe("Claude Code mode: Not set");
+    expect(trigger(view.container).getAttribute("aria-label")).toBe("Claude Code mode: Not set");
 
     const disabled = mountSolid(() => (
       <ChatClaudeModePicker canSelectBypass={true} disabled={true} onSelect={onSelect} />
     ));
-    selectItem(disabled.container, "plan");
+    flush();
+    const disabledTrigger = trigger(disabled.container);
+    expect(disabledTrigger.disabled).toBe(true);
+    disabledTrigger.click();
+    flush();
+    expect(
+      disabled.container.querySelector<HTMLElement>('[role="menu"]')?.matches(":popover-open"),
+    ).toBe(false);
     expect(onSelect).not.toHaveBeenCalled();
   });
 });

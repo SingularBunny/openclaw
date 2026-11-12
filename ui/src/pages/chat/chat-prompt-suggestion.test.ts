@@ -1,6 +1,7 @@
 /* @vitest-environment jsdom */
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayEventFrame } from "../../api/gateway.ts";
+import { waitForSolid } from "../../test-helpers/solid-settle.ts";
 import { renderComposerFixture, resetComposerFixture } from "./chat-composer.test-support.ts";
 import {
   activeChatPromptSuggestion,
@@ -32,7 +33,8 @@ function getTextarea(container: HTMLElement): HTMLTextAreaElement {
 }
 
 function ghostText(container: HTMLElement): string | null {
-  const ghost = container.querySelector(".agent-chat__composer-placeholder--suggestion");
+  // The suggestion shows through the composer prediction surface (ghost text and a Use action).
+  const ghost = container.querySelector(".agent-chat__composer-prediction");
   return ghost ? (ghost.textContent ?? "").trim() : null;
 }
 
@@ -107,7 +109,7 @@ describe("chat prompt suggestion state", () => {
 });
 
 describe("chat composer prompt suggestion", () => {
-  it("shows ghost text in the empty idle composer and accepts it with Tab", () => {
+  it("shows ghost text in the empty idle composer and accepts it with Tab", async () => {
     const onDismissPromptSuggestion = vi.fn();
     const onDraftChange = vi.fn();
     const { container } = renderComposerFixture({
@@ -116,8 +118,10 @@ describe("chat composer prompt suggestion", () => {
       onDraftChange,
     });
     const textarea = getTextarea(container);
-    expect(ghostText(container)).toBe("run the tests");
-    expect(textarea.placeholder).toBe("run the tests");
+    await waitForSolid(() => expect(ghostText(container)).toBe("run the tests"));
+    expect(
+      container.querySelector('.agent-chat__composer-prediction-actions [aria-keyshortcuts="Tab"]'),
+    ).not.toBeNull();
 
     const event = keydown(textarea, "Tab");
     expect(event.defaultPrevented).toBe(true);
