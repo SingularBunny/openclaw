@@ -22,8 +22,8 @@ import {
   getCliSessionBinding,
   normalizeCliSessionReseedReceipt,
 } from "../config/sessions/cli-session-binding.js";
-import { attachOpenClawTranscriptMeta } from "./session-transcript-entry-message.js";
 import { isClaudeCliExecCompletionPrompt } from "./cli-session-history.exec-prompt.js";
+import { attachOpenClawTranscriptMeta } from "./session-transcript-entry-message.js";
 
 const CLAUDE_CLI_PROVIDER = "claude-cli";
 

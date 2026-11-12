@@ -40,8 +40,8 @@ import type {
   RunOutputUsage,
 } from "../tool-stream-contract.ts";
 import type { createAsyncQuestionPresentation } from "./chat-async-question.ts";
-import type { ChatCommentPinsHandle } from "./chat-comment-pins.tsx";
 import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
+import type { ChatCommentPinsHandle } from "./chat-comment-pins.tsx";
 import { resolveChatContextCopy, usesNativeContextMenu } from "./chat-context-copy.ts";
 import type { ChatHistoryBoundaryProps } from "./chat-history-boundary.tsx";
 import { getMessageActionElements } from "./chat-message-action-elements.ts";

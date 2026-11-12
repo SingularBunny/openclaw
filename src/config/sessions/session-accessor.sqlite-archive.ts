@@ -2,7 +2,11 @@ import path from "node:path";
 import { performance } from "node:perf_hooks";
 import { isMainThread, threadId, type Worker } from "node:worker_threads";
 import { toStringifiedError } from "@openclaw/normalization-core/error-coercion";
-import { WorkerTaskError, workerHeapLimitMb, workerPendingTasksLimit } from "@openclaw/worker-runtime";
+import {
+  WorkerTaskError,
+  workerHeapLimitMb,
+  workerPendingTasksLimit,
+} from "@openclaw/worker-runtime";
 import { getDatabaseEngineSelection } from "../../infra/database-engine/context.js";
 import { captureStateDatabaseAccess } from "../../infra/gateway-state-owner.js";
 import {

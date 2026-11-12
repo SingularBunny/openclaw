@@ -7,7 +7,6 @@ import { getAgentRunContext } from "../../infra/agent-run-registry.js";
 import { recordClaudeNativeCommands } from "../../infra/claude-native-commands.js";
 import type { ClaudeNativeCommand } from "../../infra/claude-native-commands.js";
 import { formatErrorMessage } from "../../infra/errors.js";
-import { enqueueSystemEvent } from "../../infra/system-events.js";
 import {
   resolveEventSessionKeyForPolicy,
   resolveEventSessionRoutingPolicy,
@@ -16,6 +15,7 @@ import {
   clearPromptSuggestion,
   emitPromptSuggestion,
 } from "../../infra/prompt-suggestion-events.js";
+import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { createModelCallStreamProgressReporter } from "../../logging/diagnostic-model-stream-progress.js";
 import { beginDiagnosticBackendActivity } from "../../logging/diagnostic-run-activity.js";
 import type { CliBackendConfig } from "../../plugins/cli-backend.types.js";
