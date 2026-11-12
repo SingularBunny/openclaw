@@ -1,7 +1,9 @@
-// Fork: pure view model for the always-visible Claude subscription usage indicator.
+// Fork: pure view model for the always-visible subscription usage indicator (Claude first, then
+// any other provider whose usage the Gateway reports with limit windows).
 import type {
   ProviderUsageRateLimit,
   ProviderUsageSnapshot,
+  UsageProviderId,
   UsageSummary,
   UsageWindow,
 } from "../../../src/infra/provider-usage.types.js";
@@ -33,11 +35,30 @@ export type ClaudeUsageView = {
 /** The last read that carried Claude windows, kept across failed or windowless reads. */
 export type ClaudeUsageLastGood = { snapshot: ProviderUsageSnapshot; at: number };
 
+/** One sidebar block: a provider's usage view with the name to title it by. */
+export type ProviderUsageView = ClaudeUsageView & {
+  provider: UsageProviderId;
+  displayName: string;
+};
+
+/** The last read with windows, per provider. */
+export type ProviderUsageLastGood = Partial<Record<UsageProviderId, ClaudeUsageLastGood>>;
+
 /** How long the last good windows stay on screen while reads keep failing. */
 export const CLAUDE_USAGE_STALE_KEEP_MS = 6 * 60 * 60 * 1000;
 
+function providerSnapshot(summary: UsageSummary | null | undefined, provider: UsageProviderId) {
+  return summary?.providers.find((entry) => entry.provider === provider);
+}
+
 function claudeSnapshot(summary: UsageSummary | null | undefined) {
-  return summary?.providers.find((entry) => entry.provider === "anthropic");
+  return providerSnapshot(summary, "anthropic");
+}
+
+function hasWindows(
+  snapshot: ProviderUsageSnapshot | undefined,
+): snapshot is ProviderUsageSnapshot {
+  return snapshot !== undefined && !snapshot.error && snapshot.windows.length > 0;
 }
 
 /** Remembers a read with Claude windows; any other read keeps the previous one. */
@@ -47,9 +68,22 @@ export function rememberClaudeUsage(
   now: number,
 ): ClaudeUsageLastGood | null {
   const snapshot = claudeSnapshot(summary);
-  return snapshot && !snapshot.error && snapshot.windows.length > 0
-    ? { snapshot, at: now }
-    : previous;
+  return hasWindows(snapshot) ? { snapshot, at: now } : previous;
+}
+
+/** Per provider, remembers a read with windows; any other read keeps that provider's previous one. */
+export function rememberProviderUsage(
+  previous: ProviderUsageLastGood,
+  summary: UsageSummary | null | undefined,
+  now: number,
+): ProviderUsageLastGood {
+  const next: ProviderUsageLastGood = { ...previous };
+  for (const snapshot of summary?.providers ?? []) {
+    if (hasWindows(snapshot)) {
+      next[snapshot.provider] = { snapshot, at: now };
+    }
+  }
+  return next;
 }
 
 const WARN_PERCENT = 70;
@@ -102,7 +136,48 @@ export function resolveClaudeUsageView(
   t: Translate,
   lastGood?: ClaudeUsageLastGood | null,
 ): ClaudeUsageView | null {
-  const latest = claudeSnapshot(summary);
+  return resolveSnapshotView(claudeSnapshot(summary), now, t, lastGood);
+}
+
+/**
+ * Sidebar blocks for every provider with usage windows: Claude first, the rest in the
+ * Gateway's order. Providers without windows (no login, API key only, an error) are left out.
+ */
+export function resolveProviderUsageViews(
+  summary: UsageSummary | null | undefined,
+  now: number,
+  t: Translate,
+  lastGood: ProviderUsageLastGood = {},
+): ProviderUsageView[] {
+  const providers: UsageProviderId[] = [];
+  for (const id of [
+    ...(summary?.providers ?? []).map((entry) => entry.provider),
+    ...(Object.keys(lastGood) as UsageProviderId[]),
+  ]) {
+    if (!providers.includes(id)) {
+      providers.push(id);
+    }
+  }
+  providers.sort((a, b) => Number(b === "anthropic") - Number(a === "anthropic"));
+  const views: ProviderUsageView[] = [];
+  for (const provider of providers) {
+    const latest = providerSnapshot(summary, provider);
+    const remembered = lastGood[provider];
+    const view = resolveSnapshotView(latest, now, t, remembered);
+    if (view) {
+      const displayName = latest?.displayName ?? remembered?.snapshot.displayName ?? provider;
+      views.push({ ...view, provider, displayName });
+    }
+  }
+  return views;
+}
+
+function resolveSnapshotView(
+  latest: ProviderUsageSnapshot | undefined,
+  now: number,
+  t: Translate,
+  lastGood?: ClaudeUsageLastGood | null,
+): ClaudeUsageView | null {
   // An expired Claude CLI token, a timeout or a 5xx drop the windows for a while; the last
   // good ones stay, marked with their age, instead of the block vanishing.
   const stale =
