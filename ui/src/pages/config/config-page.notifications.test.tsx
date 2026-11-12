@@ -1,6 +1,6 @@
 /* @vitest-environment jsdom */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { WebPushNotificationPreferences } from "../../../../packages/gateway-protocol/src/schema/push.ts";
 import { resolveThemeBranding } from "../../../../packages/gateway-protocol/src/theme.ts";
 import { createDeferred } from "../../../../test/helpers/promise.js";
@@ -11,6 +11,7 @@ import { createApplicationGateway } from "../../test-helpers/application-context
 import { cleanupSolid } from "../../test-helpers/mount-solid.ts";
 import { flush, waitForSolid } from "../../test-helpers/solid-settle.ts";
 import { mountConfigPage } from "./config-page.test-support.ts";
+import { preloadConfigPage } from "./config-page.tsx";
 
 const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
   Navigator.prototype,
@@ -68,7 +69,11 @@ function pushGateway(overrides: Record<string, Handler> = {}) {
     client,
     phase: "connected",
     offlineStable: true,
-    hello: null,
+    // Web Push access follows the connection's operator scopes (push methods are unadvertised).
+    hello: {
+      auth: { role: "operator", scopes: ["operator.admin"] },
+      features: { methods: ["push.web.preferences.get", "push.web.preferences.set"] },
+    },
     canvasPluginSurfaceUrl: null,
     assistantAgentId: "main",
     sessionKey: "main",
@@ -123,6 +128,9 @@ function mountNotifications(
 }
 
 describe("ConfigPage notifications with the live Web Push owner", () => {
+  // The notifications page is a lazy route chunk; load it so the page renders on mount.
+  beforeAll(() => preloadConfigPage("notifications"));
+
   beforeEach(() => {
     const subscription = {
       endpoint,
@@ -196,11 +204,14 @@ describe("ConfigPage notifications with the live Web Push owner", () => {
     const owner = createWebPushCapability(gateway);
     await vi.waitFor(() => expect(owner.snapshot.preferences).toBeTruthy());
     const { webPush, toggle } = mountNotifications(gateway, owner);
+    // The preference rows render once the page reads the owner's preferences.
+    await waitForSolid(() => expect(toggle("Agent finished").disabled).toBe(false));
 
     toggle("Agent finished").click();
     await vi.waitFor(() => expect(saved().categories.agentFinished).toBe(true));
     await vi.waitFor(() => expect(webPush.snapshot.loading).toBe(false));
     flush();
+    await waitForSolid(() => expect(toggle("Agent question").disabled).toBe(false));
     toggle("Agent question").click();
     await vi.waitFor(() => expect(saved().categories.agentQuestion).toBe(true));
 
