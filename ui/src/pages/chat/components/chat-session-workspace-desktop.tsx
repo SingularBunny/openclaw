@@ -31,6 +31,7 @@ import {
   workspaceSessionFiles,
 } from "./chat-session-workspace-catalog.ts";
 import { createSessionWorkspaceRead } from "./chat-session-workspace-read.ts";
+import { SessionWorkspaceRootSelect } from "./chat-session-workspace-root-select.tsx";
 import { RailRow, WorkspaceFilename, WorkspaceRows } from "./chat-session-workspace-row.tsx";
 import type { SessionWorkspaceFilter } from "./chat-sidebar-content-types.ts";
 import type { SessionWorkspaceProps } from "./chat-sidebar-view-types.ts";
@@ -459,6 +460,9 @@ export function DesktopWorkspaceContents(props: { workspace: SessionWorkspacePro
         </div>
       </Show>
       <div class="workspace-desktop__toolbar session-panel-rail" data-presentation="desktop">
+        <Show when={!navigation()?.searchOpen}>
+          <SessionWorkspaceRootSelect workspace={props.workspace} />
+        </Show>
         <div class="session-panel-rail__group" hidden={navigation()?.searchOpen}>
           <button
             ref={(element) => {

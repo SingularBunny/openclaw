@@ -312,6 +312,9 @@ const enChatSession = {
       showFiles: "Show session files",
       artifacts: "Artifacts",
       copyPath: en.chat.workspaceFiles.copyPath,
+      // Fork (F34): folders of the session outside its workspace.
+      browseRoot: "Folder to browse",
+      outsideRoots: "This file is outside the folders the Files panel can show.",
     },
     pendingInputs: {
       agentUpdate: {

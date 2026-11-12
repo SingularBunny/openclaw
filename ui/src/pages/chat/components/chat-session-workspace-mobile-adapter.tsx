@@ -23,6 +23,7 @@ import { createScrollPosition } from "../../../lib/reactive/scroll-state.ts";
 import { sessionWorkspaceFileKey } from "../../../lib/sessions/workspace.ts";
 import { WorkspaceTranscriptAttachments } from "./chat-session-workspace-attachments.tsx";
 import { createSessionWorkspaceRead } from "./chat-session-workspace-read.ts";
+import { SessionWorkspaceRootSelect } from "./chat-session-workspace-root-select.tsx";
 import type { SessionWorkspaceProps } from "./chat-sidebar-view-types.ts";
 import { hasTranscriptAttachments } from "./chat-transcript-attachments.ts";
 import "./chat-session-workspace-mobile.css";
@@ -527,6 +528,7 @@ export function MobileWorkspaceContents(props: {
     return (
       <section class="chat-workspace-mobile" aria-label={t("chat.workspaceFiles.label")}>
         <div class="chat-workspace-mobile__rail">
+          <SessionWorkspaceRootSelect workspace={props.workspace} />
           <Show when={folderLocation()}>
             {(currentLocation) => (
               <MobileFolderHeader location={currentLocation()} onBrowsePath={onBrowsePath} />
