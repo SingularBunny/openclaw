@@ -69,6 +69,14 @@ const internalInputs = [
     "exec-bare-after-gap-and-resume",
     `[OpenClaw: 4 messages occurred outside this Claude session from 2026-11-09T13:06:39.873Z to 2026-11-09T13:44:25.470Z, using "openclaw/delivery-mirror". Their contents are not included here. Read them with sessions_history.]\n\n${buildCliSessionDriftNote(["system-prompt"])}\n\nExec completed (calm-wil, code 0) :: tail`,
   ],
+  [
+    "exec-wrapped-after-gap-and-resume",
+    `[OpenClaw: 6 messages occurred outside this Claude session from 2026-11-12T09:13:16.202Z to 2026-11-12T09:27:55.344Z, using "openclaw/delivery-mirror". Their contents are not included here. Read them with sessions_history.]\n\n${buildCliSessionDriftNote(["system-prompt"])}\n\n${buildExecEventPrompt(["Exec completed (wild-gul, code 0) :: ok"])}`,
+  ],
+  [
+    "exec-undelivered-after-gap",
+    `[OpenClaw: 2 messages occurred outside this Claude session from 2026-11-12T09:13:16.202Z to 2026-11-12T09:27:55.344Z, using "openclaw/delivery-mirror". Their contents are not included here. Read them with sessions_history.]\n\n${buildExecEventPrompt(["Exec completed (wild-gul, code 0) :: ok"], { deliverToUser: false })}`,
+  ],
 ] as const;
 // The display projection already rewrites or hides these even on canonical rows,
 // so only the imported copy is asserted.
