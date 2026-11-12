@@ -65,8 +65,8 @@ async function refreshFromCache(publishes: boolean) {
   expect(refresh.respond).toHaveBeenCalledWith(true, {
     catalogs: [
       expect.objectContaining({
+        pending: true,
         hosts: [{ ...oldHost, pending: true }],
-        error: expect.objectContaining({ code: "catalog_pending" }),
       }),
     ],
   });
