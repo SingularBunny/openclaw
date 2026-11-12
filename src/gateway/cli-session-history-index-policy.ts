@@ -13,6 +13,7 @@ import { isOpenClawCliImageCachePath } from "../agents/embedded-agent-runner/run
 import { stripInboundMetadata } from "../auto-reply/reply/strip-inbound-meta.js";
 import { readPersistedMediaFacts } from "../media/media-facts.js";
 import { stripInlineDirectiveTagsForDisplay } from "../utils/directive-tags.js";
+import { stripCliAttachmentDecorations } from "./cli-session-history.prompt-text.js";
 
 export const DEDUPE_TIMESTAMP_WINDOW_MS = 5 * 60 * 1000;
 
@@ -81,8 +82,12 @@ function extractComparableText(
     ? stripTrailingCliImageMentions(joined)
     : { text: joined, stripped: false };
   const normalizeText = (value: string) => {
+    // Fork (F37): the prompt Claude recorded carries attachment notes and <file> blocks the
+    // local row never had; drop them on both sides so the turn shows once.
     const visible = stripInlineDirectiveTagsForDisplay(
-      role === "user" ? stripInboundMetadata(value) : value,
+      role === "user"
+        ? stripCliAttachmentDecorations(stripInboundMetadata(stripCliAttachmentDecorations(value)))
+        : value,
     ).text;
     return visible.replace(/\s+/g, " ").trim();
   };
