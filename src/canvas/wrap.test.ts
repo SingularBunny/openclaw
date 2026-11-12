@@ -107,9 +107,11 @@ it("keeps the wrapped document bytes stable", () => {
     '<SvG viewBox="0 0 10 10"><circle r="4" /></SvG>',
   );
 
-  expect(Buffer.byteLength(html)).toBe(17765);
+  // Fork: the wrapped document also carries the widget storage bridge (window.openclaw.storage),
+  // so its size and hash differ from upstream's.
+  expect(Buffer.byteLength(html)).toBe(19897);
   expect(createHash("sha256").update(html).digest("hex")).toBe(
-    "e8c709f66c308ddf94d310ad2a29375a1edff39b9d82328464146045640e72f0",
+    "0f8d6817ede1cdbb1e9b585a38ddae2b4b70842f4b496368a6ef9fa5269da3a2",
   );
 });
 
