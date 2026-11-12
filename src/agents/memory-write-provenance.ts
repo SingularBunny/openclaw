@@ -21,6 +21,11 @@ export type MemoryWriteProvenanceObserver = {
     commit: () => Promise<void>;
   }) => Promise<void>;
   clearAfterDelete: (absolutePath: string, contentBefore: string) => Promise<void>;
+  /**
+   * Fork (V1): reads a file before any tool write or delete, for rewind. The returned callback
+   * records it once the change succeeded. Applies to every path, not only memory files.
+   */
+  captureFileCheckpoint?: (absolutePath: string) => Promise<(() => Promise<void>) | undefined>;
 };
 
 type ProvenanceWriteOperations = {
@@ -57,21 +62,24 @@ export function withMemoryWriteProvenance<T extends ProvenanceWriteOperations>(
           assertCurrent();
           await operations.writeFile(absolutePath, content);
         });
+      const recordCheckpoint = await observer.captureFileCheckpoint?.(absolutePath);
       if (!(await observer.classifies(absolutePath))) {
         await commit();
-        return;
+      } else {
+        await observer.write({
+          absolutePath,
+          contentBefore: await readContentBefore(absolutePath),
+          contentAfter: content,
+          commit,
+        });
       }
-      await observer.write({
-        absolutePath,
-        contentBefore: await readContentBefore(absolutePath),
-        contentAfter: content,
-        commit,
-      });
+      await recordCheckpoint?.();
     },
     ...(remove
       ? {
           remove: async (absolutePath: string) => {
             const assertCurrent = captureAgentToolSourceExecutionGuard();
+            const recordCheckpoint = await observer.captureFileCheckpoint?.(absolutePath);
             const contentBefore = (await observer.classifies(absolutePath))
               ? await readContentBefore(absolutePath)
               : "";
@@ -79,6 +87,7 @@ export function withMemoryWriteProvenance<T extends ProvenanceWriteOperations>(
               assertCurrent();
               await remove(absolutePath);
             });
+            await recordCheckpoint?.();
             await observer.clearAfterDelete(absolutePath, contentBefore);
           },
         }
