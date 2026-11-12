@@ -298,7 +298,7 @@ it("keeps the native CLI session forked at the kept branch's checkpoint", async 
   const { env } = await createSession({ cliResumePoints: true });
 
   // Without fork support the cut keeps today's fresh-session behavior.
-  const forked = await forkSessionAtMessage({
+  const forked = await fork({
     agentId,
     env,
     entryId: "user-2",
@@ -310,7 +310,7 @@ it("keeps the native CLI session forked at the kept branch's checkpoint", async 
   }
   expect(forked.entry.cliSessionBindings).toBeUndefined();
 
-  const rewound = await rewindSessionToMessage({
+  const rewound = await rewind({
     agentId,
     cliForkProviders: ["claude-cli"],
     env,
@@ -328,7 +328,7 @@ it("keeps the native CLI session forked at the kept branch's checkpoint", async 
   expect(rewound.entry.cliSessionBindings).toEqual({
     "claude-cli": expect.objectContaining(expectedBinding),
   });
-  expect(loadSessionEntry({ agentId, env, sessionKey })?.cliSessionBindings).toEqual({
+  expect(readEntry({ agentId, env, sessionKey })?.cliSessionBindings).toEqual({
     "claude-cli": expect.objectContaining(expectedBinding),
   });
   expect(rewound.entry.claudeCliSessionId).toBeUndefined();

@@ -1,4 +1,5 @@
 // Fork (F49): composer picker for the Claude Code permission mode of claude-cli sessions.
+import { createSignal } from "solid-js";
 import type { GatewaySessionRow } from "../../api/types.ts";
 import { t } from "../../i18n/index.ts";
 import { registerClaudeComposerEnglish } from "../../i18n/locales/en-claude-composer.ts";
@@ -13,6 +14,10 @@ import {
 } from "./components/chat-claude-mode.ts";
 
 registerClaudeComposerEnglish();
+
+// Pending choices live outside the reactive host; this revision makes readers re-run.
+const [pendingRevision, setPendingRevision] = createSignal(0);
+const bumpPending = () => setPendingRevision((revision) => revision + 1);
 
 const pendingClaudeModes = new WeakMap<
   ChatPageHost,
@@ -36,6 +41,7 @@ export function buildChatClaudeModePicker(params: {
     return undefined;
   }
   const scopeKey = JSON.stringify([sessionKey, params.agentId, params.expectedSessionId]);
+  pendingRevision();
   const pending = pendingClaudeModes.get(state) ?? new Map();
   pendingClaudeModes.set(state, pending);
   const stored = readClaudePermissionMode(selectedSession?.claudePermissionMode);
@@ -53,7 +59,7 @@ export function buildChatClaudeModePicker(params: {
       }
       // Show the chosen mode while the write and the list refresh settle.
       pending.set(scopeKey, mode);
-      state.requestUpdate?.();
+      bumpPending();
       try {
         state.chatError = state.lastError = null;
         const patched = await patchChatSessionSettings(state, sessionKey, patch, {
@@ -72,7 +78,7 @@ export function buildChatClaudeModePicker(params: {
         }
       } finally {
         pending.delete(scopeKey);
-        state.requestUpdate?.();
+        bumpPending();
       }
     },
   };

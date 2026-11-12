@@ -318,12 +318,12 @@ export async function rewindChatHistory(
  * cannot be a cut point.
  */
 export function readChatMessageCut(
-  state: Pick<ChatState, "chatMessages" | "lastError" | "chatError" | "requestUpdate">,
+  state: Pick<ChatState, "chatMessages" | "lastError" | "chatError">,
   entryId: string,
 ) {
   const target = resolveChatMessageCutTarget(state.chatMessages, entryId);
   if (!target) {
-    setChatError(state, CHAT_MESSAGE_CUT_UNAVAILABLE, true);
+    setChatError(state, CHAT_MESSAGE_CUT_UNAVAILABLE);
     return null;
   }
   const { entryId: cutEntryId, ...native } = target;

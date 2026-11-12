@@ -6,11 +6,11 @@ import { createDeferredCore } from "../../shared/deferred.js";
 import {
   call,
   hoisted,
-  provider,
   resetSessionCatalogTestState,
   startCall,
   type SessionCatalogProvider,
 } from "./session-catalog.test-helpers.js";
+import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 
 beforeEach(() => {
   resetSessionCatalogTestState();
@@ -51,9 +51,9 @@ async function refreshFromCache(publishes: boolean) {
       }
       return [freshHost];
     });
-  hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("projects", { list }) }];
+  hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("projects", { list }) }];
   const config = {};
-  const client = { connId: "owner" };
+  const client = { connId: "owner" } as Parameters<typeof startCall>[3];
   const query = { allowPartialResults: true, progressId: "refresh" };
   const broadcastToConnIds = vi.fn();
   const context = { broadcastToConnIds };

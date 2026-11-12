@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { expectDefined } from "@openclaw/normalization-core";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorCodes } from "../../../packages/gateway-protocol/src/index.js";
@@ -29,7 +30,8 @@ import {
   sessionKey,
   sourceSessionId,
 } from "./sessions-rewind.handler.test-support.js";
-import type { GatewayClient } from "./types.js";
+import { sessionRewindHandlers } from "./sessions-rewind.js";
+import type { GatewayClient, RespondFn } from "./types.js";
 
 const mocks = vi.hoisted(() => ({ readMediaBuffer: vi.fn(), upstreamFork: vi.fn() }));
 

@@ -44,6 +44,7 @@ function createHandlers(runId: string) {
     executionTarget: { kind: "process" },
     reusableCliSession: { mode: "none" },
     hadSessionFile: false,
+    claudeSkillsPlugin: { args: [] },
     contextEngineConfig: {},
     modelId: "claude-opus-5-5",
     normalizedModel: "claude-opus-5-5",

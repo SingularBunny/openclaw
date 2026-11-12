@@ -9,7 +9,7 @@ import { shouldHandleNavigationClick } from "../../../lib/navigation-click.ts";
 import { useApplication } from "../../../lib/reactive/context.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../../../lib/solid-bridge.ts";
-import { CronRunTranscript, CronRunTranscriptView } from "../../cron/run-transcript.tsx";
+import { CronRunTranscriptView, createCronRunTranscript } from "../../cron/run-transcript.tsx";
 import { runStatusLabel } from "../../cron/view-runs.tsx";
 import { AutomationRunsPanelData } from "../automation-runs-panel-data.ts";
 import { useSessionPanel, type SessionPanelProps } from "./chat-session-panel.tsx";
@@ -40,13 +40,21 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
     const context = useApplication();
     const [transcriptRevision, setTranscriptRevision] = createSignal(0);
     // The Automations run viewer; it reads `cron.history` on the panel's current connection.
-    const viewer: CronRunTranscript = new CronRunTranscript(
-      host,
+    const viewer = createCronRunTranscript(
       () => setTranscriptRevision((value) => value + 1),
       () => data().captureTranscriptScope(),
     );
     // A new session or agent closes the open run, as the Automations page does on reselection.
-    const data = useSessionPanel(props, AutomationRunsPanelData, () => viewer.close());
+    const data = useSessionPanel(
+      host,
+      () => ({ sessionKey: host.sessionKey, agentId: host.agentId, presented: host.presented }),
+      AutomationRunsPanelData,
+      (identityChanged) => {
+        if (identityChanged) {
+          viewer.close();
+        }
+      },
+    );
     onCleanup(() => viewer.close());
     host.refresh = () => data().refresh();
     const viewing = () => {
@@ -121,7 +129,7 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
         >
           <Show when={viewing()}>
             <div class="chat-automation-runs__transcript">
-              <CronRunTranscriptView controller={viewer} revision={transcriptRevision} />
+              <CronRunTranscriptView transcript={viewer} revision={transcriptRevision} />
             </div>
           </Show>
           <div class="chat-automation-runs__list" hidden={Boolean(viewing())}>

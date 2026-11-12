@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ToolCard } from "../../../lib/chat/chat-types.ts";
 import { cleanupSolid, mountSolid } from "../../../test-helpers/mount-solid.ts";
 import { ClaudePlanCard, readClaudePlanMarkdown } from "./chat-plan-card.solid.tsx";
-import { renderToolCard, renderToolFixture } from "./chat-tool-render.test-support.ts";
+import { mountCard } from "./chat-tool-cards.test-support.tsx";
 
 afterEach(() => {
   cleanupSolid();
@@ -39,16 +39,14 @@ describe("Claude plan card", () => {
 describe("Claude plan card in the transcript", () => {
   it("replaces the ExitPlanMode tool row and keeps other tools as rows", async () => {
     const container = document.createElement("div");
-    await renderToolFixture(
-      renderToolCard(
-        {
-          id: "plan-1",
-          name: "ExitPlanMode",
-          args: { plan: "## Steps\n\n- **Edit** the parser" },
-          completed: true,
-        } as unknown as ToolCard,
-        { messageKey: "m", expanded: false, onToggleExpanded: vi.fn() },
-      ),
+    await mountCard(
+      {
+        id: "plan-1",
+        name: "ExitPlanMode",
+        args: { plan: "## Steps\n\n- **Edit** the parser" },
+        completed: true,
+      } as unknown as ToolCard,
+      { messageKey: "m", expanded: false, onToggleExpanded: vi.fn() },
       container,
     );
     const plan = container.querySelector("[data-chat-plan-card]");
