@@ -602,13 +602,14 @@ describe("Canvas widget view", () => {
       method: "ui/notifications/sandbox-proxy-ready",
       params: { sandboxUrl: frame.src },
     });
-    await Promise.resolve();
+    await settle(view);
     let onMessage!: (event: MessageEvent) => void;
     const postMessage = vi.fn();
     const port = {
       addEventListener: vi.fn((_type, handler) => {
         onMessage = handler;
       }),
+      removeEventListener: vi.fn(),
       start: vi.fn(),
       postMessage,
       close: vi.fn(),
@@ -667,13 +668,14 @@ describe("Canvas widget view", () => {
       method: "ui/notifications/sandbox-proxy-ready",
       params: { sandboxUrl: frame.src },
     });
-    await Promise.resolve();
+    await settle(view);
     let onMessage!: (event: MessageEvent) => void;
     const postMessage = vi.fn();
     const port = {
       addEventListener: vi.fn((_type, handler) => {
         onMessage = handler;
       }),
+      removeEventListener: vi.fn(),
       start: vi.fn(),
       postMessage,
       close: vi.fn(),
