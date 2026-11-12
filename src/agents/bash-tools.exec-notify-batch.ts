@@ -1,4 +1,5 @@
-import { replyRunRegistry } from "../auto-reply/reply/reply-run-registry.js";
+import { isSessionRunActiveForKey } from "../sessions/session-controller.queries.js";
+import { waitForSessionRunIdle } from "../sessions/session-controller.wait.js";
 import type {
   SessionEventReceipt,
   SessionEventTarget,
@@ -44,8 +45,8 @@ type Deps = {
 };
 
 const defaultDeps: Deps = {
-  isSessionBusy: (sessionKey) => replyRunRegistry.isActive(sessionKey),
-  waitForIdle: (sessionKey) => replyRunRegistry.waitForIdle(sessionKey, null),
+  isSessionBusy: (sessionKey) => isSessionRunActiveForKey(sessionKey),
+  waitForIdle: (sessionKey) => waitForSessionRunIdle(sessionKey, null),
   // Resolve the binding per call so module-level spies and reloads see each event.
   enqueue: (text, options) => enqueueSessionEvent(text, options),
 };

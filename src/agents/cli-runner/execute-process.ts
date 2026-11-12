@@ -1,9 +1,6 @@
 import crypto from "node:crypto";
 import type { SessionEventTarget } from "../../auto-reply/reply/session-event-contract.js";
-import {
-  captureSessionEventTargetForHost,
-  enqueueSessionEventForHost,
-} from "../../auto-reply/reply/session-event-handoff.js";
+import { captureSessionEventTargetForHost } from "../../auto-reply/reply/session-event-handoff.js";
 import type { SessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { shouldLogVerbose } from "../../globals.js";
 import { getAgentRunContext } from "../../infra/agent-run-registry.js";
