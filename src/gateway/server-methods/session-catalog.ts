@@ -510,7 +510,7 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
         return;
       }
       if (!provider.reorder) {
-        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "catalog cannot reorder"));
+        respondError(respond, ErrorCodes.INVALID_REQUEST, "catalog cannot reorder");
         return;
       }
       // Reordering touches the host's display order, not one thread, so it is
@@ -548,7 +548,7 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
         return;
       }
       if (!provider.move) {
-        respond(false, undefined, errorShape(ErrorCodes.INVALID_REQUEST, "catalog cannot move"));
+        respondError(respond, ErrorCodes.INVALID_REQUEST, "catalog cannot move");
         return;
       }
       // Like reordering, a move changes which folder shows a row; the provider owns

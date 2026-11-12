@@ -31,7 +31,24 @@ const extractionMetadataSchema = z.object({
 export async function extractPdfContent(
   params: Omit<DocumentExtractionRequest, "mimeType"> & { config?: OpenClawConfig },
 ): Promise<PdfExtractedContent> {
-  const mimeType = "application/pdf";
+  const extracted = await extractDocumentContent({ ...params, mimeType: "application/pdf" });
+  if (!extracted) {
+    throw new Error(
+      "PDF extraction disabled or unavailable: enable the document-extract plugin to process application/pdf files.",
+    );
+  }
+  const { extractor: _extractor, ...content } = extracted;
+  return content;
+}
+
+/**
+ * Fork: runs the first plugin document extractor that declares the MIME type (Office documents
+ * and others, not only PDF) and tags the result with its extractor id. Null when none declares it.
+ */
+export async function extractDocumentContent(
+  params: DocumentExtractionRequest & { config?: OpenClawConfig },
+): Promise<(PdfExtractedContent & { extractor: string }) | null> {
+  const mimeType = normalizeLowercaseStringOrEmpty(params.mimeType);
   params.signal?.throwIfAborted();
   const extractors = resolvePluginDocumentExtractors({ config: params.config });
   params.signal?.throwIfAborted();
@@ -86,6 +103,7 @@ export async function extractPdfContent(
         return {
           ...content,
           ...(trustedMetadata ? { metadata: trustedMetadata } : {}),
+          extractor: extractor.id,
         };
       }
     } catch (error) {
@@ -94,11 +112,9 @@ export async function extractPdfContent(
     }
   }
   if (errors.length > 0) {
-    throw new Error("Document extraction failed for application/pdf", {
+    throw new Error(`Document extraction failed for ${mimeType}`, {
       cause: errors.length === 1 ? errors[0] : new AggregateError(errors),
     });
   }
-  throw new Error(
-    "PDF extraction disabled or unavailable: enable the document-extract plugin to process application/pdf files.",
-  );
+  return null;
 }
