@@ -4,8 +4,9 @@ import type {
   SessionCatalogSession,
 } from "../../../../packages/gateway-protocol/src/index.ts";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
-import { createGateway, createSessions, mountSidebar } from "../app-sidebar.ts";
+import { createGatewayHarness, createSessions, mountSidebar } from "../app-sidebar.ts";
 import { createDataTransferStub } from "../drag-data.ts";
+import { gatewayHelloForMethods, SESSION_MUTATION_TEST_METHODS } from "../gateway-methods.ts";
 import { settleLitElement } from "../lit-settle.ts";
 import { waitForFast } from "../wait-for.ts";
 import "../../components/app-sidebar.tsx";
@@ -61,7 +62,16 @@ async function mountFolders() {
         ? { ok: true }
         : {},
   );
-  const gateway = createGateway({ request } as unknown as GatewayBrowserClient);
+  const harness = createGatewayHarness({ request } as unknown as GatewayBrowserClient);
+  // Folder drags are offered only when the Gateway advertises the catalog reorder and move methods.
+  harness.publish({
+    hello: gatewayHelloForMethods([
+      ...SESSION_MUTATION_TEST_METHODS,
+      "sessions.catalog.reorder",
+      "sessions.catalog.move",
+    ]),
+  });
+  const gateway = harness.gateway;
   const { sidebar } = await mountSidebar(
     gateway,
     createSessions("main", ["agent:main:main", "agent:main:a", "agent:main:b"]),
@@ -189,12 +199,12 @@ describe("AppSidebar catalog rows that are Gateway sessions", () => {
 
     openMenu("agent:main:a");
     await settleLitElement(sidebar);
-    expect(sidebar.sidebarMenus.catalogMenu.isOpen).toBe(true);
+    expect(sidebar.sidebarMenus.catalogMenu.isOpen()).toBe(true);
     sidebar.sidebarMenus.catalogMenu.close();
     await settleLitElement(sidebar);
 
     openMenu("agent:main:b");
     await settleLitElement(sidebar);
-    expect(sidebar.sidebarMenus.catalogMenu.isOpen).toBe(false);
+    expect(sidebar.sidebarMenus.catalogMenu.isOpen()).toBe(false);
   });
 });
