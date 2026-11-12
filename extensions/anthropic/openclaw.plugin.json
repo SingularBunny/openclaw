@@ -407,6 +407,9 @@
           "enabled": { "type": "boolean", "default": true }
         }
       },
+      "managedTurns": {
+        "type": "boolean"
+      },
       "managedNativeTools": {
         "type": "object",
         "additionalProperties": false,
@@ -436,6 +439,10 @@
     "sessionCatalog.enabled": {
       "label": "Discover Claude Code Sessions",
       "help": "List native Claude Code sessions in the sidebar from this Gateway and eligible paired nodes."
+    },
+    "managedTurns": {
+      "label": "Managed Claude CLI Turns",
+      "help": "Fork (F62). On by default. Off keeps ordinary claude-cli turns as before 2026.11: Claude Code's own tools, skills, plugins, slash commands and Chrome, under OpenClaw's permission prompts. Restricted senders, delegated runs, explicit tool caps and tools.fs.workspaceOnly stay managed."
     },
     "managedNativeTools": {
       "label": "Claude Code Native Tools on Managed Turns",
