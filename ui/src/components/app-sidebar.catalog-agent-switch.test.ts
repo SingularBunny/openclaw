@@ -57,7 +57,7 @@ describe("AppSidebar catalog rows across agent switches", () => {
 
       context.agentSelection.state.selectedId = "research";
       context.agentSelection.state.scopeId = "research";
-      sidebar.requestUpdate();
+      sidebar.invalidate();
       await settleLitElement(sidebar);
       await vi.advanceTimersByTimeAsync(200);
       await settle(sidebar);

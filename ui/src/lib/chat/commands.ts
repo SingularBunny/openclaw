@@ -321,6 +321,7 @@ export function buildSlashCommandsFromEntries(entries: CommandEntry[]): SlashCom
 
 const CLAUDE_COMMAND_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/u;
 const MAX_CLAUDE_COMMANDS = 400;
+const MAX_REMOTE_NAME_LENGTH = 200;
 
 /**
  * Fork (F51): appends Claude CLI's own commands and skills after OpenClaw's. A Claude entry whose

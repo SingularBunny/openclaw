@@ -70,6 +70,5 @@ export async function rewindPaneChat(
   const result = await rewindChatHistory(state, entryId, pane.attachmentReads, choice, () =>
     leftovers.clear(pane.questionState, getTranscriptState(pane.presentationId)),
   );
-  state.requestUpdate?.();
   return Boolean(result);
 }

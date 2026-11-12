@@ -547,7 +547,7 @@ describe("sidebar projection memo", () => {
         customGroup: "Work",
       },
     ]).catalogs;
-    sidebar.requestUpdate();
+    sidebar.invalidate();
     await settleLitElement(sidebar);
     expect(sidebar.sessionsShowCron).toBe(false);
     expect(row(automation.key)).toBeNull();

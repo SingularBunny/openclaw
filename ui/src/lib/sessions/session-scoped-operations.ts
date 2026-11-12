@@ -73,7 +73,8 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
 
   const listFiles = (
     key: string,
-    options: { agentId?: string | null; path?: string; search?: string } = {},
+    // Fork (F34): `root` browses the run or session cwd outside the workspace.
+    options: { agentId?: string | null; path?: string; search?: string; root?: string } = {},
   ) =>
     requestCurrent<SessionWorkspaceListResult>("sessions.files.list", {
       sessionKey: key,
@@ -142,7 +143,7 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
   const rewind = (
     key: string,
     entryId: string,
-    options: { agentId?: string | null } & SessionMessageCutNativeTarget = {},
+    options: { agentId?: string | null; restoreFiles?: boolean } & SessionMessageCutNativeTarget = {},
   ) =>
     requestCommittedMutation<SessionsRewindResult>(
       "Session rewind requires an active Gateway connection",
