@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createDeferred } from "../../../../test/helpers/promise.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import {
@@ -73,7 +73,10 @@ it("lists branches and sends the selected leaf to the switch RPC", async () => {
     sessionKey: key,
     leafEntryId: "branch-b",
   });
+});
 
+// Fork: message cuts carry the file restore choice (F52) and the Claude transcript row.
+describe("session capability message cuts (fork)", () => {
   it("asks the Gateway to restore Claude's file changes only when chosen (F52)", async () => {
     const request = vi.fn(async (method: string) => {
       if (method === "sessions.rewind") {

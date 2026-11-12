@@ -41,7 +41,10 @@ describe("runtime-registered document extractors", () => {
 
     expect(builder.registry.diagnostics).toEqual([]);
     expect(record.documentExtractorIds).toEqual(["fixture-office"]);
-    const extractors = resolvePluginDocumentExtractors({ onlyPluginIds: [OWNER] });
+    // Upstream 2026.11.5 enables the bundled PDF extractor; only the runtime owner matters here.
+    const extractors = resolvePluginDocumentExtractors({ onlyPluginIds: [OWNER] }).filter(
+      (entry) => entry.pluginId === OWNER,
+    );
     expect(extractors.map(({ id, pluginId, mimeTypes }) => ({ id, pluginId, mimeTypes }))).toEqual([
       { id: "fixture-office", pluginId: OWNER, mimeTypes: [DOCX] },
     ]);
@@ -81,7 +84,9 @@ describe("runtime-registered document extractors", () => {
     registerOwner();
 
     expect(
-      resolvePluginDocumentExtractors({ config: { plugins }, onlyPluginIds: [OWNER] }),
+      resolvePluginDocumentExtractors({ config: { plugins }, onlyPluginIds: [OWNER] }).filter(
+        (entry) => entry.pluginId === OWNER,
+      ),
     ).toStrictEqual([]);
   });
 });
