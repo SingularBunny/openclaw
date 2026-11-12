@@ -104,8 +104,12 @@ export async function resolveCliRuntimeToolPolicy(input: {
     params.controlOperation === undefined &&
     !(input.isSideQuestion && input.sideQuestionToolMode === "disabled") &&
     resolveEffectiveToolFsWorkspaceOnly({ cfg: params.config, agentId: input.policyAgentId });
+  // Fork (F62): `plugins.entries.anthropic.config.managedTurns: false` keeps ordinary claude-cli turns
+  // unmanaged, as before 2026.11: Claude Code's own tools, skills, plugins, slash commands and Chrome,
+  // under OpenClaw's permission prompts. Restricted, delegated, workspace-only and capped runs stay managed.
   const ordinaryClaudeMediation =
     input.backendId === "claude-cli" &&
+    !claudeManagedTurnsDisabled(params.config) &&
     input.bundleMcp &&
     input.canEnforceExactToolAvailability &&
     !input.isSideQuestion &&
@@ -260,4 +264,11 @@ export function resolveCliToolAvailabilityHash(
         ]),
       )
     : baseHash;
+}
+
+function claudeManagedTurnsDisabled(config: RunCliAgentParams["config"]): boolean {
+  const entry = config?.plugins?.entries?.anthropic as
+    | { config?: { managedTurns?: unknown } }
+    | undefined;
+  return entry?.config?.managedTurns === false;
 }
