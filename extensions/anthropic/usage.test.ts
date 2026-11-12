@@ -124,6 +124,7 @@ it("prefers a stored Admin API key when normal API and OAuth credentials coexist
   expect(result).toEqual({
     token: 'openclaw:anthropic-admin:v1:{"token":"sk-ant-admin-billing"}',
   });
+});
 
   describe("Claude CLI native login (fork)", () => {
     afterEach(() => {
@@ -291,7 +292,6 @@ it("prefers a stored Admin API key when normal API and OAuth credentials coexist
       expect(aborted).toHaveBeenCalledTimes(1);
     });
   });
-});
 
 it("does not refresh the native Claude login for usage polling", async () => {
   const resolveOAuthToken = vi.fn(async () => null);
