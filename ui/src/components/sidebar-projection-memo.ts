@@ -30,6 +30,7 @@ import {
   type SidebarSessionSortMode,
   type SidebarSessionStatusFilter,
 } from "./app-sidebar-session-types.ts";
+import { catalogStatusRows } from "./session-catalog-status-rows.ts";
 import type { SessionDataOwner } from "./session-data.ts";
 import type {
   SidebarProjectionMemo,
@@ -275,6 +276,8 @@ export function memoizedSidebarCatalogs(
       host.sessionInvolvingMeFilterActive,
       host.sessionData.sessionsResult,
       host.sessionData.sessionResultsByAgent,
+      // Fork (F58): other agents' catalog rows follow the all-agent status window.
+      catalogStatusRows(host.sessionData).rows,
     ],
     () => projectSidebarSnoozeCatalogs(host, ownerId),
   );
