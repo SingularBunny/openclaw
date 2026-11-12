@@ -18,6 +18,7 @@ import { FileDownloadButton } from "./chat-file-download-button.tsx";
 import { DesktopWorkspaceContents } from "./chat-session-workspace-desktop.tsx";
 import { MobileWorkspaceContents } from "./chat-session-workspace-mobile-adapter.tsx";
 import { createSessionWorkspaceRead } from "./chat-session-workspace-read.ts";
+import { SessionWorkspaceRootSelect } from "./chat-session-workspace-root-select.tsx";
 import type { SessionWorkspaceFilter } from "./chat-sidebar-content-types.ts";
 import type { SessionWorkspaceProps } from "./chat-sidebar-view-types.ts";
 
@@ -414,7 +415,8 @@ function WorkspaceContents(props: { workspace: SessionWorkspaceProps }) {
   );
   return (
     <aside class="chat-workspace-rail" aria-label={t("chat.workspaceFiles.label")}>
-      <Show when={props.workspace.list?.root}>
+      <SessionWorkspaceRootSelect workspace={props.workspace} />
+      <Show when={props.workspace.list?.root && (props.workspace.roots?.length ?? 0) < 2}>
         <openclaw-tooltip prop:content={props.workspace.list?.root}>
           <div class="chat-workspace-rail__path">
             <span

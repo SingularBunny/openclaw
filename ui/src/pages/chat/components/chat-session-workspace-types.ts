@@ -45,6 +45,10 @@ export type SessionWorkspaceState = {
   agentId: string;
   browserPath: string;
   browserSearch: string;
+  /** Fork (F34): another folder of the session shown instead of the workspace (unset: workspace). */
+  browseRoot?: string | null;
+  /** Fork (F34): folders sessions.files.list offers, workspace first; unset until the first listing. */
+  roots?: readonly string[] | null;
   browserSearchTimer: ReturnType<typeof globalThis.setTimeout> | null;
   connectionEpoch: number;
   diffContent?: SidebarContent;

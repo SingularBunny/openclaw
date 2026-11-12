@@ -28,6 +28,23 @@
   white-space: nowrap;
 }
 
+/* Fork (F34): folder switch when the session has folders besides its workspace. */
+.chat-workspace-rail__root-select {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  height: var(--session-rail-control, 32px);
+  padding-inline: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm, 6px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: var(--control-ui-text-xs);
+  text-overflow: ellipsis;
+}
+
 .chat-workspace-rail__state {
   padding: 14px 12px;
   color: var(--muted);
