@@ -208,3 +208,48 @@ describe("Gateway stop deadline follows the launchd stop that is actually runnin
     },
   );
 });
+
+// Fork F44: OPENCLAW_RESTART_AGENT_RUN_WAIT_MS lets a shutdown wait for agent turns.
+describe("Gateway shutdown budget with OPENCLAW_RESTART_AGENT_RUN_WAIT_MS", () => {
+  const systemdStop = (timeout: string) => ({
+    code: 0,
+    stdout: `LoadState=loaded\nTimeoutStopUSec=${timeout}\nInvocationID=own`,
+    stderr: "",
+  });
+  beforeEach(() => {
+    process.env.OPENCLAW_RESTART_AGENT_RUN_WAIT_MS = "1800000";
+    process.env.INVOCATION_ID = "own";
+  });
+
+  it("raises the shutdown limit to the wait when the unit's stop timeout allows it", async () => {
+    execSystem.mockResolvedValue(systemdStop("32min"));
+    const budget = await resolveBudget();
+    budget.log("startup");
+    expect(budget.timeoutMs).toBe(1_810_000);
+    expectCallCount(0, warn);
+  });
+
+  it("stays within a shorter unit stop timeout and says how to raise it", async () => {
+    execSystem.mockResolvedValue(systemdStop("5min 30s"));
+    const budget = await resolveBudget();
+    budget.log("startup");
+    expect(budget.timeoutMs).toBe(325_000);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("TimeoutStopSec"));
+  });
+
+  it("uses the wait outside a service, where nothing kills the Gateway early", async () => {
+    delete process.env.INVOCATION_ID;
+    readFile.mockResolvedValue(
+      "0::/user.slice/user-1000.slice/user@1000.service/app.slice/terminal.scope\n",
+    );
+    const budget = await resolveBudget(null);
+    expect(budget.timeoutMs).toBe(1_810_000);
+  });
+
+  it("keeps upstream's limit when the wait is not above 5 minutes", async () => {
+    process.env.OPENCLAW_RESTART_AGENT_RUN_WAIT_MS = "300000";
+    execSystem.mockResolvedValue(systemdStop("32min"));
+    const budget = await resolveBudget();
+    expect(budget.timeoutMs).toBe(325_000);
+  });
+});
