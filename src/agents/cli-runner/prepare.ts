@@ -324,6 +324,7 @@ async function prepareCliRunContextWithinReadFence(
     canEnforceExactToolAvailability,
     projectNativeToolAuthority: backendResolved.projectNativeToolAuthority,
     resolveManagedNativeTools: backendResolved.resolveManagedNativeTools,
+    managedLocalStateTools: backendResolved.managedLocalStateTools,
     sideQuestionToolMode: backendResolved.sideQuestionToolMode,
     isSideQuestion,
     skipsTurnPreparation,
@@ -1576,7 +1577,11 @@ async function prepareCliRunContextWithinReadFence(
           !reusableCliSessionId?.trim() || reusableCliSession.mode === "reuse-with-drift",
         thinkLevel: params.thinkLevel,
         // Operator-kept orchestration tools that survived every later native-tool cap.
-        nativeDelegationTools: keptManagedNativeTools(managedNativeTools, params),
+        nativeDelegationTools: keptManagedNativeTools(
+          managedNativeTools,
+          params,
+          backendResolved.managedLocalStateTools,
+        ),
         runtimeContextFragments: params.runtimeContextFragments,
         sessionTarget: params.isolatedCompletion ? undefined : replayableTarget(cliHistoryWriter),
         context: [promptBuildHookResult?.appendContext, authorizedPromptBuildResult?.appendContext],

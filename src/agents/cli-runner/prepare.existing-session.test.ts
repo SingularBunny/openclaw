@@ -386,8 +386,9 @@ async function assertStoredConversationSurvivesUpgrade(toolSearch: boolean | und
     expect(turn.args).not.toContain(nativeSettingsPath);
     expect(turn.args).not.toContain("--plugin-dir");
     expect(turn.args).not.toContain("--no-session-persistence");
+    // Fork (C10): managed turns keep Claude's local todo tools (F60).
     expect(turn.toolAvailability).toEqual({
-      native: [],
+      native: ["TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet"],
       openClaw: ["read"],
       ...(toolSearch === false ? {} : { discovery: ["ToolSearch"] }),
     });
