@@ -1,4 +1,4 @@
-/* Fork: always-visible Claude subscription usage in the expanded sidebar. */
+/* Fork: always-visible subscription usage (Claude and other providers) in the expanded sidebar. */
 .claude-usage {
   flex: 0 0 auto;
   padding-block: 6px 4px;

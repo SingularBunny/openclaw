@@ -1,5 +1,5 @@
 ---
-summary: "Claude subscription limits (5-hour, weekly, per-model) always visible in the Control UI sidebar"
+summary: "Subscription limits (Claude 5-hour, weekly, per-model; other providers' windows) always visible in the Control UI sidebar"
 read_when:
   - You run models through the Claude CLI backend and want to see subscription limits
   - The Claude usage block is missing or out of date
@@ -23,6 +23,15 @@ login carries it.
 Bars turn amber from 70 % and red from 90 %. The block is hidden while the Gateway
 has no Claude subscription data (no Claude login, an API-key-only setup, or the
 first read is still running).
+
+## Other providers
+
+Any other provider whose usage the Gateway reads with limit windows (for example OpenAI,
+Gemini, Copilot, MiniMax or z.ai, depending on your logins) gets its own block under the
+Claude one, titled **<Provider> usage** with the plan when known, with the same bars,
+colors, reset times and "updated" mark while its reads fail. Providers without windows
+(an API key only, no login, an error) are left out. The figures are the same as in
+**Usage**; this block only keeps them in view.
 
 ## Where the numbers come from
 

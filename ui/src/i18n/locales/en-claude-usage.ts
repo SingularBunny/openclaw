@@ -1,12 +1,14 @@
 import type { TranslationMap } from "../lib/types.ts";
 import { en } from "./en.ts";
 
-// Fork: the always-visible Claude subscription usage indicator in the sidebar.
+// Fork: the always-visible subscription usage indicator in the sidebar (Claude and other providers).
 const catalog = {
   common: {
     claudeUsage: {
       title: "Claude usage",
       titleWithPlan: "Claude usage · {plan}",
+      providerTitle: "{provider} usage",
+      providerTitleWithPlan: "{provider} usage · {plan}",
       fiveHour: "5h",
       week: "Week",
       extra: "Extra",

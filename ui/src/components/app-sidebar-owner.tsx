@@ -646,7 +646,7 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
                 />
               </Show>
             </div>
-            {/* Fork: Claude subscription limits stay visible under the session list. */}
+            {/* Fork: subscription limits (Claude and other providers) stay visible under the session list. */}
             <ClaudeUsageIndicator gateway={() => this.context.gateway} />
             <div class="sidebar-shell__invite">
               <Show
