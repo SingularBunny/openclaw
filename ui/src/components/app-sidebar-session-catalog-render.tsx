@@ -18,8 +18,8 @@ import {
   groupCatalogSessionsByPerson,
   groupCatalogSessionsByProject,
 } from "../lib/sessions/catalog-project-grouping.ts";
-import { openCatalogSessionInTerminal } from "../lib/sessions/catalog-terminal.ts";
 import { moveCatalogOrderEntry } from "../lib/sessions/catalog-reorder.ts";
+import { openCatalogSessionInTerminal } from "../lib/sessions/catalog-terminal.ts";
 import {
   activeCatalogReorderDragData,
   finishCatalogReorderDrag,
@@ -498,7 +498,9 @@ function renderCatalogHostGroup(
           })
         }
       >
-        {(session) => renderCatalogSessionRow(session, rowProps.projectChild === true, reorderGroup)}
+        {(session) =>
+          renderCatalogSessionRow(session, rowProps.projectChild === true, reorderGroup)
+        }
       </For>
     );
   }

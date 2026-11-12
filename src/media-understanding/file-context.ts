@@ -144,7 +144,9 @@ export async function extractFileContext(params: {
           config: cfg,
         }).catch((err: unknown) => {
           if (shouldLogVerbose()) {
-            logVerbose(`media: document extractor failed index=${attachment.index}: ${String(err)}`);
+            logVerbose(
+              `media: document extractor failed index=${attachment.index}: ${String(err)}`,
+            );
           }
           return null;
         });

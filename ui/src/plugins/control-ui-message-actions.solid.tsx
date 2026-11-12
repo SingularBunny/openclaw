@@ -25,7 +25,9 @@ export function PluginMessageActions(props: {
   const lifetime = new AbortController();
   onCleanup(() => lifetime.abort());
   const session = () =>
-    context && props.sessionKey ? findUiSessionRow(context, props.sessionKey, props.agentId) : undefined;
+    context && props.sessionKey
+      ? findUiSessionRow(context, props.sessionKey, props.agentId)
+      : undefined;
   const actions = createMemo(() => {
     void version();
     if (!props.sessionKey || !props.message.text) {

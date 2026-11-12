@@ -15,6 +15,7 @@ import {
 } from "../../../lib/chat/message-normalizer.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { stripThinkingTags } from "../../../lib/strip-thinking-tags.ts";
+import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import {
   type AssistantMessageExpansionState,
   resolveCappedMessageId,
@@ -32,7 +33,6 @@ import {
   type MessageReactionOptions,
 } from "./chat-message-reaction-model.ts";
 import { MessageReactionPicker } from "./chat-message-reactions-view.tsx";
-import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import { ReadAloud } from "./chat-read-aloud.tsx";
 
 registerEnglishCatalog(registerChatMessageMetadataEnglish);
@@ -149,7 +149,11 @@ export function resolveMessageActionDetails(
           pluginMessage: {
             sessionKey: params.sessionKey,
             ...(params.agentId ? { agentId: params.agentId } : {}),
-            message: { role, text: copyMarkdown, ...(sourceMessageId ? { id: sourceMessageId } : {}) },
+            message: {
+              role,
+              text: copyMarkdown,
+              ...(sourceMessageId ? { id: sourceMessageId } : {}),
+            },
           },
         }
       : {}),

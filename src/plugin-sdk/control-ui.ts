@@ -198,7 +198,9 @@ export type ControlUiAction = {
   placement: "composer" | "header" | "session" | "message";
   /** Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. */
   icon?: string;
-  resolve?: (context: BoardGetParams & { session?: ControlUiSession; message?: ControlUiMessage }) => {
+  resolve?: (
+    context: BoardGetParams & { session?: ControlUiSession; message?: ControlUiMessage },
+  ) => {
     label?: string;
     disabled?: boolean;
     hidden?: boolean;

@@ -1,5 +1,3 @@
-import { isSessionRunActiveForKey } from "../sessions/session-controller.queries.js";
-import { waitForSessionRunIdle } from "../sessions/session-controller.wait.js";
 import type {
   SessionEventReceipt,
   SessionEventTarget,
@@ -13,6 +11,8 @@ import { enqueueSessionEventForHost as enqueueSessionEvent } from "../auto-reply
 import { formatErrorMessage } from "../infra/errors.js";
 import { type ExecRequestOwner, withExecRequestOwners } from "../infra/exec-request-context.js";
 import { logWarn } from "../logger.js";
+import { isSessionRunActiveForKey } from "../sessions/session-controller.queries.js";
+import { waitForSessionRunIdle } from "../sessions/session-controller.wait.js";
 import type { DeliveryContext } from "../utils/delivery-context.types.js";
 
 export type ExecExitNotice = {

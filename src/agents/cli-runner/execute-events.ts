@@ -1,5 +1,5 @@
-import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
 import { asOptionalRecord, isRecord } from "@openclaw/normalization-core/record-coerce";
+import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
 import { stripMixedSilentReplyTokens } from "../../auto-reply/reply/mixed-silent-reply-tokens.js";
 import { isSilentReplyText, SILENT_REPLY_TOKEN } from "../../auto-reply/tokens.js";
 import { projectAgentToolActivity } from "../../infra/agent-activity-events.js";

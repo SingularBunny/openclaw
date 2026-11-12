@@ -13,7 +13,13 @@ function runtimeWith(action: ControlUiAction) {
     ui: {},
     components: {},
   } as unknown as ControlUiHost;
-  const entry = { key: "demo/ask" as const, pluginId: "demo", value: action, host, signal: new AbortController().signal };
+  const entry = {
+    key: "demo/ask" as const,
+    pluginId: "demo",
+    value: action,
+    host,
+    signal: new AbortController().signal,
+  };
   return {
     registrations: (kind: string) => (kind === "actions" ? [entry] : []),
     reportError: vi.fn(),
@@ -44,10 +50,21 @@ describe("plugin message actions (fork)", () => {
 
   it("refuses a message action without a message, and a placement the action does not have", async () => {
     const runtime = runtimeWith({ id: "ask", label: "Ask", placement: "message", run: vi.fn() });
-    const base = { runtime, id: "demo/ask", sessionKey: "agent:garden:main", signal: new AbortController().signal };
-    await expect(runControlUiPluginAction({ ...base, placement: "message" })).rejects.toThrow(/message is no longer available/);
+    const base = {
+      runtime,
+      id: "demo/ask",
+      sessionKey: "agent:garden:main",
+      signal: new AbortController().signal,
+    };
+    await expect(runControlUiPluginAction({ ...base, placement: "message" })).rejects.toThrow(
+      /message is no longer available/,
+    );
     await expect(
-      runControlUiPluginAction({ ...base, placement: "composer", message: { role: "user", text: "x" } }),
+      runControlUiPluginAction({
+        ...base,
+        placement: "composer",
+        message: { role: "user", text: "x" },
+      }),
     ).rejects.toThrow(/no longer active/);
   });
 });

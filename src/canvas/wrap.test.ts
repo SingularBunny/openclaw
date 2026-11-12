@@ -205,9 +205,9 @@ it("exposes Claude-compatible storage over the inline prompt port only after hos
     const missing = api.storage.get!("absent");
     const listed = api.storage.list!("c");
     const failed = api.storage.set!("count", "4");
-    const [getAbsent, list, set] = (
-      prompt!.posted as Array<{ id: string; params: unknown }>
-    ).slice(2);
+    const [getAbsent, list, set] = (prompt!.posted as Array<{ id: string; params: unknown }>).slice(
+      2,
+    );
     expect(list!.params).toEqual({ prefix: "c" });
     expect(set!.params).toEqual({ key: "count", value: "4" });
     prompt!.handler!({

@@ -116,7 +116,7 @@ every imported item in external-content boundaries. When the operator imports th
 set `OPENCLAW_CATALOG_IMPORT_OWNER=1` (for example through config `env.vars`):
 
 - imported user items are marked as the owner's (`senderIsOwner`), so `openclaw memory
-session-backfill` and Dreaming include the imported history;
+  session-backfill` and Dreaming include the imported history;
 - the import writes no untrusted-reference notice and no boundaries, so earlier instructions in
   the chat keep their weight, as in the native client;
 - sessions imported before the switch read the same way: the model context (session replay, CLI
