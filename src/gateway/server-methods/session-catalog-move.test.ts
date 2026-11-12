@@ -12,9 +12,9 @@ vi.mock("../server-in-process-dispatch.js", async (importOriginal) => ({
 import {
   call,
   hoisted,
-  provider,
   resetSessionCatalogTestState,
 } from "./session-catalog.test-helpers.js";
+import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 
 describe("sessions.catalog.move", () => {
   beforeEach(() => {
@@ -23,7 +23,7 @@ describe("sessions.catalog.move", () => {
   });
 
   it("rejects catalogs without a move hook", async () => {
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude") }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude") }];
 
     const respond = await call("sessions.catalog.move", {
       catalogId: "claude",
@@ -48,7 +48,7 @@ describe("sessions.catalog.move", () => {
       threadId: "s:agent:beta:moved",
       sessionKey: "agent:beta:moved",
     }));
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude", { move }) }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { move }) }];
     const config = { agents: { ownership: "explicit", entries: { alpha: {}, beta: {} } } };
 
     const respond = await call(
@@ -85,7 +85,7 @@ describe("sessions.catalog.move", () => {
       sessionKey: "agent:beta:moved",
       archive: { key: "agent:alpha:old", expectedSessionId: "sid-1" },
     }));
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude", { move }) }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { move }) }];
     const request = {
       catalogId: "claude",
       hostId: "gateway:local",
@@ -117,7 +117,7 @@ describe("sessions.catalog.move", () => {
     const move = vi.fn(async () => {
       throw new Error("a main chat stays with its project");
     });
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude", { move }) }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { move }) }];
 
     const respond = await call("sessions.catalog.move", {
       catalogId: "claude",
@@ -139,12 +139,12 @@ describe("sessions.catalog.move", () => {
   it("advertises the move capability only for providers with the hook", () => {
     const move = async () => ({ ok: true as const });
 
-    expect(catalogResult(provider("claude", { move }), undefined, []).capabilities).toEqual({
+    expect(catalogResult(catalogProvider("claude", { move }), undefined, []).capabilities).toEqual({
       continueSession: false,
       archive: false,
       move: true,
     });
-    expect(catalogResult(provider("codex"), undefined, []).capabilities).toEqual({
+    expect(catalogResult(catalogProvider("codex"), undefined, []).capabilities).toEqual({
       continueSession: false,
       archive: false,
     });
@@ -178,7 +178,7 @@ describe("sessions.catalog.archive with a provider-named session", () => {
     };
     const archive = vi.fn(async () => archiveResult);
     hoisted.activeRegistry.sessionCatalogs = [
-      { provider: provider("projects", { list: async () => [host], archive }) },
+      { provider: catalogProvider("projects", { list: async () => [host], archive }) },
     ];
     return {
       archive,

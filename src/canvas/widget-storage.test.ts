@@ -1,7 +1,7 @@
 // Persistent per-widget storage: scoping, limits, and lifetime tied to Canvas documents.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   WIDGET_STORAGE_MAX_KEYS,
   WIDGET_STORAGE_TOTAL_MAX_BYTES,
@@ -18,12 +18,15 @@ import {
 } from "./widget-storage.js";
 
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
+afterEach(() => vi.unstubAllEnvs());
 
 async function createWidget(stateDir: string, options: { retentionScope?: string } = {}) {
-  const document = await createCanvasDocument(
-    { html: "<p>Counter</p>", cspSandbox: "scripts", ...options },
-    { stateDir, maxDocumentsPerScope: 2 },
-  );
+  vi.stubEnv("OPENCLAW_STATE_DIR", stateDir);
+  const document = await createCanvasDocument({
+    html: "<p>Counter</p>",
+    cspSandbox: "scripts",
+    ...options,
+  });
   return { docId: document.id, scopeKey: "agent:main:main", stateDir };
 }
 
@@ -77,8 +80,10 @@ describe("widget storage", () => {
     const retentionScope = "session-hash";
     const oldest = await createWidget(stateDir, { retentionScope });
     await setWidgetStorageValue(oldest, "count", "7");
-    await createWidget(stateDir, { retentionScope });
-    await createWidget(stateDir, { retentionScope });
+    // Upstream keeps the newest 32 widgets per transcript scope (documents.ts WIDGET_MAX_PER_SCOPE).
+    for (let index = 0; index < 32; index += 1) {
+      await createWidget(stateDir, { retentionScope });
+    }
 
     await expect(getWidgetStorageValue(oldest, "count")).rejects.toMatchObject({
       code: "unavailable",
@@ -90,7 +95,8 @@ describe("widget storage", () => {
 
   it("refuses unknown documents, non-widget documents, and path-like ids", async () => {
     const stateDir = tempDirs.make("openclaw-widget-storage-");
-    const plain = await createCanvasDocument({ html: "<p>Plain</p>" }, { stateDir });
+    vi.stubEnv("OPENCLAW_STATE_DIR", stateDir);
+    const plain = await createCanvasDocument({ html: "<p>Plain</p>" });
     for (const docId of ["cv_missing", plain.id]) {
       await expect(
         setWidgetStorageValue({ docId, scopeKey: "agent:main:main", stateDir }, "k", "v"),

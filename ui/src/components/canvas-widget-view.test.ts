@@ -592,7 +592,7 @@ describe("Canvas widget view", () => {
 
   it("serves storage on the adopted prompt port for its own session and document", async () => {
     const client = {
-      request: vi.fn(async (method: string) =>
+      request: vi.fn<(...args: unknown[]) => Promise<unknown>>(async (method) =>
         method === "canvas.document.view" ? documentView : { value: "5" },
       ),
     };
@@ -654,7 +654,7 @@ describe("Canvas widget view", () => {
 
   it("shows one dismissible notice when widget storage fails", async () => {
     const client = {
-      request: vi.fn(async (method: string) => {
+      request: vi.fn<(...args: unknown[]) => Promise<unknown>>(async (method) => {
         if (method === "canvas.document.view") {
           return documentView;
         }

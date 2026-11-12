@@ -25,7 +25,7 @@ export const CATALOG_STATUS_LIST_QUERY: SessionListScope = Object.freeze({
 
 type CatalogStatusRowsOwner = {
   readonly context: ApplicationContext | undefined;
-  readonly sessionDataHostConnected: boolean;
+  readonly isSessionDataHostConnected: boolean;
   requestSessionDataUpdate(): void;
 };
 
@@ -58,7 +58,7 @@ export class SessionCatalogStatusRows {
     const context = this.owner.context;
     const wanted =
       context !== undefined &&
-      this.owner.sessionDataHostConnected &&
+      this.owner.isSessionDataHostConnected &&
       canCallGatewayMethod(context.gateway.snapshot, "sessions.list", "operator.read") &&
       catalogsAdoptSessions(catalogs);
     const current = this.binding;

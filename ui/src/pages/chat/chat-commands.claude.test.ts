@@ -1,7 +1,10 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from "vitest";
 import { SLASH_COMMANDS } from "../../lib/chat/commands.ts";
-import { applyRemoteSlashCommandsResult, refreshSlashCommands } from "./chat-commands.ts";
+import {
+  applyRemoteSlashCommandsResult,
+  refreshSlashCommands,
+} from "../../lib/chat/slash-command-catalog.ts";
 
 function clientWith(methods: string[], claude: unknown) {
   const request = vi.fn(async (method: string) =>

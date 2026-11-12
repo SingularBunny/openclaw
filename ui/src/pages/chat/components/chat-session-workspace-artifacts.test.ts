@@ -261,7 +261,7 @@ describe("session workspace artifacts", () => {
     sizeBytes?: number;
   }) {
     vi.stubGlobal("Blob", NodeBlob);
-    const fixture = createArtifactHost({ data: "", ...params, http: true });
+    const fixture = createArtifactHost(params.mimeType, "", { title: params.title, http: true });
     fixture.state.connectionEpoch = 1;
     const fetchMock = vi.fn<typeof fetch>();
     vi.stubGlobal("fetch", fetchMock);
