@@ -418,6 +418,9 @@
           "attestNativeLogin": { "type": "boolean", "default": false }
         }
       },
+      "managedTurns": {
+        "type": "boolean"
+      },
       "managedNativeTools": {
         "type": "object",
         "additionalProperties": false,
@@ -451,6 +454,10 @@
     "historyRecovery": {
       "label": "Claude CLI History Recovery",
       "help": "Controls whether a fresh Claude CLI session that runs on the native Claude login can receive the conversation's saved OpenClaw history."
+    },
+    "managedTurns": {
+      "label": "Managed Claude CLI Turns",
+      "help": "Fork (F62). On by default. Off keeps ordinary claude-cli turns as before 2026.11: Claude Code's own tools, skills, plugins, slash commands and Chrome, under OpenClaw's permission prompts. Restricted senders, delegated runs, explicit tool caps and tools.fs.workspaceOnly stay managed."
     },
     "managedNativeTools": {
       "label": "Claude Code Native Tools on Managed Turns",

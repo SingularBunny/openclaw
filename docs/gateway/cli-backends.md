@@ -171,6 +171,15 @@ session, because the tool names changed. Explicit native-tool selections, node
 execution, side questions, and isolated tool-free completions retain their own
 tool contracts.
 
+### Unmanaged turns (fork)
+
+In this fork, `plugins.entries.anthropic.config.managedTurns: false` turns managed
+ordinary turns off: Claude Code keeps its own tools, skills, plugins, slash
+commands and Chrome, as before 2026.11, and OpenClaw's permission prompts still
+decide each native tool call. Restricted senders, delegated execution, explicit
+tool caps and `tools.fs.workspaceOnly` stay managed. The default (`true` or
+unset) is upstream's behavior.
+
 ### Keeping Claude Code orchestration tools on managed turns
 
 Managed turns keep Claude's read-only `ToolSearch` available by default. OpenClaw
