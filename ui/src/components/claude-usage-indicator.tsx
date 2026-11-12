@@ -17,10 +17,12 @@ import { t } from "../lib/reactive/i18n.ts";
 import "../styles/claude-usage.css";
 import {
   formatClaudeUsageCountdown,
-  rememberClaudeUsage,
+  rememberProviderUsage,
   resolveClaudeUsageView,
-  type ClaudeUsageLastGood,
+  resolveProviderUsageViews,
   type ClaudeUsageRow,
+  type ProviderUsageLastGood,
+  type ProviderUsageView,
 } from "./claude-usage-indicator-model.ts";
 import { publishSharedClaudeUsage } from "./claude-usage-store.ts";
 
@@ -50,15 +52,27 @@ function resetTitle(resetAt: number): string {
   });
 }
 
+function blockTitle(view: ProviderUsageView): string {
+  if (view.provider === "anthropic") {
+    return view.plan
+      ? t("common.claudeUsage.titleWithPlan", { plan: view.plan })
+      : t("common.claudeUsage.title");
+  }
+  return view.plan
+    ? t("common.claudeUsage.providerTitleWithPlan", { provider: view.displayName, plan: view.plan })
+    : t("common.claudeUsage.providerTitle", { provider: view.displayName });
+}
+
 /**
- * Fork: always-visible Claude subscription limits (5-hour, weekly, per-model windows) with
- * reset times. Hidden while the Gateway reports no Claude subscription data.
+ * Fork: always-visible subscription limits with reset times: Claude (5-hour, weekly, per-model
+ * windows) first, then every other provider the Gateway reports windows for (V1: any model).
+ * Hidden while no provider has usage windows.
  */
 export function ClaudeUsageIndicator(props: {
   gateway: () => ApplicationGateway | undefined;
 }): JSX.Element {
   const [summary, setSummary] = createSignal<UsageSummary | null>(null);
-  const [lastGood, setLastGood] = createSignal<ClaudeUsageLastGood | null>(null);
+  const [lastGood, setLastGood] = createSignal<ProviderUsageLastGood>({});
   const [now, setNow] = createSignal(Date.now());
   let inFlight: AbortController | null = null;
   let turnEndTimer: ReturnType<typeof setTimeout> | undefined;
@@ -100,7 +114,7 @@ export function ClaudeUsageIndicator(props: {
         }
         haveSummary = true;
         const at = Date.now();
-        setLastGood((previous) => rememberClaudeUsage(previous, result.value, at));
+        setLastGood((previous) => rememberProviderUsage(previous, result.value, at));
         setSummary(result.value);
         setNow(at);
       })
@@ -122,7 +136,7 @@ export function ClaudeUsageIndicator(props: {
       // Another Gateway's figures must not linger under this connection.
       haveSummary = false;
       setSummary(null);
-      setLastGood(null);
+      setLastGood({});
     }
     if (!gateway) {
       return false;
@@ -172,26 +186,26 @@ export function ClaudeUsageIndicator(props: {
     }
   });
 
-  const view = createMemo(() => resolveClaudeUsageView(summary(), now(), t, lastGood()));
-  // Fork (F48): the composer status line reads the same figures.
-  createRenderEffect(view, (current) => publishSharedClaudeUsage(current));
+  const views = createMemo(() => resolveProviderUsageViews(summary(), now(), t, lastGood()));
+  // Fork (F48): the composer status line reads the same Claude figures.
+  const claudeView = createMemo(() =>
+    resolveClaudeUsageView(summary(), now(), t, lastGood().anthropic),
+  );
+  createRenderEffect(claudeView, (current) => publishSharedClaudeUsage(current));
   onCleanup(() => publishSharedClaudeUsage(null));
 
   return (
-    <Show when={view()}>
+    <For each={views()} keyed={(view: ProviderUsageView) => view.provider}>
       {(current) => (
         <section
           class="claude-usage"
-          aria-label={t("common.claudeUsage.title")}
+          data-provider={current().provider}
+          aria-label={blockTitle(current())}
           data-limit={current().rateLimit?.status}
           data-stale={current().staleSince !== undefined ? "" : undefined}
         >
           <div class="claude-usage__header">
-            <span class="claude-usage__title">
-              {current().plan
-                ? t("common.claudeUsage.titleWithPlan", { plan: current().plan ?? "" })
-                : t("common.claudeUsage.title")}
-            </span>
+            <span class="claude-usage__title">{blockTitle(current())}</span>
             <Show when={current().staleSince}>
               {(since) => (
                 <span class="claude-usage__stale" title={formatDateTimeMs(since())}>
@@ -261,6 +275,6 @@ export function ClaudeUsageIndicator(props: {
           </ul>
         </section>
       )}
-    </Show>
+    </For>
   );
 }

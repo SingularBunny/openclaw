@@ -3,7 +3,9 @@ import {
   CLAUDE_USAGE_STALE_KEEP_MS,
   formatClaudeUsageCountdown,
   rememberClaudeUsage,
+  rememberProviderUsage,
   resolveClaudeUsageView,
+  resolveProviderUsageViews,
 } from "./claude-usage-indicator-model.ts";
 
 const NOW = Date.parse("2026-11-10T12:00:00Z");
@@ -141,7 +143,50 @@ describe("Claude usage indicator model", () => {
       expect(view?.rows.map((row) => row.percent)).toEqual([40]);
       expect(view?.staleSince).toBe(NOW);
     }
-    expect(resolveClaudeUsageView(failed, NOW + CLAUDE_USAGE_STALE_KEEP_MS, t, lastGood)).toBeNull();
+    expect(
+      resolveClaudeUsageView(failed, NOW + CLAUDE_USAGE_STALE_KEEP_MS, t, lastGood),
+    ).toBeNull();
+  });
+
+  // Fork (V1): the sidebar shows every provider with usage windows, Claude first.
+  it("lists every provider with windows, Claude first, each kept while its reads fail", () => {
+    const openai = {
+      provider: "openai",
+      displayName: "OpenAI",
+      plan: "Plus",
+      windows: [{ label: "5h", usedPercent: 20 }],
+    };
+    const claude = {
+      provider: "anthropic",
+      displayName: "Claude",
+      windows: [{ label: "Week", usedPercent: 50 }],
+    };
+    const keyOnly = { provider: "deepseek", displayName: "DeepSeek", windows: [], error: "No key" };
+    const both = { updatedAt: NOW, providers: [openai, keyOnly, claude] };
+    const views = resolveProviderUsageViews(both, NOW, t);
+    expect(views.map((view) => [view.provider, view.displayName, view.plan])).toEqual([
+      ["anthropic", "Claude", undefined],
+      ["openai", "OpenAI", "Plus"],
+    ]);
+    expect(views[1]?.rows).toEqual([
+      { key: "0:5h", label: "common.claudeUsage.fiveHour", percent: 20, tone: "ok" },
+    ]);
+
+    const lastGood = rememberProviderUsage({}, both, NOW);
+    expect(Object.keys(lastGood).toSorted()).toEqual(["anthropic", "openai"]);
+    const openaiFailed = {
+      updatedAt: NOW,
+      providers: [claude, { ...openai, windows: [], error: "HTTP 500" }],
+    };
+    expect(rememberProviderUsage(lastGood, openaiFailed, NOW + 60_000)["openai"]).toBe(
+      lastGood["openai"],
+    );
+    const stale = resolveProviderUsageViews(openaiFailed, NOW + 60_000, t, lastGood);
+    expect(stale.map((view) => [view.provider, view.staleSince])).toEqual([
+      ["anthropic", undefined],
+      ["openai", NOW],
+    ]);
+    expect(resolveProviderUsageViews(null, NOW, t)).toEqual([]);
   });
 
   it("formats compact countdowns", () => {
