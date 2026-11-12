@@ -191,7 +191,7 @@ is stored without a restart and takes effect on the next Gateway start.
 | `OPENCLAW_MEMORY_INDEX_ON_START`            | off         | `1` opens every agent's memory index at Gateway start instead of on its first search.                              |
 | `OPENCLAW_PLUGIN_GATEWAY_METHODS`           | none        | Gateway methods other plugins may call through `api.runtime.gateway.request`; see below.                           |
 | `OPENCLAW_SESSION_OBSERVER_MIN_INTERVAL_MS` | `12000`     | Minimum gap between live progress digests of one run (utility model; only while a visible Control UI tab is open). |
-| `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps requested by transcript growth; a run end or archive still refreshes at once.  |
+| `OPENCLAW_ACTIVITY_RECAP_MIN_INTERVAL_MS`   | `90000`     | Minimum gap between Activity recaps the page requests, from the stored recap; Retry or a run end recap at once.    |
 | `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS`        | off         | How long a restart or a stop waits for running agent turns; see below.                                             |
 | `OPENCLAW_PROXY_ROUTES`                     | none        | Per-host managed proxy routes, e.g. `anthropic.com,claude.ai,claude.com=proxy;*=direct`; see below.                |
 | `OPENCLAW_CLI_BACKEND_PROXY`                | none        | Proxy env of CLI agent backend children, e.g. `claude-cli=proxy;google-gemini-cli=direct`; see below.              |
