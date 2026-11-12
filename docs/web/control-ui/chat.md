@@ -309,8 +309,9 @@ Claude Code turns these tools on by itself only for older models (Claude 4.x and
 OpenClaw enables them for every agent turn that has native tools: it sets
 `CLAUDE_CODE_ENABLE_TODO_TOOLS` and, when the run limits Claude's tools with `--tools`, adds
 `TodoWrite`, `TaskCreate`, `TaskUpdate`, `TaskList` and `TaskGet` to that list. They only keep
-Claude's own list and grant no OpenClaw capability. Side questions and runs with tools disabled
-do not get them.
+Claude's own list and grant no OpenClaw capability. OpenClaw-managed turns, where Claude Code
+otherwise gets only OpenClaw's tools, keep them too. Side questions, runs with tools disabled and
+restricted runs (restricted senders, delegated runs, tool caps, workspace-only) do not get them.
 
 While Claude CLI background agents or tasks run, the working indicator shows their count
 (**2 background agents running**, then **Waiting for 2 background agents to finish** once the

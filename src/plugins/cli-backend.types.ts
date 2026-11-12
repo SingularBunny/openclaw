@@ -579,6 +579,12 @@ type CliBackendPluginBase = {
     agentId: string;
   }) => readonly string[];
   /**
+   * Fork (C10): native tools that only keep state local to the CLI run, such as a
+   * todo list, kept on the same managed turns as `resolveManagedNativeTools`. They
+   * confer no capability, file access, or delegation, and need no operator selection.
+   */
+  managedLocalStateTools?: readonly string[];
+  /**
    * Backend-owned JSONL line parser for provider-specific stream formats.
    *
    * Tool events report execution already performed by the backend. OpenClaw

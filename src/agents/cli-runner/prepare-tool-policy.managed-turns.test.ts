@@ -1,6 +1,10 @@
-// Fork (F62): managedTurns: false keeps ordinary claude-cli turns unmanaged; other restrictions still apply.
+// Fork (F62, C10): managedTurns: false keeps ordinary claude-cli turns unmanaged; managed turns keep local-state tools.
 import { describe, expect, it } from "vitest";
-import { resolveCliRuntimeToolPolicy } from "./prepare-tool-policy.js";
+import {
+  keptManagedNativeTools,
+  resolveCliBootstrapFileAccess,
+  resolveCliRuntimeToolPolicy,
+} from "./prepare-tool-policy.js";
 import type { RunCliAgentParams } from "./types.js";
 
 const unmanaged = { plugins: { entries: { anthropic: { config: { managedTurns: false } } } } };
@@ -80,5 +84,45 @@ describe("managed Claude CLI turns switch (fork)", () => {
       },
     });
     expect(result.params.cliToolAvailability).toEqual({ native: [], openClaw: [] });
+  });
+});
+
+describe("local-state tools on managed turns (fork)", () => {
+  const todo = ["TodoWrite", "TaskCreate"];
+  const managed = { ...input, params: { ...params, config: {} }, managedLocalStateTools: todo };
+
+  it("keeps local-state tools next to the operator's selection on ordinary managed turns", async () => {
+    const result = await resolveCliRuntimeToolPolicy({
+      ...managed,
+      resolveManagedNativeTools: () => ["Agent"],
+    });
+    expect(result.params.cliToolAvailability).toEqual({
+      native: ["Agent", ...todo],
+      openClaw: [],
+    });
+    expect(keptManagedNativeTools(result.managedNativeTools, result.params, todo)).toEqual([
+      "Agent",
+    ]);
+  });
+
+  it("gives local-state tools no file access", async () => {
+    const result = await resolveCliRuntimeToolPolicy(managed);
+    expect(result.params.cliToolAvailability?.native).toEqual(todo);
+    expect(
+      resolveCliBootstrapFileAccess({
+        backend: { id: "claude-cli", nativeToolMode: "selectable" },
+        params: result.params,
+        managedNativeTools: result.managedNativeTools,
+        projectedToolNames: [],
+      }),
+    ).toBe(false);
+  });
+
+  it("leaves restricted runs without local-state tools", async () => {
+    const result = await resolveCliRuntimeToolPolicy({
+      ...managed,
+      params: { ...params, config: {}, toolsAllow: ["read"] },
+    });
+    expect(result.params.cliToolAvailability?.native).toEqual([]);
   });
 });

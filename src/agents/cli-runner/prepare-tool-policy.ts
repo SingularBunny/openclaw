@@ -20,6 +20,7 @@ export async function resolveCliRuntimeToolPolicy(input: {
   canEnforceExactToolAvailability: boolean;
   projectNativeToolAuthority?: ResolvedCliBackend["projectNativeToolAuthority"];
   resolveManagedNativeTools?: ResolvedCliBackend["resolveManagedNativeTools"];
+  managedLocalStateTools?: ResolvedCliBackend["managedLocalStateTools"];
   sideQuestionToolMode?: ResolvedCliBackend["sideQuestionToolMode"];
   isSideQuestion: boolean;
   skipsTurnPreparation: boolean;
@@ -149,6 +150,8 @@ export async function resolveCliRuntimeToolPolicy(input: {
               config: params.config,
               agentId: input.policyAgentId,
             }) ?? []),
+            // Fork (C10): local-state tools (Claude's todo list) ride along unselected.
+            ...(input.managedLocalStateTools ?? []),
           ]
         : [];
     const exactWorkspaceTools =
@@ -218,8 +221,11 @@ export function capCliToolAvailability(
 export function keptManagedNativeTools(
   managedNativeTools: readonly string[],
   params: Pick<RunCliAgentParams, "cliToolAvailability">,
+  localStateTools: readonly string[] = [],
 ): string[] {
-  return managedNativeTools.filter((name) => params.cliToolAvailability?.native.includes(name));
+  return managedNativeTools.filter(
+    (name) => params.cliToolAvailability?.native.includes(name) && !localStateTools.includes(name),
+  );
 }
 
 function claudeManagedTurnsDisabled(config: RunCliAgentParams["config"]): boolean {

@@ -319,6 +319,7 @@ async function prepareCliRunContextWithinReadFence(
     canEnforceExactToolAvailability,
     projectNativeToolAuthority: backendResolved.projectNativeToolAuthority,
     resolveManagedNativeTools: backendResolved.resolveManagedNativeTools,
+    managedLocalStateTools: backendResolved.managedLocalStateTools,
     sideQuestionToolMode: backendResolved.sideQuestionToolMode,
     isSideQuestion,
     skipsTurnPreparation,
@@ -1526,7 +1527,11 @@ async function prepareCliRunContextWithinReadFence(
         isNewSession:
           !reusableCliSessionId?.trim() || reusableCliSession.mode === "reuse-with-drift",
         thinkLevel: params.thinkLevel,
-        nativeDelegationTools: keptManagedNativeTools(managedNativeTools, params),
+        nativeDelegationTools: keptManagedNativeTools(
+          managedNativeTools,
+          params,
+          backendResolved.managedLocalStateTools,
+        ),
         runtimeContextFragments: params.runtimeContextFragments,
         // Caller-owned memory cannot grant access to persisted interrupted inputs.
         sessionTarget: params.isolatedCompletion ? undefined : cliHistoryWriter?.target,
