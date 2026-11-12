@@ -96,11 +96,13 @@ describe("automation session detection", () => {
     state.sessionKey = JOB_KEY;
     expect(runsTab()?.available).toBe(true);
     expect(runsTab()?.label).toBe("Runs");
-    expect(runsTab()?.content).not.toBeNull();
+    // Solid side panels render through the embedded panel registry from the shared pane data,
+    // not through a per-definition `content` template.
+    expect(runsTab()?.view).toBeDefined();
+    expect(runsTab()?.loading?.variant).toBe("file-list");
 
     state.sessionKey = "agent:main:main";
     expect(runsTab()?.available).toBe(false);
-    expect(runsTab()?.content).toBeNull();
 
     state.sessionKey = JOB_KEY;
     state.hello = gatewayHelloForMethods(["cron.get"], ["operator.read"]);

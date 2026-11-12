@@ -259,11 +259,13 @@ describe("session workspace artifacts", () => {
     mimeType: string;
     title: string;
     sizeBytes?: number;
+    respond?: typeof fetch;
   }) {
     vi.stubGlobal("Blob", NodeBlob);
     const fixture = createArtifactHost(params.mimeType, "", { title: params.title, http: true });
     fixture.state.connectionEpoch = 1;
-    const fetchMock = vi.fn<typeof fetch>();
+    // The Solid reader starts reading as soon as the panel mounts, so the transport answers first.
+    const fetchMock = vi.fn<typeof fetch>(params.respond);
     vi.stubGlobal("fetch", fetchMock);
     const artifact = {
       ...fixture.artifact,
@@ -315,10 +317,8 @@ describe("session workspace artifacts", () => {
       mimeType: "application/pdf",
       title: "report.pdf",
       sizeBytes: 8,
+      respond: async () => artifactResponse("%PDF-1.7", "application/pdf"),
     });
-    fixture.fetchMock.mockImplementation(async () =>
-      artifactResponse("%PDF-1.7", "application/pdf"),
-    );
     expect(fixture.content).toMatchObject({
       kind: "attachment",
       sourceIdentity: "artifact:artifact-1",
@@ -342,20 +342,20 @@ describe("session workspace artifacts", () => {
   });
 
   it("opens an Office artifact as the converter's PDF rendition", async () => {
+    const converted = createDeferred<Uint8Array>();
     const fixture = await openReaderArtifactPanel({
       mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
       title: "brief.docx",
-    });
-    const converted = createDeferred<Uint8Array>();
-    fixture.fetchMock.mockImplementation(async (url, init) => {
-      if (typeof url === "string" && url.startsWith("/mount/api/office-preview/convert")) {
-        converted.resolve(new Uint8Array(await new Response(init?.body).arrayBuffer()));
-        return new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf" } });
-      }
-      return artifactResponse(
-        "PK-docx",
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      );
+      respond: async (url, init) => {
+        if (typeof url === "string" && url.startsWith("/mount/api/office-preview/convert")) {
+          converted.resolve(new Uint8Array(await new Response(init?.body).arrayBuffer()));
+          return new Response("%PDF-1.7", { headers: { "Content-Type": "application/pdf" } });
+        }
+        return artifactResponse(
+          "PK-docx",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        );
+      },
     });
 
     await vi.waitFor(() => expect(fixture.panel.querySelector("iframe")).not.toBeNull());
@@ -388,10 +388,12 @@ describe("session workspace artifacts", () => {
       mimeType: "application/zip",
       title: "archive.zip",
     });
-    expect(archive.panel.querySelector("openclaw-chat-pdf-preview")).toBeNull();
-    expect(
-      archive.panel.querySelector("button.chat-assistant-attachment-card__download"),
-    ).not.toBeNull();
+    // Other binary artifacts open in the file view as download-only: no reader, a Download action.
+    await vi.waitFor(() =>
+      expect(archive.panel.querySelector('button[aria-label="Download file"]')).not.toBeNull(),
+    );
+    expect(archive.panel.textContent).toContain("Preview unavailable");
+    expect(archive.panel.querySelector("iframe")).toBeNull();
     expect(archive.fetchMock).not.toHaveBeenCalled();
   });
 
