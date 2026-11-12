@@ -126,172 +126,172 @@ it("prefers a stored Admin API key when normal API and OAuth credentials coexist
   });
 });
 
-  describe("Claude CLI native login (fork)", () => {
-    afterEach(() => {
-      readClaudeCli.mockReset();
-      resetAnthropicUsageBackoffForTest();
-    });
-
-    const cliCtx = (cliBackendsInUse?: string[]) => ({
-      config: {},
-      env: {},
-      provider: "anthropic",
-      ...(cliBackendsInUse ? { cliBackendsInUse } : {}),
-      resolveApiKeyFromConfigAndStore: () => undefined,
-      resolveOAuthToken: async () => null,
-    });
-
-    it("uses a valid Claude CLI access token read-only when the claude-cli backend is in use", async () => {
-      readClaudeCli.mockReturnValue({
-        type: "oauth",
-        provider: "anthropic",
-        access: "cli-access",
-        refresh: "cli-refresh",
-        expires: Date.now() + 3_600_000,
-        subscriptionType: "max",
-        rateLimitTier: "default_claude_max_20x",
-        email: "owner@example.com",
-      });
-      expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({
-        token: "cli-access",
-        authFlow: CLAUDE_CLI_USAGE_AUTH_FLOW,
-        subscriptionType: "max",
-        rateLimitTier: "default_claude_max_20x",
-        email: "owner@example.com",
-      });
-      expect(readClaudeCli).toHaveBeenCalledWith(
-        expect.objectContaining({ allowKeychainPrompt: false }),
-      );
-    });
-
-    it("leaves an expiring Claude CLI token to Claude CLI instead of refreshing it", async () => {
-      readClaudeCli.mockReturnValue({
-        type: "oauth",
-        provider: "anthropic",
-        access: "cli-access",
-        refresh: "cli-refresh",
-        expires: Date.now() + 30_000,
-      });
-      expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({ handled: true });
-    });
-
-    it("does not read Claude CLI login unless the claude-cli backend is in use", async () => {
-      expect(await resolveAnthropicUsageAuth(cliCtx())).toEqual({ handled: true });
-      expect(readClaudeCli).not.toHaveBeenCalled();
-    });
-
-    it("backs off after HTTP 429 and serves the last good snapshot meanwhile", async () => {
-      let status = 200;
-      const fetchFn = vi.fn(async () =>
-        status === 200
-          ? new Response(
-              JSON.stringify({ five_hour: { utilization: 42, resets_at: "2099-01-01T00:00:00Z" } }),
-              { status: 200 },
-            )
-          : new Response(JSON.stringify({ error: { message: "rate limited" } }), {
-              status: 429,
-              headers: { "retry-after": "600" },
-            }),
-      );
-      const usageCtx = {
-        config: {},
-        env: {},
-        provider: "anthropic",
-        token: "cli-access",
-        timeoutMs: 5000,
-        fetchFn,
-      };
-      const first = await fetchAnthropicUsage(usageCtx);
-      expect(first.windows[0]).toMatchObject({ label: "5h", usedPercent: 42 });
-      status = 429;
-      const limited = await fetchAnthropicUsage(usageCtx);
-      expect(limited.error).toBeUndefined();
-      expect(limited.windows[0]).toMatchObject({ usedPercent: 42 });
-      expect(fetchFn).toHaveBeenCalledTimes(2);
-      // Within the backoff the endpoint is not called again.
-      await fetchAnthropicUsage(usageCtx);
-      expect(fetchFn).toHaveBeenCalledTimes(2);
-      expect(JSON.stringify(limited)).not.toContain("cli-access");
-    });
+describe("Claude CLI native login (fork)", () => {
+  afterEach(() => {
+    readClaudeCli.mockReset();
+    resetAnthropicUsageBackoffForTest();
   });
 
-  describe("network retry (fork)", () => {
-    afterEach(() => {
-      vi.useRealTimers();
-      resetAnthropicUsageBackoffForTest();
-    });
+  const cliCtx = (cliBackendsInUse?: string[]) => ({
+    config: {},
+    env: {},
+    provider: "anthropic",
+    ...(cliBackendsInUse ? { cliBackendsInUse } : {}),
+    resolveApiKeyFromConfigAndStore: () => undefined,
+    resolveOAuthToken: async () => null,
+  });
 
-    const okResponse = () =>
-      new Response(JSON.stringify({ five_hour: { utilization: 7 } }), { status: 200 });
-    const fetchFailed = () =>
-      Object.assign(new TypeError("fetch failed"), {
-        cause: Object.assign(new Error("Client network socket disconnected"), {
-          code: "ECONNRESET",
-        }),
-      });
-    const usageCtx = (fetchFn: typeof fetch) => ({
+  it("uses a valid Claude CLI access token read-only when the claude-cli backend is in use", async () => {
+    readClaudeCli.mockReturnValue({
+      type: "oauth",
+      provider: "anthropic",
+      access: "cli-access",
+      refresh: "cli-refresh",
+      expires: Date.now() + 3_600_000,
+      subscriptionType: "max",
+      rateLimitTier: "default_claude_max_20x",
+      email: "owner@example.com",
+    });
+    expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({
+      token: "cli-access",
+      authFlow: CLAUDE_CLI_USAGE_AUTH_FLOW,
+      subscriptionType: "max",
+      rateLimitTier: "default_claude_max_20x",
+      email: "owner@example.com",
+    });
+    expect(readClaudeCli).toHaveBeenCalledWith(
+      expect.objectContaining({ allowKeychainPrompt: false }),
+    );
+  });
+
+  it("leaves an expiring Claude CLI token to Claude CLI instead of refreshing it", async () => {
+    readClaudeCli.mockReturnValue({
+      type: "oauth",
+      provider: "anthropic",
+      access: "cli-access",
+      refresh: "cli-refresh",
+      expires: Date.now() + 30_000,
+    });
+    expect(await resolveAnthropicUsageAuth(cliCtx(["claude-cli"]))).toEqual({ handled: true });
+  });
+
+  it("does not read Claude CLI login unless the claude-cli backend is in use", async () => {
+    expect(await resolveAnthropicUsageAuth(cliCtx())).toEqual({ handled: true });
+    expect(readClaudeCli).not.toHaveBeenCalled();
+  });
+
+  it("backs off after HTTP 429 and serves the last good snapshot meanwhile", async () => {
+    let status = 200;
+    const fetchFn = vi.fn(async () =>
+      status === 200
+        ? new Response(
+            JSON.stringify({ five_hour: { utilization: 42, resets_at: "2099-01-01T00:00:00Z" } }),
+            { status: 200 },
+          )
+        : new Response(JSON.stringify({ error: { message: "rate limited" } }), {
+            status: 429,
+            headers: { "retry-after": "600" },
+          }),
+    );
+    const usageCtx = {
       config: {},
       env: {},
       provider: "anthropic",
-      token: "retry-token",
-      timeoutMs: 10_000,
+      token: "cli-access",
+      timeoutMs: 5000,
       fetchFn,
-    });
-
-    it("retries a network failure twice with 500 and 1500 ms delays", async () => {
-      vi.useFakeTimers();
-      const fetchFn = vi
-        .fn<typeof fetch>()
-        .mockRejectedValueOnce(fetchFailed())
-        .mockRejectedValueOnce(fetchFailed())
-        .mockResolvedValueOnce(okResponse());
-      const pending = fetchAnthropicUsage(usageCtx(fetchFn));
-      await vi.advanceTimersByTimeAsync(499);
-      expect(fetchFn).toHaveBeenCalledTimes(1);
-      await vi.advanceTimersByTimeAsync(1);
-      expect(fetchFn).toHaveBeenCalledTimes(2);
-      await vi.advanceTimersByTimeAsync(1500);
-      const snapshot = await pending;
-      expect(fetchFn).toHaveBeenCalledTimes(3);
-      expect(snapshot.error).toBeUndefined();
-      expect(snapshot.windows[0]).toMatchObject({ label: "5h", usedPercent: 7 });
-    });
-
-    it("gives up after two retries and rethrows the network error", async () => {
-      vi.useFakeTimers();
-      const fetchFn = vi.fn<typeof fetch>().mockRejectedValue(fetchFailed());
-      const pending = fetchAnthropicUsage(usageCtx(fetchFn));
-      const settled = pending.then(
-        () => undefined,
-        (err: unknown) => err,
-      );
-      await vi.advanceTimersByTimeAsync(2000);
-      const err = await settled;
-      expect(String(err)).toContain("fetch failed");
-      expect(String(err)).not.toContain("retry-token");
-      expect(fetchFn).toHaveBeenCalledTimes(3);
-    });
-
-    it.each([401, 403, 500, 503])("does not retry HTTP %i", async (status) => {
-      const fetchFn = vi.fn<typeof fetch>(
-        async () => new Response(JSON.stringify({ error: { message: "nope" } }), { status }),
-      );
-      const snapshot = await fetchAnthropicUsage(usageCtx(fetchFn));
-      expect(snapshot.error).toBeDefined();
-      expect(fetchFn).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not retry non-network errors or an aborted deadline", async () => {
-      const plain = vi.fn<typeof fetch>().mockRejectedValue(new Error("boom"));
-      await expect(fetchAnthropicUsage(usageCtx(plain))).rejects.toThrow("boom");
-      expect(plain).toHaveBeenCalledTimes(1);
-      const aborted = vi
-        .fn<typeof fetch>()
-        .mockRejectedValue(Object.assign(new Error("aborted"), { name: "TimeoutError" }));
-      await expect(fetchAnthropicUsage(usageCtx(aborted))).rejects.toThrow("aborted");
-      expect(aborted).toHaveBeenCalledTimes(1);
-    });
+    };
+    const first = await fetchAnthropicUsage(usageCtx);
+    expect(first.windows[0]).toMatchObject({ label: "5h", usedPercent: 42 });
+    status = 429;
+    const limited = await fetchAnthropicUsage(usageCtx);
+    expect(limited.error).toBeUndefined();
+    expect(limited.windows[0]).toMatchObject({ usedPercent: 42 });
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    // Within the backoff the endpoint is not called again.
+    await fetchAnthropicUsage(usageCtx);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(JSON.stringify(limited)).not.toContain("cli-access");
   });
+});
+
+describe("network retry (fork)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    resetAnthropicUsageBackoffForTest();
+  });
+
+  const okResponse = () =>
+    new Response(JSON.stringify({ five_hour: { utilization: 7 } }), { status: 200 });
+  const fetchFailed = () =>
+    Object.assign(new TypeError("fetch failed"), {
+      cause: Object.assign(new Error("Client network socket disconnected"), {
+        code: "ECONNRESET",
+      }),
+    });
+  const usageCtx = (fetchFn: typeof fetch) => ({
+    config: {},
+    env: {},
+    provider: "anthropic",
+    token: "retry-token",
+    timeoutMs: 10_000,
+    fetchFn,
+  });
+
+  it("retries a network failure twice with 500 and 1500 ms delays", async () => {
+    vi.useFakeTimers();
+    const fetchFn = vi
+      .fn<typeof fetch>()
+      .mockRejectedValueOnce(fetchFailed())
+      .mockRejectedValueOnce(fetchFailed())
+      .mockResolvedValueOnce(okResponse());
+    const pending = fetchAnthropicUsage(usageCtx(fetchFn));
+    await vi.advanceTimersByTimeAsync(499);
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1500);
+    const snapshot = await pending;
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+    expect(snapshot.error).toBeUndefined();
+    expect(snapshot.windows[0]).toMatchObject({ label: "5h", usedPercent: 7 });
+  });
+
+  it("gives up after two retries and rethrows the network error", async () => {
+    vi.useFakeTimers();
+    const fetchFn = vi.fn<typeof fetch>().mockRejectedValue(fetchFailed());
+    const pending = fetchAnthropicUsage(usageCtx(fetchFn));
+    const settled = pending.then(
+      () => undefined,
+      (err: unknown) => err,
+    );
+    await vi.advanceTimersByTimeAsync(2000);
+    const err = await settled;
+    expect(String(err)).toContain("fetch failed");
+    expect(String(err)).not.toContain("retry-token");
+    expect(fetchFn).toHaveBeenCalledTimes(3);
+  });
+
+  it.each([401, 403, 500, 503])("does not retry HTTP %i", async (status) => {
+    const fetchFn = vi.fn<typeof fetch>(
+      async () => new Response(JSON.stringify({ error: { message: "nope" } }), { status }),
+    );
+    const snapshot = await fetchAnthropicUsage(usageCtx(fetchFn));
+    expect(snapshot.error).toBeDefined();
+    expect(fetchFn).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not retry non-network errors or an aborted deadline", async () => {
+    const plain = vi.fn<typeof fetch>().mockRejectedValue(new Error("boom"));
+    await expect(fetchAnthropicUsage(usageCtx(plain))).rejects.toThrow("boom");
+    expect(plain).toHaveBeenCalledTimes(1);
+    const aborted = vi
+      .fn<typeof fetch>()
+      .mockRejectedValue(Object.assign(new Error("aborted"), { name: "TimeoutError" }));
+    await expect(fetchAnthropicUsage(usageCtx(aborted))).rejects.toThrow("aborted");
+    expect(aborted).toHaveBeenCalledTimes(1);
+  });
+});
 
 it("does not refresh the native Claude login for usage polling", async () => {
   const resolveOAuthToken = vi.fn(async () => null);
