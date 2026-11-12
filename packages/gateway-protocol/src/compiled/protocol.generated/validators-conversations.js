@@ -53,6 +53,7 @@ export {
   isUsersLinkAuthProfileParams,
   isUsersUnlinkAuthProfileParams,
   isChatHistoryParams,
+  isChatPromptSuggestion,
   isChatStartupParams,
   isChatMetadataParams,
   isChatMessageGetParams,
