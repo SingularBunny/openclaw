@@ -157,14 +157,22 @@ it.each([
       ]
     : [];
   const answer = mediaMessage("Created.", 2, "/api/chat/media/outgoing/generated.png");
-  expectProjection([completion, ...controls, answer], [...controls, answer]);
+  // Fork: background exec completions stay in history; the Control UI renders their
+  // internal_system provenance as a collapsed system notice instead of hiding them.
+  expectProjection(
+    [completion, ...controls, answer],
+    [...(exec ? [completion] : []), ...controls, answer],
+  );
   expect(completion).toEqual(original);
 });
 
 it.each([
   ["heartbeat", { role: "user", content: [{ type: "text", text: HEARTBEAT_PROMPT }] }],
   ["exec completion", internalMessage("Exec completed (amber-ri, code 0) :: output", "exec", 2)],
-])("keeps a %s boundary on a tool-shaped user row", (_name, hidden) => {
+])("keeps a %s boundary on a tool-shaped user row", (name, hidden) => {
+  // Fork: the exec completion stays visible as a system notice, so it is the row that
+  // separates the turns and the tool row after it needs no boundary of its own.
+  const visible = name === "exec completion";
   const toolResult = {
     role: "user",
     content: [{ type: "tool_result", tool_use_id: "tool-1", content: "done" }],
@@ -175,22 +183,23 @@ it.each([
   for (const toolRow of [toolResult, toolEnvelope]) {
     expectProjection(
       [hidden, toolRow, answer],
-      [{ ...toolRow, __openclaw: { ...toolRow["__openclaw"], turnBoundary: true } }, answer],
+      visible
+        ? [hidden, toolRow, answer]
+        : [{ ...toolRow, __openclaw: { ...toolRow["__openclaw"], turnBoundary: true } }, answer],
     );
   }
 });
 
-it("starts a new turn after a hidden exec completion so the earlier answer stays its own reply", () => {
+// Fork: the exec completion stays visible as a system notice between the two replies, so the
+// earlier answer stays its own reply without a synthetic boundary on the follow-up.
+it("keeps the earlier answer its own reply around a visible exec completion", () => {
   const earlier = assistantTextMessage("long final answer", 2);
   const completion = {
     ...internalMessage("Exec completed (amber-ri, code 0) :: output", "exec", 3),
     timestamp: 100,
   };
   const followUp = assistantTextMessage("should I fix points 1-4?", 4);
-  expectProjection(
-    [earlier, completion, followUp],
-    [earlier, { ...followUp, __openclaw: { seq: 4, turnBoundary: true } }],
-  );
+  expectProjection([earlier, completion, followUp], [earlier, completion, followUp]);
 });
 
 it.each(["no_r", "NO_R", "No_Repl"])("keeps ordinary %s replies visible", (text) => {
