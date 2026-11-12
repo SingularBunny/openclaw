@@ -2,12 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ErrorCodes } from "../../../packages/gateway-protocol/src/index.js";
 import type { SessionCatalogProvider } from "../../plugins/session-catalog.js";
 import { catalogResult } from "./session-catalog-result.js";
-import {
-  call,
-  hoisted,
-  resetSessionCatalogTestState,
-} from "./session-catalog.test-helpers.js";
 import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
+import { call, hoisted, resetSessionCatalogTestState } from "./session-catalog.test-helpers.js";
 
 describe("sessions.catalog.reorder", () => {
   beforeEach(resetSessionCatalogTestState);
@@ -80,7 +76,9 @@ describe("sessions.catalog.reorder", () => {
   it("advertises the reorder capability only for providers with the hook", () => {
     const reorder = async () => ({ ok: true as const });
 
-    expect(catalogResult(catalogProvider("claude", { reorder }), undefined, []).capabilities).toEqual({
+    expect(
+      catalogResult(catalogProvider("claude", { reorder }), undefined, []).capabilities,
+    ).toEqual({
       continueSession: false,
       archive: false,
       reorder: true,

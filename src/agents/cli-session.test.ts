@@ -9,6 +9,7 @@ import {
   normalizeCliSessionReseedReceipt,
   rebindCliSessionReseedReceiptsForReset,
 } from "../config/sessions/cli-session-binding.js";
+import { buildCliSessionDriftNote, stripCliSessionDriftNote } from "./cli-session-drift.js";
 import {
   clearAllCliSessions,
   clearCliSession,
@@ -20,7 +21,6 @@ import {
   setCliSessionBinding,
   shouldClearFailedCliSessionBinding,
 } from "./cli-session.js";
-import { buildCliSessionDriftNote, stripCliSessionDriftNote } from "./cli-session-drift.js";
 import { FailoverError } from "./failover-error.js";
 
 const ordinaryPolicyHash = "3ae4a9801e78dd74aa01b3ccad9fb6ab5628c39000b88276f651ed7fb9bdb555";
