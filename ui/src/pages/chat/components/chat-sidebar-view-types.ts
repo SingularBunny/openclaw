@@ -36,7 +36,11 @@ type SessionWorkspaceOptionalKey =
   | "onNavigationScroll"
   | "connectionEpoch"
   | "onDownloadFile"
-  | "onOpenDiff";
+  | "onOpenDiff"
+  // Fork (F34): only sessions with folders outside the workspace use them.
+  | "roots"
+  | "browseRoot"
+  | "onSelectRoot";
 export type SessionWorkspaceProps = Omit<SessionWorkspaceView, SessionWorkspaceOptionalKey> &
   Partial<Pick<SessionWorkspaceView, SessionWorkspaceOptionalKey>>;
 

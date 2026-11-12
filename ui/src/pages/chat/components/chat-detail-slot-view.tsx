@@ -8,6 +8,7 @@ import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { assistantMediaPolicyKey } from "./chat-message-media.ts";
 import { getSessionWorkspace } from "./chat-session-workspace-state.ts";
 import {
+  canRevealSessionWorkspaceFile,
   openSessionWorkspaceFile,
   openSessionWorkspaceFileView,
   revealSessionWorkspaceFile,
@@ -135,11 +136,17 @@ export function ChatDetailSlot(props: ChatDetailSlotProps) {
             }}
             onOpenSessionLink={props.chat.onOpenSessionLink}
             onBrowseFiles={props.onBrowseFiles}
-            onRevealInWorkspace={(path: string) => {
-              revealSessionWorkspaceFile(props.host, path);
-              props.host.updateSidebarLayout(openSlot(props.host.sidebarLayout, "workspace"));
-              props.onWorkspaceIntent?.();
-            }}
+            onRevealInWorkspace={
+              // Fork (F34): hidden for a file outside every folder the Files panel can show.
+              props.content.kind === "file" &&
+              !canRevealSessionWorkspaceFile(props.host, props.content.path)
+                ? null
+                : (path: string) => {
+                    revealSessionWorkspaceFile(props.host, path);
+                    props.host.updateSidebarLayout(openSlot(props.host.sidebarLayout, "workspace"));
+                    props.onWorkspaceIntent?.();
+                  }
+            }
             onOpenImage={(item: Parameters<typeof props.host.handleOpenImage>[0]) =>
               props.host.handleOpenImage(item, props.host.beginImageOpen())
             }

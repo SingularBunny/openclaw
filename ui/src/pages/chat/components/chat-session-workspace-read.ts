@@ -16,6 +16,8 @@ export function createSessionWorkspaceRead(workspace: () => SessionWorkspaceProp
       workspace().connectionEpoch,
       workspace().browserPath,
       workspace().browserSearch,
+      // Fork (F34): another folder of the session is another location.
+      workspace().browseRoot,
     ]),
   );
   const scope = createMemo(() => ({ owner: owner(), location: location() }));
