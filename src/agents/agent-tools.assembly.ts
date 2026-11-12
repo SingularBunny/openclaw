@@ -59,6 +59,7 @@ import {
 import { isConversationToolAllowed } from "./conversation-tool-policy-pipeline.js";
 import { applyDelegationCapability } from "./delegation-capability.js";
 import { pinExecToolTarget } from "./exec-tool-target-pinning.js";
+import { captureFileCheckpoint, resolveFileCheckpointLog } from "./file-checkpoints.js";
 import { resolveGatewayExecAuthority } from "./execution-authority.js";
 import { applyGatewayToolPolicy } from "./gateway-tool-policy.js";
 import { buildHarnessHostRequester } from "./harness/host-requester.js";
@@ -182,7 +183,16 @@ export function* assembleOpenClawCodingTools(
   const { workspaceRoot, runtimeRoot } = capabilityProfile.workspace;
   const codingRoot = sandboxRoot ?? runtimeRoot;
   const containmentRoot = sandboxRoot ?? sessionPermissionPolicy?.root ?? codingRoot;
-  const memoryWriteProvenance = createMemoryWriteProvenanceObserver({
+  // Fork (V1): host writes of write/edit/apply_patch keep file checkpoints for rewind. Sandbox
+  // paths live in the container, where the gateway cannot restore them.
+  const fileCheckpointLog = sandbox
+    ? undefined
+    : resolveFileCheckpointLog({
+        agentId: executionAgentId,
+        sessionId: options?.sessionId,
+        sessionKey: executionSessionKey,
+      });
+  const memoryWriteProvenanceObserver = createMemoryWriteProvenanceObserver({
     mutationRoot: sandboxRoot ?? workspaceRoot,
     workspaceDir: sandboxRoot ?? workspaceRoot,
     resolvePath: sandboxFsBridge
@@ -201,6 +211,13 @@ export function* assembleOpenClawCodingTools(
     sessionId: options?.sessionId,
     sessionKey: options?.runSessionKey ?? options?.sessionKey,
   });
+  const memoryWriteProvenance = fileCheckpointLog
+    ? {
+        ...memoryWriteProvenanceObserver,
+        captureFileCheckpoint: (absolutePath: string) =>
+          captureFileCheckpoint(fileCheckpointLog, absolutePath),
+      }
+    : memoryWriteProvenanceObserver;
   const includeCoreTools = options?.includeCoreTools !== false;
   const toolConstructionPlan = options?.toolConstructionPlan ?? {
     includeBaseCodingTools: includeCoreTools,

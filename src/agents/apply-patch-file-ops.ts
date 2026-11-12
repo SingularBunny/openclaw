@@ -258,8 +258,14 @@ function withPatchMemoryWriteProvenance(
   return {
     ...observedOperations,
     createFileExclusive: async (filePath, content) => {
+      // Fork (V1): a created file is deleted again by a rewind; "exists" changed nothing.
+      const recordCheckpoint = await observer.captureFileCheckpoint?.(filePath);
       if (!(await observer.classifies(filePath))) {
-        return operations.createFileExclusive(filePath, content);
+        const outcome = await operations.createFileExclusive(filePath, content);
+        if (outcome === "created") {
+          await recordCheckpoint?.();
+        }
+        return outcome;
       }
       try {
         await observer.write({
@@ -272,6 +278,7 @@ function withPatchMemoryWriteProvenance(
             }
           },
         });
+        await recordCheckpoint?.();
         return "created";
       } catch (error) {
         if (error instanceof PatchCreateExistsSignal) {
