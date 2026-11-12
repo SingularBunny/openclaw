@@ -16,9 +16,12 @@ import { cancelUnreadResponseBody, readResponseWithLimit } from "../infra/http-b
 import { fetchWithSsrFGuard } from "../infra/net/fetch-guard.js";
 import { logWarn } from "../logger.js";
 import type { DocumentExtractionMetadata } from "../plugins/document-extractor-types.js";
-import { extractDocumentContent } from "./document-extractors.runtime.js";
 import { convertHeicToJpeg } from "./media-services.js";
-import { extractPdfContent, type PdfExtractedImage } from "./pdf-extract.js";
+import {
+  extractDocumentContent,
+  extractPdfContent,
+  type PdfExtractedImage,
+} from "./pdf-extract.js";
 
 type InputFileExtractResult = {
   filename: string;
