@@ -273,10 +273,10 @@ describe("Activity recap generation", () => {
     void controller.load(client, filters, "query", true);
     await vi.waitFor(() => expect(request).toHaveBeenCalledTimes(2));
   };
-  const expectEnsure = (session: GatewaySessionRow) =>
+  const expectEnsure = (session: GatewaySessionRow, retry?: true) =>
     expect(request).toHaveBeenLastCalledWith(
       ACTIVITY_SUMMARY_ENSURE_METHOD,
-      { sessions: [{ key: session.key, agentId: session.agentId }] },
+      { sessions: [{ key: session.key, agentId: session.agentId, ...(retry ? { retry } : {}) }] },
       expect.anything(),
     );
   beforeEach(() => {
@@ -436,6 +436,13 @@ describe("Activity recap generation", () => {
     controller.retrySummary(controller.result!.sessions[0]!);
     held.resolve(updating(pendingRow));
     await waitForSummary(0, "updating");
-    expectEnsure(retryRow);
+    expectEnsure(retryRow, true);
+    // Fork (F41): the page backfill itself does not ask for an immediate recap.
+    expect(request).toHaveBeenNthCalledWith(
+      2,
+      ACTIVITY_SUMMARY_ENSURE_METHOD,
+      { sessions: [{ key: pendingRow.key, agentId: "main" }] },
+      expect.anything(),
+    );
   });
 });

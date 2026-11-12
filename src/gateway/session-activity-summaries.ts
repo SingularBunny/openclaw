@@ -39,6 +39,7 @@ import {
 import { AsyncWorkScope, trackAsyncWork } from "../shared/async-work-scope.js";
 import { runInDetachedAsyncContext } from "../shared/detached-async-context.js";
 import { resolveVisibleActiveSessionRunState } from "./server-methods/session-active-runs.js";
+import { recapNotBefore, type RecapEnsureTarget } from "./session-activity-recap-ensure.js";
 import { createActivitySummaryAuthority } from "./session-activity-summary-authority.js";
 import {
   beginActivitySummaryCompletion,
@@ -113,7 +114,7 @@ export type SessionActivitySummaryService = {
     target: { key: string; agentId?: string; storePath: string },
     entry: SessionEntry | undefined,
   ): SessionActivitySummaryCompletion | undefined;
-  ensure(target: ActivitySummaryTarget, entry?: SessionEntry): Promise<ActivitySummaryView>;
+  ensure(target: RecapEnsureTarget, entry?: SessionEntry): Promise<ActivitySummaryView>;
   handleEvent: (event: SessionObserverEvent) => void;
   handleLifecycle: (event: SessionLifecycleEvent) => void;
   dispose: () => Promise<void>;
@@ -275,7 +276,7 @@ export function createSessionActivitySummaries(deps: {
       throw new ActivitySummaryCancelledError();
     }
   };
-  const schedule = (state: Tracked) => {
+  const schedule = (state: Tracked, notBefore = 0) => {
     if (!current(state)) {
       return;
     }
@@ -298,6 +299,7 @@ export function createSessionActivitySummaries(deps: {
     state.readyAt = Math.max(
       now(),
       state.retryAt,
+      notBefore,
       state.calls >= MAX_CALLS_PER_HOUR ? state.windowStart + HOUR_MS : 0,
     );
     if (!readSessionActivitySummary(state.entry) || state.readyAt > now()) {
@@ -604,7 +606,7 @@ export function createSessionActivitySummaries(deps: {
     }
   });
   const unsubscribeFacts = subscribeActivitySummaryEntryReceipts(states, drop);
-  const ensure = async (requested: ActivitySummaryTarget, entry: SessionEntry | undefined) => {
+  const ensure = async (requested: RecapEnsureTarget, entry: SessionEntry | undefined) => {
     const target = eventTarget(requested.key, requested.agentId)!;
     if (isCronSessionKey(target.key)) {
       return { state: "unavailable" as const };
@@ -619,7 +621,8 @@ export function createSessionActivitySummaries(deps: {
     });
     const canSchedule = state && !isActive(state);
     if (canSchedule && readView().state !== "current") {
-      schedule(state);
+      // Fork (F41): Activity page requests wait out the recap interval; Retry starts at once.
+      schedule(state, recapNotBefore(state, requested, now()));
     }
     const view = readView();
     return canSchedule && view.state === "stale" ? { ...view, state: "updating" as const } : view;
