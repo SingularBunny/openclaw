@@ -64,6 +64,7 @@ import { setBroadcastHealthUpdate } from "./server/health-state.js";
 import { startSessionColdStorageMaintenance } from "./session-cold-storage-maintenance.js";
 import { tryResolveSessionCompatibilityOwnerAgentId } from "./session-request-agent.js";
 import { captureGatewayScopeMatcher } from "./session-runtime-scope.js";
+import { GATEWAY_EVENT_RESTART, setGatewayRestartNoticeBroadcaster } from "./restart-notice.js";
 import { checkGatewayInstallationReplacement } from "./stale-install.js";
 import { startWorktreeMaintenance } from "./worktree-maintenance.js";
 
