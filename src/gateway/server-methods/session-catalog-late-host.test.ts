@@ -3,6 +3,7 @@
 // that list in one step (aiwb-claude-bridge "projects") publish their host there as well.
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createDeferredCore } from "../../shared/deferred.js";
+import { gatewayConnect } from "../server/client-fixtures.test-support.js";
 import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 import {
   call,
@@ -53,7 +54,7 @@ async function refreshFromCache(publishes: boolean) {
     });
   hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("projects", { list }) }];
   const config = {};
-  const client = { connId: "owner" } as Parameters<typeof startCall>[3];
+  const client = { connId: "owner", connect: gatewayConnect(["operator.read"]) };
   const query = { allowPartialResults: true, progressId: "refresh" };
   const broadcastToConnIds = vi.fn();
   const context = { broadcastToConnIds };

@@ -36,7 +36,7 @@ function runStatusKind(entry: CronRunLogEntry): "ok" | "error" | "skipped" | "un
 
 export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Methods>(
   "openclaw-chat-automation-runs-panel",
-  (props, host) => {
+  (_props, host) => {
     const context = useApplication();
     const [transcriptRevision, setTranscriptRevision] = createSignal(0);
     // The Automations run viewer; it reads `cron.history` on the panel's current connection.

@@ -81,7 +81,7 @@ function fixture(methods: string[] = ["sessions.list"]) {
   const requestSessionDataUpdate = vi.fn();
   const rows = new SessionCatalogStatusRows({
     context,
-    sessionDataHostConnected: true,
+    isSessionDataHostConnected: true,
     requestSessionDataUpdate,
   });
   return {
