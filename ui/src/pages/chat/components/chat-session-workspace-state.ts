@@ -120,7 +120,8 @@ function requestWorkspaceFiles(
     requests = new Map();
     fileLoads.set(workspace, requests);
   }
-  const key = JSON.stringify([path, search]);
+  const root = workspace.browseRoot ?? undefined;
+  const key = JSON.stringify([path, search, root]);
   const pending = requests.get(key);
   if (pending) {
     return pending;
@@ -129,6 +130,7 @@ function requestWorkspaceFiles(
     path,
     search,
     agentId: workspace.agentId,
+    ...(root ? { root } : {}),
   });
   requests.set(key, request);
   void request.finally(() => requests.delete(key)).catch(() => {});
@@ -331,7 +333,7 @@ export function loadSessionWorkspace(
   workspace.loading = true;
   setSessionWorkspaceError(workspace, null);
   workspace.pendingReload = false;
-  const { sessionKey, browserPath, browserSearch } = workspace;
+  const { sessionKey, browserPath, browserSearch, browseRoot } = workspace;
   if (force) {
     workspace.list = null;
     workspace.directories = Object.create(null);
@@ -343,7 +345,8 @@ export function loadSessionWorkspace(
     isCurrentSessionWorkspace(state, workspace) &&
     workspace.directories === directories &&
     workspace.browserPath === browserPath &&
-    workspace.browserSearch === browserSearch;
+    workspace.browserSearch === browserSearch &&
+    workspace.browseRoot === browseRoot;
   workspace.readResult = (async () => {
     try {
       const [files] = await Promise.all([
@@ -353,6 +356,9 @@ export function loadSessionWorkspace(
       if (!isCurrentListing()) {
         return;
       }
+      // Fork (F34): the folders the panel can browse, learned from any listing of the workspace.
+      workspace.roots =
+        files?.roots ?? (files?.root && !browseRoot ? [files.root] : workspace.roots);
       workspace.list = {
         ...files,
         sessionKey,

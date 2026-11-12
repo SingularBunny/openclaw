@@ -26,6 +26,7 @@ import {
   refreshSessionWorkspaceState,
   selectSessionWorkspacePreview,
   sessionWorkspaceForHost,
+  setSessionWorkspaceError,
 } from "./chat-session-workspace-state.ts";
 import type {
   SessionWorkspaceHost,
@@ -285,11 +286,72 @@ export async function openSessionWorkspaceFileView(
   sessionWorkspaceForHost(state).publish();
 }
 
-export function revealSessionWorkspaceFile(state: SessionWorkspaceHost, path: string) {
-  const workspace = getSessionWorkspace(state);
-  clearWorkspaceTimer(workspace);
+type RevealTarget =
+  | { kind: "folder"; root: string | null; relativePath: string }
+  | { kind: "outside" }
+  | { kind: "unknown" };
+
+const isAbsoluteFilePath = (value: string) => value.startsWith("/") || /^[A-Za-z]:\//.test(value);
+
+/**
+ * Fork (F34): where "Show in Files" finds a file. Root-relative paths stay in the workspace; an
+ * absolute path is shown in the folder (workspace first, then the session's other folders from
+ * sessions.files.list `roots`) that contains it, relative to that folder.
+ */
+export function resolveSessionWorkspaceRevealTarget(
+  roots: readonly string[] | null | undefined,
+  path: string,
+): RevealTarget {
   const normalizedPath = path.replaceAll("\\", "/");
+  if (!isAbsoluteFilePath(normalizedPath)) {
+    return { kind: "folder", root: null, relativePath: normalizedPath };
+  }
+  if (!roots) {
+    return { kind: "unknown" };
+  }
+  let best: { root: string | null; length: number } | null = null;
+  for (const [index, root] of roots.entries()) {
+    const base = root.replaceAll("\\", "/").replace(/\/+$/, "");
+    if (normalizedPath.startsWith(`${base}/`) && (!best || base.length > best.length)) {
+      best = { root: index === 0 ? null : root, length: base.length };
+    }
+  }
+  return best
+    ? { kind: "folder", root: best.root, relativePath: normalizedPath.slice(best.length + 1) }
+    : { kind: "outside" };
+}
+
+/** Fork (F34): false only when the file is known to lie outside every folder Files can show. */
+export function canRevealSessionWorkspaceFile(state: SessionWorkspaceHost, path: string): boolean {
+  const workspace = state.sessionWorkspaceState;
+  if (!workspace || !isCurrentSessionWorkspace(state, workspace)) {
+    return true;
+  }
+  return resolveSessionWorkspaceRevealTarget(workspace.roots, path).kind !== "outside";
+}
+
+/** Fork (F34): browse another folder of the session; resets the tree, whose paths are per folder. */
+function setBrowseRoot(workspace: SessionWorkspaceState, root: string | null) {
+  if ((workspace.browseRoot ?? null) !== root) {
+    workspace.browseRoot = root;
+    workspace.tree!.expandedPaths = [""];
+  }
+}
+
+function applyWorkspaceReveal(
+  state: SessionWorkspaceHost,
+  workspace: SessionWorkspaceState,
+  path: string,
+) {
+  const target = resolveSessionWorkspaceRevealTarget(workspace.roots, path);
+  if (target.kind !== "folder") {
+    setSessionWorkspaceError(workspace, t("chat.workspaceFiles.outsideRoots"));
+    sessionWorkspaceForHost(state).publish();
+    return;
+  }
+  const normalizedPath = target.relativePath;
   const separator = normalizedPath.lastIndexOf("/");
+  setBrowseRoot(workspace, target.root);
   workspace.browserPath = separator > 0 ? normalizedPath.slice(0, separator) : "";
   workspace.browserSearch = "";
   workspace.filter = "all";
@@ -298,9 +360,37 @@ export function revealSessionWorkspaceFile(state: SessionWorkspaceHost, path: st
   // Selecting Files must restore the explicit reveal, not the previous catalog filter.
   workspace.catalogNavigation = captureSessionWorkspaceNavigation(workspace);
   selectSessionWorkspacePreview(state, null);
-  workspace.activeId = `file:${path}`;
+  workspace.activeId = `file:${normalizedPath}`;
   loadSessionWorkspace(state, workspace, true);
   sessionWorkspaceForHost(state).publish();
+}
+
+export function revealSessionWorkspaceFile(state: SessionWorkspaceHost, path: string) {
+  const workspace = getSessionWorkspace(state);
+  clearWorkspaceTimer(workspace);
+  if (resolveSessionWorkspaceRevealTarget(workspace.roots, path).kind !== "unknown") {
+    applyWorkspaceReveal(state, workspace, path);
+    return;
+  }
+  // Fork (F34): the folders are not known before the first listing: ask for them, then reveal.
+  void (async () => {
+    try {
+      const files = await state.sessions.listFiles(workspace.sessionKey, {
+        agentId: workspace.agentId,
+        path: "",
+      });
+      if (isCurrentSessionWorkspace(state, workspace)) {
+        workspace.roots = files?.roots ?? (files?.root ? [files.root] : []);
+      }
+    } catch {
+      if (isCurrentSessionWorkspace(state, workspace)) {
+        workspace.roots = [];
+      }
+    }
+    if (isCurrentSessionWorkspace(state, workspace)) {
+      applyWorkspaceReveal(state, workspace, path);
+    }
+  })();
 }
 
 export function createSessionWorkspaceProps(
@@ -430,6 +520,20 @@ export function createSessionWorkspaceProps(
     filter: workspace.filter,
     browserPath: workspace.browserPath,
     browserSearch: workspace.browserSearch,
+    // Fork (F34): the session's folders (workspace first) and the one shown; null = workspace.
+    roots: workspace.roots ?? null,
+    browseRoot: workspace.browseRoot ?? null,
+    onSelectRoot: (root: string) => {
+      clearWorkspaceTimer(workspace);
+      setBrowseRoot(workspace, root !== workspace.roots?.[0] ? root : null);
+      workspace.browserPath = "";
+      workspace.browserSearch = "";
+      workspace.tree!.searchOpen = false;
+      workspace.tree!.treeScroll = 0;
+      selectSessionWorkspacePreview(state, null);
+      loadSessionWorkspace(state, workspace, true);
+      publish();
+    },
     connectionEpoch: state.connectionEpoch,
     onDownloadFile: (path: string, origin: "session" | "workspace", signal: AbortSignal) =>
       readWorkspaceContent(state, workspace, (runtime) =>
