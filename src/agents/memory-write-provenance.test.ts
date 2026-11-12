@@ -1,5 +1,5 @@
 import fs from "node:fs/promises";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { readMemoryArtifactProvenance } from "../memory/memory-artifact-provenance.js";
 import { resetPluginStateStoreForTests } from "../plugin-state/plugin-state-store.js";
 import { withStateDirEnv } from "../test-helpers/state-dir-env.js";
@@ -124,4 +124,74 @@ it("does not treat a wrapped boundary read error as a missing path", async () =>
   await expect(run("/outside/new.md", "must not write")).rejects.toThrow(message);
   expect(write).not.toHaveBeenCalled();
   expect(writeFile).not.toHaveBeenCalled();
+});
+
+describe("file checkpoint hook", () => {
+  it("captures every path before the change and records it after", async () => {
+    const calls: string[] = [];
+    const operations = withMemoryWriteProvenance(
+      {
+        readFile: async () => "",
+        writeFile: async (file: string, _content: string) => {
+          calls.push(`write ${file}`);
+        },
+        remove: async (file: string) => {
+          calls.push(`remove ${file}`);
+        },
+      },
+      {
+        classifies: async () => false,
+        write: async () => {
+          throw new Error("not a memory path");
+        },
+        clearAfterDelete: async () => {},
+        captureFileCheckpoint: async (file) => {
+          calls.push(`capture ${file}`);
+          return async () => {
+            calls.push(`record ${file}`);
+          };
+        },
+      },
+    );
+    await withGatewayToolCallerIdentity(
+      { agentId: "main", sessionKey: "agent:main:file-checkpoints" },
+      async () => {
+        await operations.writeFile("/work/a.ts", "x");
+        await operations.remove("/work/b.ts");
+      },
+    );
+    expect(calls).toEqual([
+      "capture /work/a.ts",
+      "write /work/a.ts",
+      "record /work/a.ts",
+      "capture /work/b.ts",
+      "remove /work/b.ts",
+      "record /work/b.ts",
+    ]);
+  });
+
+  it("records nothing when the write fails", async () => {
+    const record = vi.fn(async () => {});
+    const operations = withMemoryWriteProvenance(
+      {
+        readFile: async () => "",
+        writeFile: async (_file: string, _content: string) => {
+          throw new Error("EACCES");
+        },
+      },
+      {
+        classifies: async () => false,
+        write: async () => {},
+        clearAfterDelete: async () => {},
+        captureFileCheckpoint: async () => record,
+      },
+    );
+    await expect(
+      withGatewayToolCallerIdentity(
+        { agentId: "main", sessionKey: "agent:main:file-checkpoints" },
+        () => operations.writeFile("/work/a.ts", "x"),
+      ),
+    ).rejects.toThrow("EACCES");
+    expect(record).not.toHaveBeenCalled();
+  });
 });

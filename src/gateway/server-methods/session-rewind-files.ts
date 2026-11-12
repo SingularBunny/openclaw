@@ -4,8 +4,17 @@
 // checkpointing. Each Claude reply records the native id of the user message that started its
 // turn (`cliResume.inputMessageId`); rows merged from Claude's own transcript carry that id
 // directly (`nativeMessageId`). The idle live CLI process of the chat answers `rewind_files`.
+//
+// Fork (V1): chats without a Claude CLI session (any other model) restore from OpenClaw's own
+// file checkpoints, recorded by the write/edit/apply_patch tools (`agents/file-checkpoints.ts`).
 import { asOptionalRecord as asRecord } from "@openclaw/normalization-core/record-coerce";
 import { rewindCliLiveSessionFiles } from "../../agents/cli-runner/cli-live-session-registry.js";
+import {
+  type FileCheckpointLog,
+  planFileRewind,
+  resolveFileCheckpointLog,
+  restoreFileCheckpoints,
+} from "../../agents/file-checkpoints.js";
 import {
   getCliSessionBinding,
   readCliSessionResumePoint,
@@ -21,8 +30,8 @@ import type { CliBackendRewindFilesResult } from "../../plugins/cli-backend.type
 
 const CLAUDE_CLI = "claude-cli";
 
-export const REWIND_FILES_NOT_CLAUDE =
-  "Files can be restored only in Claude Code (claude-cli) chats.";
+export const REWIND_FILES_NOT_RECORDED = "File changes are not recorded for this chat.";
+export const REWIND_FILES_NO_MESSAGE = "This message is not on the current branch of the chat.";
 export const REWIND_FILES_NO_CHECKPOINT =
   "This message was sent before OpenClaw recorded Claude's file checkpoints, so its files cannot be restored.";
 export const REWIND_FILES_NO_PROCESS =
@@ -39,6 +48,8 @@ export type RewindFilesTarget = {
   nativeMessageId?: string;
   agentId?: string;
   sessionKeys: readonly string[];
+  /** Fork (V1): OpenClaw's own checkpoints, used when the chat has no Claude CLI session. */
+  checkpointLog?: FileCheckpointLog;
 };
 
 type RewindFiles = typeof rewindCliLiveSessionFiles;
@@ -67,6 +78,11 @@ export function buildRewindFilesTarget(
     ...(params.nativeMessageId?.trim() ? { nativeMessageId: params.nativeMessageId.trim() } : {}),
     agentId: current.agentId,
     sessionKeys: [...new Set([requestedKey, current.canonicalKey])],
+    checkpointLog: resolveFileCheckpointLog({
+      agentId: current.agentId,
+      sessionId: current.entry.sessionId,
+      sessionKey: current.canonicalKey,
+    }),
   };
 }
 
@@ -104,12 +120,89 @@ export function findRewindFilesMessageId(
   return undefined;
 }
 
+function parseTimestampMs(value: unknown): number | undefined {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+  const parsed = typeof value === "string" ? Date.parse(value) : Number.NaN;
+  return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/**
+ * Fork (V1): when the user message `entryId` on the active path was sent. The earlier of the
+ * transcript row time and the message's own time, so the turn's first tool writes are covered.
+ */
+export function findRewindFilesMessageTime(
+  events: readonly TranscriptEvent[],
+  entryId: string,
+): number | undefined {
+  const tree = scanSessionTranscriptTree(events);
+  const node = selectSessionTranscriptTreePathNodes(tree, tree.leafId).find(
+    (candidate) => candidate.id === entryId,
+  );
+  const record = asRecord(node?.entry);
+  const times = [
+    parseTimestampMs(record?.timestamp),
+    parseTimestampMs(asRecord(record?.message)?.timestamp),
+  ].filter((time): time is number => time !== undefined);
+  return times.length > 0 ? Math.min(...times) : undefined;
+}
+
+function usesClaudeCheckpoints(target: RewindFilesTarget): boolean {
+  return Boolean(getCliSessionBinding(target.entry, CLAUDE_CLI)?.sessionId);
+}
+
+async function resolveCheckpointRewind(
+  target: RewindFilesTarget,
+): Promise<{ log: FileCheckpointLog; since: number } | { reason: string }> {
+  if (!target.checkpointLog) {
+    return { reason: REWIND_FILES_NOT_RECORDED };
+  }
+  const since = findRewindFilesMessageTime(await target.loadEvents(), target.entryId);
+  return since === undefined
+    ? { reason: REWIND_FILES_NO_MESSAGE }
+    : { log: target.checkpointLog, since };
+}
+
+async function previewCheckpointFiles(target: RewindFilesTarget): Promise<RewindFilesPreview> {
+  const resolved = await resolveCheckpointRewind(target);
+  if ("reason" in resolved) {
+    return { available: false, reason: resolved.reason };
+  }
+  const plan = await planFileRewind(resolved.log, resolved.since);
+  return {
+    available: true,
+    files: plan.files.map((file) => file.path),
+    ...(plan.files.length > 0
+      ? {
+          insertions: plan.files.reduce((sum, file) => sum + file.insertions, 0),
+          deletions: plan.files.reduce((sum, file) => sum + file.deletions, 0),
+        }
+      : {}),
+  };
+}
+
+async function restoreCheckpointFiles(
+  target: RewindFilesTarget,
+): Promise<{ ok: true; count: number; skipped?: number } | { ok: false; reason: string }> {
+  const resolved = await resolveCheckpointRewind(target);
+  if ("reason" in resolved) {
+    return { ok: false, reason: resolved.reason };
+  }
+  const restored = await restoreFileCheckpoints(resolved.log, resolved.since);
+  if (!restored.ok) {
+    return restored;
+  }
+  return {
+    ok: true,
+    count: restored.count,
+    ...(restored.skipped ? { skipped: restored.skipped } : {}),
+  };
+}
+
 async function resolveUserMessageId(
   target: RewindFilesTarget,
 ): Promise<{ id: string } | { reason: string }> {
-  if (!getCliSessionBinding(target.entry, CLAUDE_CLI)?.sessionId) {
-    return { reason: REWIND_FILES_NOT_CLAUDE };
-  }
   const native = target.nativeMessageId?.trim();
   if (native) {
     return { id: native };
@@ -202,6 +295,9 @@ export async function previewRewindFiles(
   target: RewindFilesTarget,
   rewindFiles: RewindFiles = rewindCliLiveSessionFiles,
 ): Promise<RewindFilesPreview> {
+  if (!usesClaudeCheckpoints(target)) {
+    return await previewCheckpointFiles(target);
+  }
   const resolved = await resolveUserMessageId(target);
   return "reason" in resolved
     ? { available: false, reason: resolved.reason }
@@ -216,6 +312,9 @@ export async function restoreRewindFiles(
   target: RewindFilesTarget,
   rewindFiles: RewindFiles = rewindCliLiveSessionFiles,
 ): Promise<{ ok: true; count: number; skipped?: number } | { ok: false; reason: string }> {
+  if (!usesClaudeCheckpoints(target)) {
+    return await restoreCheckpointFiles(target);
+  }
   const resolved = await resolveUserMessageId(target);
   if ("reason" in resolved) {
     return { ok: false, reason: resolved.reason };

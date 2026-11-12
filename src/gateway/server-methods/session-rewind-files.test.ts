@@ -1,12 +1,18 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { captureFileCheckpoint } from "../../agents/file-checkpoints.js";
 import type { TranscriptEvent } from "../../config/sessions/session-accessor.sqlite-contract.js";
 import {
   findRewindFilesMessageId,
+  findRewindFilesMessageTime,
   previewRewindFiles,
   restoreRewindFiles,
   REWIND_FILES_NO_CHECKPOINT,
   REWIND_FILES_NO_PROCESS,
-  REWIND_FILES_NOT_CLAUDE,
+  REWIND_FILES_NO_MESSAGE,
+  REWIND_FILES_NOT_RECORDED,
   type RewindFilesTarget,
 } from "./session-rewind-files.js";
 
@@ -102,11 +108,6 @@ describe("previewRewindFiles", () => {
 
   it.each([
     {
-      name: "chats without a Claude CLI session",
-      overrides: { entry: { cliSessionBindings: {} } },
-      reason: REWIND_FILES_NOT_CLAUDE,
-    },
-    {
       name: "turns recorded before input ids",
       overrides: { entryId: "user-1" },
       reason: REWIND_FILES_NO_CHECKPOINT,
@@ -180,5 +181,86 @@ describe("restoreRewindFiles", () => {
       reason: REWIND_FILES_NO_CHECKPOINT,
     });
     expect(rewindFiles).not.toHaveBeenCalled();
+  });
+});
+
+describe("rewind files without a Claude CLI session", () => {
+  const sentAt = Date.parse("2026-01-02T03:04:05.000Z");
+  const timedEvents = [
+    { type: "session", id: "s", version: 3 },
+    { ...user("user-1", null), timestamp: new Date(sentAt - 60_000).toISOString() },
+    {
+      ...user("user-2", "user-1"),
+      timestamp: new Date(sentAt + 500).toISOString(),
+      message: { role: "user", content: "user-2", timestamp: sentAt },
+    },
+  ] as unknown as TranscriptEvent[];
+
+  async function withCheckpoints(
+    run: (params: { file: string; generic: RewindFilesTarget }) => Promise<void>,
+  ) {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), "rewind-files-"));
+    try {
+      let clock = sentAt - 1000;
+      const checkpointLog = { path: path.join(dir, "log.jsonl"), now: () => clock };
+      const file = path.join(dir, "a.txt");
+      // One change before the message and one during its turn.
+      for (const content of ["before\n", "during\n"]) {
+        const record = await captureFileCheckpoint(checkpointLog, file);
+        await fs.writeFile(file, content);
+        await record?.();
+        clock = sentAt + 100;
+      }
+      await run({
+        file,
+        generic: target({
+          entry: {},
+          loadEvents: async () => timedEvents,
+          checkpointLog,
+        }),
+      });
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  }
+
+  it("takes the earlier of the row time and the message time", () => {
+    expect(findRewindFilesMessageTime(timedEvents, "user-2")).toBe(sentAt);
+    expect(findRewindFilesMessageTime(timedEvents, "missing")).toBeUndefined();
+  });
+
+  it("previews and restores from OpenClaw's own checkpoints", async () => {
+    await withCheckpoints(async ({ file, generic }) => {
+      const rewindFiles = vi.fn();
+      await expect(previewRewindFiles(generic, rewindFiles)).resolves.toEqual({
+        available: true,
+        files: [file],
+        insertions: 1,
+        deletions: 1,
+      });
+      await expect(restoreRewindFiles(generic, rewindFiles)).resolves.toEqual({
+        ok: true,
+        count: 1,
+      });
+      expect(await fs.readFile(file, "utf8")).toBe("before\n");
+      await expect(previewRewindFiles(generic, rewindFiles)).resolves.toEqual({
+        available: true,
+        files: [],
+      });
+      expect(rewindFiles).not.toHaveBeenCalled();
+    });
+  });
+
+  it("explains chats without a log and messages off the current branch", async () => {
+    await withCheckpoints(async ({ generic }) => {
+      await expect(previewRewindFiles({ ...generic, checkpointLog: undefined })).resolves.toEqual({
+        available: false,
+        reason: REWIND_FILES_NOT_RECORDED,
+      });
+      await expect(restoreRewindFiles({ ...generic, entryId: "missing" })).resolves.toEqual({
+        ok: false,
+        reason: REWIND_FILES_NO_MESSAGE,
+      });
+    });
   });
 });
