@@ -327,9 +327,10 @@ export async function executePreparedCliRun(
         context.preparedBackend,
         nodePlacement ? params : { ...params, proxyBackendId: context.backendResolved.id },
         {
-        ...mcpCaptureAttempt.env,
-        ...localProcessEnv,
-      });
+          ...mcpCaptureAttempt.env,
+          ...localProcessEnv,
+        },
+      );
       const nodeEnvEntries = Object.entries(preparedBackendEnv).filter(([key]) =>
         NODE_CLAUDE_FORWARD_ENV_KEYS.has(key),
       );

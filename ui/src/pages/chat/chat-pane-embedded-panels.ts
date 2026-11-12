@@ -87,9 +87,9 @@ export function sidebarPanelDefinitions(
           textKey === "conversation" || textKey === "companion"
             ? "chat"
             : textKey === "subagents" ||
-            textKey === "processes" ||
-            textKey === "context" ||
-            textKey === "runs"
+                textKey === "processes" ||
+                textKey === "context" ||
+                textKey === "runs"
               ? "file-list"
               : textKey === "portal"
                 ? "browser"

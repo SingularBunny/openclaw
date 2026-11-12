@@ -26,8 +26,8 @@ import {
   resolveAttachmentSidebarSource,
 } from "./chat-message-attachment-source.ts";
 import { loadManagedImageBlob } from "./chat-message-image-loading.ts";
-import { isOfficeAttachment } from "./chat-office-preview.ts";
 import { releaseChatMediaResourceOwner, type AttachmentItem } from "./chat-message-media.ts";
+import { isOfficeAttachment } from "./chat-office-preview.ts";
 import {
   readWorkspaceFileText,
   workspaceBrowserFilePath,

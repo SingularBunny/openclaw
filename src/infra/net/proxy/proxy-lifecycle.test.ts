@@ -76,7 +76,9 @@ function inheritProxy(inheritedUrl: string, caFile?: string) {
 describe("startProxy", () => {
   const envKeysToClean = ["http_proxy", "https_proxy", "all_proxy", "no_proxy"]
     .flatMap((key) => [key, key.toUpperCase()])
-    .concat(["ACTIVE", "CA_FILE", "LOOPBACK_MODE", "URL", "ROUTES"].map((key) => `OPENCLAW_PROXY_${key}`));
+    .concat(
+      ["ACTIVE", "CA_FILE", "LOOPBACK_MODE", "URL", "ROUTES"].map((key) => `OPENCLAW_PROXY_${key}`),
+    );
   const writeTempCa = useProxyCaFiles();
 
   beforeEach(() => {

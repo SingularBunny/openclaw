@@ -44,8 +44,8 @@ import {
   failPanelRefresh,
   type PanelRefreshStatus,
 } from "./panel-refresh-status-state.ts";
-import type { ContextualSidebar } from "./sidebar-context-state.ts";
 import { catalogStatusRows } from "./session-catalog-status-rows.ts";
+import type { ContextualSidebar } from "./sidebar-context-state.ts";
 
 export interface SessionDataInputs {
   readonly isConnected: boolean;
