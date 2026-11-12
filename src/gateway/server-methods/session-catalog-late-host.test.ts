@@ -3,6 +3,7 @@
 // that list in one step (aiwb-claude-bridge "projects") publish their host there as well.
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createDeferredCore } from "../../shared/deferred.js";
+import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 import {
   call,
   hoisted,
@@ -10,7 +11,6 @@ import {
   startCall,
   type SessionCatalogProvider,
 } from "./session-catalog.test-helpers.js";
-import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 
 beforeEach(() => {
   resetSessionCatalogTestState();
