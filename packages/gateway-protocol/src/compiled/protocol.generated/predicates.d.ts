@@ -727,6 +727,11 @@ export function isChatHistoryParams(
 ): value is import("typebox").Static<
   typeof import("../../schema-modules.js").ChatHistoryParamsSchema
 >;
+export function isChatPromptSuggestion(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").ChatPromptSuggestionSchema
+>;
 export function isChatStartupParams(
   value: unknown,
 ): value is import("typebox").Static<
@@ -1111,6 +1116,11 @@ export function isWebLoginWaitParams(
   value: unknown,
 ): value is import("typebox").Static<
   typeof import("../../schema-modules.js").WebLoginWaitParamsSchema
+>;
+export function isCommandsClaudeParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").CommandsClaudeParamsSchema
 >;
 export function isCommandsListParams(
   value: unknown,
@@ -1783,6 +1793,11 @@ export function isSessionCatalogShareRoute(
 ): value is import("typebox").Static<
   typeof import("../../schema-modules.js").SessionCatalogShareRouteSchema
 >;
+export function isSessionsRewindFilesParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").SessionsRewindFilesParamsSchema
+>;
 export function isSessionsCatalogListParams(
   value: unknown,
 ): value is import("typebox").Static<
@@ -1807,6 +1822,16 @@ export function isSessionsCatalogArchiveParams(
   value: unknown,
 ): value is import("typebox").Static<
   typeof import("../../schema-modules.js").SessionsCatalogArchiveParamsSchema
+>;
+export function isSessionsCatalogReorderParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").SessionsCatalogReorderParamsSchema
+>;
+export function isSessionsCatalogMoveParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").SessionsCatalogMoveParamsSchema
 >;
 export function isSessionsCatalogStartTerminalParams(
   value: unknown,
@@ -2561,6 +2586,26 @@ export function isCanvasDocumentPreviewParams(
   value: unknown,
 ): value is import("typebox").Static<
   typeof import("../../schema-modules.js").CanvasDocumentPreviewParamsSchema
+>;
+export function isCanvasStorageGetParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").CanvasStorageGetParamsSchema
+>;
+export function isCanvasStorageListParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").CanvasStorageListParamsSchema
+>;
+export function isCanvasStorageSetParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").CanvasStorageSetParamsSchema
+>;
+export function isCanvasStorageDeleteParams(
+  value: unknown,
+): value is import("typebox").Static<
+  typeof import("../../schema-modules.js").CanvasStorageDeleteParamsSchema
 >;
 export function isCanvasDocumentViewParams(
   value: unknown,
