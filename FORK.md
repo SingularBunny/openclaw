@@ -61,3 +61,15 @@ an `aiwb-*` tag publishes it as a release. Check a downloaded package with
 
 The converter and text extractor (`aiwb-office`) and the plugin that reports the effective settings (`aiwb-fork-settings`)
 live in [aiwb-plugins](https://github.com/SingularBunny/aiwb-plugins).
+
+## Upstream 2026.11.5 overlap (trial rebase on v2026.11.5-beta.2)
+
+- Markdown files in the Files panel: dropped, upstream has its own Markdown reading mode (any model).
+- Backport of #184098 (Claude CLI stores only the final message): upstream already does this (only Claude CLI).
+- Live run status for catalog rows: upstream drops `sessions.catalog.changed`; the plugin catalog change event stays (any model).
+- Owner imports read unwrapped: upstream unwraps catalog imports for display; the fork projection runs before it (any model).
+- Claude prompt suggestions: shown through upstream's Labs composer prediction surface (only Claude CLI).
+- Lint limit for `extensions/anthropic/cli-runtime.test.ts`: upstream dropped the override.
+- Wrapped exec completion notice behind a gap note: upstream no longer wraps exec completions; the check stays for older transcripts (only Claude CLI).
+- Not ported, need a new design on 2026.11.5: graceful shutdown wait on the signal path (F44, upstream removed the run-loop drain),
+  Activity recap interval (F41), attachment dedupe in Claude CLI history (F37) and the Files panel UI for folders outside the workspace (F34) (any model).
