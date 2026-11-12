@@ -13,6 +13,7 @@ import {
   CLAUDE_CLI_SESSION_ID_FIELDS,
 } from "./cli-constants.js";
 import { parseClaudeCliJsonlEvent, parseClaudeCliJsonlLifecycleEvent } from "./cli-output.js";
+import { CLAUDE_CLI_PLAN_MODE_TOOLS } from "./cli-permission-mode.js";
 import { CLAUDE_CLI_FILE_CHECKPOINTING_ENV } from "./cli-rewind-files.js";
 import {
   appendClaudeCliChromeArgs,
@@ -209,8 +210,8 @@ export function buildAnthropicCliBackend(
       appendClaudeCliToolNamingGuidance(systemPrompt, openClawMcpToolNames),
     projectNativeToolAuthority: projectClaudeNativeToolAuthority,
     resolveManagedNativeTools: resolveClaudeManagedNativeTools,
-    // Fork (C10): F45's Task progress card on managed turns too.
-    managedLocalStateTools: CLAUDE_CLI_TODO_TOOL_NAMES,
+    // Fork (C10): F45's Task progress card and F49's plan mode on managed turns too.
+    managedLocalStateTools: [...CLAUDE_CLI_TODO_TOOL_NAMES, ...CLAUDE_CLI_PLAN_MODE_TOOLS],
     sideQuestionToolMode: "disabled",
     ownsNativeCompaction: true,
     manualCompaction: {

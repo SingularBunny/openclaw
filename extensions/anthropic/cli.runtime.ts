@@ -245,7 +245,17 @@ async function handleRequest(
       typeof input.tool_name === "string" &&
       input.tool_name.startsWith("mcp__openclaw__")
     ) {
-      return { continue: true };
+      // Fork (C10, F49): plan mode refuses OpenClaw's edit tools as it refuses native edits.
+      const gate = resolveClaudeCliModeGate(turn.permissionMode, input.tool_name);
+      return gate.kind === "deny"
+        ? {
+            hookSpecificOutput: {
+              hookEventName: "PreToolUse",
+              permissionDecision: "deny",
+              permissionDecisionReason: gate.message,
+            },
+          }
+        : { continue: true };
     }
     // Native settings can grant tools before can_use_tool. This hook preserves host policy.
     const decision = await authorizeTool(

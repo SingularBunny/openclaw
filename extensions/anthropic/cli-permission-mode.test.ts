@@ -19,6 +19,12 @@ describe("resolveClaudeCliModeGate", () => {
     ["plan", "MultiEdit", "deny"],
     ["plan", "Bash", "ask"],
     ["plan", "Grep", "host"],
+    // Fork (C10): managed turns edit through OpenClaw's tools; only plan mode adds a denial.
+    ["plan", "mcp__openclaw__write", "deny"],
+    ["plan", "mcp__openclaw__apply_patch", "deny"],
+    ["plan", "mcp__openclaw__read", "host"],
+    ["plan", "mcp__openclaw__exec", "host"],
+    ["default", "mcp__openclaw__edit", "host"],
     ["bypassPermissions", "Edit", "host"],
     ["dontAsk", "Bash", "host"],
     ["auto", "NotebookEdit", "host"],

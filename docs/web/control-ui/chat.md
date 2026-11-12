@@ -378,6 +378,12 @@ wins):
   no OpenClaw prompts. Bypass permissions needs `operator.admin`; the other modes need
   `operator.write`, like other session settings.
 
+On OpenClaw-managed turns (the anthropic plugin's **Managed Claude CLI Turns**, on by default),
+Claude edits files and runs commands only through OpenClaw's tools, so their own approvals apply
+instead of the native prompts above. Plan mode still works: Claude keeps `EnterPlanMode` and
+`ExitPlanMode`, and OpenClaw's `write`, `edit` and `apply_patch` are refused until the plan is
+approved. Claude has no plan file there and passes the plan with `ExitPlanMode`.
+
 A mode changed while Claude is idle reaches a running Claude process with the stream-json
 `set_permission_mode` control request before the next turn. The status line under the composer
 shows non-default modes, for example `plan mode on`.

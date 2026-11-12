@@ -26,6 +26,15 @@ export function readClaudeCliPermissionMode(raw: unknown): ClaudeCliPermissionMo
 
 const EDIT_TOOLS = new Set(["Edit", "MultiEdit", "Write", "NotebookEdit"]);
 const SHELL_TOOLS = new Set(["Bash", "PowerShell"]);
+// Fork (C10): on managed turns Claude edits files only through OpenClaw's tools.
+const OPENCLAW_EDIT_TOOLS = new Set([
+  "mcp__openclaw__write",
+  "mcp__openclaw__edit",
+  "mcp__openclaw__apply_patch",
+]);
+
+/** Native tools that only switch Claude's mode or ask the user; managed turns keep them. */
+export const CLAUDE_CLI_PLAN_MODE_TOOLS = ["EnterPlanMode", "ExitPlanMode"] as const;
 
 export type ClaudeCliModeGate =
   | { kind: "host" }
@@ -38,13 +47,17 @@ const PLAN_MODE_EDIT_DENIAL =
 /**
  * What the session mode adds to host policy for one native tool, as in Claude Code:
  * default asks for edits and shell commands, acceptEdits only for shell commands, plan refuses
- * edits other than the plan file. bypassPermissions, dontAsk, and auto, like no explicit mode, leave host policy as is.
+ * edits other than the plan file, and OpenClaw's edit tools on managed turns. bypassPermissions, dontAsk,
+ * and auto, like no explicit mode, leave host policy as is.
  */
 export function resolveClaudeCliModeGate(
   mode: ClaudeCliPermissionMode | undefined,
   toolName: string,
   options: { planFileEdit?: boolean } = {},
 ): ClaudeCliModeGate {
+  if (mode === "plan" && OPENCLAW_EDIT_TOOLS.has(toolName)) {
+    return { kind: "deny", message: PLAN_MODE_EDIT_DENIAL };
+  }
   // Plan mode still lets Claude write its own plan file, as Claude Code does.
   const edit = EDIT_TOOLS.has(toolName) && !(mode === "plan" && options.planFileEdit);
   const shell = SHELL_TOOLS.has(toolName);

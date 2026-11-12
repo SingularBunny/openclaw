@@ -374,9 +374,17 @@ it("keeps a stored Claude conversation across the upgrade while excluding native
     expect(turn.args).not.toContain(nativeSettingsPath);
     expect(turn.args).not.toContain("--plugin-dir");
     expect(turn.args).not.toContain("--no-session-persistence");
-    // Fork (C10): managed turns keep Claude's local todo tools (F60).
+    // Fork (C10): managed turns keep Claude's todo (F60) and plan mode (F49) tools.
     expect(turn.toolAvailability).toEqual({
-      native: ["TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet"],
+      native: [
+        "TodoWrite",
+        "TaskCreate",
+        "TaskUpdate",
+        "TaskList",
+        "TaskGet",
+        "EnterPlanMode",
+        "ExitPlanMode",
+      ],
       openClaw: ["read"],
     });
     expect(turn.systemPrompt).toContain("OPENCLAW_CONTEXT_SURVIVES_UPGRADE");
