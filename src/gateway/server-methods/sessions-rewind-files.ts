@@ -14,8 +14,8 @@ import { defineValidatedGatewayHandler } from "./validation.js";
 
 /**
  * Fork (F52): `sessions.rewind.files` asks the chat's idle Claude CLI process which files a
- * rewind before one message would restore (Claude's `rewind_files` dry run). It changes
- * nothing; `available: false` carries the reason shown in the rewind confirmation.
+ * rewind before one message would restore (Claude's `rewind_files` dry run; Fork (V1): OpenClaw's
+ * own file checkpoints in chats without a Claude CLI session). It changes nothing; `available: false` carries the reason shown in the rewind confirmation.
  */
 export async function previewSessionRewindFilesForGateway(
   options: Omit<GatewayRequestHandlerOptions, "params"> & { params: SessionsRewindFilesParams },
