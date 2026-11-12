@@ -73,4 +73,6 @@ live in [aiwb-plugins](https://github.com/SingularBunny/aiwb-plugins).
 - Wrapped exec completion notice behind a gap note: upstream no longer wraps exec completions; the check stays for older transcripts (only Claude CLI).
 - Graceful shutdown wait (F44): upstream removed the run-loop drain; the wait now runs between upstream's admission fence and
   the close (any model).
-- Not ported, need a new design on 2026.11.5: Activity recap interval (F41), attachment dedupe in Claude CLI history (F37) and the Files panel UI for folders outside the workspace (F34) (any model).
+- Attachment dedupe in Claude CLI history (F37): upstream matches imported turns by one normalized text; the fork strips
+  attachment notes and `<file>` blocks from that text (only Claude CLI).
+- Not ported, need a new design on 2026.11.5: Activity recap interval (F41) and the Files panel UI for folders outside the workspace (F34) (any model).
