@@ -1,5 +1,6 @@
 import { asNullableRecord as asRecord } from "@openclaw/normalization-core/record-coerce";
-import { persistedMessageEntryId, readChatThreadMessageIdentity } from "./chat-thread-items.ts";
+import { readChatThreadMessageIdentity } from "../../lib/chat/history-message-identity.ts";
+import { persistedMessageEntryId } from "./chat-thread-items.ts";
 
 /** What `sessions.rewind` and `sessions.fork` receive for one visible user message. */
 export type ChatMessageCutTarget = {

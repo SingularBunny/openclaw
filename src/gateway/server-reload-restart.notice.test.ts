@@ -4,13 +4,13 @@ import type { GatewayActiveWorkSnapshot } from "../infra/gateway-active-work.js"
 import * as restartModule from "../infra/restart.js";
 import { resetGatewayWorkAdmission } from "../process/gateway-work-admission.js";
 import { createTestGatewayScheduler } from "../test-utils/gateway-scheduler-clock.js";
-import type { GatewayReloadPlan } from "./config-reload.js";
 import {
   getGatewayRestartNotice,
   resetGatewayRestartNoticeForTest,
   setGatewayRestartNoticeBroadcaster,
 } from "./restart-notice.js";
-import { nextGatewayReloadGeneration } from "./server-reload-generation.js";
+import { beginGatewayReloadLifecycle } from "./server-reload-generation.js";
+import { createGatewayRestartPlan } from "./server-reload-handlers.config.test-support.js";
 import { createGatewayRestartCoordinator } from "./server-reload-restart.js";
 
 const getTotalQueueSize = vi.hoisted(() => vi.fn(() => 0));
@@ -39,20 +39,7 @@ const zeroActiveCounts = {
   totalActive: 0,
 } satisfies GatewayActiveWorkSnapshot["counts"];
 
-const restartPlan = {
-  changedPaths: ["gateway.port"],
-  restartGateway: true,
-  restartReasons: ["gateway.port"],
-  hotReasons: [],
-  reloadHooks: false,
-  restartGmailWatcher: false,
-  restartCron: false,
-  restartHeartbeat: false,
-  reloadPlugins: false,
-  restartChannels: new Set(),
-  disposeMcpRuntimes: false,
-  noopPaths: [],
-} satisfies GatewayReloadPlan;
+const restartPlan = createGatewayRestartPlan();
 
 type CoordinatorOptions = Parameters<typeof createGatewayRestartCoordinator>[0];
 
@@ -65,7 +52,7 @@ function createCoordinator(
 ) {
   return createGatewayRestartCoordinator({
     params: { logReload: { info: vi.fn(), warn: vi.fn() }, ...params, scheduler },
-    myGeneration: options.myGeneration ?? nextGatewayReloadGeneration(),
+    reloadSignal: options.reloadSignal ?? beginGatewayReloadLifecycle(),
     restartRecoveryAvailable: true,
     getActiveCounts: () => zeroActiveCounts,
     formatActiveDetails: () => [],

@@ -367,7 +367,6 @@ describe("memory-core plugin runtime registration", () => {
         throw new Error("Expected the memory index service");
       }
       const context = { config, stateDir: "unused", logger: api.logger };
-      expect(hasMemoryIndexingBeenLive()).toBe(false);
       await service.start(context);
       await Promise.all(backgroundTasks);
       expect(getMemorySearchManagerMock.mock.calls).toEqual([

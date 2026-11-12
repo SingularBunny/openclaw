@@ -71,21 +71,20 @@ describe("restart deferral with agent-run extension", () => {
     const onExtended = vi.fn();
     deferGatewayRestartUntilIdle({
       getPendingCount: () => agentRuns,
-      maxWaitMs: 100,
-      pollMs: 10,
+      maxWaitMs: 500,
       timeoutIntent: { force: true },
       emitHooks: { emitRestart },
       hooks: { onTimeout },
       extendWhileActive: { isActive: () => agentRuns > 0, onExtended },
     });
 
-    await vi.advanceTimersByTimeAsync(10_000);
+    await vi.advanceTimersByTimeAsync(20_000);
     expect(onTimeout).not.toHaveBeenCalled();
     expect(emitRestart).not.toHaveBeenCalled();
     expect(onExtended).toHaveBeenCalledOnce();
 
     agentRuns = 0;
-    await vi.advanceTimersByTimeAsync(20);
+    await vi.advanceTimersByTimeAsync(600);
     expect(emitRestart).toHaveBeenCalledOnce();
     expect(emitRestart.mock.calls[0]?.[1]).toBeUndefined();
     expect(onTimeout).not.toHaveBeenCalled();
@@ -99,19 +98,18 @@ describe("restart deferral with agent-run extension", () => {
     const onTimeout = vi.fn();
     deferGatewayRestartUntilIdle({
       getPendingCount: () => agentRuns + 1,
-      maxWaitMs: 100,
-      pollMs: 10,
+      maxWaitMs: 500,
       timeoutIntent: { force: true },
       emitHooks: { emitRestart },
       hooks: { onTimeout },
       extendWhileActive: { isActive: () => agentRuns > 0 },
     });
 
-    await vi.advanceTimersByTimeAsync(1_000);
+    await vi.advanceTimersByTimeAsync(5_000);
     expect(emitRestart).not.toHaveBeenCalled();
 
     agentRuns = 0;
-    await vi.advanceTimersByTimeAsync(20);
+    await vi.advanceTimersByTimeAsync(600);
     expect(onTimeout).toHaveBeenCalledOnce();
     expect(emitRestart).toHaveBeenCalledOnce();
     expect(emitRestart.mock.calls[0]?.[1]).toMatchObject({ force: true });
@@ -124,17 +122,16 @@ describe("restart deferral with agent-run extension", () => {
     const onTimeout = vi.fn();
     deferGatewayRestartUntilIdle({
       getPendingCount: () => 1,
-      maxWaitMs: 100,
-      pollMs: 10,
+      maxWaitMs: 500,
       timeoutIntent: { force: true },
       emitHooks: { emitRestart },
       hooks: { onTimeout },
-      extendWhileActive: { isActive: () => true, maxWaitMs: 500 },
+      extendWhileActive: { isActive: () => true, maxWaitMs: 5_000 },
     });
 
-    await vi.advanceTimersByTimeAsync(400);
+    await vi.advanceTimersByTimeAsync(4_000);
     expect(onTimeout).not.toHaveBeenCalled();
-    await vi.advanceTimersByTimeAsync(200);
+    await vi.advanceTimersByTimeAsync(1_500);
     expect(onTimeout).toHaveBeenCalledOnce();
     expect(emitRestart).toHaveBeenCalledOnce();
     expect(emitRestart.mock.calls[0]?.[1]).toMatchObject({ force: true });
@@ -144,12 +141,11 @@ describe("restart deferral with agent-run extension", () => {
     const emitRestart = vi.fn(() => ({ status: "emitted" as const }));
     deferGatewayRestartUntilIdle({
       getPendingCount: () => 1,
-      maxWaitMs: 100,
-      pollMs: 10,
+      maxWaitMs: 500,
       timeoutIntent: { force: true },
       emitHooks: { emitRestart },
     });
-    await vi.advanceTimersByTimeAsync(110);
+    await vi.advanceTimersByTimeAsync(1_100);
     expect(emitRestart).toHaveBeenCalledOnce();
   });
 });

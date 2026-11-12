@@ -5,15 +5,15 @@ import { catalogResult } from "./session-catalog-result.js";
 import {
   call,
   hoisted,
-  provider,
   resetSessionCatalogTestState,
 } from "./session-catalog.test-helpers.js";
+import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
 
 describe("sessions.catalog.reorder", () => {
   beforeEach(resetSessionCatalogTestState);
 
   it("rejects catalogs without a reorder hook", async () => {
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude") }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude") }];
 
     const respond = await call("sessions.catalog.reorder", {
       catalogId: "claude",
@@ -35,7 +35,7 @@ describe("sessions.catalog.reorder", () => {
     const reorder = vi.fn<NonNullable<SessionCatalogProvider["reorder"]>>(async () => ({
       ok: true,
     }));
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude", { reorder }) }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { reorder }) }];
     const config = { agents: { ownership: "explicit", entries: { alpha: {}, beta: {} } } };
     const target = { kind: "sessions", group: "Work", threadIds: ["thread-2", "thread-1"] };
 
@@ -59,7 +59,7 @@ describe("sessions.catalog.reorder", () => {
     const reorder = vi.fn(async () => {
       throw new Error("order store is read-only");
     });
-    hoisted.activeRegistry.sessionCatalogs = [{ provider: provider("claude", { reorder }) }];
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { reorder }) }];
 
     const respond = await call("sessions.catalog.reorder", {
       catalogId: "claude",
@@ -80,12 +80,12 @@ describe("sessions.catalog.reorder", () => {
   it("advertises the reorder capability only for providers with the hook", () => {
     const reorder = async () => ({ ok: true as const });
 
-    expect(catalogResult(provider("claude", { reorder }), undefined, []).capabilities).toEqual({
+    expect(catalogResult(catalogProvider("claude", { reorder }), undefined, []).capabilities).toEqual({
       continueSession: false,
       archive: false,
       reorder: true,
     });
-    expect(catalogResult(provider("codex"), undefined, []).capabilities).toEqual({
+    expect(catalogResult(catalogProvider("codex"), undefined, []).capabilities).toEqual({
       continueSession: false,
       archive: false,
     });

@@ -337,7 +337,6 @@ function RunsPanel(props: Props) {
   const presented = usePanePresentation(() => props.runsPresented ?? false);
   return (
     <AutomationRuns
-      onScrollPortRef={props.onScrollPortRef}
       data-sidebar-panel-host
       ref={[elementRef(props.registerPanelHost)]}
       sessionKey={props.state.sessionKey}

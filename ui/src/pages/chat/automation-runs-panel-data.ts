@@ -8,7 +8,6 @@ import {
   getCronRunsViewState,
   loadCronRuns,
   loadCronRunsForJob,
-  loadMoreCronRuns,
   retireCronRunsRequest,
   type CronRunsViewState,
 } from "../../lib/cron/runs.ts";
@@ -165,7 +164,7 @@ export class AutomationRunsPanelData {
     if (!this.current(this.generation) || this.deleted) {
       return;
     }
-    const pending = loadMoreCronRuns(this.cron);
+    const pending = loadCronRuns(this.cron, { append: true });
     this.changed();
     await pending;
     this.changed();

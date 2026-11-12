@@ -6,7 +6,7 @@ import type {
   ClaudeUsageView,
 } from "../../../components/claude-usage-indicator-model.ts";
 import type { ProviderQuotaGroup } from "../../../lib/provider-quota-summary.ts";
-import { getContextNoticeViewModel } from "./chat-composer-context.tsx";
+import { getContextNoticeViewModel } from "./chat-composer-context-model.ts";
 
 export type ComposerStatusLineInput = {
   session?: GatewaySessionRow;

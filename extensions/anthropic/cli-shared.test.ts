@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { buildAnthropicCliBackend } from "./cli-backend.js";
 import { CLAUDE_CLI_CLEAR_ENV } from "./cli-constants.js";
 import {
@@ -488,7 +488,6 @@ describe("normalizeClaudeBackendConfig", () => {
       env: {
         CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
         CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
-        CLAUDE_CODE_ENABLE_TODO_TOOLS: "true",
         CLAUDE_CODE_ENABLE_TODO_TOOLS: "true",
         CLAUDE_CODE_AUTO_COMPACT_WINDOW: "100000",
       },

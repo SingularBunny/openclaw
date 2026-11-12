@@ -223,7 +223,7 @@ describe("startProxy", () => {
       process.env["OPENCLAW_PROXY_ROUTES"] =
         "anthropic.com=http://user:secret@10.0.0.9:8080;*=direct";
       expect(bypasses("https://example.com/")).toBe(false);
-      const warnings = mockLogWarn.mock.calls.map((call) => call[0]);
+      const warnings = vi.mocked(logWarn).mock.calls.map((call) => call[0]);
       expect(warnings.some((line) => line.includes("OPENCLAW_PROXY_ROUTES"))).toBe(true);
       expect(warnings.join("\n")).not.toContain("secret");
       expect(warnings.join("\n")).not.toContain("10.0.0.9");
