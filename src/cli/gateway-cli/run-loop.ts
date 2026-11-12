@@ -21,6 +21,7 @@ import { handOffGatewayStartupSignals, registerSignalExitOwner } from "../signal
 import { measureGatewayBootstrapStep } from "../startup-trace.js";
 import { createGatewayHostLifecycle } from "./host-lifecycle.js";
 import { installGatewayHostLifeline } from "./host-lifeline.js";
+import { waitForAgentTurnsBeforeShutdown } from "./run-loop-agent-turn-wait.js";
 import { createGatewayRunCleanup } from "./run-loop-cleanup.js";
 import * as loopExit from "./run-loop-exit.js";
 import {
@@ -713,6 +714,18 @@ export async function runGatewayLoop(params: GatewayRunLoopParams): Promise<numb
         eagerLifecycleRuntime.markGatewayDraining(
           loopCompletion.formatShutdownReason(acceptedRequest),
         );
+        // Fork F44: admission is closed; let running agent turns finish before the close aborts them.
+        await waitForAgentTurnsBeforeShutdown({
+          request: acceptedRequest,
+          reason: loopCompletion.formatShutdownReason(acceptedRequest),
+          shutdownDeadline,
+          reserveMs: budget.reserveMs,
+          logger: gatewayLog,
+        }).catch((error: unknown) => {
+          gatewayLog.warn(
+            `agent-turn wait failed; continuing shutdown: ${formatErrorMessage(error)}`,
+          );
+        });
         eagerLifecycleRuntime.abortActiveCronTaskRuns();
 
         if (isRestart && activeRestartRequest?.restartIntent?.successorOwner) {
