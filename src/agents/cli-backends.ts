@@ -37,6 +37,7 @@ export type ResolvedCliBackend = Pick<
   | "projectNativeToolAuthority"
   | "resolveManagedNativeTools"
   | "nativeToolSearch"
+  | "managedLocalStateTools"
   | "nativeToolMode"
   | "hostOwnedTools"
   | "sideQuestionToolMode"
@@ -313,6 +314,7 @@ export function resolveCliBackendConfig(
     projectNativeToolAuthority: backend.projectNativeToolAuthority,
     resolveManagedNativeTools: backend.resolveManagedNativeTools,
     nativeToolSearch: backend.nativeToolSearch,
+    managedLocalStateTools: backend.managedLocalStateTools,
     nativeToolMode: backend.nativeToolMode,
     hostOwnedTools: backend.hostOwnedTools,
     sideQuestionToolMode: backend.sideQuestionToolMode,
