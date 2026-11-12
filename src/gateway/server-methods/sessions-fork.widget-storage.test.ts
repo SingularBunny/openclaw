@@ -27,8 +27,7 @@ it("sessions.fork copies widget state for widgets in the copied history", async 
     setRuntimeConfigSnapshot(cfg);
     const stateDir = testState.stateDir;
     const widget = async () =>
-      (await createCanvasDocument({ html: "<p>Counter</p>", cspSandbox: "scripts" }))
-        .id;
+      (await createCanvasDocument({ html: "<p>Counter</p>", cspSandbox: "scripts" })).id;
     const shown = await widget();
     const later = await widget();
     const scope = {
