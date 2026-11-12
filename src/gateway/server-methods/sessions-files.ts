@@ -43,6 +43,7 @@ import {
   resolveOpenPathCommand,
   sanitizePathForLog,
 } from "./open-path.js";
+import { resolveSessionBrowseRoots, selectSessionBrowseRoot } from "./session-file-browse-roots.js";
 import {
   createSessionFileReadAuthority,
   sessionFileWorkspaceMatches,
@@ -55,7 +56,6 @@ import {
   sessionFilesError,
 } from "./session-files-errors.js";
 import { readGatewayRequestMutationAuthority } from "./session-mutation-guards.js";
-import { resolveSessionBrowseRoots, selectSessionBrowseRoot } from "./session-file-browse-roots.js";
 import {
   getRepositoryArtifact,
   listRepositoryArtifacts,

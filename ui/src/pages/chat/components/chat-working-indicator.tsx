@@ -12,11 +12,11 @@ import type { ChatItem } from "../../../lib/chat/chat-types.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { themeBrandingProjection } from "../../../lib/reactive/theme-branding.ts";
 import type { ChatSubagentWait, HandoffSessionLinks } from "../chat-subagent-wait.ts";
+import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import { CliBackgroundTasks, type CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
 import { ChatSubagentWaitLine } from "./chat-handoff-sessions.tsx";
 import { ChatRetryStatus } from "./chat-retry-status.tsx";
 import { outputTokensLabel, WorkingBrandGlyph } from "./chat-working-indicator-branding.tsx";
-import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
-import { CliBackgroundTasks, type CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
 import { selectWorkingClawSurprise } from "./chat-working-indicator-surprise.ts";
 
 registerEnglishCatalog(registerChatSessionEnglish);

@@ -14,7 +14,6 @@ import {
 import { buildSandboxHostPath } from "../../agents/sandbox-host.js";
 import { isCoreCanvasHostEnabled } from "../../canvas/config.js";
 import { readCanvasDocumentHtmlSource } from "../../canvas/documents.js";
-import { isSessionTranscriptProjectionUnavailableError } from "../../config/sessions/session-transcript-projection-error.js";
 import {
   deleteWidgetStorageValue,
   getWidgetStorageValue,
@@ -23,14 +22,15 @@ import {
   WidgetStorageError,
   type WidgetStorageTarget,
 } from "../../canvas/widget-storage.js";
+import { isSessionTranscriptProjectionUnavailableError } from "../../config/sessions/session-transcript-projection-error.js";
 import { isGatewaySubordinateWorkAdmissionClosed } from "../../process/gateway-work-admission.js";
 import { operatorScopeSatisfied } from "../../shared/operator-scope-compat.js";
 import { buildBoardWidgetSandboxPath } from "../board-sandbox.js";
 import { SessionMutationAuthorizationChangedError } from "../session-mutation-authorization-error.js";
-import { CANVAS_WIDGET_FORBIDDEN, retainCanvasWidgetRead } from "./canvas-widget-read.js";
-import { respondError } from "./response.js";
 import { sessionObserverScopeKey } from "../session-observer-model.js";
 import { resolveRequestedSessionStoreTarget } from "../session-store-key.js";
+import { CANVAS_WIDGET_FORBIDDEN, retainCanvasWidgetRead } from "./canvas-widget-read.js";
+import { respondError } from "./response.js";
 import { retainSessionScopedRead } from "./session-scoped-read.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { defineValidatedGatewayMethod } from "./validation.js";

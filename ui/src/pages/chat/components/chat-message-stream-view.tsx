@@ -5,10 +5,10 @@ import type { ChatReplyTarget, ChatItem } from "../../../lib/chat/chat-types.ts"
 import "../../../components/tooltip.ts";
 import { ChatAvatar, type ChatAvatarProps } from "../chat-avatar-view.tsx";
 import type { ChatSubagentWait } from "../chat-subagent-wait.ts";
-import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
-import type { MessageRenderOptions } from "./chat-message-bubble-options.ts";
 import type { CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
 import type { CliBackgroundTaskStop } from "./chat-cli-background-tasks.tsx";
+import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
+import type { MessageRenderOptions } from "./chat-message-bubble-options.ts";
 import { GroupedMessage } from "./chat-message-bubble-view.tsx";
 import {
   prepareChatStreamRender,

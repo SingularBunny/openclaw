@@ -6,8 +6,8 @@ import { excludeSessionCatalogRows } from "./app-sidebar-session-catalog-state.t
 import { projectSidebarSessionCatalogs } from "./app-sidebar-session-catalogs.ts";
 import type { SidebarSessionNavigationState } from "./app-sidebar-session-navigation-logic.ts";
 import type { SidebarSessionStatusFilter } from "./app-sidebar-session-types.ts";
-import type { SessionDataOwner } from "./session-data.ts";
 import { catalogStatusRows } from "./session-catalog-status-rows.ts";
+import type { SessionDataOwner } from "./session-data.ts";
 
 type SidebarSnoozeVisibilityHost = {
   readonly sessionData: SessionDataOwner;

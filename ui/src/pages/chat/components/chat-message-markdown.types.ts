@@ -1,5 +1,5 @@
-import type { ChatReplyTarget } from "../../../lib/chat/chat-types.ts";
 import type { ControlUiMessage } from "../../../../../src/plugin-sdk/control-ui.js";
+import type { ChatReplyTarget } from "../../../lib/chat/chat-types.ts";
 import type { AssistantMessageExpansionState } from "../chat-message-recovery.ts";
 
 export type MessageReplyTarget = ChatReplyTarget;

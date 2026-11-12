@@ -95,22 +95,11 @@ describe("prepareClaudeCliSkillsPlugin", () => {
     });
     try {
       const skillsDir = path.join(prepared.pluginDir!, "skills");
-      expect((await fs.readdir(skillsDir)).toSorted()).toEqual([
-        "alpha-review",
-        "upkeep-review",
-      ]);
-      const skillMd = await fs.readFile(
-        path.join(skillsDir, "upkeep-review", "SKILL.md"),
-        "utf8",
-      );
-      expect(skillMd).toBe(
-        "---\nname: upkeep-review\ndescription: From upkeep\n---\n\n# Method\n",
-      );
+      expect((await fs.readdir(skillsDir)).toSorted()).toEqual(["alpha-review", "upkeep-review"]);
+      const skillMd = await fs.readFile(path.join(skillsDir, "upkeep-review", "SKILL.md"), "utf8");
+      expect(skillMd).toBe("---\nname: upkeep-review\ndescription: From upkeep\n---\n\n# Method\n");
       await expect(
-        fs.readFile(
-          path.join(skillsDir, "alpha-review", "references", "notes.md"),
-          "utf8",
-        ),
+        fs.readFile(path.join(skillsDir, "alpha-review", "references", "notes.md"), "utf8"),
       ).resolves.toBe("alpha");
     } finally {
       await prepared.cleanup();
