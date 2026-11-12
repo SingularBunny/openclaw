@@ -26,7 +26,7 @@ import {
   resolveClaudeCliExecutionArgs,
   resolveClaudeCliThinkingEnv,
 } from "./cli-shared.js";
-import { CLAUDE_CLI_TODO_TOOLS_ENV } from "./cli-todo-tools.js";
+import { CLAUDE_CLI_TODO_TOOL_NAMES, CLAUDE_CLI_TODO_TOOLS_ENV } from "./cli-todo-tools.js";
 import { appendClaudeCliToolNamingGuidance } from "./cli-tool-naming.js";
 
 type ClaudeCliAuthCredential =
@@ -215,6 +215,8 @@ export function buildAnthropicCliBackend(
     projectNativeToolAuthority: projectClaudeNativeToolAuthority,
     resolveManagedNativeTools: resolveClaudeManagedNativeTools,
     nativeToolSearch: "ToolSearch",
+    // Fork (C10): F45's Task progress card on managed turns too.
+    managedLocalStateTools: CLAUDE_CLI_TODO_TOOL_NAMES,
     sideQuestionToolMode: "disabled",
     ownsNativeCompaction: true,
     manualCompaction: {
