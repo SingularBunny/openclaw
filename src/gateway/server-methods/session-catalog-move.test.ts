@@ -9,12 +9,8 @@ vi.mock("../server-in-process-dispatch.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../server-in-process-dispatch.js")>()),
   dispatchGatewayRequestInProcess: dispatch.request,
 }));
-import {
-  call,
-  hoisted,
-  resetSessionCatalogTestState,
-} from "./session-catalog.test-helpers.js";
 import { catalogProvider } from "./session-catalog.fixtures.test-support.js";
+import { call, hoisted, resetSessionCatalogTestState } from "./session-catalog.test-helpers.js";
 
 describe("sessions.catalog.move", () => {
   beforeEach(() => {

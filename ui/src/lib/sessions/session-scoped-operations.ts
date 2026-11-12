@@ -143,7 +143,10 @@ export function createSessionScopedOperations(host: SessionScopedOperationsHost)
   const rewind = (
     key: string,
     entryId: string,
-    options: { agentId?: string | null; restoreFiles?: boolean } & SessionMessageCutNativeTarget = {},
+    options: {
+      agentId?: string | null;
+      restoreFiles?: boolean;
+    } & SessionMessageCutNativeTarget = {},
   ) =>
     requestCommittedMutation<SessionsRewindResult>(
       "Session rewind requires an active Gateway connection",
