@@ -8,6 +8,7 @@ import {
 } from "../../infra/gateway-shutdown-budget.js";
 import { readLaunchdStopTimeout } from "../../infra/launchd-stop-timeout.js";
 import { readSystemdStopTimeout } from "../../infra/systemd-stop-timeout.js";
+import { resolveAgentTurnShutdownLimitMs } from "./run-loop-agent-turn-wait.js";
 
 // Only an inconclusive probe may retain the startup budget; a confirmed absence
 // of a native deadline must not constrain an in-process restart.
@@ -63,8 +64,15 @@ export async function resolveGatewayShutdownBudget(
     : supervisor === "launchd" || Boolean(retained);
   // Scale margin and reserve to retain drain time under short native deadlines.
   const exitMarginMs = resolveSupervisorExitMarginMs(stop.timeoutMs);
+  // Fork F44: OPENCLAW_RESTART_AGENT_RUN_WAIT_MS raises the fixed limit so a shutdown can wait
+  // for agent turns; a native stop deadline (systemd TimeoutStopSec) still caps it.
+  const agentTurnLimitMs = resolveAgentTurnShutdownLimitMs();
   const limitMs =
-    retained?.timeoutMs ?? Math.min(GATEWAY_SHUTDOWN_TIMEOUT_MS, stop.timeoutMs - exitMarginMs);
+    retained?.timeoutMs ??
+    Math.min(
+      agentTurnLimitMs ?? GATEWAY_SHUTDOWN_TIMEOUT_MS,
+      nativeStopBudget || agentTurnLimitMs === undefined ? stop.timeoutMs - exitMarginMs : Infinity,
+    );
   const elapsedMs =
     refresh && nativeStopBudget
       ? Math.max(0, Math.ceil(performance.now() - refresh.acceptedAtMs))
@@ -89,6 +97,11 @@ export async function resolveGatewayShutdownBudget(
       logger.info(
         `shutdown budget at ${phase}: drain=${Math.max(0, timeoutMs - reserveMs)}ms shutdown=${timeoutMs}ms reserve=${reserveMs}ms exitMargin=${exitMarginMs}ms; source=${retained ? `startup shutdown budget=${retained.timeoutMs}ms` : `${stop.source}=${stop.timeoutMs}ms`}`,
       );
+      if (phase === "startup" && agentTurnLimitMs !== undefined && limitMs < agentTurnLimitMs) {
+        logger.warn(
+          `OPENCLAW_RESTART_AGENT_RUN_WAIT_MS wants up to ${agentTurnLimitMs}ms for shutdown, but ${stop.source}=${stop.timeoutMs}ms allows ${limitMs}ms; a stop waits for agent turns only that long. Raise the stop timeout (systemd: a drop-in with TimeoutStopSec).`,
+        );
+      }
     },
   };
 }
