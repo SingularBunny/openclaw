@@ -632,7 +632,8 @@ export const SessionsRewindParamsSchema = closedObject({
   ...SessionMessageCutParamsProperties,
   /**
    * Fork (F52): also restore files the bound Claude CLI session changed since that message,
-   * from Claude's own checkpoints. The rewind fails without changing history when the files
+   * from Claude's own checkpoints. Fork (V1): other chats restore what OpenClaw's write, edit
+   * and apply_patch tools changed. The rewind fails without changing history when the files
    * cannot be restored.
    */
   restoreFiles: Type.Optional(Type.Boolean()),
@@ -661,7 +662,7 @@ const SessionEditorAttachmentSchema = closedObject({
 export const SessionsRewindResultSchema = closedObject({
   editorText: Type.Optional(Type.String()),
   editorAttachments: Type.Optional(Type.Array(SessionEditorAttachmentSchema)),
-  /** Fork (F52): files restored with `restoreFiles`; `skipped` were left alone (links). */
+  /** Fork (F52): files restored with `restoreFiles`; `skipped` were left alone (links, or files over 10 MB). */
   filesRestored: Type.Optional(
     closedObject({
       count: Type.Integer({ minimum: 0 }),

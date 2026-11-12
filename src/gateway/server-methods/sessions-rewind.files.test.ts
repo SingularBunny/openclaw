@@ -1,6 +1,9 @@
+import fs from "node:fs/promises";
+import path from "node:path";
 import { expectDefined } from "@openclaw/normalization-core";
 import { beforeEach, expect, it, vi } from "vitest";
 import { ErrorCodes } from "../../../packages/gateway-protocol/src/index.js";
+import { captureFileCheckpoint, resolveFileCheckpointLog } from "../../agents/file-checkpoints.js";
 import { loadTranscriptEvents } from "../../config/sessions/session-accessor.js";
 import { withOpenClawTestState } from "../../test-utils/openclaw-test-state.js";
 import { sessionRewindHandlers } from "./sessions-rewind.js";
@@ -78,7 +81,7 @@ it("leaves history untouched when the files cannot be restored", async () => {
     await state.writeConfig(cfg);
     const scope = await seedMessageCutSource();
     const before = await loadTranscriptEvents(scope);
-    // The seeded chat has no Claude CLI session: the real check refuses the restore.
+    files.restore.mockResolvedValueOnce({ error: "Files were not restored: disk full." });
     const respond = await invoke("sessions.rewind", {
       sessionKey: scope.sessionKey,
       entryId: "user-2",
@@ -89,11 +92,38 @@ it("leaves history untouched when the files cannot be restored", async () => {
       undefined,
       expect.objectContaining({
         code: ErrorCodes.UNAVAILABLE,
-        message:
-          "Files were not restored: Files can be restored only in Claude Code (claude-cli) chats.",
+        message: "Files were not restored: disk full.",
       }),
     );
     expect(await loadTranscriptEvents(scope)).toEqual(before);
+  });
+});
+
+it("restores files from OpenClaw's own checkpoints in chats of any model", async () => {
+  await withOpenClawTestState({ label: "rewind-files-any-model" }, async (state) => {
+    await state.writeConfig(cfg);
+    const scope = await seedMessageCutSource();
+    const file = path.join(state.home, "notes.txt");
+    await fs.writeFile(file, "before");
+    const log = expectDefined(
+      resolveFileCheckpointLog({ agentId: scope.agentId, sessionId: scope.sessionId }),
+      "checkpoint log",
+    );
+    const record = await captureFileCheckpoint(log, file);
+    await fs.writeFile(file, "after");
+    await record?.();
+
+    const respond = await invoke("sessions.rewind", {
+      sessionKey: scope.sessionKey,
+      entryId: "user-2",
+      restoreFiles: true,
+    });
+    expect(respond).toHaveBeenCalledWith(
+      true,
+      { editorText: "What did I say?", filesRestored: { count: 1 } },
+      undefined,
+    );
+    expect(await fs.readFile(file, "utf8")).toBe("before");
   });
 });
 

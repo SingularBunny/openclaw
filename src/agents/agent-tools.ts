@@ -48,6 +48,7 @@ import { isConversationToolAllowed } from "./conversation-tool-policy-pipeline.j
 import { createCoreCodingTools } from "./core-coding-tools.js";
 import { applyDelegationCapability } from "./delegation-capability.js";
 import { pinExecToolTarget } from "./exec-tool-target-pinning.js";
+import { captureFileCheckpoint, resolveFileCheckpointLog } from "./file-checkpoints.js";
 import { prepareGitHubToolEnvironment } from "./github-tool-identity.js";
 import { resolveExecToolConfig } from "./lazy-exec-tool.js";
 import { resolveLocalModelLeanPreserveToolNames } from "./local-model-lean.js";
@@ -189,7 +190,16 @@ function* assembleOpenClawCodingTools(
   const codingRoot = sandboxRoot ?? runtimeRoot;
   const containmentRoot = sandboxRoot ?? sessionPermissionPolicy?.root ?? codingRoot;
   const memoryFlushWriteRoot = sandboxRoot ?? workspaceRoot;
-  const memoryWriteProvenance = createMemoryWriteProvenanceObserver({
+  // Fork (V1): host writes of write/edit/apply_patch keep file checkpoints for rewind. Sandbox
+  // paths live in the container, where the gateway cannot restore them.
+  const fileCheckpointLog = sandbox
+    ? undefined
+    : resolveFileCheckpointLog({
+        agentId: executionAgentId,
+        sessionId: options?.sessionId,
+        sessionKey: executionSessionKey,
+      });
+  const memoryWriteProvenanceObserver = createMemoryWriteProvenanceObserver({
     mutationRoot: sandboxRoot ?? workspaceRoot,
     workspaceDir: sandboxRoot ?? workspaceRoot,
     resolvePath: sandboxFsBridge
@@ -208,6 +218,13 @@ function* assembleOpenClawCodingTools(
     sessionId: options?.sessionId,
     sessionKey: options?.runSessionKey ?? options?.sessionKey,
   });
+  const memoryWriteProvenance = fileCheckpointLog
+    ? {
+        ...memoryWriteProvenanceObserver,
+        captureFileCheckpoint: (absolutePath: string) =>
+          captureFileCheckpoint(fileCheckpointLog, absolutePath),
+      }
+    : memoryWriteProvenanceObserver;
   const includeCoreTools = options?.includeCoreTools !== false;
   const toolConstructionPlan = options?.toolConstructionPlan ?? {
     includeBaseCodingTools: includeCoreTools,

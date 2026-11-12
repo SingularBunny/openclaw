@@ -43,7 +43,7 @@ async function openWithFiles(preview: unknown) {
   container.querySelector<HTMLButtonElement>("button")!.click();
   await vi.waitFor(() =>
     expect(document.querySelector(".chat-confirm-popover__files-note")?.textContent).not.toBe(
-      "Checking files Claude changed…",
+      "Checking changed files…",
     ),
   );
   return { onRewind };
@@ -59,7 +59,7 @@ it("offers Claude's file restore, checked like Claude Code's own rewind", async 
   const option = document.querySelector<HTMLInputElement>(".chat-confirm-popover__files-check")!;
   expect(option.checked).toBe(true);
   expect(document.querySelector(".chat-confirm-popover__files-option")?.textContent).toBe(
-    "Also restore 2 files Claude changed",
+    "Also restore 2 changed files",
   );
   expect(
     [...document.querySelectorAll(".chat-confirm-popover__files-list li")].map(

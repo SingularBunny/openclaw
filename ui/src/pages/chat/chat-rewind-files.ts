@@ -1,4 +1,4 @@
-// Fork (F52): the "also restore files" option of the rewind confirmation in Claude CLI chats.
+// Fork (F52, V1): the "also restore files" option of the rewind confirmation (any model).
 import { t } from "../../lib/reactive/i18n.ts";
 import { scopedAgentParamsForSession } from "../../lib/sessions/index.ts";
 import { resolveChatMessageCutTarget } from "./chat-rewind-target.ts";
