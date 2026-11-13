@@ -17,11 +17,12 @@ import {
   resolveLeastPrivilegeOperatorScopesForMethod,
 } from "../method-scopes.js";
 import type { GatewayMethodRegistryView } from "../methods/descriptor.js";
+import { isHostPluginApprovalCall } from "../operator-approval-authorization.js";
 import {
   authorizeCurrentOperatorRoleScopes,
   resolveGatewayOperatorRoleActor,
 } from "../operator-role-policy.js";
-import { isOperatorScope } from "../operator-scopes.js";
+import { APPROVALS_SCOPE, isOperatorScope } from "../operator-scopes.js";
 import { isRoleAuthorizedForMethod, parseGatewayRole } from "../role-policy.js";
 import type { GatewayRequestContext, GatewayRequestOptions } from "./shared-types.js";
 
@@ -70,6 +71,9 @@ export function authorizeGatewayMethod(
     return { error: null };
   }
   const registeredScope = methodRegistry.getScope(method);
+  if (registeredScope === APPROVALS_SCOPE && isHostPluginApprovalCall(method, client)) {
+    return { error: null };
+  }
   let scopeAuth = isOperatorScope(registeredScope)
     ? authorizeOperatorScopesForRequiredScope(
         registeredScope,
