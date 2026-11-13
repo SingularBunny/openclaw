@@ -161,6 +161,12 @@
   color: var(--muted);
 }
 
+.sidebar-attachment-preview__reason {
+  max-width: 40ch;
+  font-size: 0.875em;
+  text-align: center;
+}
+
 .sidebar-file-view__canvas[hidden],
 .file-view[hidden],
 .chat-html-preview[hidden],
