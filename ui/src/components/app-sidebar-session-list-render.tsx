@@ -168,6 +168,7 @@ function renderSessionCatalog(params: {
       newSessionAgentId={snapshot().newSessionAgentId}
       mainKey={snapshot().mainKey}
       collapsedSections={host().collapsedSessionSections}
+      hiddenFolderKeys={host().hiddenSessionCatalogFolderKeys}
       loadingMoreCatalogIds={snapshot().loadingMoreCatalogIds}
       visibleSessionLimits={host().sessionData.visibleSessionLimits}
       projectGrouping={snapshot().projectGrouping}
@@ -205,6 +206,16 @@ function renderSessionCatalog(params: {
         }
         host().sidebarMenus.toggleCatalogViewMenu(catalogId, trigger);
       }}
+      onOpenFolderMenu={(catalogId, folderId, label, trigger, position) =>
+        host().sidebarMenus.openCatalogFolderMenu(
+          catalogId,
+          folderId,
+          label,
+          position.x,
+          position.y,
+          trigger,
+        )
+      }
       onLoadMore={(catalogId) => void host().sessionData.loadMoreSessionCatalog(catalogId)}
       onSetVisibleSessionLimit={(sectionId, limit) =>
         host().setVisibleSessionLimit(sectionId, limit)

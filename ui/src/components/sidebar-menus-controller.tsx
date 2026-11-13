@@ -38,12 +38,14 @@ type AgentMenuInteractionState = "closed" | "hover-pending" | "open-hover" | "op
 
 type MenuPosition = { x: number; y: number };
 type CatalogMenuPosition = MenuPosition & { catalogId: string };
+type CatalogFolderMenuPosition = CatalogMenuPosition & { folderId: string; label: string };
 type PositionedMenu =
   | "railPin"
   | "pluginNavigation"
   | "sessionSort"
   | "peopleFilter"
   | "catalogView"
+  | "catalogFolder"
   | "identity";
 
 function menuPosition(x: number, y: number, width: number, height: number): MenuPosition {
@@ -70,6 +72,7 @@ export class SidebarMenusController {
   sessionSortMenuPosition: MenuPosition | null = null;
   peopleFilterMenuPosition: MenuPosition | null = null;
   catalogViewMenuPosition: CatalogMenuPosition | null = null;
+  catalogFolderMenuPosition: CatalogFolderMenuPosition | null = null;
   filterMenuView: SidebarFilterMenuView = "root";
   agentMenuPosition: { x: number; top: number } | null = null;
   agentMenuQuery = "";
@@ -83,6 +86,7 @@ export class SidebarMenusController {
   sessionSortMenuTrigger: HTMLElement | null = null;
   peopleFilterMenuTrigger: HTMLElement | null = null;
   catalogViewMenuTrigger: HTMLElement | null = null;
+  catalogFolderMenuTrigger: HTMLElement | null = null;
   agentMenuTrigger: HTMLElement | null = null;
   agentMenuInteractionState: AgentMenuInteractionState = "closed";
   identityMenuTrigger: HTMLElement | null = null;
@@ -180,6 +184,7 @@ export class SidebarMenusController {
       this.sessionSortMenuPosition ||
       this.peopleFilterMenuPosition ||
       this.catalogViewMenuPosition ||
+      this.catalogFolderMenuPosition ||
       this.agentMenuPosition ||
       this.identityMenuPosition,
     );
@@ -191,6 +196,7 @@ export class SidebarMenusController {
     this.closeSessionGroupMenu();
     this.closePositionedMenu("sessionSort");
     this.closePositionedMenu("catalogView");
+    this.closePositionedMenu("catalogFolder");
     this.closeAgentMenu();
     this.closePositionedMenu("identity");
     return hadTransientMenu;
@@ -379,6 +385,25 @@ export class SidebarMenusController {
     });
   }
 
+  openCatalogFolderMenu(
+    catalogId: string,
+    folderId: string,
+    label: string,
+    x: number,
+    y: number,
+    trigger: HTMLElement | null = null,
+  ) {
+    this.loadMenuRenderer();
+    this.dismissTransientMenus();
+    this.catalogFolderMenuTrigger = trigger;
+    this.updateState("catalogFolderMenuPosition", {
+      catalogId,
+      folderId,
+      label,
+      ...menuPosition(x, y, 200, 48),
+    });
+  }
+
   setFilterMenuView(view: SidebarFilterMenuView) {
     if (!this.catalogViewMenuPosition) {
       return;
@@ -440,6 +465,7 @@ export class SidebarMenusController {
     this.closeSessionGroupMenu();
     this.closePositionedMenu("sessionSort");
     this.closePositionedMenu("catalogView");
+    this.closePositionedMenu("catalogFolder");
     this.closePositionedMenu("identity");
     this.closePositionedMenu("peopleFilter");
     this.agentMenuTrigger = trigger;
@@ -609,6 +635,9 @@ export class SidebarMenusController {
       </Show>,
       <Show when={this.menuRenderer && this.catalogViewMenuPosition} keyed>
         {(_menu) => this.menuRenderer!.renderSidebarCatalogViewMenuForController(this)}
+      </Show>,
+      <Show when={this.menuRenderer && this.catalogFolderMenuPosition} keyed>
+        {(_menu) => this.menuRenderer!.renderSidebarCatalogFolderMenuForController(this)}
       </Show>,
     ];
   }

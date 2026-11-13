@@ -583,6 +583,23 @@ describe("config appearance preferences", () => {
     expect(props.setSessionCatalogHidden).toHaveBeenCalledWith("claude", false);
   });
 
+  it("lists hidden catalog folders under their section and shows one again", () => {
+    const folder = {
+      catalogId: "claude",
+      folderId: "project:/work/app",
+      catalogLabel: "Claude Code",
+      label: "app",
+    };
+    const { container, props } = renderAppearance({ hiddenSessionCatalogFolders: [folder] });
+
+    const heading = Array.from(container.querySelectorAll("h3")).find(
+      (candidate) => candidate.textContent?.trim() === "Hidden folders",
+    );
+    expect(heading).toBeDefined();
+    settingsRow(container, "Claude Code › app").querySelector<HTMLButtonElement>("button")?.click();
+    expect(props.setSessionCatalogFolderHidden).toHaveBeenCalledWith(folder, false);
+  });
+
   it("uses rich Lobsterdex lore tooltips and opens the full collection", () => {
     const firstSeenAt = new Date("2026-07-10T12:00:00.000Z").getTime();
     vi.stubGlobal("localStorage", window.localStorage);

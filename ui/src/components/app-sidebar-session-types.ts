@@ -337,10 +337,22 @@ const SIDEBAR_SESSION_SORT_MODE_STORAGE_KEY = "openclaw:sidebar:sessions:sort-mo
 const SIDEBAR_SESSION_COLLAPSED_SECTIONS_STORAGE_KEY =
   "openclaw:sidebar:sessions:collapsed-sections";
 const SIDEBAR_HIDDEN_SESSION_CATALOGS_STORAGE_KEY = "openclaw:sidebar:sessions:hidden-catalogs";
+const SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_STORAGE_KEY =
+  "openclaw:sidebar:sessions:hidden-catalog-folders";
 const SIDEBAR_SESSION_OWNER_FILTER_STORAGE_PREFIX =
   "openclaw.control.sidebarSessionOwnerFilter.v1:";
 export const SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT =
   "openclaw:sidebar-hidden-catalogs-changed";
+export const SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT =
+  "openclaw:sidebar-hidden-catalog-folders-changed";
+
+/** One hidden folder of a catalog section; labels are kept so Settings can name it offline. */
+export type SidebarHiddenCatalogFolder = {
+  readonly catalogId: string;
+  readonly folderId: string;
+  readonly catalogLabel: string;
+  readonly label: string;
+};
 
 export function loadStoredSidebarSessionsGrouping(): SidebarSessionsGrouping {
   return normalizeSidebarSessionsGrouping(
@@ -431,6 +443,48 @@ export function loadStoredCollapsedSessionSections(): ReadonlySet<string> {
 
 export function loadStoredHiddenSessionCatalogIds(): ReadonlySet<string> {
   return loadStoredSidebarStringSet(SIDEBAR_HIDDEN_SESSION_CATALOGS_STORAGE_KEY);
+}
+
+function storedStringField(entry: unknown, name: string): string {
+  const value: unknown =
+    typeof entry === "object" && entry !== null ? Reflect.get(entry, name) : undefined;
+  return typeof value === "string" ? value : "";
+}
+
+export function sessionCatalogFolderKey(catalogId: string, folderId: string): string {
+  return `${catalogId}\u0000${folderId}`;
+}
+
+export function loadStoredHiddenSessionCatalogFolders(): readonly SidebarHiddenCatalogFolder[] {
+  try {
+    const raw = getSafeLocalStorage()?.getItem(SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_STORAGE_KEY);
+    const parsed: unknown = raw == null ? [] : JSON.parse(raw);
+    const folders = new Map<string, SidebarHiddenCatalogFolder>();
+    for (const entry of Array.isArray(parsed) ? parsed : []) {
+      const catalogId = storedStringField(entry, "catalogId");
+      const folderId = storedStringField(entry, "folderId");
+      if (!catalogId || !folderId) {
+        continue;
+      }
+      folders.set(sessionCatalogFolderKey(catalogId, folderId), {
+        catalogId,
+        folderId,
+        catalogLabel: storedStringField(entry, "catalogLabel") || catalogId,
+        label: storedStringField(entry, "label") || folderId,
+      });
+    }
+    return [...folders.values()];
+  } catch {
+    return [];
+  }
+}
+
+export function loadStoredHiddenSessionCatalogFolderKeys(): ReadonlySet<string> {
+  return new Set(
+    loadStoredHiddenSessionCatalogFolders().map((folder) =>
+      sessionCatalogFolderKey(folder.catalogId, folder.folderId),
+    ),
+  );
 }
 
 function storeSidebarSessionPreference(key: string, value: string): void {
@@ -531,6 +585,27 @@ export function setStoredSessionCatalogHidden(catalogId: string, hidden: boolean
     next.delete(catalogId);
   }
   storeHiddenSessionCatalogIds(next);
+}
+
+/** Hide/show of one catalog folder, shared by the folder menu, undo, and Settings. */
+export function setStoredSessionCatalogFolderHidden(
+  folder: SidebarHiddenCatalogFolder,
+  hidden: boolean,
+) {
+  const key = sessionCatalogFolderKey(folder.catalogId, folder.folderId);
+  const next = loadStoredHiddenSessionCatalogFolders().filter(
+    (entry) => sessionCatalogFolderKey(entry.catalogId, entry.folderId) !== key,
+  );
+  if (hidden) {
+    next.push(folder);
+  }
+  storeSidebarSessionPreference(
+    SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_STORAGE_KEY,
+    JSON.stringify(next),
+  );
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new CustomEvent(SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT));
+  }
 }
 
 export const SIDEBAR_SESSION_SORT_OPTIONS = [

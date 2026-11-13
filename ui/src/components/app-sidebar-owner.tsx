@@ -24,7 +24,10 @@ import { SubscriptionsController } from "../lit/subscriptions-controller.ts";
 import "./theme-mode-toggle.ts";
 import "./tooltip.ts";
 import { renderAppSidebarOnline, sidebarOnlineOrder } from "./app-sidebar-online.tsx";
-import { hidePersonalSidebarCatalog } from "./app-sidebar-personal-navigation.ts";
+import {
+  hidePersonalSidebarCatalog,
+  hidePersonalSidebarCatalogFolder,
+} from "./app-sidebar-personal-navigation.ts";
 import { renderSidebarRail, renderSidebarPages } from "./app-sidebar-rail.tsx";
 import type { SessionCatalogGroupsRenderer } from "./app-sidebar-session-catalog-render.tsx";
 import type { CatalogSessionMenuRequest } from "./app-sidebar-session-catalogs.ts";
@@ -43,8 +46,10 @@ import {
   visibleSessionChildren,
 } from "./app-sidebar-session-row-render.tsx";
 import {
+  loadStoredHiddenSessionCatalogFolderKeys,
   loadStoredHiddenSessionCatalogIds,
   loadStoredSidebarCatalogGrouping,
+  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
   SIDEBAR_SESSION_PAGE_SIZE,
   storeSidebarCatalogGrouping,
@@ -232,6 +237,7 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
   };
   private readonly hiddenSessionCatalogsChanged = () => {
     this.hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
+    this.hiddenSessionCatalogFolderKeys = loadStoredHiddenSessionCatalogFolderKeys();
     this.requestUpdate();
   };
   private communityInvitePresentation: "unavailable" | "pending" | "shown" = "unavailable";
@@ -265,6 +271,10 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
     window.removeEventListener("openclaw:native-gateways-changed", this.nativeGatewaysChanged);
     window.removeEventListener(
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
+      this.hiddenSessionCatalogsChanged,
+    );
+    window.removeEventListener(
+      SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
       this.hiddenSessionCatalogsChanged,
     );
     this.narration?.disconnect();
@@ -383,6 +393,10 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
       this.hiddenSessionCatalogsChanged,
     );
+    window.addEventListener(
+      SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+      this.hiddenSessionCatalogsChanged,
+    );
     window.addEventListener("storage", this.communityInviteStorageChanged);
     this.syncCommunityInviteState();
     this.catalogRendererImport.schedule();
@@ -490,6 +504,10 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
 
   hideSessionCatalog(catalogId: string): void {
     hidePersonalSidebarCatalog(this, catalogId);
+  }
+
+  hideSessionCatalogFolder(catalogId: string, folderId: string, label: string): void {
+    hidePersonalSidebarCatalogFolder(this, catalogId, folderId, label);
   }
 
   renderPinnedSidebarSession(session: () => SidebarRecentSession): JSX.Element {

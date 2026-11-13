@@ -144,6 +144,8 @@ export const baseProps = () => ({
   sidebarLiveActivity: true,
   hiddenSessionCatalogIds: new Set<string>(),
   hiddenSessionCatalogLabels: new Map<string, string>(),
+  hiddenSessionCatalogFolders: [],
+  setSessionCatalogFolderHidden: vi.fn(),
   setSessionCatalogHidden: vi.fn(),
   openLinksExternally: false,
   composerHoldToRecord: true,

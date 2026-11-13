@@ -81,6 +81,7 @@ export interface SessionListHost {
   >;
   readonly sessionsGrouping: SidebarSessionsGrouping;
   readonly collapsedSessionSections: ReadonlySet<string>;
+  readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
   readonly sessionOrganizer: Pick<
     SessionOrganizerController,
     | "draggingSidebarSection"
@@ -109,6 +110,7 @@ export interface SessionListHost {
     SidebarMenusController,
     | "catalogMenu"
     | "catalogViewMenuPosition"
+    | "openCatalogFolderMenu"
     | "openCatalogViewMenu"
     | "openSessionGroupMenu"
     | "openSessionMenu"
@@ -163,6 +165,8 @@ export type SessionCatalogGroupsParams = {
   newSessionAgentId: string;
   mainKey: string;
   collapsedSections: ReadonlySet<string>;
+  /** `sessionCatalogFolderKey(catalogId, folderKey)` of folders hidden from the sidebar. */
+  hiddenFolderKeys: ReadonlySet<string>;
   loadingMoreCatalogIds: ReadonlySet<string>;
   visibleSessionLimits: ReadonlyMap<string, number>;
   projectGrouping: CatalogProjectGrouping;
@@ -196,6 +200,13 @@ export type SessionCatalogGroupsParams = {
       x: number;
       y: number;
     },
+  ) => void;
+  onOpenFolderMenu: (
+    catalogId: string,
+    folderId: string,
+    label: string,
+    trigger: HTMLElement,
+    position: { x: number; y: number },
   ) => void;
   onLoadMore: (catalogId: string) => void;
   onSetVisibleSessionLimit: (sectionId: string, limit: number) => void;

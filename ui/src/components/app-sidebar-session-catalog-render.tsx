@@ -14,6 +14,7 @@ import { buildCatalogSessionKey } from "../lib/sessions/catalog-key.ts";
 import {
   groupCatalogSessionsByPerson,
   groupCatalogSessionsByProject,
+  type CatalogProjectGrouping,
 } from "../lib/sessions/catalog-project-grouping.ts";
 import { moveCatalogOrderEntry } from "../lib/sessions/catalog-reorder.ts";
 import {
@@ -41,11 +42,70 @@ import {
 } from "./app-sidebar-session-catalogs.ts";
 import type { SessionCatalogGroupsParams } from "./app-sidebar-session-render-types.ts";
 import { renderSidebarSessionSectionHeader as SessionSectionHeader } from "./app-sidebar-session-section-header.tsx";
+import { sessionCatalogFolderKey } from "./app-sidebar-session-types.ts";
 import { hasProviderBrandIcon } from "./provider-icon-data.ts";
 import { Icon } from "./solid/icon.tsx";
 import { renderNewSessionLink } from "./solid/new-session-link.tsx";
 import { ProviderBrandIcon } from "./solid/provider-icon.tsx";
 const CATALOG_SESSION_GROUP_LIMIT = 5;
+
+type CatalogFolder = ReturnType<typeof groupCatalogSessionsByProject>["groups"][number];
+
+function catalogFolderGroups(
+  sessions: readonly SessionCatalogSession[],
+  grouping: CatalogProjectGrouping,
+) {
+  return grouping === "project"
+    ? groupCatalogSessionsByProject(sessions)
+    : grouping === "person"
+      ? groupCatalogSessionsByPerson(sessions)
+      : null;
+}
+
+// A hidden folder stays while it holds the open session, so the current chat keeps its row.
+function visibleCatalogFolders(
+  catalogId: string,
+  hostId: string,
+  folders: readonly CatalogFolder[],
+  params: SessionCatalogGroupsParams,
+): CatalogFolder[] {
+  return folders.filter(
+    (folder) =>
+      !params.hiddenFolderKeys.has(sessionCatalogFolderKey(catalogId, folder.key)) ||
+      folder.sessions.some(
+        (session) =>
+          (session.sessionKey ??
+            buildCatalogSessionKey(
+              {
+                catalogId,
+                hostId,
+                threadId: session.threadId,
+                ...(session.sourceHomeId ? { sourceHomeId: session.sourceHomeId } : {}),
+              },
+              params.newSessionAgentId,
+            )) === params.routeSessionKey,
+      ),
+  );
+}
+
+function visibleCatalogHostSessions(
+  catalogId: string,
+  host: SessionCatalogHost,
+  params: SessionCatalogGroupsParams,
+): readonly SessionCatalogSession[] {
+  const grouped =
+    params.hiddenFolderKeys.size > 0
+      ? catalogFolderGroups(host.sessions, params.projectGrouping)
+      : null;
+  return grouped
+    ? [
+        ...visibleCatalogFolders(catalogId, host.hostId, grouped.groups, params).flatMap(
+          (folder) => folder.sessions,
+        ),
+        ...grouped.ungrouped,
+      ]
+    : host.sessions;
+}
 
 export function renderSessionCatalogGroups(params: SessionCatalogGroupsParams) {
   // Adopted rows use canonical local labels and title snapshots; native catalog
@@ -109,7 +169,7 @@ function renderCatalogHostGroup(
     payload.catalogId === identity.catalogId &&
     payload.hostId === identity.hostId;
   const customFolderOrder = () =>
-    (projectGroups()?.groups ?? [])
+    (allProjectGroups()?.groups ?? [])
       .filter((group) => group.kind === "custom")
       .map((group) => group.label);
   const finishReorderDrag = () => {
@@ -139,13 +199,23 @@ function renderCatalogHostGroup(
       ? formatUiError(`[${readHostValue.error.code}] ${readHostValue.error.message}`)
       : undefined;
   });
+  const allProjectGroups = createMemo(() =>
+    catalogFolderGroups(readHost().sessions, params.projectGrouping),
+  );
+  // Hidden folders leave only the rendered list; reordering still sees every custom folder.
   const projectGroups = createMemo(() => {
-    const readHostValue = readHost();
-    return params.projectGrouping === "project"
-      ? groupCatalogSessionsByProject(readHostValue.sessions)
-      : params.projectGrouping === "person"
-        ? groupCatalogSessionsByPerson(readHostValue.sessions)
-        : null;
+    const grouped = allProjectGroups();
+    return grouped && params.hiddenFolderKeys.size > 0
+      ? {
+          ...grouped,
+          groups: visibleCatalogFolders(
+            identity.catalogId,
+            identity.hostId,
+            grouped.groups,
+            params,
+          ),
+        }
+      : grouped;
   });
   function CatalogRows(rowProps: {
     sessions: readonly SessionCatalogSession[];
@@ -411,6 +481,17 @@ function renderCatalogHostGroup(
                     aria-expanded={collapsed() ? "false" : "true"}
                     title={group().title}
                     onClick={() => params.onToggleSection(collapsedSectionId() ?? sectionId)}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      params.onOpenFolderMenu(
+                        identity.catalogId,
+                        group().key,
+                        group().label,
+                        event.currentTarget,
+                        { x: event.clientX, y: event.clientY },
+                      );
+                    }}
                   >
                     <span class="sidebar-session-catalog-project__icon" aria-hidden="true">
                       {collapsed() ? <Icon name="chevronRight" /> : <Icon name="chevronDown" />}
@@ -466,7 +547,11 @@ function renderCatalogGroup(
 ) {
   const sectionId = untrack(() => `catalog:${readCatalog().id}`);
   const collapsed = createMemo(() => params.collapsedSections.has(sectionId));
-  const rows = createMemo(() => readCatalog().visibleHosts.flatMap((host) => host.sessions));
+  const rows = createMemo(() =>
+    readCatalog().visibleHosts.flatMap((host) =>
+      visibleCatalogHostSessions(readCatalog().id, host, params),
+    ),
+  );
   const liveRows = createMemo(() => {
     const rowsValue = rows();
     const readLiveRowsByKeyValue = readLiveRowsByKey();

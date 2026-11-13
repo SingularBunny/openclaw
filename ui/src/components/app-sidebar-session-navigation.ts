@@ -70,6 +70,7 @@ import {
   sidebarSessionSnoozeWakeRows,
 } from "./app-sidebar-session-snooze-visibility.ts";
 import {
+  loadStoredHiddenSessionCatalogFolderKeys,
   loadStoredHiddenSessionCatalogIds,
   loadStoredSidebarSessionSortMode,
   loadStoredSidebarSessionStatusFilter,
@@ -240,6 +241,7 @@ export abstract class AppSidebarSessionNavigationElement extends AppSidebarBase 
   }
   sessionsStatusFilter: SidebarSessionStatusFilter = loadStoredSidebarSessionStatusFilter();
   hiddenSessionCatalogIds: ReadonlySet<string> = loadStoredHiddenSessionCatalogIds();
+  hiddenSessionCatalogFolderKeys: ReadonlySet<string> = loadStoredHiddenSessionCatalogFolderKeys();
 
   // Adopted-key exclusion and rendering share this projection so hidden catalogs
   // never remove their adopted rows from the regular session list.

@@ -438,6 +438,35 @@ export function SidebarPreferencesSection(props: ConfigProps) {
           </div>
         </>
       ) : undefined}
+      {props.hiddenSessionCatalogFolders.length > 0 ? (
+        <>
+          <div class="settings-section__header settings-section__header--subsection">
+            <h3 class="settings-section__heading">{t("chat.sidebar.hiddenSessionFolders")}</h3>
+          </div>
+          <div class="settings-group">
+            <For each={props.hiddenSessionCatalogFolders}>
+              {(folder) => (
+                <SettingsRow
+                  title={t("chat.sidebar.hiddenSessionFolder", {
+                    section: folder.catalogLabel,
+                    folder: folder.label,
+                  })}
+                  description={t("quickSettings.personal.browserOnly")}
+                  control={
+                    <button
+                      type="button"
+                      class="btn btn--sm"
+                      onClick={() => props.setSessionCatalogFolderHidden(folder, false)}
+                    >
+                      {t("chat.sidebar.showSessionSection")}
+                    </button>
+                  }
+                />
+              )}
+            </For>
+          </div>
+        </>
+      ) : undefined}
       <div class="settings-section__header settings-section__header--subsection">
         <h3 class="settings-section__heading">{t("configView.sessionObserver.title")}</h3>
       </div>

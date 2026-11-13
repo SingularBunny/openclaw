@@ -27,8 +27,11 @@ import {
 import type { ThemeMode, ThemeName } from "../../app/theme.ts";
 import type { TypefaceId } from "../../app/typography.ts";
 import {
+  loadStoredHiddenSessionCatalogFolders,
   loadStoredHiddenSessionCatalogIds,
+  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
+  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
 } from "../../components/app-sidebar-session-types.ts";
 import { getLobsterdex } from "../../components/lobster-dex.ts";
@@ -146,6 +149,7 @@ export class ConfigPageController {
   private connected = false;
   private settings = loadSettings();
   private hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
+  private hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
   private systemInfo: SystemInfoResult | null = null;
   private systemInfoUnavailable = false;
   private sessionObserverModels: ModelCatalogEntry[] = [];
@@ -224,9 +228,14 @@ export class ConfigPageController {
     this.connected = true;
     this.settings = loadSettings();
     this.hiddenSessionCatalogsChanged();
+    this.hiddenSessionCatalogFoldersChanged();
     window.addEventListener(
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
       this.hiddenSessionCatalogsChanged,
+    );
+    window.addEventListener(
+      SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+      this.hiddenSessionCatalogFoldersChanged,
     );
     document.addEventListener("visibilitychange", this.visibilityChanged);
     window.addEventListener("focus", this.visibilityChanged);
@@ -243,6 +252,10 @@ export class ConfigPageController {
     window.removeEventListener(
       SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
       this.hiddenSessionCatalogsChanged,
+    );
+    window.removeEventListener(
+      SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+      this.hiddenSessionCatalogFoldersChanged,
     );
     document.removeEventListener("visibilitychange", this.visibilityChanged);
     window.removeEventListener("focus", this.visibilityChanged);
@@ -291,6 +304,10 @@ export class ConfigPageController {
   private readonly hiddenSessionCatalogsChanged = () => {
     this.hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
     this.synchronize();
+    this.invalidate();
+  };
+  private readonly hiddenSessionCatalogFoldersChanged = () => {
+    this.hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
     this.invalidate();
   };
   private readonly visibilityChanged = () => {
@@ -984,6 +1001,8 @@ export class ConfigPageController {
       hiddenSessionCatalogIds: this.hiddenSessionCatalogIds,
       hiddenSessionCatalogLabels: this.hiddenSessionCatalogLabels,
       setSessionCatalogHidden: setStoredSessionCatalogHidden,
+      hiddenSessionCatalogFolders: this.hiddenSessionCatalogFolders,
+      setSessionCatalogFolderHidden: setStoredSessionCatalogFolderHidden,
       ...localPresentationProps(this.settings, (patch) => this.applySettings(patch)),
       forceShowAdvanced: this.pageId === "advanced",
       forceAdvancedSection: this.routeData?.advanced

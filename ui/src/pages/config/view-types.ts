@@ -13,6 +13,7 @@ import type { ThemeCatalogSnapshot } from "../../app/theme-catalog.ts";
 import type { ThemeMode, ThemeName } from "../../app/theme.ts";
 import type { TypefaceId } from "../../app/typography.ts";
 import type { WebPushSnapshot } from "../../app/web-push.ts";
+import type { SidebarHiddenCatalogFolder } from "../../components/app-sidebar-session-types.ts";
 import type { JsonSchema } from "../../components/config-form.shared.ts";
 import type { ConfigSchemaAnalysis } from "../../components/config-form.ts";
 import type { Locale } from "../../i18n/index.ts";
@@ -165,6 +166,8 @@ export interface ConfigProps extends TabIconViewProps, AppearancePreferences {
   hiddenSessionCatalogIds: ReadonlySet<string>;
   hiddenSessionCatalogLabels: ReadonlyMap<string, string>;
   setSessionCatalogHidden: (catalogId: string, hidden: boolean) => void;
+  hiddenSessionCatalogFolders: readonly SidebarHiddenCatalogFolder[];
+  setSessionCatalogFolderHidden: (folder: SidebarHiddenCatalogFolder, hidden: boolean) => void;
   terminalFontFamily?: string;
   setTerminalFontFamily: (value: string | undefined) => void;
   forceShowAdvanced?: boolean;

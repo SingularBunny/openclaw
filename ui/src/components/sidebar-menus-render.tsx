@@ -40,6 +40,7 @@ import { isReleaseUpdateAvailable } from "./sidebar-attention-update.ts";
 import type { SidebarMenusController } from "./sidebar-menus-controller.tsx";
 
 export {
+  renderSidebarCatalogFolderMenuForController,
   renderSidebarCatalogViewMenuForController,
   renderSidebarSessionGroupMenuForController,
   renderSidebarSessionSortMenuForController,

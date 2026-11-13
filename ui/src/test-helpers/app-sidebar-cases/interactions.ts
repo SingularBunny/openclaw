@@ -8,9 +8,12 @@ import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ApplicationGatewaySnapshot } from "../../app/context.ts";
 import "../../lib/toast-host.ts";
 import {
+  loadStoredHiddenSessionCatalogFolders,
   loadStoredHiddenSessionCatalogIds,
+  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
 } from "../../components/app-sidebar-session-types.ts";
+import { buildCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
 import {
   createGatewayHarness,
   createSessions,
@@ -280,6 +283,109 @@ describe("AppSidebar catalog session rows", () => {
     } finally {
       toastHost.remove();
       setStoredSessionCatalogHidden("codex", false);
+      vi.useRealTimers();
+    }
+  });
+
+  const appFolder = {
+    catalogId: "codex",
+    folderId: "project:/work/app",
+    catalogLabel: "Codex",
+    label: "app",
+  };
+  const folderHead = (sidebar: HTMLElement, folderId: string) =>
+    sidebar.querySelector<HTMLElement>(
+      `[data-session-section="catalog:codex"] [data-session-catalog-project="${folderId}"]`,
+    );
+  const hideFolderFromMenu = async (
+    sidebar: HTMLElement & { updateComplete: Promise<unknown> },
+    folderId: string,
+  ) => {
+    const head = folderHead(sidebar, folderId);
+    if (!head) {
+      throw new Error(`expected catalog folder ${folderId}`);
+    }
+    const contextMenu = new MouseEvent("contextmenu", {
+      bubbles: true,
+      cancelable: true,
+      clientX: 24,
+      clientY: 64,
+    });
+    head.dispatchEvent(contextMenu);
+    await sidebar.updateComplete;
+    expect(contextMenu.defaultPrevented).toBe(true);
+    // The folder menu replaces the section's view menu instead of opening both.
+    expect(sidebar.querySelector(".sidebar-catalog-view-menu")).toBeNull();
+    const hide = sidebar.querySelector<HTMLElement>(
+      '.sidebar-catalog-folder-menu [data-value="hide-catalog-folder"]',
+    );
+    expect(hide).not.toBeNull();
+    hide?.click();
+    await sidebar.updateComplete;
+  };
+  const twoFolders = () =>
+    catalogList([
+      { threadId: "thread-app", name: "App work", cwd: "/work/app" },
+      { threadId: "thread-docs", name: "Docs work", cwd: "/work/docs" },
+    ]);
+
+  it("hides one catalog folder from its context menu with undo and keeps the section", async () => {
+    vi.useFakeTimers();
+    const toastHost = document.createElement("openclaw-toast-host");
+    document.body.append(toastHost);
+    await toastHost.updateComplete;
+    try {
+      const { sidebar } = await mountWithCatalog(twoFolders(), ["agent:main:main"]);
+      await hideFolderFromMenu(sidebar, "project:/work/app");
+
+      expect(loadStoredHiddenSessionCatalogFolders()).toEqual([appFolder]);
+      expect(loadStoredHiddenSessionCatalogIds().has("codex")).toBe(false);
+      expect(folderHead(sidebar, "project:/work/app")).toBeNull();
+      expect(sidebar.textContent).not.toContain("App work");
+      expect(folderHead(sidebar, "project:/work/docs")).not.toBeNull();
+      expect(sidebar.querySelector('[data-session-section="catalog:codex"]')).not.toBeNull();
+
+      await toastHost.updateComplete;
+      const message = toastHost.querySelector(".app-toast__message")?.textContent ?? "";
+      expect(message).toContain("app hidden.");
+      expect(message).toContain("Settings > Appearance > Sidebar");
+
+      toastHost.querySelector<HTMLButtonElement>(".app-toast__action")?.click();
+      await sidebar.updateComplete;
+      expect(loadStoredHiddenSessionCatalogFolders()).toEqual([]);
+      expect(folderHead(sidebar, "project:/work/app")).not.toBeNull();
+    } finally {
+      toastHost.remove();
+      setStoredSessionCatalogFolderHidden(appFolder, false);
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps a hidden folder while it holds the open session", async () => {
+    vi.useFakeTimers();
+    try {
+      const { sidebar } = await mountWithCatalog(twoFolders(), ["agent:main:main"]);
+      sidebar.sessionKey = buildCatalogSessionKey(
+        { catalogId: "codex", hostId: "gateway:local", threadId: "thread-app" },
+        "main",
+      );
+      sidebar.activeRouteId = "chat";
+      await sidebar.updateComplete;
+      expect(
+        folderHead(sidebar, "project:/work/app")
+          ?.closest(".sidebar-session-catalog-project")
+          ?.querySelector('[aria-current="page"]'),
+      ).not.toBeNull();
+      setStoredSessionCatalogFolderHidden(appFolder, true);
+      await sidebar.updateComplete;
+      expect(folderHead(sidebar, "project:/work/app")).not.toBeNull();
+
+      sidebar.sessionKey = "agent:main:main";
+      await sidebar.updateComplete;
+      expect(folderHead(sidebar, "project:/work/app")).toBeNull();
+      expect(folderHead(sidebar, "project:/work/docs")).not.toBeNull();
+    } finally {
+      setStoredSessionCatalogFolderHidden(appFolder, false);
       vi.useRealTimers();
     }
   });

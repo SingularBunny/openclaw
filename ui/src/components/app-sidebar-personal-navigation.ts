@@ -16,6 +16,7 @@ import { buildReconciledSidebarZone } from "./app-sidebar-session-navigation-log
 import type { SidebarSessionNavigationState } from "./app-sidebar-session-navigation-logic.ts";
 import { applySidebarSessionOwnerFilter } from "./app-sidebar-session-ownership.ts";
 import {
+  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
   type SidebarRecentSession,
 } from "./app-sidebar-session-types.ts";
@@ -39,23 +40,52 @@ type PersonalNavigationHost = {
   pluginNavigation(): Parameters<typeof buildReconciledSidebarZone>[0]["pluginNavigation"];
 };
 
+type HiddenSidebarSectionHost = {
+  readonly sessionData: {
+    readonly sessionCatalogs: ReadonlyArray<{ id: string; label?: string | null }>;
+  };
+  readonly basePath: string;
+  readonly ownerDocument: Document;
+  readonly onNavigate:
+    | ((routeId: NavigationRouteId, options?: ApplicationNavigationOptions) => void)
+    | undefined;
+};
+
+function sessionCatalogLabel(host: HiddenSidebarSectionHost, catalogId: string): string {
+  return (
+    host.sessionData.sessionCatalogs.find((catalog) => catalog.id === catalogId)?.label ?? catalogId
+  );
+}
+
 export function hidePersonalSidebarCatalog(
-  host: {
-    readonly sessionData: {
-      readonly sessionCatalogs: ReadonlyArray<{ id: string; label?: string | null }>;
-    };
-    readonly basePath: string;
-    readonly ownerDocument: Document;
-    readonly onNavigate:
-      | ((routeId: NavigationRouteId, options?: ApplicationNavigationOptions) => void)
-      | undefined;
-  },
+  host: HiddenSidebarSectionHost,
   catalogId: string,
 ): void {
-  const label =
-    host.sessionData.sessionCatalogs.find((catalog) => catalog.id === catalogId)?.label ??
-    catalogId;
+  const label = sessionCatalogLabel(host, catalogId);
   setStoredSessionCatalogHidden(catalogId, true);
+  announceHiddenSidebarSection(host, t("chat.sidebar.sectionHidden", { section: label }), () =>
+    setStoredSessionCatalogHidden(catalogId, false),
+  );
+}
+
+export function hidePersonalSidebarCatalogFolder(
+  host: HiddenSidebarSectionHost,
+  catalogId: string,
+  folderId: string,
+  label: string,
+): void {
+  const folder = { catalogId, folderId, catalogLabel: sessionCatalogLabel(host, catalogId), label };
+  setStoredSessionCatalogFolderHidden(folder, true);
+  announceHiddenSidebarSection(host, t("chat.sidebar.folderHidden", { folder: label }), () =>
+    setStoredSessionCatalogFolderHidden(folder, false),
+  );
+}
+
+function announceHiddenSidebarSection(
+  host: HiddenSidebarSectionHost,
+  text: string,
+  undo: () => void,
+): void {
   // Reuse the settings-search destination for the Sidebar preferences block so the
   // toast opens the same place the rest of the app calls "Appearance > Sidebar".
   const recovery = SETTINGS_ROUTE_TARGETS.appearanceSidebar;
@@ -77,11 +107,11 @@ export function hidePersonalSidebarCatalog(
     event.preventDefault();
     host.onNavigate?.(recovery.routeId, { search: recovery.search, hash: recovery.hash });
   });
-  message.append(t("chat.sidebar.sectionHidden", { section: label }), " ", recoveryLink);
+  message.append(text, " ", recoveryLink);
   showToast({
     message,
     actionLabel: t("common.undo"),
-    onAction: () => setStoredSessionCatalogHidden(catalogId, false),
+    onAction: undo,
     durationMs: 12_000,
   });
 }
