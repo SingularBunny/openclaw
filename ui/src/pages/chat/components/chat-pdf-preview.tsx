@@ -24,6 +24,11 @@ const PDF_PREVIEW_TIMEOUT_MS = 10_000;
 // Converting a document (e.g. LibreOffice cold start) takes longer than reading a PDF.
 const PDF_PREVIEW_TRANSFORM_TIMEOUT_MS = 60_000;
 
+/** A failure whose message is meant for the reader, e.g. a converter's "file is larger than 64 MB". */
+export class PdfPreviewUnavailableError extends Error {
+  override name = "PdfPreviewUnavailableError";
+}
+
 export function isPdfAttachment(rawMimeType: string, filename: string): boolean {
   const mimeType = rawMimeType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
   return (
@@ -55,9 +60,12 @@ export function ChatPdfPreview(props: {
       ] as const,
     { equals: (before, next) => before.every((value, index) => Object.is(value, next[index])) },
   );
-  const unavailable = () => (
+  const unavailable = (cause?: unknown) => (
     <div class="sidebar-attachment-preview__unavailable" role="alert">
       {t("chat.attachments.previewUnavailable")}
+      <Show when={cause instanceof PdfPreviewUnavailableError && cause.message}>
+        {(reason) => <div class="sidebar-attachment-preview__reason">{reason()}</div>}
+      </Show>
       <Show
         when={props.file}
         fallback={
@@ -200,7 +208,7 @@ export function ChatPdfPreview(props: {
           fallback={<AttachmentPreviewSkeleton />}
         >
           <Show when={bytes()}>{renderFrame}</Show>
-          <Errored fallback={(_error) => unavailable()}>{error()}</Errored>
+          <Errored fallback={(error) => unavailable(error())}>{error()}</Errored>
         </Show>
       </Loading>
     );
