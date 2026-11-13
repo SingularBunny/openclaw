@@ -266,6 +266,34 @@ export function renderSidebarCatalogViewMenuForMenus(
   );
 }
 
+export function renderSidebarCatalogFolderMenuForMenus(
+  menus: SidebarMenus,
+  host: SidebarMenusOwner,
+  position: NonNullable<SidebarMenus["catalogFolderMenuPosition"]>,
+): JSX.Element {
+  return (
+    <SidebarDropdown
+      position={position}
+      class="sidebar-session-sort-menu sidebar-catalog-folder-menu"
+      label={t("chat.sidebar.catalogFolderMenu", { folder: position.label })}
+      onSelect={(value) => {
+        if (value === "hide-catalog-folder" && menus.catalogFolderMenuPosition === position) {
+          host.hideSessionCatalogFolder(position.catalogId, position.folderId, position.label);
+          menus.closePositionedMenu("catalogFolder");
+        }
+      }}
+      {...menus.positionedMenuHandlers("catalogFolder")}
+      items={[
+        {
+          id: "hide-catalog-folder",
+          label: t("chat.sidebar.hideFromSidebar"),
+          class: "sidebar-session-sort-menu__item",
+        },
+      ]}
+    />
+  );
+}
+
 export function renderSidebarSessionSortMenuForMenus(
   menus: SidebarMenus,
   host: SidebarMenusOwner,

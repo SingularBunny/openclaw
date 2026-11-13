@@ -17,7 +17,9 @@ import { appSidebarProperties, type AppSidebarProps } from "./app-sidebar-base.t
 import { AppSidebarOwner } from "./app-sidebar-owner.tsx";
 import { createSessionPullRequestIndicators } from "./app-sidebar-session-pr-indicators.ts";
 import {
+  loadStoredHiddenSessionCatalogFolderKeys,
   loadStoredHiddenSessionCatalogIds,
+  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
 } from "./app-sidebar-session-types.ts";
 import { createSessionAttention } from "./session-attention.ts";
@@ -120,6 +122,10 @@ function AppSidebarContent(
         context.plugins.subscribe(current.sessionData.requestSessionDataUpdate),
         listen(window, SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT, () => {
           current.hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
+          current.invalidate();
+        }),
+        listen(window, SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT, () => {
+          current.hiddenSessionCatalogFolderKeys = loadStoredHiddenSessionCatalogFolderKeys();
           current.invalidate();
         }),
         listen(window, "openclaw:native-gateways-changed", () => {

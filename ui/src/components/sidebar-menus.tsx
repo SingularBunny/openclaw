@@ -40,6 +40,7 @@ const positionedMenus = [
   "sessionSort",
   "peopleFilter",
   "catalogView",
+  "catalogFolder",
   "identity",
 ] as const;
 type PositionedMenu = (typeof positionedMenus)[number];
@@ -68,6 +69,9 @@ type SidebarMenusState = {
   sessionSortMenuPosition: MenuPosition | null;
   peopleFilterMenuPosition: MenuPosition | null;
   catalogViewMenuPosition: (MenuPosition & { catalogId: string }) | null;
+  catalogFolderMenuPosition:
+    | (MenuPosition & { catalogId: string; folderId: string; label: string })
+    | null;
   filterMenuView: SidebarFilterMenuView;
   agentMenuPosition: { x: number; top: number; placement?: "right-start" } | null;
   agentMenuMode: "hover" | "click";
@@ -103,6 +107,7 @@ export function createSidebarMenus(deps: {
     sessionSortMenuPosition: null,
     peopleFilterMenuPosition: null,
     catalogViewMenuPosition: null,
+    catalogFolderMenuPosition: null,
     filterMenuView: "root",
     agentMenuPosition: null,
     agentMenuMode: "click",
@@ -183,6 +188,7 @@ export function createSidebarMenus(deps: {
     menus.closeSessionGroupMenu();
     menus.closePositionedMenu("sessionSort");
     menus.closePositionedMenu("catalogView");
+    menus.closePositionedMenu("catalogFolder");
     menus.closePositionedMenu("identity");
     menus.closePositionedMenu("peopleFilter");
     triggers.set("agent", trigger);
@@ -451,6 +457,21 @@ export function createSidebarMenus(deps: {
       openPositionedMenu("catalogView", { catalogId, ...menuPosition(x, y, 200, 360) }, trigger);
     },
 
+    openCatalogFolderMenu(
+      catalogId: string,
+      folderId: string,
+      label: string,
+      x: number,
+      y: number,
+      trigger: HTMLElement | null = null,
+    ) {
+      openPositionedMenu(
+        "catalogFolder",
+        { catalogId, folderId, label, ...menuPosition(x, y, 200, 48) },
+        trigger,
+      );
+    },
+
     setFilterMenuView(view: SidebarFilterMenuView) {
       if (!state.catalogViewMenuPosition) {
         return;
@@ -607,7 +628,8 @@ export function createSidebarMenus(deps: {
             projection.read().sessionGroupMenu ||
             projection.read().sessionSortMenuPosition ||
             projection.read().peopleFilterMenuPosition ||
-            projection.read().catalogViewMenuPosition
+            projection.read().catalogViewMenuPosition ||
+            projection.read().catalogFolderMenuPosition
           }
         >
           <Boundary>

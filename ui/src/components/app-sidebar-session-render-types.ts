@@ -81,6 +81,8 @@ export interface SessionListHost {
   >;
   readonly sessionsGrouping: SidebarSessionsGrouping;
   readonly collapsedSessionSections: ReadonlySet<string>;
+  /** `sessionCatalogFolderKey(catalogId, folderKey)` of folders hidden from the sidebar. */
+  readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
   readonly sessionOrganizer: Pick<
     SessionOrganizer,
     | "draggingSidebarSection"
@@ -111,6 +113,7 @@ export interface SessionListHost {
     | "catalogMenu"
     | "catalogMenuView"
     | "catalogViewMenuPosition"
+    | "openCatalogFolderMenu"
     | "openCatalogViewMenu"
     | "openSessionGroupMenu"
     | "openSessionMenu"

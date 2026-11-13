@@ -39,6 +39,7 @@ import { renderSidebarPluginNavigationMenuForMenus } from "./app-sidebar-plugin-
 import { formatSidebarTimestamp } from "./app-sidebar-session-catalogs.ts";
 import { findActiveSidebarLineageRow } from "./app-sidebar-session-lookup.ts";
 import {
+  renderSidebarCatalogFolderMenuForMenus,
   renderSidebarCatalogViewMenuForMenus,
   renderSidebarSessionGroupMenuForMenus,
   renderSidebarSessionSortMenuForMenus,
@@ -551,6 +552,9 @@ function renderSidebarMenus(
     </Show>,
     <Show when={projected.catalogViewMenuPosition} keyed>
       {(menu) => renderSidebarCatalogViewMenuForMenus(projected, view, menu)}
+    </Show>,
+    <Show when={projected.catalogFolderMenuPosition} keyed>
+      {(menu) => renderSidebarCatalogFolderMenuForMenus(projected, view, menu)}
     </Show>,
   ];
 }
