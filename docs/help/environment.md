@@ -200,9 +200,9 @@ is stored without a restart and takes effect on the next Gateway start.
 often the utility model is called for a running chat; both read on use. Each progress digest and
 each recap is a separate utility-model call (on a Claude CLI utility model, a `claude` run against
 the same subscription limit as the agent). With the defaults a long run costs one digest every
-12 s (at most 40 per run) and one recap every 90 s (at most 40 per hour per chat). `90000` and
-`600000` cut that to about one digest per 1.5 minutes and one recap per 10 minutes while the run
-lasts, plus the final digest and recap when it ends.
+12 s (at most 40 per run); recaps run only when the Activity page asks for one, at most one every
+90 s per chat. `90000` and `600000` cut that to about one digest per 1.5 minutes and one recap per
+10 minutes while the run lasts, plus the final digest and recap when it ends.
 
 A config change that requires a Gateway restart waits until active work finishes, at most 5 minutes;
 then the restart is forced and aborts what still runs, including agent turns. With
