@@ -10,7 +10,10 @@ import { BUILTIN_THEMES } from "../../../../packages/gateway-protocol/src/theme.
 import { createDeferred as deferred } from "../../../../test/helpers/promise.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ThemeCatalogSnapshot } from "../../app/theme-catalog.ts";
-import { setStoredSessionCatalogHidden } from "../../components/app-sidebar-session-types.ts";
+import {
+  setStoredSessionCatalogFolderHidden,
+  setStoredSessionCatalogHidden,
+} from "../../components/app-sidebar-session-types.ts";
 import { createTestGatewayClient } from "../../test-helpers/gateway-client.ts";
 import { gatewayHelloForMethods } from "../../test-helpers/gateway-methods.ts";
 import { cleanupSolid } from "../../test-helpers/mount-solid.ts";
@@ -171,6 +174,29 @@ describe("ConfigPage model catalog lifecycle", () => {
       await waitForSolid(() => expect(section.textContent).toContain("Show Codex sessions"));
       expect(view.page.querySelector("#settings-session-sources")).toBe(section);
       expect(section.querySelector("a")).toBe(manage);
+    });
+
+    it("lists a hidden catalog folder and restores it from Settings", async () => {
+      setStoredSessionCatalogFolderHidden(
+        {
+          catalogId: "synthetic-catalog",
+          folderId: "project:/work/app",
+          catalogLabel: "Synthetic sessions",
+          label: "app",
+        },
+        true,
+      );
+      const { view } = await mount(emptyClient());
+      const row = expectDefined(
+        [...view.page.querySelectorAll(".settings-row")].find(
+          (item) =>
+            item.querySelector(".settings-row__title")?.textContent === "Synthetic sessions › app",
+        ),
+        "hidden catalog folder row",
+      );
+      expectDefined(row.querySelector<HTMLButtonElement>("button"), "show folder button").click();
+      await waitForSolid(() => expect(row.isConnected).toBe(false));
+      expect(localStorage.getItem("openclaw:sidebar:sessions:hidden-catalog-folders")).toBe("[]");
     });
 
     it("keeps hidden-section restore controls live while superseding a label read", async () => {

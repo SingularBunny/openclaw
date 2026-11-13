@@ -47,6 +47,8 @@ const enSettings = {
     sidebar: {
       hiddenSessionSections: "Hidden session sections",
       showSessionSection: "Show",
+      hiddenSessionFolders: "Hidden folders",
+      hiddenSessionFolder: "{section} › {folder}",
     },
   },
   agents: {

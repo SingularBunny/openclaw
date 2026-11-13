@@ -7,7 +7,12 @@ import { createDeferred as deferred } from "../../../../test/helpers/promise.js"
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ApplicationGatewaySnapshot } from "../../app/context.ts";
 import "../../lib/toast-host.tsx";
-import { loadStoredHiddenSessionCatalogIds } from "../../components/app-sidebar-session-types.ts";
+import {
+  loadStoredHiddenSessionCatalogFolders,
+  loadStoredHiddenSessionCatalogIds,
+  setStoredSessionCatalogFolderHidden,
+} from "../../components/app-sidebar-session-types.ts";
+import { buildCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
 import {
   createGatewayHarness,
   catalogPage,
@@ -240,6 +245,98 @@ describe("AppSidebar catalog session rows", () => {
     await dom.click(toastHost.querySelector<HTMLButtonElement>(".app-toast__action")!);
     expect(loadStoredHiddenSessionCatalogIds().has("codex")).toBe(false);
     expect(dom.query('[data-session-section="catalog:codex"]')).not.toBeNull();
+  });
+
+  const appFolder = {
+    catalogId: "codex",
+    folderId: "project:/work/app",
+    catalogLabel: "Codex",
+    label: "app",
+  };
+  const folderHead = (dom: ReturnType<typeof sidebarDriver>, folderId: string) =>
+    dom.query<HTMLElement>(
+      `[data-session-section="catalog:codex"] [data-session-catalog-project="${folderId}"]`,
+    );
+  const twoFolders = (result: SessionsCatalogListResult) => {
+    const host = result.catalogs[0]!.hosts[0]!;
+    const base = host.sessions[0]!;
+    host.sessions = [
+      { ...base, threadId: "thread-app", name: "App work", cwd: "/work/app" },
+      { ...base, threadId: "thread-docs", name: "Docs work", cwd: "/work/docs" },
+    ];
+  };
+
+  it("hides one catalog folder from its context menu with undo and keeps the section", async () => {
+    const toastHost = document.createElement("openclaw-toast-host");
+    document.body.append(toastHost);
+    await toastHost.updateComplete;
+    try {
+      const { dom } = await mountWithCatalog({}, twoFolders);
+      const contextMenu = new MouseEvent("contextmenu", {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 64,
+      });
+      folderHead(dom, "project:/work/app")!.dispatchEvent(contextMenu);
+      await dom.update();
+
+      expect(contextMenu.defaultPrevented).toBe(true);
+      // The folder menu replaces the section's view menu instead of opening both.
+      expect(dom.query(".sidebar-catalog-view-menu")).toBeNull();
+      const hide = dom.query<HTMLElement>(
+        '.sidebar-catalog-folder-menu [data-value="hide-catalog-folder"]',
+      );
+      expect(hide).not.toBeNull();
+      await dom.click(hide!);
+
+      expect(loadStoredHiddenSessionCatalogFolders()).toEqual([appFolder]);
+      expect(loadStoredHiddenSessionCatalogIds().has("codex")).toBe(false);
+      expect(folderHead(dom, "project:/work/app")).toBeNull();
+      expect(dom.query('[data-session-section="catalog:codex"]')?.textContent).not.toContain(
+        "App work",
+      );
+      expect(folderHead(dom, "project:/work/docs")).not.toBeNull();
+
+      await toastHost.updateComplete;
+      const message = toastHost.querySelector(".app-toast__message")?.textContent ?? "";
+      expect(message).toContain("app hidden.");
+      expect(message).toContain("Settings > Appearance > Sidebar");
+
+      await dom.click(toastHost.querySelector<HTMLButtonElement>(".app-toast__action")!);
+      expect(loadStoredHiddenSessionCatalogFolders()).toEqual([]);
+      expect(folderHead(dom, "project:/work/app")).not.toBeNull();
+    } finally {
+      toastHost.remove();
+      setStoredSessionCatalogFolderHidden(appFolder, false);
+    }
+  });
+
+  it("keeps a hidden folder while it holds the open session", async () => {
+    try {
+      const { dom } = await mountWithCatalog({}, twoFolders);
+      await dom.update({
+        activeRouteId: "chat",
+        sessionKey: buildCatalogSessionKey(
+          { catalogId: "codex", hostId: "gateway:local", threadId: "thread-app" },
+          "main",
+        ),
+      });
+      expect(
+        folderHead(dom, "project:/work/app")
+          ?.closest(".sidebar-session-catalog-project")
+          ?.querySelector('[aria-current="page"]'),
+      ).not.toBeNull();
+      setStoredSessionCatalogFolderHidden(appFolder, true);
+      await dom.update();
+      expect(folderHead(dom, "project:/work/app")).not.toBeNull();
+
+      await dom.update({ sessionKey: "agent:main:main" });
+      expect(folderHead(dom, "project:/work/app")).toBeNull();
+      expect(folderHead(dom, "project:/work/docs")).not.toBeNull();
+    } finally {
+      setStoredSessionCatalogFolderHidden(appFolder, false);
+    }
   });
 
   it("renders local rows directly and keeps paired-node rows under their host heading", async () => {
