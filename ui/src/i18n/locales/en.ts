@@ -1809,6 +1809,8 @@ const startupEnglish = {
       hideFromSidebar: "Hide from sidebar",
       sectionHidden: "{section} hidden.",
       sectionHiddenRecovery: "Show it again in Settings > Appearance > Sidebar.",
+      folderHidden: "{folder} hidden.",
+      catalogFolderMenu: "Folder {folder}",
 
       catalogGroupByProject: "Project",
       catalogGroupByPerson: "Person",

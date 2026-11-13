@@ -11,7 +11,10 @@ import {
 import type { CatalogProjectGrouping } from "../lib/sessions/catalog-project-grouping.ts";
 import "./sidebar-attention.tsx";
 import "./tooltip.ts";
-import { hidePersonalSidebarCatalog } from "./app-sidebar-personal-navigation.ts";
+import {
+  hidePersonalSidebarCatalog,
+  hidePersonalSidebarCatalogFolder,
+} from "./app-sidebar-personal-navigation.ts";
 import { renderSidebarRail } from "./app-sidebar-rail.tsx";
 import type { SessionCatalogGroupsRenderer } from "./app-sidebar-session-catalog-render.tsx";
 import "../styles/sidebar-reorder.css";
@@ -416,6 +419,10 @@ export class AppSidebarOwner extends AppSidebarSessionNavigationElement implemen
 
   hideSessionCatalog(catalogId: string): void {
     hidePersonalSidebarCatalog(this, catalogId);
+  }
+
+  hideSessionCatalogFolder(catalogId: string, folderId: string, label: string): void {
+    hidePersonalSidebarCatalogFolder(this, catalogId, folderId, label);
   }
 
   renderPinnedSidebarSession(session: () => SidebarRecentSession): JSX.Element {

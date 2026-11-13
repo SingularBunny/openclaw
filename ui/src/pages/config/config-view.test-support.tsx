@@ -154,6 +154,8 @@ export const baseProps = () => ({
   hiddenSessionCatalogIds: new Set<string>(),
   hiddenSessionCatalogLabels: { read: () => new Map<string, string>(), scope: null },
   setSessionCatalogHidden: vi.fn(),
+  hiddenSessionCatalogFolders: [],
+  setSessionCatalogFolderHidden: vi.fn(),
   openLinksExternally: false,
   composerHoldToRecord: true,
   lobsterPetVisits: true,
