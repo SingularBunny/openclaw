@@ -13,8 +13,11 @@ import {
   UI_APPEARANCE_DEFAULTS,
 } from "../../app/settings.ts";
 import {
+  loadStoredHiddenSessionCatalogFolders,
   loadStoredHiddenSessionCatalogIds,
+  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
+  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
 } from "../../components/app-sidebar-session-types.ts";
 import { getLobsterdex, subscribeLobsterdex } from "../../components/lobster-dex.ts";
@@ -110,6 +113,7 @@ export function createConfigPage(
   const settings = () => context.theme.settings;
   const preferences = createConfigPagePreferences(context, invalidate);
   let hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
+  let hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
   const observerModels = createConfigPageModels({
     invalidate,
     gateway: () => context.gateway,
@@ -257,6 +261,10 @@ export function createConfigPage(
   const hiddenSessionCatalogsChanged = () => {
     hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
     synchronize();
+    invalidate();
+  };
+  const hiddenSessionCatalogFoldersChanged = () => {
+    hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
     invalidate();
   };
 
@@ -551,6 +559,8 @@ export function createConfigPage(
       hiddenSessionCatalogIds,
       hiddenSessionCatalogLabels: { read: sessionCatalogLabels, scope: labelsRead().value },
       setSessionCatalogHidden: setStoredSessionCatalogHidden,
+      hiddenSessionCatalogFolders,
+      setSessionCatalogFolderHidden: setStoredSessionCatalogFolderHidden,
       terminalFontFamily: settings().terminalFontFamily,
       setTerminalFontFamily: (value: string | undefined) =>
         preferences.apply({ terminalFontFamily: value }),
@@ -677,8 +687,14 @@ export function createConfigPage(
     );
     connected = true;
     hiddenSessionCatalogsChanged();
+    hiddenSessionCatalogFoldersChanged();
     subscriptions.push(
       listen(window, SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT, hiddenSessionCatalogsChanged),
+      listen(
+        window,
+        SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+        hiddenSessionCatalogFoldersChanged,
+      ),
       listen(document, "visibilitychange", synchronize),
       listen(window, "focus", synchronize),
     );
