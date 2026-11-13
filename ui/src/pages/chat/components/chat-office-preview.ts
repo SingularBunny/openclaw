@@ -1,6 +1,7 @@
 import { normalizeRouteBasePath } from "@openclaw/uirouter";
 import { fetchWithControlUiAuth } from "../../../app/control-ui-auth.ts";
 import { resolveAttachmentSource } from "./chat-message-attachment-source.ts";
+import { PdfPreviewUnavailableError } from "./chat-pdf-preview.ts";
 import type {
   AttachmentSidebarRuntime,
   AttachmentSidebarState,
@@ -49,8 +50,14 @@ export function officePdfTransform(
       () => !signal.aborted,
     );
     if (!response.ok) {
-      await response.body?.cancel().catch(() => undefined);
-      throw new Error(`Office preview conversion failed: ${response.status}`);
+      // The plugin explains a refusal in `{ error }` (e.g. "file is larger than 64 MB"); show it.
+      const reason = await response
+        .json()
+        .then((body: unknown) => (body as { error?: unknown } | null)?.error)
+        .catch(() => undefined);
+      throw typeof reason === "string" && reason
+        ? new PdfPreviewUnavailableError(reason)
+        : new Error(`Office preview conversion failed: ${response.status}`);
     }
     return new Uint8Array(await response.arrayBuffer());
   };

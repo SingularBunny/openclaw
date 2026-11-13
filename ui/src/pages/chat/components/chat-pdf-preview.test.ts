@@ -256,3 +256,33 @@ it("offers the Office document for download when no converter answers", async ()
     "/__openclaw__/assistant-media?mediaTicket=xlsx-preview",
   );
 });
+
+it("says why the converter refused an Office document", async () => {
+  stubObjectUrls();
+  const fetchMock = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(new Response("PK-xlsx-bytes"))
+    .mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ error: "PDF is larger than 16 MB; the viewer will not open it" }),
+        {
+          status: 413,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+  vi.stubGlobal("fetch", fetchMock);
+  const panel = await mountAttachment({
+    title: "big.xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    src: "/__openclaw__/assistant-media?mediaTicket=big-xlsx",
+  });
+
+  await vi.waitFor(() => expect(panel.querySelector('[role="alert"]')).not.toBeNull());
+  expect(panel.querySelector(".sidebar-attachment-preview__reason")?.textContent?.trim()).toBe(
+    "PDF is larger than 16 MB; the viewer will not open it",
+  );
+  expect(panel.querySelector("a[href]")?.getAttribute("href")).toBe(
+    "/__openclaw__/assistant-media?mediaTicket=big-xlsx",
+  );
+});

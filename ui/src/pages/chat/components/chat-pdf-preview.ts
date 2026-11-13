@@ -16,6 +16,11 @@ const PDF_PREVIEW_TRANSFORM_TIMEOUT_MS = 60_000;
 // A loader authorizes a fresh download first; match the artifact download deadline.
 const PDF_PREVIEW_LOAD_TIMEOUT_MS = 30_000;
 
+/** A failure whose message is meant for the reader, e.g. a converter's "file is larger than 64 MB". */
+export class PdfPreviewUnavailableError extends Error {
+  override name = "PdfPreviewUnavailableError";
+}
+
 export function isPdfAttachment(rawMimeType: string, filename: string): boolean {
   const mimeType = rawMimeType.split(";", 1)[0]?.trim().toLowerCase() ?? "";
   return (
@@ -44,6 +49,7 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
     | undefined;
 
   @state() private status: "loading" | "ready" | "error" = "loading";
+  @state() private errorReason = "";
   @state() private previewUrl: string | null = null;
 
   private abortController: AbortController | undefined;
@@ -153,9 +159,10 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
       this.previewBytes = nextBytes;
       this.previewUrl = URL.createObjectURL(new Blob([bytes], { type: "application/pdf" }));
       this.status = "ready";
-    } catch {
+    } catch (error) {
       if (this.abortController === controller && this.isConnected) {
         this.revokePreviewUrl();
+        this.errorReason = error instanceof PdfPreviewUnavailableError ? error.message : "";
         this.status = "error";
       }
     } finally {
@@ -188,6 +195,13 @@ class ChatPdfPreview extends OpenClawLightDomContentsElement {
               : this.status === "error" || !this.previewUrl
                 ? html`<div class="sidebar-attachment-preview__unavailable" role="alert">
                     ${t("chat.attachments.previewUnavailable")}
+                    ${
+                      this.errorReason
+                        ? html`<div class="sidebar-attachment-preview__reason">
+                            ${this.errorReason}
+                          </div>`
+                        : nothing
+                    }
                     ${
                       this.loadSource
                         ? nothing
