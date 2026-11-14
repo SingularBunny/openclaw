@@ -47,6 +47,8 @@ import {
   createCliLiveSessionCapability,
   ensureCliLiveSessionMemory,
   getCliLiveSessionApprovalGrants,
+  hasCliLiveSessionTranscriptChanged,
+  rememberCliLiveSessionTranscript,
 } from "./cli-live-session-registry.js";
 import {
   requestCliNativeToolApproval,
@@ -59,6 +61,7 @@ import { createCliPluginWatchdog } from "./execute-plugin-watchdog.js";
 import { createSteeredCliMessageInjection } from "./execute-plugin.steered-transcript.js";
 import { attachCliReplyBackend, createCliRunCurrentAssertion } from "./execution-target.js";
 import { createCliFailoverError as failover } from "./exit-error.js";
+import { cliBackendLog } from "./log.js";
 import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./native-wait-state.js";
 import * as noOutputPolicy from "./no-output-timeout-policy.js";
 import { normalizeCliToolName } from "./tool-policy.js";
@@ -528,6 +531,7 @@ export async function executePluginOwnedProcess(params: {
   let iterator: AsyncIterator<Record<string, unknown>> | undefined;
   let liveSession: ReturnType<typeof createCliLiveSessionCapability> | undefined;
   let terminalResult: "none" | "success" | "error" = "none";
+  let resultSessionId = params.sessionId;
   try {
     // Host policy preparation cannot produce CLI output; start execution clocks after it.
     const requestToolPermission = await racePromiseWithAbortSignal(
@@ -579,6 +583,16 @@ export async function executePluginOwnedProcess(params: {
       if (params.liveSession.requiredGeneration) {
         throw new Error("The required CLI live session cannot be replaced by a fresh process.");
       }
+      await restartCliLiveSession(params.context, signal);
+    } else if (
+      params.liveSession &&
+      !params.liveSession.requiredGeneration &&
+      (await hasCliLiveSessionTranscriptChanged(params.context))
+    ) {
+      // A terminal `claude --resume` appended turns the idle process never saw; resume afresh.
+      cliBackendLog.info(
+        `cli live session restart: provider=${params.context.backendResolved.id} reason=transcript-changed`,
+      );
       await restartCliLiveSession(params.context, signal);
     }
     assertCurrent();
@@ -692,6 +706,9 @@ export async function executePluginOwnedProcess(params: {
         throw new Error("CLI plugin runtime emitted an invalid structured stream event.");
       }
       if (next.value.type === "result" && next.value.openclaw_interim_result !== true) {
+        if (typeof next.value.session_id === "string") {
+          resultSessionId = next.value.session_id;
+        }
         terminalResult =
           terminalResult === "error" ||
           next.value.is_error === true ||
@@ -725,6 +742,9 @@ export async function executePluginOwnedProcess(params: {
       throw new Error("CLI plugin runtime completed without a terminal result.");
     }
     await params.mcpCapture?.waitForTurnInterrupt?.();
+    if (liveSession) {
+      void rememberCliLiveSessionTranscript(params.context, resultSessionId);
+    }
   } catch (error) {
     if (run.abortSignal?.aborted || termination.reason === "manual-cancel") {
       const reason = isSignalTimeoutReason(run.abortSignal?.reason) ? "timeout" : "aborted";
