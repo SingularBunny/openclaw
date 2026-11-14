@@ -1,3 +1,4 @@
+import fs from "node:fs/promises";
 import { racePromiseWithAbortSignal } from "@openclaw/retry";
 import { sha256Hex } from "../../infra/crypto-digest.js";
 import { readHostFreeMemoryBytes } from "../../infra/host-memory.js";
@@ -7,6 +8,8 @@ import type {
   CliBackendLiveSessionHandle,
   CliBackendRewindFilesResult,
 } from "../../plugins/cli-backend.types.js";
+import { sleep } from "../../utils/sleep.js";
+import { claudeCliSessionTranscriptPath } from "../command/attempt-execution.helpers.js";
 import { CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE } from "../failover/error.js";
 import { runCliCleanup } from "./cleanup.js";
 import { createCliRunCurrentAssertion } from "./execution-target.js";
@@ -18,6 +21,8 @@ const MAX_LIVE_SESSIONS = 16;
 // A warm session measured ~490 MiB RSS: Claude Code (~200 MiB Linux, ~260 MiB macOS)
 // plus its supervisor helpers, more while it works. Keep room for about two.
 const MIN_FREE_MEMORY_BYTES = 1024 ** 3;
+const TRANSCRIPT_SETTLE_MS = 250;
+const TRANSCRIPT_SETTLE_ATTEMPTS = 8;
 
 type CliLiveSessionOwner = {
   backendId: string;
@@ -32,6 +37,9 @@ type CliLiveSessionRecord = {
   /** Fork (F47): the conversation this process serves, for per-task controls. */
   conversation: { agentId?: string; sessionKey?: string };
   approvalGrants: Set<string>;
+  /** Native transcript identity once the last completed turn's writes settled. */
+  transcript?: { path: string; identity: string };
+  transcriptNote?: object;
   cleanup?: () => Promise<void>;
   cleanupPromise?: Promise<void>;
   capture?: {
@@ -283,6 +291,72 @@ export async function ensureCliLiveSessionMemory(
       CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE,
     );
   }
+}
+
+async function statTranscriptIdentity(filePath: string): Promise<string | undefined> {
+  try {
+    const stats = await fs.stat(filePath);
+    return [stats.dev, stats.ino, stats.size, stats.mtimeMs].join(":");
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Remembers the native transcript an idle Claude process last wrote, once its trailing writes
+ * settle. Never blocks the turn; a transcript that cannot be located keeps plain reuse.
+ */
+export async function rememberCliLiveSessionTranscript(
+  context: PreparedCliRunContext,
+  cliSessionId: string | undefined,
+): Promise<void> {
+  const record = liveSessions.get(buildCliLiveSessionKey(context));
+  const filePath =
+    context.preparedBackend.backend.liveSession === "claude-stdio"
+      ? claudeCliSessionTranscriptPath({
+          sessionId: cliSessionId,
+          workspaceDir: context.cwd ?? context.workspaceDir,
+        })
+      : null;
+  if (!record || record.owner !== context.preparedBackend || !filePath) {
+    return;
+  }
+  const note = {};
+  record.transcriptNote = note;
+  record.transcript = undefined;
+  let identity = await statTranscriptIdentity(filePath);
+  for (let attempt = 0; identity && attempt < TRANSCRIPT_SETTLE_ATTEMPTS; attempt += 1) {
+    await sleep(TRANSCRIPT_SETTLE_MS);
+    const next = await statTranscriptIdentity(filePath);
+    if (next === identity) {
+      break;
+    }
+    identity = next;
+  }
+  // A later turn or a retired process makes this snapshot stale; plain reuse stays.
+  if (
+    identity &&
+    record.transcriptNote === note &&
+    record.handle.isIdle() &&
+    !record.cleanupPromise
+  ) {
+    record.transcript = { path: filePath, identity };
+  }
+}
+
+/**
+ * Whether another writer (a terminal `claude --resume`) appended to the transcript since this
+ * idle process finished its turn. The process would answer without those turns.
+ */
+export async function hasCliLiveSessionTranscriptChanged(
+  context: PreparedCliRunContext,
+): Promise<boolean> {
+  const transcript = liveSessions.get(buildCliLiveSessionKey(context))?.transcript;
+  if (!transcript) {
+    return false;
+  }
+  const identity = await statTranscriptIdentity(transcript.path);
+  return identity !== undefined && identity !== transcript.identity;
 }
 
 /** Returns whether this prepared local plugin transport may retain its execution process. */
