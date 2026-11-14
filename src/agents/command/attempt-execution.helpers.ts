@@ -171,7 +171,7 @@ export async function sessionTranscriptHasContent(
   );
 }
 
-function claudeCliSessionTranscriptPath(params: {
+export function claudeCliSessionTranscriptPath(params: {
   sessionId: string | undefined;
   workspaceDir: string | undefined;
   homeDir?: string;
