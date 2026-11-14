@@ -8,13 +8,15 @@ import {
   setRuntimeConfigSnapshot,
 } from "../../config/runtime-snapshot.js";
 import { clearCronJobActive, markCronJobActive } from "../../cron/active-jobs.js";
+import { cronAddResultReadView } from "../../cron/job-read-view.js";
 import { CronService } from "../../cron/service.js";
 import { createCronStoreHarness, createNoopLogger } from "../../cron/service.test-harness.js";
-import type { CronJob } from "../../cron/types.js";
+import type { CronJob, CronJobCreate } from "../../cron/types.js";
 import { GatewayClientRequestError } from "../../gateway/client.js";
 import { projectCronListJobs } from "../../gateway/server-methods/cron-list-projection.js";
 import { freezeJsonSnapshot } from "../../shared/immutable-data.js";
 import { createTestGatewayScheduler } from "../../test-utils/gateway-scheduler-clock.js";
+import { gateAgentToolExecution } from "../agent-tool-availability.js";
 import { applyCodeModeCatalog } from "../code-mode.js";
 import {
   createCodeModeHarness,
@@ -23,6 +25,13 @@ import {
   runUntilCompleted,
   waitUntilCompleted,
 } from "../code-mode.test-support.js";
+import { ToolSearchRuntime } from "../tool-search-runtime.js";
+import {
+  createToolSearchCatalogRef,
+  registerHeadlessToolSearchCatalog,
+  resolveToolSearchConfig,
+} from "../tool-search.js";
+import { type AnyAgentTool } from "./common.js";
 import { createCronTool } from "./cron-tool.js";
 
 const job: CronJob = {
@@ -73,6 +82,21 @@ const history = {
     },
   ],
 };
+
+const dailyJob = {
+  name: "Water the seedlings",
+  schedule: { kind: "cron", expr: "0 9 * * *" },
+  payload: { kind: "agentTurn", message: "Check the seedling trays." },
+};
+
+function catalogRuntime(tool: AnyAgentTool) {
+  const catalogRef = createToolSearchCatalogRef();
+  registerHeadlessToolSearchCatalog({ catalogRef, tools: [tool], hookContext: { runId: "cron" } });
+  return new ToolSearchRuntime({ catalogRef }, resolveToolSearchConfig(), {
+    prepareInput: true,
+    validateInput: true,
+  });
+}
 
 function createCronService(storePath: string) {
   return new CronService({
@@ -141,6 +165,46 @@ describe("automations output contract", () => {
         await cron.add(input);
         cron.stop();
       }
+    },
+  );
+
+  it("accepts the Gateway add result for a daily agent turn through catalog dispatch", async () => {
+    const { storePath } = await makeStorePath();
+    const cron = createCronService(storePath);
+    onTestFinished(() => cron.stop());
+    const gatewayCall = vi
+      .fn()
+      .mockImplementation(async (_method: string, _opts: unknown, params: unknown) =>
+        freezeJsonSnapshot(
+          cronAddResultReadView({
+            result: await cron.add(params as CronJobCreate),
+            deliveryPreview,
+          }),
+        ),
+      );
+    const runtime = catalogRuntime(createCronTool(undefined, { callGatewayTool: gatewayCall }));
+    await expect(
+      runtime.callValue("automations", { action: "add", job: dailyJob }),
+    ).resolves.toMatchObject({ name: dailyJob.name, schedule: dailyJob.schedule, deliveryPreview });
+    expect(gatewayCall.mock.calls.map((call) => call[0])).toEqual(["cron.add"]);
+    await expect(cron.list({ includeDisabled: true })).resolves.toHaveLength(1);
+  });
+
+  it.each([{ action: "status" }, { action: "add", job: dailyJob }])(
+    "returns a turn-authority gate as guidance instead of an output contract failure (%o)",
+    async (input) => {
+      const gatewayCall = vi.fn();
+      const reason =
+        "automations needs the owner's authority, and this turn was not started by the owner. Do not retry automations.";
+      const gated = gateAgentToolExecution(
+        createCronTool(undefined, { callGatewayTool: gatewayCall }),
+        reason,
+      );
+      await expect(catalogRuntime(gated).callValue("automations", input)).resolves.toEqual({
+        gated: true,
+        message: reason,
+      });
+      expect(gatewayCall).not.toHaveBeenCalled();
     },
   );
 

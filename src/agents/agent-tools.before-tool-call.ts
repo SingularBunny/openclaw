@@ -34,7 +34,6 @@ export {
 export {
   buildBlockedToolResult,
   getBeforeToolCallFailureDisposition,
-  isPreExecutionBlockedToolResult,
   recordAdjustedParamsForToolCall,
   recordStructuredReplayTrustForToolCall,
   rewrapToolWithBeforeToolCallHook,
