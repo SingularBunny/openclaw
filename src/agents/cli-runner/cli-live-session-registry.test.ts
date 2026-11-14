@@ -1,3 +1,6 @@
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createDeferred } from "../../../test/helpers/promise.js";
 import type {
@@ -9,6 +12,7 @@ import { materializeSkill } from "../../skills/loading/skill-materializer.js";
 import type { SkillSnapshot } from "../../skills/types.js";
 import { prepareSystemAgentRunAdmission } from "../admitted-run-context.js";
 import { buildPreparedCliRunContext } from "../cli-runner.test-helpers.js";
+import { resolveClaudeCliProjectDirForWorkspace } from "../command/claude-cli-project-dir.js";
 import { hasModelFallbackStop } from "../failover-error.js";
 import { createAgentCleanupScope } from "../run-cleanup-timeout.js";
 import {
@@ -18,6 +22,8 @@ import {
   getCliLiveSessionApprovalGrants,
   getCliLiveSessionGeneration,
   hasCliLiveSession,
+  hasCliLiveSessionTranscriptChanged,
+  rememberCliLiveSessionTranscript,
   restartCliLiveSession,
 } from "./cli-live-session-registry.js";
 import { settlePreparedCliRun } from "./cli-run-settlement.js";
@@ -720,6 +726,72 @@ describe("generic plugin-owned live session registry", () => {
 
     const overflow = await createOwner();
     expect(() => overflow.register()).toThrow("Too many CLI live sessions are active.");
+  });
+
+  it("reports a native transcript changed by another writer after the idle turn", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-live-transcript-"));
+    vi.stubEnv("HOME", home);
+    try {
+      const owner = await createOwner({ idle: true });
+      const { context } = owner;
+      context.workspaceDir = path.join(home, "work");
+      context.preparedBackend.backend = {
+        ...context.preparedBackend.backend,
+        liveSession: "claude-stdio",
+      };
+      owner.register();
+      const projectDir = resolveClaudeCliProjectDirForWorkspace({
+        workspaceDir: context.workspaceDir,
+      });
+      const transcript = path.join(projectDir, "cli-session.jsonl");
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(transcript, '{"type":"user"}\n');
+
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(false);
+      await rememberCliLiveSessionTranscript(context, "cli-session");
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(false);
+
+      await fs.appendFile(transcript, '{"type":"assistant"}\n');
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(true);
+
+      // An unreadable transcript keeps plain reuse.
+      await fs.rm(transcript);
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(false);
+      await rememberCliLiveSessionTranscript(context, "missing-session");
+      await fs.writeFile(path.join(projectDir, "missing-session.jsonl"), "{}\n");
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+      await fs.rm(home, { recursive: true, force: true });
+    }
+  });
+
+  it("does not remember a transcript while the live process is busy", async () => {
+    const home = await fs.mkdtemp(path.join(os.tmpdir(), "openclaw-live-transcript-"));
+    vi.stubEnv("HOME", home);
+    try {
+      const owner = await createOwner({ idle: false });
+      const { context } = owner;
+      context.workspaceDir = path.join(home, "work");
+      context.preparedBackend.backend = {
+        ...context.preparedBackend.backend,
+        liveSession: "claude-stdio",
+      };
+      owner.register();
+      const projectDir = resolveClaudeCliProjectDirForWorkspace({
+        workspaceDir: context.workspaceDir,
+      });
+      const transcript = path.join(projectDir, "cli-session.jsonl");
+      await fs.mkdir(projectDir, { recursive: true });
+      await fs.writeFile(transcript, "{}\n");
+
+      await rememberCliLiveSessionTranscript(context, "cli-session");
+      await fs.appendFile(transcript, "{}\n");
+      expect(await hasCliLiveSessionTranscriptChanged(context)).toBe(false);
+    } finally {
+      vi.unstubAllEnvs();
+      await fs.rm(home, { recursive: true, force: true });
+    }
   });
 
   it("admits only local plugin-owned structured execution to reusable sessions", () => {
