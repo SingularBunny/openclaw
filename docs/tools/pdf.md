@@ -46,7 +46,9 @@ Password for encrypted PDFs. Applies to every PDF in the request; only used by e
 </ParamField>
 
 <ParamField path="model" type="string">
-Optional model override in `provider/model` form.
+Optional model override in `provider/model` form. Fork: when `agents.defaults.modelPolicy.allow` is set, the model must
+be in it, as for a chat model switch; `OPENCLAW_MEDIA_MODEL_OVERRIDE=0` ignores this field and the configured PDF model
+answers.
 </ParamField>
 
 <ParamField path="maxBytesMb" type="number">
