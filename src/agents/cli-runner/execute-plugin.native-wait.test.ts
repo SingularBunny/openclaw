@@ -12,6 +12,8 @@ import {
 const REQUESTING = { type: "system", subtype: "status", status: "requesting" };
 // The smallest first-byte window the CLI accepts; keeps fake-timer runs short.
 const FIRST_BYTE_ENV = { CLAUDE_STREAM_FIRST_BYTE_TIMEOUT_MS: "10000" };
+// The first run of a test file loads exec policy modules before the CLI starts (about 3 s cold).
+const FIRST_OUTPUT_WAIT = { timeout: 30_000 };
 
 afterEach(() => {
   closePluginTestAdmissions();
@@ -42,7 +44,7 @@ describe("plugin-owned CLI execution: silent native waits", () => {
     ).finally(() => {
       settled = true;
     });
-    await vi.waitFor(() => expect(received).toHaveLength(1));
+    await vi.waitFor(() => expect(received).toHaveLength(1), FIRST_OUTPUT_WAIT);
 
     // 10 s CLI window plus the 30 s margin.
     await vi.advanceTimersByTimeAsync(35_000);
@@ -87,10 +89,10 @@ describe("plugin-owned CLI execution: silent native waits", () => {
     ).finally(() => {
       settled = true;
     });
-    await vi.waitFor(() => expect(received).toHaveLength(1));
+    await vi.waitFor(() => expect(received).toHaveLength(1), FIRST_OUTPUT_WAIT);
     await vi.advanceTimersByTimeAsync(10_000);
     retried.resolve();
-    await vi.waitFor(() => expect(received).toHaveLength(3));
+    await vi.waitFor(() => expect(received).toHaveLength(3), FIRST_OUTPUT_WAIT);
 
     // The retry's own `requesting` frame keeps the longer window: 60 s + 30 s margin.
     await vi.advanceTimersByTimeAsync(85_000);
@@ -120,7 +122,7 @@ describe("plugin-owned CLI execution: silent native waits", () => {
         onNoOutputTimeout: timeout,
       },
     );
-    await vi.waitFor(() => expect(received).toHaveLength(2));
+    await vi.waitFor(() => expect(received).toHaveLength(2), FIRST_OUTPUT_WAIT);
 
     await vi.advanceTimersByTimeAsync(2_000);
     await expect(run).resolves.toMatchObject({ reason: "no-output-timeout" });
