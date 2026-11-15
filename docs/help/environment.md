@@ -160,6 +160,7 @@ Installed third-party plugins may declare additional credential variables in the
 | `OPENCLAW_ALLOW_MULTI_GATEWAY`       | Allow multiple Gateway processes while preserving per-state ownership locks.                 |
 | `OPENCLAW_SKIP_CHANNELS`             | Start the Gateway without channel transports for troubleshooting.                            |
 | `OPENCLAW_THEME`                     | Force the TUI palette to `light` or `dark`.                                                  |
+| `OPENCLAW_MEDIA_MODEL_OVERRIDE`      | Fork: `0` ignores the model an agent names in the `image` or `pdf` tool; the configured model answers. |
 
 ### Worker and catalog limits
 
