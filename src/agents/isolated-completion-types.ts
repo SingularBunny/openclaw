@@ -1,5 +1,6 @@
 import type { ThinkLevel } from "../auto-reply/thinking.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import type { ImageContent } from "../llm/types.js";
 import type { AdmittedRunOperatorAuthority } from "./admitted-run-context.js";
 import type { AgentHarnessIsolatedCompletionParamsV2 } from "./harness/types.js";
 import type { IsolatedCompletionPurpose } from "./isolated-completion-purpose.js";
@@ -20,6 +21,8 @@ export type RunIsolatedCompletionParams = {
   agentHarnessRuntimeOverride?: string;
   systemPrompt: string;
   prompt: string;
+  /** Fork: images for the prompt (the image and pdf tools); only a CLI runtime takes them. */
+  images?: ImageContent[];
   timeoutMs: number;
   /** Adapt the owner's deadline reason to the caller's error contract. */
   timeoutError?: Error;
