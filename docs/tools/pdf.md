@@ -87,6 +87,15 @@ Limits:
 - `pages` is not supported; if set, the tool throws `pages is not supported with native PDF providers`.
 - `password` is not supported; if set, the tool throws `password is not supported with native PDF providers`. Use a non-native model for encrypted PDFs.
 
+### CLI runtime mode (fork)
+
+Used when the PDF model runs on a CLI runtime, such as Claude by subscription through Claude CLI
+(`agents.defaults.pdfModel` set to an Anthropic model whose runtime is `claude-cli`). Such a model has no API key, so
+native and provider API calls cannot run it. The tool extracts the PDF as in extraction fallback mode below (text,
+scanned pages rendered to images) and sends the text, the images and the prompt as one isolated CLI turn: no tools,
+no session, images attached as chat attachments are. The turn uses the subscription's limits; it times out after
+3 minutes.
+
 ### Extraction fallback mode
 
 Used for every other provider.
