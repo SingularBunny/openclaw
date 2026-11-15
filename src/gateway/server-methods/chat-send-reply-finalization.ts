@@ -128,6 +128,8 @@ export async function finalizeChatSendDispatchedReplies(
     persistUserTurnTranscript: GatewayChatUserTurnPersist;
     suppressReplies: boolean;
     runtimeOwnsTranscript?: boolean;
+    /** Fork (F72): a bound runtime's reply is replayable model output in this chat. */
+    runtimeAuthor?: { provider: string; model: string };
     state: "final" | "aborted";
     stopReason?: string;
   },
@@ -322,6 +324,9 @@ export async function finalizeChatSendDispatchedReplies(
         stopReason,
         ttsSupplement: ttsSupplementMarker,
         ...(contextFreeCommand ? { contextFreeCommand: true } : {}),
+        ...(params.runtimeAuthor && !contextFreeCommand
+          ? { runtimeAuthor: params.runtimeAuthor }
+          : {}),
         config: cfg,
         onMessageCommitted: retainCommittedChatReplyMedia,
       });

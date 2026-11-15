@@ -16,6 +16,7 @@ import {
 } from "../../config/sessions/session-accessor.js";
 import { racePromiseWithAbortSignal } from "../../infra/abort-signal.js";
 import { onSessionTranscriptUpdate } from "../../sessions/transcript-events.js";
+import { isTranscriptOnlyOpenClawAssistantMessage } from "../../shared/transcript-only-openclaw-assistant.js";
 import {
   closeOpenClawAgentDatabasesAsync,
   closeOpenClawAgentDatabasesForTest,
@@ -200,6 +201,39 @@ describe("gateway chat.inject transcript writes", () => {
       expect(JSON.stringify(updates[0]?.message)).toContain(fakeApiKey);
     } finally {
       unsubscribe();
+      await cleanupFixture(fixture);
+    }
+  });
+
+  it("records a bound runtime's reply as replayable model output (F72)", async () => {
+    const fixture = await createSqliteTranscriptFixture({
+      prefix: "openclaw-chat-inject-runtime-author-",
+      sessionId: "sess-runtime-author",
+    });
+    try {
+      const appended = await appendInjectedAssistantMessageToTranscript({
+        ...fixture,
+        message: "Codex answer",
+        runtimeAuthor: { provider: "acp", model: "codex" },
+        config: {},
+      });
+      expect(appended.ok).toBe(true);
+      const plain = await appendInjectedAssistantMessageToTranscript({
+        ...fixture,
+        message: "Command reply",
+        config: {},
+      });
+      expect(plain.ok).toBe(true);
+      const messages = (await readTranscriptEvents(fixture))
+        .map((event) => event.message as Record<string, unknown> | undefined)
+        .filter((message) => message?.role === "assistant");
+      expect(messages.map((message) => [message?.provider, message?.model])).toEqual([
+        ["acp", "codex"],
+        ["openclaw", "gateway-injected"],
+      ]);
+      expect(isTranscriptOnlyOpenClawAssistantMessage(messages[0])).toBe(false);
+      expect(isTranscriptOnlyOpenClawAssistantMessage(messages[1])).toBe(true);
+    } finally {
       await cleanupFixture(fixture);
     }
   });

@@ -5,6 +5,7 @@ import {
 } from "openclaw/plugin-sdk/claude-model-runtime";
 import type {
   CliBackendConfig,
+  CliBackendNormalizeConfigContext,
   CliBackendResolveExecutionArgsContext,
 } from "openclaw/plugin-sdk/cli-backend";
 import { resolveExecModePolicy } from "openclaw/plugin-sdk/exec-approvals-runtime";
@@ -522,7 +523,36 @@ export function appendClaudeCliChromeArgs(
     : [...args, CLAUDE_CHROME_ARG];
 }
 
-export function normalizeClaudeBackendConfig(config: CliBackendConfig): CliBackendConfig {
+/**
+ * Fork (F72): `plugins.entries.anthropic.config.cliHistory` opts a single-owner install
+ * into history for a CLI-native login and sets how many unseen turns a resumed session gets.
+ */
+function resolveClaudeCliHistoryConfig(
+  context: CliBackendNormalizeConfigContext | undefined,
+): Pick<CliBackendConfig, "historyAllowUnknownAuth" | "maxUnseenTurns"> {
+  const pluginConfig = context?.config?.plugins?.entries?.anthropic?.config;
+  const history =
+    pluginConfig && typeof pluginConfig === "object"
+      ? (pluginConfig as { cliHistory?: unknown }).cliHistory
+      : undefined;
+  if (!history || typeof history !== "object") {
+    return {};
+  }
+  const { allowUnknownAuth, maxUnseenTurns } = history as Record<string, unknown>;
+  return {
+    ...(allowUnknownAuth === true ? { historyAllowUnknownAuth: true } : {}),
+    ...(typeof maxUnseenTurns === "number" &&
+    Number.isSafeInteger(maxUnseenTurns) &&
+    maxUnseenTurns > 0
+      ? { maxUnseenTurns }
+      : {}),
+  };
+}
+
+export function normalizeClaudeBackendConfig(
+  config: CliBackendConfig,
+  context?: CliBackendNormalizeConfigContext,
+): CliBackendConfig {
   const output = config.output ?? "jsonl";
   const input = config.input ?? "stdin";
   return {
@@ -531,5 +561,6 @@ export function normalizeClaudeBackendConfig(config: CliBackendConfig): CliBacke
     liveSession:
       config.liveSession ?? (output === "jsonl" && input === "stdin" ? "claude-stdio" : undefined),
     input,
+    ...resolveClaudeCliHistoryConfig(context),
   };
 }

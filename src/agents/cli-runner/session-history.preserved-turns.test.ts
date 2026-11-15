@@ -171,4 +171,66 @@ describe("preserved Claude turns", () => {
       admission.close();
     }
   });
+
+  it("carries other models' turns since Claude's last reply within a configured count and budget (F72)", async () => {
+    const { target, params } = await createSession();
+    const admission = prepareSystemAgentRunAdmission({}, "preserved", "main", "history-test");
+    const admittedRunContext = await admission.admit("embedded");
+    let seq = 0;
+    const append = async (message: object) =>
+      await appendTranscriptMessage(target, {
+        eventId: `row-${++seq}`,
+        now: seq * 1000,
+        message,
+      });
+    const assistant = (provider: string, text: string) =>
+      buildAssistantMessage({
+        model: { api: "cli", provider, id: "test-model" },
+        content: [{ type: "text", text }],
+        stopReason: "stop",
+        usage: buildUsageWithNoCost({}),
+      });
+    try {
+      await append(makeUserMessage("Start.", 1));
+      await append(assistant("claude-cli", "claude-reply"));
+      // The chat switched to another model for six exchanges (twelve rows).
+      for (let index = 0; index < 6; index++) {
+        await append(makeUserMessage(`question-${index}`, 1));
+        await append(assistant("openai", `gpt-${index}`));
+      }
+      const resumed = {
+        ...params,
+        sessionKey: target.sessionKey,
+        sessionId: target.sessionId,
+        admittedRunContext,
+        nativeSessionId: "native-session",
+        provider: "claude-cli",
+        tools: [],
+      };
+      const unchanged = (await loadCliSessionPromptContext(resumed)).resumeContext;
+      expect(unchanged).not.toContain("question-1");
+      expect(unchanged).toContain("question-2");
+      expect(unchanged).toContain("gpt-5");
+
+      const counted = (
+        await loadCliSessionPromptContext({
+          ...resumed,
+          unseenTurnLimits: { maxTurns: 50, maxChars: 100_000 },
+        })
+      ).resumeContext;
+      expect(counted).toContain("question-0");
+      expect(counted).toContain("gpt-5");
+
+      const budgeted = (
+        await loadCliSessionPromptContext({
+          ...resumed,
+          unseenTurnLimits: { maxTurns: 50, maxChars: 120 },
+        })
+      ).resumeContext;
+      expect(budgeted).toContain("gpt-5");
+      expect(budgeted).not.toContain("question-3");
+    } finally {
+      admission.close();
+    }
+  });
 });

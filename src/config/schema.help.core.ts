@@ -301,6 +301,8 @@ export const CORE_FIELD_HELP: Record<string, string> = {
     "Per-sessionUpdate visibility overrides for ACP projection (for example usage_update, available_commands_update).",
   "acp.runtime.installCommand":
     "Optional operator install/setup command shown by `/acp install` and `/acp doctor` when ACP backend wiring is missing.",
+  "acp.seedParentHistory":
+    "Fork (F72). When true, an ACP session bound to an existing chat (`/acp spawn <agent> --bind here`) receives that chat's earlier user and assistant messages with its first prompt, and later only the messages other models added since its last turn. The bound agent's replies are recorded in the chat as replayable ACP output, so models answering after `/acp close` see them. Default false.",
   surfaces:
     "Per-surface message policy overrides keyed by the resolved delivery surface id. Use this only when one deployed surface needs stricter silent-reply handling than the agent default.",
   "surfaces.*.silentReply":

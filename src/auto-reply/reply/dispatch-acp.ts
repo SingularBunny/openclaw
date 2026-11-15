@@ -35,6 +35,7 @@ import { recordRuntimeActionDecision } from "../../audit/runtime-action-decision
 import { readChannelContextAdmissionEvidence } from "../../channels/message-access/admission-evidence.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import type { PrepareAssistantTranscriptMessage } from "../../config/sessions/transcript-assistant-delivery.js";
+import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { getGatewayLocalUserIngress } from "../../gateway/local-user-ingress.js";
 import { logVerbose } from "../../globals.js";
 import { isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
@@ -92,12 +93,52 @@ const loadDispatchAcpTranscriptRuntime = createLazyPromise(
   () => import("./dispatch-acp-transcript.runtime.js"),
 );
 
+const loadDispatchAcpParentHistoryRuntime = createLazyPromise(
+  () => import("./dispatch-acp-parent-history.runtime.js"),
+);
+
 function resolveAcpRequestId(ctx: FinalizedRuntimeMsgContext): string {
   const id = ctx.MessageSidFull ?? ctx.MessageSid ?? ctx.MessageSidFirst ?? ctx.MessageSidLast;
   return (
     normalizeOptionalString(id) ??
     (typeof id === "number" || typeof id === "bigint" ? String(id) : generateSecureUuid())
   );
+}
+
+/**
+ * Fork (F72): with `acp.seedParentHistory`, an ACP session bound to another chat receives that
+ * chat's history the ACP session has not seen. Only the runtime prompt carries it; the
+ * child transcript keeps the plain prompt. A failed read falls back to the plain prompt.
+ */
+async function resolveAcpParentHistoryTurnText(params: {
+  cfg: OpenClawConfig;
+  parentSessionKey: string | undefined;
+  child: { agentId: string; sessionKey: string; sessionId?: string };
+  acpAgent: string;
+  prompt: string;
+  currentUserEntryId?: string;
+  abortSignal?: AbortSignal;
+}): Promise<string> {
+  if (
+    params.cfg.acp?.seedParentHistory !== true ||
+    !params.parentSessionKey ||
+    params.parentSessionKey === params.child.sessionKey
+  ) {
+    return params.prompt;
+  }
+  try {
+    const { buildAcpParentHistoryPrompt } = await loadDispatchAcpParentHistoryRuntime();
+    return (
+      (await buildAcpParentHistoryPrompt({
+        ...params,
+        parentSessionKey: params.parentSessionKey,
+      })) ?? params.prompt
+    );
+  } catch (error) {
+    params.abortSignal?.throwIfAborted();
+    logVerbose(`dispatch-acp: parent chat history unavailable: ${formatErrorMessage(error)}`);
+    return params.prompt;
+  }
 }
 
 export type AcpDispatchAttemptResult = {
@@ -635,6 +676,19 @@ export async function tryDispatchAcpReplyCore(
     // ACP can act before its terminal transcript arrives. Consume accepted input
     // before submission while leaving final assistant/outcome persistence below.
     await persistInput?.();
+    const runtimePromptText = await resolveAcpParentHistoryTurnText({
+      cfg: params.cfg,
+      parentSessionKey: normalizeOptionalString(params.ctx.SessionKey),
+      child: {
+        agentId: acpAgentId,
+        sessionKey: canonicalSessionKey,
+        sessionId: transcriptSessionId,
+      },
+      acpAgent: resolvedAcpAgent,
+      prompt: turnPromptText,
+      currentUserEntryId: inputRecorder?.getAdmissionReceipt()?.entryId,
+      abortSignal: params.abortSignal,
+    });
     // Start publications clear prior lifecycle facts; settle input before they can race its guard.
     emitAuditStart();
     try {
@@ -653,7 +707,7 @@ export async function tryDispatchAcpReplyCore(
         sessionEffects: params.ctx.InboundEventKind === "room_event" ? "internal" : "visible",
       }).actorType,
       text: resolveAcpTurnText({
-        promptText: turnPromptText,
+        promptText: runtimePromptText,
         sourceReplyDeliveryMode: params.sourceReplyDeliveryMode,
       }),
       attachments: attachments.length > 0 ? attachments : undefined,

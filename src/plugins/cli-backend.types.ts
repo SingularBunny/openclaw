@@ -55,6 +55,17 @@ export type CliBackendConfig = {
   /** Opt in to bounded raw transcript reseed before compaction for safe session resets. */
   reseedFromRawTranscriptWhenUncompacted?: boolean;
   /**
+   * Fork (F72): also reseed history and carry unseen turns when the history boundary
+   * cannot name the account (a CLI-native login without an OpenClaw credential).
+   * Intended for single-owner installs; off by default.
+   */
+  historyAllowUnknownAuth?: boolean;
+  /**
+   * Fork (F72): how many unseen turns a resumed session receives (default 8). When set,
+   * the newest turns are also kept within the reseed history character budget.
+   */
+  maxUnseenTurns?: number;
+  /**
    * Controls fresh recovery after a recoverable resumed-session failure.
    *
    * Undefined and `replace-binding` preserve the legacy clear-and-reseed behavior.

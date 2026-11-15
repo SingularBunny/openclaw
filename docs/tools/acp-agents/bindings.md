@@ -35,6 +35,25 @@ Examples:
 /acp spawn codex --bind here --cwd /workspace/repo       # same chat binding, Codex runs in /workspace/repo
 ```
 
+### Shared chat history (fork)
+
+By default a bound ACP session starts with only the messages sent to it, and the
+chat records its replies as display-only rows that later models do not replay.
+Set `acp.seedParentHistory: true` to let a chat keep one context across
+`/acp spawn ... --bind here`, `/acp close` and model switches:
+
+- The first prompt sent to the bound ACP session carries the chat's earlier user
+  and assistant messages (tool output and internal notices are left out), within
+  a fixed character budget that drops the oldest turns first.
+- Later prompts carry only the messages other models added to the chat since the
+  ACP session's last turn, so nothing is sent twice.
+- The ACP agent's replies are recorded in the chat as its own model output
+  (`provider: "acp"`, `model: "<agent>"`), so whichever model answers after
+  `/acp close` sees them. The chat still shows one row per reply.
+
+The ACP session's own transcript keeps the plain prompts. Agents started with
+`sessions_spawn({ runtime: "acp" })` still receive only their `task`.
+
 <AccordionGroup>
   <Accordion title="Binding rules and exclusivity">
     - `--bind here` and `--thread ...` are mutually exclusive.

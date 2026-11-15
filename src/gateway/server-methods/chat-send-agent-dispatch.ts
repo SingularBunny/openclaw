@@ -37,6 +37,7 @@ import { buildAbortedChatSendPayload } from "./chat-abort-authorization.js";
 import { broadcastChatDelta } from "./chat-broadcast.js";
 import type { StartChatDispatchParams } from "./chat-send-agent-dispatch.types.js";
 import { scheduleChatDashboardSessionTitle } from "./chat-send-background.js";
+import { resolveBoundAcpReplyAuthor } from "./chat-send-bound-acp-reply.js";
 import { readChatSendReplyPayload } from "./chat-send-command-replies.js";
 import {
   createChatSendDispatchErrorLifecycle,
@@ -622,6 +623,11 @@ export function startChatDispatch(params: StartChatDispatchParams): void {
                 replyDispatchResult.assistantTranscript.sessionKey === sessionKey &&
                 replyDispatchResult.assistantTranscript.sessionId ===
                   activeRunAbort.entry?.sessionId,
+              ...resolveBoundAcpReplyAuthor(
+                cfg,
+                sessionKey,
+                replyDispatchResult?.assistantTranscript,
+              ),
               state: runtimeCancelled ? "aborted" : "final",
               stopReason: runtimeOutcome?.stopReason,
             });
