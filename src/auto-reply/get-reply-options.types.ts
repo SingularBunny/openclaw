@@ -37,6 +37,8 @@ export type ReplyDispatchAssistantTranscript = Pick<
   messageId: string;
   anchor?: TranscriptEntryAnchor;
   idempotencyKey: string;
+  /** Fork (F72): the ACP harness agent (e.g. codex) that authored the reply. */
+  acpAgent?: string;
 };
 
 export type ReplyDispatchRun = {

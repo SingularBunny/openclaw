@@ -70,7 +70,7 @@ import type {
   AcpDispatchAttemptResult,
 } from "./dispatch-acp-delivery.types.js";
 import { finalizeAcpTurnOutput } from "./dispatch-acp-finalize.js";
-import { resolveAcpTurnText } from "./dispatch-acp-prompt.js";
+import { resolveAcpSeededTurnText } from "./dispatch-acp-parent-history.js";
 import { appendRecentHistoryImageContext } from "./history-media.js";
 import { hasInboundMediaForUnderstanding } from "./inbound-media.js";
 import { resolveInboundConversationToolPolicy } from "./reply-tool-authority-inbound.js";
@@ -611,9 +611,9 @@ export async function tryDispatchAcpReplyCore(
         inputProvenance: params.ctx.InputProvenance,
         sessionEffects: params.ctx.InboundEventKind === "room_event" ? "internal" : "visible",
       }).actorType,
-      text: resolveAcpTurnText({
-        promptText: turnPromptText,
-        sourceReplyDeliveryMode: params.sourceReplyDeliveryMode,
+      text: await resolveAcpSeededTurnText(params, turnPromptText, {
+        child: { ...participantTarget, sessionId: transcriptSessionId },
+        acpAgent: resolvedAcpAgent,
       }),
       attachments: attachments.length > 0 ? attachments : undefined,
       mode: "prompt",

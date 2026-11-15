@@ -147,6 +147,17 @@ const transcriptMocks = vi.hoisted(() => ({
   persistAcpDispatchTranscript: vi.fn(async (_params: unknown) => undefined),
 }));
 
+const parentHistoryMocks = vi.hoisted(() => ({
+  buildAcpParentHistoryPrompt: vi.fn(
+    async (_params: { prompt: string }): Promise<string | undefined> => undefined,
+  ),
+}));
+
+vi.mock("./dispatch-acp-parent-history.runtime.js", () => ({
+  buildAcpParentHistoryPrompt: (params: { prompt: string }) =>
+    parentHistoryMocks.buildAcpParentHistoryPrompt(params),
+}));
+
 const { mocks: bindingServiceMocks, module: bindingServiceModule } = await vi.hoisted(async () => {
   const { createAcpBindingMocks } = await import("./session-binding.test-mocks.js");
   return createAcpBindingMocks(vi);
@@ -385,6 +396,39 @@ function mockCaptionedTts(text: string) {
 }
 
 describe("tryDispatchAcpReplyCore", () => {
+  it("seeds a bound ACP session with its parent chat history only when enabled (F72)", async () => {
+    parentHistoryMocks.buildAcpParentHistoryPrompt.mockReset();
+    parentHistoryMocks.buildAcpParentHistoryPrompt.mockImplementation(
+      async ({ prompt }) => `<conversation_history>earlier</conversation_history>\n${prompt}`,
+    );
+    const bound = { SessionKey: "agent:main:main" };
+    await runDispatch({ bodyForAgent: "hello", ctxOverrides: bound });
+    expect(parentHistoryMocks.buildAcpParentHistoryPrompt).not.toHaveBeenCalled();
+    expect(runTurnCall().text).toBe("hello");
+
+    managerMocks.runTurn.mockClear();
+    transcriptMocks.persistAcpDispatchTranscript.mockClear();
+    const cfg = createAcpTestConfig({ acp: { enabled: true, seedParentHistory: true } });
+    await runDispatch({ bodyForAgent: "hello", ctxOverrides: bound, cfg });
+    expect(parentHistoryMocks.buildAcpParentHistoryPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        parentSessionKey: "agent:main:main",
+        child: expect.objectContaining({ sessionKey }),
+        acpAgent: "codex",
+        prompt: "hello",
+      }),
+    );
+    expect(runTurnCall().text).toBe("<conversation_history>earlier</conversation_history>\nhello");
+    expectTranscript({ promptText: "hello" });
+
+    // The unbound ACP session owns its chat; there is no parent to read.
+    parentHistoryMocks.buildAcpParentHistoryPrompt.mockClear();
+    managerMocks.runTurn.mockClear();
+    await runDispatch({ bodyForAgent: "hello", cfg });
+    expect(parentHistoryMocks.buildAcpParentHistoryPrompt).not.toHaveBeenCalled();
+    expect(runTurnCall().text).toBe("hello");
+  });
+
   it("records an accepted channel input in the canonical participant store", async () => {
     await expectAcpSessionParticipantInput(sessionKey, async () => {
       await runDispatch({ bodyForAgent: "hello", ctxOverrides: { SenderId: "participant" } });

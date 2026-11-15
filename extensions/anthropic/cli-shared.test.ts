@@ -420,6 +420,23 @@ describe("resolveClaudeCliExecutionArgs", () => {
 });
 
 describe("normalizeClaudeBackendConfig", () => {
+  it("maps cliHistory plugin config onto the backend history options (F72)", () => {
+    const base = { command: "claude", args: ["-p"] };
+    const config = {
+      plugins: {
+        entries: {
+          anthropic: { config: { cliHistory: { allowUnknownAuth: true, maxUnseenTurns: 30 } } },
+        },
+      },
+    };
+    expect(
+      normalizeClaudeBackendConfig(base, { backendId: "claude-cli", config: config as never }),
+    ).toMatchObject({ historyAllowUnknownAuth: true, maxUnseenTurns: 30 });
+    const plain = normalizeClaudeBackendConfig(base, { backendId: "claude-cli" });
+    expect(plain.historyAllowUnknownAuth).toBeUndefined();
+    expect(plain.maxUnseenTurns).toBeUndefined();
+  });
+
   it("normalizes I/O defaults while deferring argument normalization until execution", () => {
     const streamArgs = argv("-p --output-format stream-json --verbose");
     const resumeArgs = [...streamArgs, "--resume", "{sessionId}"];
