@@ -42,6 +42,7 @@ import { prepareSimpleCompletionModel } from "../simple-completion-runtime.js";
 import type { ToolFsPolicy } from "../tool-fs-policy.js";
 import { readFiniteNumberParam, textResult, ToolInputError, type AnyAgentTool } from "./common.js";
 import { coerceImageModelConfig } from "./image-tool.helpers.js";
+import { MEDIA_TOOL_CLI_TIMEOUT_MS, resolveMediaToolCliRoute } from "./media-tool-cli.js";
 import {
   buildMediaReferenceDetails,
   buildTextToolResult,
@@ -58,7 +59,7 @@ import {
   loadLegacyToolAuthProfileStore,
 } from "./model-config.helpers.js";
 import { anthropicAnalyzePdf, geminiAnalyzePdf } from "./pdf-native-providers.js";
-import { PDF_CLI_TIMEOUT_MS, pdfCliPrompt, resolvePdfCliRoute } from "./pdf-tool.cli.js";
+import { pdfCliPrompt } from "./pdf-tool.cli.js";
 import {
   buildPdfExtractionContext,
   coercePdfAssistantText,
@@ -421,7 +422,7 @@ export function createPdfTool(options?: {
           return resolved;
         };
         // Fork: a PDF model on a CLI runtime (Claude by subscription) gets one isolated CLI turn instead of the API.
-        const cliRoute = await resolvePdfCliRoute({
+        const cliRoute = await resolveMediaToolCliRoute({
           config: effectiveCfg ?? {},
           provider,
           model: modelId,
@@ -447,7 +448,7 @@ export function createPdfTool(options?: {
             systemPrompt: "",
             prompt,
             ...(images.length ? { images } : {}),
-            timeoutMs: PDF_CLI_TIMEOUT_MS,
+            timeoutMs: MEDIA_TOOL_CLI_TIMEOUT_MS,
             ...(modelSignal ? { abortSignal: modelSignal } : {}),
             operatorAuthority,
             assertCurrent: assertModelCurrent,

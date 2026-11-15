@@ -23,12 +23,14 @@ import {
 } from "../admitted-run-context.js";
 import type { AuthProfileStore } from "../auth-profiles/types.js";
 import { resolveImageCompressionModelPolicy } from "../image-compression-policy.js";
+import { runIsolatedCompletion } from "../isolated-completion.js";
 import {
   resolveAllowedImageFallbackCandidates,
   runWithImageModelFallback,
 } from "../model-fallback-image.js";
 import type { PreparedModelRuntimeSnapshot } from "../prepared-model-runtime.js";
 import { resolveConfiguredImageModelRefs, type ImageModelConfig } from "./image-tool.helpers.js";
+import { MEDIA_TOOL_CLI_TIMEOUT_MS, resolveMediaToolCliRoute } from "./media-tool-cli.js";
 import { applyAgentDefaultModelConfig } from "./model-config.helpers.js";
 
 export function resolveImageModelConfigForOverride(params: {
@@ -182,6 +184,40 @@ export async function runImagePrompt(params: {
           execution?.assertCurrent();
         };
         assertCurrent();
+        // Fork: an image model on a CLI runtime (Claude by subscription) gets one isolated CLI turn instead of the API.
+        const cliRoute = await resolveMediaToolCliRoute({
+          config: providerCfg,
+          provider,
+          model: modelId,
+          ...(params.agentId ? { agentId: params.agentId } : {}),
+          agentDir: params.agentDir,
+          ...(params.workspaceDir ? { workspaceDir: params.workspaceDir } : {}),
+        });
+        assertCurrent();
+        if (cliRoute) {
+          const completion = await runIsolatedCompletion({
+            config: providerCfg,
+            provider: cliRoute.provider,
+            model: modelId,
+            agentId: cliRoute.agentId,
+            agentDir: params.agentDir,
+            ...(params.workspaceDir ? { workspaceDir: params.workspaceDir } : {}),
+            agentHarnessRuntimeOverride: cliRoute.cliOwner,
+            systemPrompt: "",
+            prompt: params.prompt,
+            images: params.images.map((image) => ({
+              type: "image" as const,
+              data: image.buffer.toString("base64"),
+              mimeType: image.mimeType,
+            })),
+            timeoutMs: MEDIA_TOOL_CLI_TIMEOUT_MS,
+            ...(signal ? { abortSignal: signal } : {}),
+            operatorAuthority: params.operatorAuthority,
+            assertCurrent,
+          });
+          assertCurrent();
+          return { text: completion.text, provider, model: modelId };
+        }
         // The fallback candidate owns runtime loading; an unrelated media plugin must not
         // block a selected image provider before its request timeout can start.
         const selectedProvider = preparedProviders
