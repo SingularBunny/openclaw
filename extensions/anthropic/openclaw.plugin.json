@@ -421,6 +421,14 @@
       "managedTurns": {
         "type": "boolean"
       },
+      "cliHistory": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "allowUnknownAuth": { "type": "boolean" },
+          "maxUnseenTurns": { "type": "integer", "minimum": 1, "maximum": 200 }
+        }
+      },
       "managedNativeTools": {
         "type": "object",
         "additionalProperties": false,
@@ -458,6 +466,18 @@
     "managedTurns": {
       "label": "Managed Claude CLI Turns",
       "help": "Fork (F62). On by default. Off keeps ordinary claude-cli turns as before 2026.11: Claude Code's own tools, skills, plugins, slash commands and Chrome, under OpenClaw's permission prompts. Restricted senders, delegated runs, explicit tool caps and tools.fs.workspaceOnly stay managed."
+    },
+    "cliHistory": {
+      "label": "Claude CLI Chat History",
+      "help": "Fork (F72). How claude-cli turns receive the chat history other models wrote."
+    },
+    "cliHistory.allowUnknownAuth": {
+      "label": "History Without a Known Account",
+      "help": "Off by default. On sends the chat history to a fresh Claude session, and earlier turns to a resumed one, even when OpenClaw cannot tell which account the Claude CLI is logged into (its own login, no OpenClaw auth profile) or another model wrote to the chat since Claude's last turn. Use it only when one person owns this Gateway and its Claude login."
+    },
+    "cliHistory.maxUnseenTurns": {
+      "label": "Unseen Turns on Resume",
+      "help": "How many turns written since Claude's last reply (by other models or completions) a resumed Claude session receives. Default 8. When set, the newest turns are also kept within the history character budget."
     },
     "managedNativeTools": {
       "label": "Claude Code Native Tools on Managed Turns",

@@ -77,6 +77,7 @@ export async function persistAcpDispatchTranscript(params: {
         messageId: result.assistantTranscript.messageId,
         anchor: result.assistantTranscript.anchor,
         idempotencyKey: params.assistantIdempotencyKey,
+        ...(params.meta?.agent?.trim() ? { acpAgent: params.meta.agent.trim() } : {}),
       }
     : undefined;
 }

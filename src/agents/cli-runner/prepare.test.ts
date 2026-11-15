@@ -265,6 +265,7 @@ function setCliBackendForPrepareTest(
     prepareExecution?: CliBackendPlugin["prepareExecution"];
     sessionMode?: "always" | "existing" | "none";
     reseedFromRawTranscriptWhenUncompacted?: boolean;
+    historyAllowUnknownAuth?: boolean;
   } = {},
 ) {
   const id = params.id ?? "claude-cli";
@@ -295,6 +296,7 @@ function setCliBackendForPrepareTest(
           ...(params.reseedFromRawTranscriptWhenUncompacted
             ? { reseedFromRawTranscriptWhenUncompacted: true }
             : {}),
+          ...(params.historyAllowUnknownAuth ? { historyAllowUnknownAuth: true } : {}),
         },
       },
     ],
@@ -3773,6 +3775,41 @@ describe("prepareCliRunContext", () => {
       expect(context.openClawHistoryPrompt).toContain("User: prior task");
       expect(context.openClawHistoryPrompt?.split("latest ask")).toHaveLength(2);
     });
+  });
+
+  it("reseeds a fresh session without a known account only when the backend allows it (F72)", async () => {
+    fixture.appendTranscript({
+      id: "prior",
+      parentId: null,
+      timestamp: "2020-01-01T00:00:00.000Z",
+      message: { role: "user", content: "prior task", timestamp: 1 },
+    });
+    fixture.appendTranscript({
+      id: "prior-reply",
+      parentId: "prior",
+      timestamp: "2020-01-01T00:00:01.000Z",
+      message: {
+        role: "assistant",
+        content: [{ type: "text", text: "answer from another model" }],
+        api: "openai-responses",
+        provider: "openai",
+        model: "gpt-test",
+        stopReason: "stop",
+        usage: { input: 0, output: 0, totalTokens: 0 },
+        timestamp: 2,
+      },
+    });
+    setCliBackendForPrepareTest({ reseedFromRawTranscriptWhenUncompacted: true });
+    const refused = await fixture.prepare({ provider: "claude-cli", model: "opus" });
+    expect(refused.openClawHistoryPrompt ?? "").not.toContain("prior task");
+
+    setCliBackendForPrepareTest({
+      reseedFromRawTranscriptWhenUncompacted: true,
+      historyAllowUnknownAuth: true,
+    });
+    const allowed = await fixture.prepare({ provider: "claude-cli", model: "opus" });
+    expect(allowed.openClawHistoryPrompt).toContain("User: prior task");
+    expect(allowed.openClawHistoryPrompt).toContain("Assistant: answer from another model");
   });
 
   it("redelivers conversation and tool results after a native transcript disappears", async () => {

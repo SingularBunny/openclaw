@@ -1497,14 +1497,20 @@ async function prepareCliRunContextWithinReadFence(
       ? await prepareCliHistoryBoundary(historyParams, historyIdentity)
       : undefined;
     // Explicit caller-owned memory remains input; it cannot authorize borrowed durable history.
+    const historyAllowed = Boolean(params.sessionManager || replayableTarget(cliHistoryWriter));
+    // Fork (F72): an opted-in backend treats an unprovable account (CLI-native login on a
+    // single-owner install) as the transcript owner, so model switches keep their history.
+    const unknownAuthHistoryAllowed =
+      !historyAllowed && !isSideQuestion && backendResolved.config.historyAllowUnknownAuth === true;
     // Native compatibility and transcript account ownership are independent gates.
     // A session-less backend starts every turn fresh, so the account-owned transcript is
     // its only continuity; the backend's raw-reseed opt-in still decides delivery.
-    const rawTranscriptReseedReason = !(params.sessionManager || replayableTarget(cliHistoryWriter))
-      ? "auth-unknown"
-      : reusableCliSessionId
-        ? "session-expired"
-        : (invalidatedReason ?? (ignoreCliSessionCandidate ? "stateless" : "missing-transcript"));
+    const rawTranscriptReseedReason =
+      !historyAllowed && !unknownAuthHistoryAllowed
+        ? "auth-unknown"
+        : reusableCliSessionId
+          ? "session-expired"
+          : (invalidatedReason ?? (ignoreCliSessionCandidate ? "stateless" : "missing-transcript"));
     const sessionPromptContext =
       skipsTurnPreparation || params.isolatedCompletion
         ? undefined
@@ -1514,6 +1520,14 @@ async function prepareCliRunContextWithinReadFence(
             rawTranscriptReseedReason,
             nativeSessionId: reusableCliSessionId,
             tools: promptTools,
+            ...(backendResolved.config.maxUnseenTurns !== undefined
+              ? {
+                  unseenTurnLimits: {
+                    maxTurns: backendResolved.config.maxUnseenTurns,
+                    maxChars: autoReseedHistoryChars,
+                  },
+                }
+              : {}),
           });
     const effectiveReplyGuidance =
       skipsTurnPreparation || params.isolatedCompletion
