@@ -12,7 +12,8 @@
  * - OPENCLAW_RESTART_AGENT_RUN_WAIT_MS: on the next restart deferral;
  * - OPENCLAW_PROXY_ROUTES: on the next connection (the managed proxy itself, `proxy.*`, still
  *   needs a restart); OPENCLAW_CLI_BACKEND_PROXY: on the next CLI backend run;
- * - OPENCLAW_ASSISTANT_MEDIA_ROOTS: on the next chat file preview or download.
+ * - OPENCLAW_ASSISTANT_MEDIA_ROOTS: on the next chat file preview or download;
+ * - OPENCLAW_MEDIA_MODEL_OVERRIDE: on the next image or pdf tool call.
  */
 export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_WORKER_PENDING_TASKS",
@@ -31,6 +32,7 @@ export const FORK_HOT_ENV_VARS = [
   "OPENCLAW_PROXY_ROUTES",
   "OPENCLAW_CLI_BACKEND_PROXY",
   "OPENCLAW_ASSISTANT_MEDIA_ROOTS",
+  "OPENCLAW_MEDIA_MODEL_OVERRIDE",
 ] as const;
 
 /** Both config spellings: `env.vars.<NAME>` and the `env.<NAME>` shorthand. */
