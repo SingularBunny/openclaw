@@ -22,6 +22,7 @@ import {
 import type { AuthProfileStore } from "../auth-profiles/types.js";
 import { resolveModelAsync } from "../embedded-agent-runner/model.js";
 import { abortable } from "../embedded-agent-runner/run/abortable.js";
+import { runIsolatedCompletion } from "../isolated-completion.js";
 import { requireApiKey } from "../model-auth.js";
 import {
   resolveAllowedImageFallbackCandidates,
@@ -57,6 +58,7 @@ import {
   loadLegacyToolAuthProfileStore,
 } from "./model-config.helpers.js";
 import { anthropicAnalyzePdf, geminiAnalyzePdf } from "./pdf-native-providers.js";
+import { PDF_CLI_TIMEOUT_MS, pdfCliPrompt, resolvePdfCliRoute } from "./pdf-tool.cli.js";
 import {
   buildPdfExtractionContext,
   coercePdfAssistantText,
@@ -418,6 +420,41 @@ export function createPdfTool(options?: {
           }
           return resolved;
         };
+        // Fork: a PDF model on a CLI runtime (Claude by subscription) gets one isolated CLI turn instead of the API.
+        const cliRoute = await resolvePdfCliRoute({
+          config: effectiveCfg ?? {},
+          provider,
+          model: modelId,
+          ...(agentId ? { agentId } : {}),
+          agentDir: runtimeAgentDir,
+          ...(runtimeWorkspaceDir ? { workspaceDir: runtimeWorkspaceDir } : {}),
+        });
+        assertModelCurrent();
+        if (cliRoute) {
+          const extractions = await getExtractions();
+          assertModelCurrent();
+          const { prompt, images } = pdfCliPrompt(
+            buildPdfExtractionContext(promptRaw, extractions, explicitSelectionLimit),
+          );
+          const completion = await runIsolatedCompletion({
+            config: effectiveCfg,
+            provider: cliRoute.provider,
+            model: modelId,
+            agentId: cliRoute.agentId,
+            agentDir: runtimeAgentDir,
+            ...(runtimeWorkspaceDir ? { workspaceDir: runtimeWorkspaceDir } : {}),
+            agentHarnessRuntimeOverride: cliRoute.cliOwner,
+            systemPrompt: "",
+            prompt,
+            ...(images.length ? { images } : {}),
+            timeoutMs: PDF_CLI_TIMEOUT_MS,
+            ...(modelSignal ? { abortSignal: modelSignal } : {}),
+            operatorAuthority,
+            assertCurrent: assertModelCurrent,
+          });
+          assertModelCurrent();
+          return { text: completion.text, provider, model: modelId, native: false, extractions };
+        }
         const prepared = await prepareSimpleCompletionModel(
           {
             cfg: effectiveCfg,

@@ -15,7 +15,7 @@ import { requiredWorkerHelperError } from "../config/required-worker-profile.js"
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { emitTrustedDiagnosticEvent, isDiagnosticsEnabled } from "../infra/diagnostic-events.js";
 import { resolvePreferredOpenClawTmpDir } from "../infra/tmp-openclaw-dir.js";
-import type { Model } from "../llm/types.js";
+import type { ImageContent, Model } from "../llm/types.js";
 import { withPluginRuntimeGenerationScope } from "../plugins/runtime/generation-scope.js";
 import { runWithAsyncWorkResources } from "../shared/async-work-resources.js";
 import { estimateAggregateUsageCost } from "../utils/usage-format.js";
@@ -95,6 +95,8 @@ type RunIsolatedCompletionParams = {
   agentHarnessRuntimeOverride?: string;
   systemPrompt: string;
   prompt: string;
+  /** Fork: images for the prompt (the pdf tool's rendered pages); only a CLI runtime takes them. */
+  images?: ImageContent[];
   timeoutMs: number;
   abortSignal?: AbortSignal;
   /** Private credential directories must remain outside the configured Gateway owner. */
@@ -202,6 +204,7 @@ async function runCliIsolatedCompletion(
           agentId: request.agentId,
           config,
           prompt: request.prompt,
+          ...(request.images?.length ? { images: request.images } : {}),
           extraSystemPrompt: request.systemPrompt,
           timeoutMs: request.timeoutMs,
           runId: sessionId,
@@ -455,6 +458,12 @@ async function runIsolatedCompletionOwned(
       });
       if (cliOwner) {
         return await runCliIsolatedCompletion(request, cliOwner, provider);
+      }
+      if (request.images?.length) {
+        throw new IsolatedCompletionError(
+          "unsupported",
+          "Isolated completion takes images only through a CLI runtime.",
+        );
       }
 
       // Retain the validated plugin instance; load the built-in runner only when selected.
