@@ -659,7 +659,13 @@ describe("restricted CLI tool preparation", () => {
         ...(discovery.length ? { discovery } : {}),
       });
       expect(turns[0]?.toolsAllow).toEqual(["read"]);
-      expect(turns[0]?.nativeTools).toBe([...managedNativeTools, ...discovery].join(","));
+      // Fork (F60): Claude's todo tools follow the managed native tools (extensions/anthropic/cli-todo-tools.ts).
+      const forkTodoTools = managedNativeTools.length
+        ? ["TodoWrite", "TaskCreate", "TaskUpdate", "TaskList", "TaskGet"]
+        : []; // an empty list keeps native tools off
+      expect(turns[0]?.nativeTools).toBe(
+        [...managedNativeTools, ...forkTodoTools, ...discovery].join(","),
+      );
       expect(turns[0]?.allowedTools).toBe("mcp__openclaw__read");
       // Selected tools never restore the customizations managed turns exclude.
       expect(turns[0]?.settingSources).toBe("");
