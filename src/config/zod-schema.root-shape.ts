@@ -346,6 +346,8 @@ export const OpenClawSchemaShape = {
           installCommand: z.string().optional(),
         })
         .optional(),
+      // Fork (F72): bound ACP chats share context with the parent chat.
+      seedParentHistory: z.boolean().optional(),
     })
     .optional(),
   models: ModelsConfigSchema,

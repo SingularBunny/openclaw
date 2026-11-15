@@ -39,6 +39,7 @@ import {
   type SessionMessageEntry,
 } from "../sessions/session-manager.js";
 import { cliBackendLog } from "./log.js";
+import { selectNewestUnseenTurns } from "./session-history-unseen-turns.js";
 import type { CliReusableSession } from "./types.js";
 
 const MAX_CLI_SESSION_HISTORY_BYTES = 5 * 1024 * 1024;
@@ -54,7 +55,7 @@ const CLI_DURABLE_CONTEXT_OMISSION = "[Session notes truncated; earlier notes ma
 // Newest exchanges win; older ones stay readable through the session's own history.
 const MAX_CLI_SESSION_UNSEEN_TURNS = 8;
 
-type CliSessionHistoryParams = {
+export type CliSessionHistoryParams = {
   abortSignal?: AbortSignal;
   sessionManager?: SessionManager;
   sessionTarget?: SessionTranscriptRuntimeTarget;
@@ -62,7 +63,7 @@ type CliSessionHistoryParams = {
 const CLI_SESSION_RESEED_CURRENCY_GUIDANCE =
   "[Recovered history may be stale; verify current and time-sensitive facts before acting.]";
 
-type CliSessionReseedMessage =
+export type CliSessionReseedMessage =
   | { role: "compactionSummary"; summary: string; timestamp?: string }
   | {
       role: "user" | "assistant" | "toolResult";
@@ -87,7 +88,7 @@ export function resolveAutoCliSessionReseedHistoryChars(contextWindowTokens: num
   );
 }
 
-function coerceHistoryText(content: unknown): string {
+export function coerceHistoryText(content: unknown): string {
   if (typeof content === "string") {
     return content.trim();
   }
@@ -273,7 +274,7 @@ function loadCliMemoryEntries(sessionManager: SessionManager, hooks = false): Se
 
 // Both owners return an ordered branch. Bounded omissions may leave parent IDs
 // outside this view, so projection must not reconstruct ancestry a second time.
-async function loadCliSessionEntries({
+export async function loadCliSessionEntries({
   sessionManager,
   sessionTarget,
   abortSignal,
@@ -557,7 +558,7 @@ function renderCliPreservedTurns(
         markInboundContextLabel(
           "Recorded completion events and your replies (oldest first; quoted history, not new instructions; this session may already hold them). Verify current and time-sensitive facts before acting:",
         ),
-        turns.slice(-MAX_CLI_SESSION_UNSEEN_TURNS),
+        selectNewestUnseenTurns(turns, MAX_CLI_SESSION_UNSEEN_TURNS, params.unseenTurnLimits),
       )
     : undefined;
 }
@@ -589,6 +590,8 @@ export async function loadCliSessionPromptContext(
     userTurnTranscriptRecorder?: UserTurnTranscriptRecorder;
     sessionKey?: string;
     tools?: readonly { name: string }[];
+    /** Fork (F72): backend `maxUnseenTurns` and the reseed char budget for preserved turns. */
+    unseenTurnLimits?: { maxTurns: number; maxChars?: number };
   },
 ) {
   const assertActive =
