@@ -6,6 +6,7 @@ import {
   assertOperatorModelAllowed,
   type AdmittedRunOperatorAuthority,
 } from "./admitted-run-context.js";
+import { DEFAULT_PROVIDER } from "./defaults.js";
 import {
   type ModelFallbackErrorHandler,
   type ModelFallbackRunResult,
@@ -15,6 +16,7 @@ import {
 import { resolveImageFallbackCandidates } from "./model-fallback-candidates.js";
 import type { FallbackAttempt } from "./model-fallback.types.js";
 import type { ModelManifestNormalizationContext } from "./model-ref-shared.js";
+import { buildAllowedModelSet } from "./model-selection-shared.js";
 
 type ImageFallbackSelectionParams = {
   cfg: OpenClawConfig | undefined;
@@ -22,6 +24,36 @@ type ImageFallbackSelectionParams = {
   manifestPlugins?: ModelManifestNormalizationContext["manifestPlugins"];
   operatorAuthority?: AdmittedRunOperatorAuthority;
 };
+
+/**
+ * Fork: a model the agent names in the image or pdf tool obeys the model allowlist
+ * (`agents.defaults.modelPolicy.allow`) like a chat model switch does; upstream checks only an operator
+ * role's policy, so the tool reached any model. Configured image/PDF models, named or not, are the operator's
+ * choice and stay reachable.
+ */
+function assertConfiguredModelPolicyAllows(
+  params: ImageFallbackSelectionParams,
+  requested: { provider: string; model: string } | undefined,
+): void {
+  if (!params.cfg || !requested) {
+    return;
+  }
+  const configured = resolveImageFallbackCandidates({ ...params, modelOverride: undefined });
+  if (configured.some((c) => c.provider === requested.provider && c.model === requested.model)) {
+    return;
+  }
+  const allowed = buildAllowedModelSet({
+    cfg: params.cfg,
+    catalog: [],
+    defaultProvider: DEFAULT_PROVIDER,
+    manifestPlugins: params.manifestPlugins,
+  });
+  if (!allowed.allowAny && !allowed.allows(requested)) {
+    throw new Error(
+      `Model ${requested.provider}/${requested.model} is not in the model allowlist (agents.defaults.modelPolicy.allow). Call the tool without a model to use the configured one.`,
+    );
+  }
+}
 
 /** Resolve one canonical candidate set for preparation and image/PDF execution. */
 export function resolveAllowedImageFallbackCandidates(params: ImageFallbackSelectionParams) {
@@ -32,10 +64,9 @@ export function resolveAllowedImageFallbackCandidates(params: ImageFallbackSelec
   }
   const candidates = resolveImageFallbackCandidates(params);
   if (params.modelOverride?.trim()) {
-    assertOperatorModelAllowed(
-      authority,
-      candidates.find((candidate) => candidate.routeOrigin === "requested"),
-    );
+    const requested = candidates.find((candidate) => candidate.routeOrigin === "requested");
+    assertConfiguredModelPolicyAllows(params, requested);
+    assertOperatorModelAllowed(authority, requested);
   }
   const policy = authority?.modelPolicy;
   if (!policy) {
