@@ -645,6 +645,11 @@ export function resolveMediaToolInboundRoots(options?: {
   );
 }
 
+/** Fork: OPENCLAW_MEDIA_MODEL_OVERRIDE=0 — the agent cannot name the model of the image or pdf tool (on by default). */
+export function mediaToolModelOverrideAllowed(): boolean {
+  return !/^(0|false|no|off)$/i.test(process.env.OPENCLAW_MEDIA_MODEL_OVERRIDE?.trim() ?? "");
+}
+
 export function resolvePromptAndModelOverride(
   args: Record<string, unknown>,
   defaultPrompt: string,
@@ -653,7 +658,10 @@ export function resolvePromptAndModelOverride(
   modelOverride?: string;
 } {
   const prompt = normalizeOptionalString(args.prompt) ?? defaultPrompt;
-  const modelOverride = normalizeOptionalString(args.model);
+  // Fork: with the choice off, the configured image/PDF model answers whatever model the agent names.
+  const modelOverride = mediaToolModelOverrideAllowed()
+    ? normalizeOptionalString(args.model)
+    : undefined;
   return { prompt, modelOverride };
 }
 
