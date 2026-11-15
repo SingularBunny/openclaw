@@ -317,6 +317,7 @@ async function runIsolatedCompletionOwned(
                   agentId: request.agentId,
                   config,
                   prompt: request.prompt,
+                  ...(request.images?.length ? { images: request.images } : {}),
                   extraSystemPrompt: request.systemPrompt,
                   timeoutMs: remainingTimeoutMs(),
                   runId: sessionId,
@@ -418,6 +419,12 @@ async function runIsolatedCompletionOwned(
               preparedRunAdmission.close();
             }
           },
+        );
+      }
+      if (request.images?.length) {
+        throw new IsolatedCompletionError(
+          "unsupported",
+          "Isolated completion takes images only through a CLI runtime.",
         );
       }
 
