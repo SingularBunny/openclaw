@@ -88,6 +88,11 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
   assertCurrent?: () => void;
   config?: OpenClawConfig;
   onMessageCommitted?: SessionTranscriptTurnPersistOptions["onMessageCommitted"];
+  /**
+   * Fork (F72): records a bound runtime's reply as that runtime's model output
+   * (e.g. provider "acp", model "codex") so later models replay it.
+   */
+  runtimeAuthor?: { provider: string; model: string };
 }): Promise<GatewayInjectedTranscriptAppendResult> {
   if (!params.sessionKey.trim() || !params.sessionId.trim() || !params.storePath) {
     return { ok: false, error: "transcript identity not resolved" };
@@ -136,10 +141,11 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
           }
         : {}),
     },
-    // Make these explicit so downstream tooling never treats this as model output.
+    // Make these explicit so downstream tooling never treats this as model output,
+    // unless a bound runtime authored the reply.
     api: "openai-responses",
-    provider: "openclaw",
-    model: "gateway-injected",
+    provider: params.runtimeAuthor?.provider ?? "openclaw",
+    model: params.runtimeAuthor?.model ?? "gateway-injected",
     ...(params.idempotencyKey ? { idempotencyKey: params.idempotencyKey } : {}),
     ...(params.ttsSupplement ? { openclawTtsSupplement: params.ttsSupplement } : {}),
     ...(params.contextFreeCommand === true ? { excludeFromContext: true } : {}),

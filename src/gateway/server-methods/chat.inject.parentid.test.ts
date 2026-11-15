@@ -8,6 +8,7 @@ import {
 } from "../../config/sessions/session-accessor.js";
 import { racePromiseWithAbortSignal } from "../../infra/abort-signal.js";
 import { onSessionTranscriptUpdate } from "../../sessions/transcript-events.js";
+import { isTranscriptOnlyOpenClawAssistantMessage } from "../../shared/transcript-only-openclaw-assistant.js";
 import { withOpenClawTestState } from "../../test-utils/openclaw-test-state.js";
 import {
   attachManagedOutgoingMediaToMessage,
@@ -98,3 +99,40 @@ it("joins committed media before publication and preserves source text", (test) 
       unsubscribe();
     }
   }));
+
+it("records a bound runtime's reply as replayable model output (F72)", () =>
+  withOpenClawTestState(
+    { label: "chat-inject-runtime-author", scenario: "minimal" },
+    async (state) => {
+      const fixture = {
+        agentId: "main",
+        sessionKey: "main",
+        sessionId: "sess-runtime-author",
+        storePath: state.statePath("sessions.json"),
+      };
+      setRuntimeConfigSnapshot({});
+      await replaceSessionEntry(fixture, { sessionId: fixture.sessionId, updatedAt: Date.now() });
+      const appended = await appendInjectedAssistantMessageToTranscript({
+        ...fixture,
+        message: "Codex answer",
+        runtimeAuthor: { provider: "acp", model: "codex" },
+        config: {},
+      });
+      expect(appended.ok).toBe(true);
+      const plain = await appendInjectedAssistantMessageToTranscript({
+        ...fixture,
+        message: "Command reply",
+        config: {},
+      });
+      expect(plain.ok).toBe(true);
+      const messages = ((await loadTranscriptEvents(fixture)) as Record<string, unknown>[])
+        .map((event) => event.message as Record<string, unknown> | undefined)
+        .filter((message) => message?.role === "assistant");
+      expect(messages.map((message) => [message?.provider, message?.model])).toEqual([
+        ["acp", "codex"],
+        ["openclaw", "gateway-injected"],
+      ]);
+      expect(isTranscriptOnlyOpenClawAssistantMessage(messages[0])).toBe(false);
+      expect(isTranscriptOnlyOpenClawAssistantMessage(messages[1])).toBe(true);
+    },
+  ));

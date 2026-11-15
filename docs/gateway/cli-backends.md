@@ -178,6 +178,37 @@ decide each native tool call. Restricted senders, delegated execution, explicit
 tool caps and `tools.fs.workspaceOnly` stay managed. The default (`true` or
 unset) is upstream's behavior.
 
+### Chat history across model switches (fork)
+
+When a chat moves from another model back to `claude-cli`, a resumed Claude
+session receives the newest eight turns written since its last reply, and a
+fresh session receives the chat history only when OpenClaw can name the
+account the history belongs to. A Claude CLI logged in on its own (no OpenClaw
+auth profile) has no such account, so a fresh session gets only a note that
+earlier messages exist. On a single-owner Gateway you can lift both limits:
+
+```json5
+{
+  plugins: {
+    entries: {
+      anthropic: {
+        config: {
+          cliHistory: {
+            allowUnknownAuth: true, // reseed fresh sessions without a known account
+            maxUnseenTurns: 40, // resumed sessions: up to 40 turns, within the history budget
+          },
+        },
+      },
+    },
+  },
+}
+```
+
+`allowUnknownAuth` also applies when another model wrote to the chat since
+Claude's last turn. With `maxUnseenTurns` set, the newest turns are kept while
+they fit the same character budget as a fresh-session reseed. Both are off by
+default, which keeps upstream behavior.
+
 ### Keeping Claude Code orchestration tools on managed turns
 
 Managed turns keep Claude's read-only `ToolSearch` available by default. OpenClaw

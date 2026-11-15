@@ -84,3 +84,58 @@ it("preserves unseen Claude exchanges and bounds", async ({ onTestFinished }) =>
     expect(newest).not.toContain("x".repeat(2_000));
   });
 });
+
+it("carries other models' turns since Claude's last reply within a configured count and budget (F72)", async ({
+  onTestFinished,
+}) => {
+  const dirs = useSessionStoreTempDirs(onTestFinished, "openclaw-cli-unseen-");
+  onTestFinished(clearRuntimeConfigSnapshot);
+  const { target, withRun } = await createHistoryBoundaryFixture(dirs, false);
+  await withRun("unseen", async (params) => {
+    let seq = 0;
+    const append = async (message: object) =>
+      await appendTranscriptMessage(target, { eventId: `row-${++seq}`, now: seq * 1000, message });
+    const assistant = (provider: string, text: string) =>
+      buildAssistantMessage({
+        model: { api: "cli", provider, id: "test-model" },
+        content: [{ type: "text", text }],
+        stopReason: "stop",
+        usage: buildUsageWithNoCost({}),
+      });
+    await append(makeUserMessage("Start.", 1));
+    await append(assistant("claude-cli", "claude-reply"));
+    // The chat switched to another model for six exchanges (twelve rows).
+    for (let index = 0; index < 6; index++) {
+      await append(makeUserMessage(`question-${index}`, 1));
+      await append(assistant("openai", `gpt-${index}`));
+    }
+    const resumed = {
+      ...params,
+      nativeSessionId: "native-session",
+      provider: "claude-cli",
+      tools: [],
+    };
+    const unchanged = (await loadCliSessionPromptContext(resumed)).resumeContext;
+    expect(unchanged).not.toContain("question-1");
+    expect(unchanged).toContain("question-2");
+    expect(unchanged).toContain("gpt-5");
+
+    const counted = (
+      await loadCliSessionPromptContext({
+        ...resumed,
+        unseenTurnLimits: { maxTurns: 50, maxChars: 100_000 },
+      })
+    ).resumeContext;
+    expect(counted).toContain("question-0");
+    expect(counted).toContain("gpt-5");
+
+    const budgeted = (
+      await loadCliSessionPromptContext({
+        ...resumed,
+        unseenTurnLimits: { maxTurns: 50, maxChars: 120 },
+      })
+    ).resumeContext;
+    expect(budgeted).toContain("gpt-5");
+    expect(budgeted).not.toContain("question-3");
+  });
+});

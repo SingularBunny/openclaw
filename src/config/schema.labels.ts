@@ -365,6 +365,7 @@ export const FIELD_LABELS: Record<string, string> = {
   "acp.stream.deliveryMode": "ACP Stream Delivery Mode",
   "acp.stream.tagVisibility": "ACP Stream Tag Visibility",
   "acp.runtime.installCommand": "ACP Runtime Install Command",
+  "acp.seedParentHistory": "ACP Seed Parent Chat History",
   ...MODEL_FIELD_LABELS,
   proxy: "Managed Proxy",
   "proxy.enabled": "Managed Proxy Enabled",
