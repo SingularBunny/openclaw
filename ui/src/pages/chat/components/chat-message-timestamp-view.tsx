@@ -2,11 +2,14 @@ import { asNullableRecord, asOptionalRecord } from "@openclaw/normalization-core
 import type { JSX } from "@solidjs/web";
 import { createMemo, For, Show } from "solid-js";
 import { registerChatMessageMetadataEnglish } from "../../../i18n/locales/en-chat-message-metadata.ts";
+import { registerModelControlsEnglish } from "../../../i18n/locales/en-model-controls.ts";
 import type { MessageGroup } from "../../../lib/chat/chat-types.ts";
 import { formatCompactTokenCount, formatCost, formatTimeAgo } from "../../../lib/format.ts";
 import { getLocale, registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
+import { formatReplyAuthor } from "../chat-handoff-registry.ts";
 
 registerEnglishCatalog(registerChatMessageMetadataEnglish);
+registerEnglishCatalog(registerModelControlsEnglish);
 
 const CHAT_RELATIVE_TIMESTAMP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 const CHAT_RELATIVE_TIMESTAMP_FUTURE_SKEW_MS = 2 * 60 * 1000;
@@ -117,6 +120,8 @@ type GroupMeta = {
   cacheWrite: number;
   cost: number;
   model: string | null;
+  /** Fork: the provider of `model`, for the reply's author badge. */
+  provider?: string | null;
   contextPercent: number | null;
 };
 
@@ -130,6 +135,7 @@ export function extractGroupMeta(
   let cacheWrite = 0;
   let cost = 0;
   let model: string | null = null;
+  let provider: string | null = null;
   let hasUsage = false;
   let maxPromptTokens = 0;
   let maxLegacyPromptTokens = 0;
@@ -144,6 +150,7 @@ export function extractGroupMeta(
     }
     if (typeof m.model === "string" && m.model !== "gateway-injected") {
       model = m.model;
+      provider = typeof m.provider === "string" ? m.provider : null;
     }
     if (asNullableRecord(asNullableRecord(m.usage)?.usageReport)?.state === "unavailable") {
       usageUnavailable = true;
@@ -197,6 +204,7 @@ export function extractGroupMeta(
       cacheWrite: 0,
       cost: 0,
       model,
+      provider,
       contextPercent: null,
     };
   }
@@ -211,7 +219,7 @@ export function extractGroupMeta(
       ? Math.min(Math.round((promptTokens / contextWindow) * 100), 100)
       : null;
 
-  return { input, output, cacheRead, cacheWrite, cost, model, contextPercent };
+  return { input, output, cacheRead, cacheWrite, cost, model, provider, contextPercent };
 }
 
 const TOKEN_FIELDS = [
@@ -256,9 +264,30 @@ function MessageMetadata(props: { meta: GroupMeta | null }) {
         </span>
       </Show>
       <Show when={props.meta?.model}>
-        <span class="msg-meta__model">{props.meta?.model?.split("/").pop()}</span>
+        <span class="msg-meta__model">
+          {formatReplyAuthor(props.meta?.provider, props.meta?.model) ??
+            props.meta?.model?.split("/").pop()}
+        </span>
       </Show>
     </>
+  );
+}
+
+/** Fork: a small badge naming the model or ACP agent that wrote a reply, next to its time. */
+export function ReplyAuthorBadge(props: { meta: GroupMeta | null }) {
+  const author = () => formatReplyAuthor(props.meta?.provider, props.meta?.model);
+  return (
+    <Show when={author()}>
+      <span
+        class="chat-reply-author"
+        data-chat-reply-author
+        title={t("chat.handoff.writtenBy", {
+          author: props.meta?.provider === "acp" ? author()! : (props.meta?.model ?? ""),
+        })}
+      >
+        {author()}
+      </span>
+    </Show>
   );
 }
 

@@ -41,7 +41,7 @@ import { messageReactionOptions } from "./chat-message-reaction-model.ts";
 import { ChatSendStatus } from "./chat-message-send-status-view.tsx";
 import { StreamGroupParts } from "./chat-message-stream-view.tsx";
 import type { AssistantMessageDisclosure } from "./chat-message-text-view.tsx";
-import { MessageMeta } from "./chat-message-timestamp-view.tsx";
+import { MessageMeta, ReplyAuthorBadge } from "./chat-message-timestamp-view.tsx";
 import {
   NO_REPLY_LINE,
   resolveGroupReplyLine,
@@ -588,6 +588,9 @@ function FramedMessageGroup(props: {
                   fallback={<MessageMeta timestamp={props.group.timestamp} meta={frame().meta} />}
                 >
                   <ChatSendStatus status={frame().sendStatus} actions={options()} />
+                </Show>
+                <Show when={frame().normalizedRole === "assistant"}>
+                  <ReplyAuthorBadge meta={frame().meta} />
                 </Show>
               </div>
               <Show
