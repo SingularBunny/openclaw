@@ -64,6 +64,8 @@ it("settles with multiple owners and keeps an explicitly selected owner's empty 
       expect(sidebar.querySelector('[data-session-key="agent:main:mine"]')).toBeNull();
       expect(sidebar.querySelector("#sidebar-session-owner-title")?.textContent).toContain("Other");
     },
+    // The default is all owners; this case covers a saved "My sessions" choice.
+    { savedOwnerId: viewer.id },
   );
 });
 
@@ -79,6 +81,8 @@ it("does not include an agent's sessions when its ID equals the signed-in human'
       expect(requests.at(-1)?.ownerId).toBe("viewer");
       expect(sidebar.querySelector('[data-session-key="agent:main:mine"]')).toBeNull();
     },
+    // The default is all owners; this case covers a saved "My sessions" choice.
+    { savedOwnerId: viewer.id },
   );
 });
 
@@ -168,6 +172,8 @@ it.each(["owner", "involving-me", "refresh"])(
         ).toContain("Replacement session");
         expect(sidebar.sidebarSnapshot).toBeNull();
       },
+      // The default is all owners; this case covers a saved "My sessions" choice.
+      { savedOwnerId: viewer.id },
     );
   },
 );

@@ -61,13 +61,13 @@ async function checkIdentityScope({ page }: { page: Page }) {
   expect(instanceId).toBeTruthy();
   const user = { id: "alex", identity: { type: "profile", id: "alex" }, name: "Alex" };
   await gateway.emitGatewayEvent("presence", { presence: [{ instanceId, user }] });
-  await expectScope("My sessions", 1);
-  expect(await rows.first().getAttribute("data-session-key")).toBe(mine);
+  // No saved preference: identification keeps every owner visible (fork default).
+  await expectScope("All owners", 2);
   expect(await gateway.getRequests("users.prefs.set")).toEqual([]);
 }
 
 suite.define(() => {
-  it("shows All owners without a profile and defaults to My sessions after identification", () =>
+  it("shows All owners without a profile and keeps All owners after identification", () =>
     suite.withPage(
       { viewport: { width: 1280, height: 800 }, locale: "en-US" },
       checkIdentityScope,

@@ -2,6 +2,7 @@ import { setImmediate as nextTurn } from "node:timers/promises";
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import { createDeferred } from "../../../test/helpers/promise.js";
 import type { GatewaySessionRow, SessionsListResult } from "../api/types.ts";
+import { storeSidebarSessionOwnerFilter } from "../components/app-sidebar-session-types.ts";
 import {
   createTestSessionCapability,
   sessionsResult,
@@ -42,6 +43,8 @@ export async function withOwnerSidebar(
     requests: Record<string, unknown>[];
     settle: () => Promise<void>;
   }) => Promise<void>,
+  /** Fork: a saved owner choice; without one the sidebar starts on All owners. */
+  options: { savedOwnerId?: string } = {},
 ) {
   const requests: Record<string, unknown>[] = [];
   const overflow = createDeferred<SessionsListResult>();
@@ -81,6 +84,12 @@ export async function withOwnerSidebar(
     const hello = gateway.gateway.snapshot.hello!;
     gateway.publish({
       hello: { ...hello, policy: { ...hello.policy, hasMultipleSessionSharingIdentities: false } },
+    });
+  }
+  if (options.savedOwnerId) {
+    storeSidebarSessionOwnerFilter(gateway.gateway.connection.gatewayUrl, viewer.id, {
+      ownerId: options.savedOwnerId,
+      involvingMe: false,
     });
   }
   const sessions = createTestSessionCapability(gateway.gateway);
