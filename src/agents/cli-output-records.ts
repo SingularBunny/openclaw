@@ -460,6 +460,24 @@ export function readCliResultInputMessageId(parsed: Record<string, unknown>): {
   return id ? { inputMessageId: id } : {};
 }
 
+/**
+ * Fork (I14): Claude's result carries the API stop reason; `"refusal"` means the model declined
+ * (`stop_details.category` when the API names one). The reply is kept; the chat offers a hand-off.
+ */
+export function readCliResultRefusal(parsed: Record<string, unknown>): {
+  refusal?: { category?: string };
+} {
+  if (parsed.type !== "result" || parsed.stop_reason !== "refusal") {
+    return {};
+  }
+  const details = isRecord(parsed.stop_details) ? parsed.stop_details : undefined;
+  const category =
+    typeof details?.category === "string" && /^[a-z0-9_-]{1,64}$/iu.test(details.category)
+      ? details.category
+      : undefined;
+  return { refusal: category ? { category } : {} };
+}
+
 export function parseCliJson(
   raw: string,
   backend: CliBackendConfig,

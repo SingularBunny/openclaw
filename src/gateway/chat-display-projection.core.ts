@@ -49,6 +49,7 @@ import {
   toProjectedMessages,
 } from "./chat-display-projection.history.js";
 import { mapChatDisplayMessages } from "./chat-display-projection.map.js";
+import { projectChatRefusalSignal } from "./chat-display-projection.refusal.js";
 import {
   prepareAssistantHistoryMessage,
   sanitizeChatHistoryContentBlock,
@@ -588,7 +589,8 @@ export function projectChatDisplayMessagesWithState(
   const catalogDisplay = messages
     .flatMap((message) => {
       const projected = projectOwnerCatalogImport(message);
-      return projected === undefined ? [] : [projected];
+      // Fork (I14): name a refusal before error projection drops its diagnostics.
+      return projected === undefined ? [] : [projectChatRefusalSignal(projected)];
     })
     .flatMap(projectPreservedCatalogMessageForDisplay);
   recovery.append(catalogDisplay);

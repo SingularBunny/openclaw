@@ -418,6 +418,10 @@ export async function tryDispatchAcpReplyCore(
       prepareAssistantTranscriptMessage: params.prepareAssistantTranscriptMessage,
       assistantIdempotencyKey: existingRunId,
     });
+    // Fork (I14): the agent's own refusal reaches the chat row, so the UI offers a hand-off.
+    if (assistantTranscript && auditStopReason === "refusal") {
+      assistantTranscript = { ...assistantTranscript, refusal: true };
+    }
   };
   let admittedRunContext: AdmittedRunContext | undefined;
   let nativeActionEvidenceRecorded = false;

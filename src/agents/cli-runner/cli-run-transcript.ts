@@ -219,6 +219,8 @@ export async function persistCliAssistantTranscript(params: {
   interimReplies?: CliOutput["interimNativeReplies"];
   /** Native checkpoint after this reply, so a later history cut can fork the session here. */
   resumePoint?: CliSessionResumePoint;
+  /** Fork (I14): the API stopped the turn as a refusal; the Control UI offers a hand-off. */
+  refusal?: { category?: string };
 }): Promise<{
   owned: boolean;
   idempotencyKey?: string;
@@ -308,12 +310,13 @@ export async function persistCliAssistantTranscript(params: {
           usage: buildCliAssistantTranscriptUsage(params.usage, params.turnUsage),
         }),
         // The native identity and the resume checkpoint share one metadata envelope.
-        ...(params.nativeIdentity || params.resumePoint
+        ...(params.nativeIdentity || params.resumePoint || params.refusal
           ? {
               __openclaw: {
                 ...(params.nativeIdentity
                   ? { importedFrom: "claude-cli", ...params.nativeIdentity }
                   : {}),
+                ...(params.refusal ? { refusal: { signal: "provider", ...params.refusal } } : {}),
                 ...(params.resumePoint
                   ? { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint }
                   : {}),
