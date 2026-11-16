@@ -241,6 +241,8 @@ export async function persistCliAssistantTranscript(params: {
   resumePoint?: CliSessionResumePoint;
   /** The native Claude row this message mirrors; the history merge joins them by it. */
   nativeIdentity?: CliNativeMessageIdentity;
+  /** Fork (I14): the API stopped the turn as a refusal; the Control UI offers a hand-off. */
+  refusal?: { category?: string };
 }): Promise<{
   owned: boolean;
   idempotencyKey?: string;
@@ -312,12 +314,13 @@ export async function persistCliAssistantTranscript(params: {
             totalTokens: params.usage?.total,
           }),
         }),
-        ...(params.resumePoint || params.nativeIdentity
+        ...(params.resumePoint || params.nativeIdentity || params.refusal
           ? {
               __openclaw: {
                 ...(params.nativeIdentity
                   ? { importedFrom: "claude-cli", ...params.nativeIdentity }
                   : {}),
+                ...(params.refusal ? { refusal: { signal: "provider", ...params.refusal } } : {}),
                 ...(params.resumePoint
                   ? { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint }
                   : {}),

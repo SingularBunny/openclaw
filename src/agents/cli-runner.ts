@@ -607,6 +607,7 @@ async function runPreparedCliAgentOwned(
           usage: output.usage,
           stopReason: resolveCliAssistantStopReason(output),
           yielded: output.yielded,
+          ...(output.refusal ? { refusal: output.refusal } : {}),
           resumePoint: resolveCliTranscriptResumePoint({
             context,
             output,

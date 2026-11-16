@@ -60,6 +60,8 @@ export type CliOutput = {
   resumeCheckpointId?: string;
   /** Fork (F52): native id of this turn's user message (Claude's file checkpoint key). */
   inputMessageId?: string;
+  /** Fork (I14): the API stopped this turn as a refusal (Claude result `stop_reason`). */
+  refusal?: { category?: string };
   usage?: CliUsage;
   /** Terminal cumulative turn usage for diagnostics; reply accounting keeps using `usage`. */
   diagnosticUsage?: CliUsage;

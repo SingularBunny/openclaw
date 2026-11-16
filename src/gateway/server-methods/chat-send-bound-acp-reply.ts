@@ -10,9 +10,17 @@ export function resolveBoundAcpReplyAuthor(
   cfg: OpenClawConfig,
   sessionKey: string,
   transcript: ReplyDispatchAssistantTranscript | undefined,
-): { runtimeAuthor?: { provider: string; model: string } } {
-  if (cfg.acp?.seedParentHistory !== true || !transcript || transcript.sessionKey === sessionKey) {
+): { runtimeAuthor?: { provider: string; model: string }; refusal?: true } {
+  if (!transcript || transcript.sessionKey === sessionKey) {
     return {};
   }
-  return { runtimeAuthor: { provider: "acp", model: transcript.acpAgent ?? transcript.agentId } };
+  // Fork (I14): an ACP agent's refusal marks the mirrored reply whether or not it is replayed.
+  const refusal = transcript.refusal ? { refusal: true as const } : {};
+  if (cfg.acp?.seedParentHistory !== true) {
+    return refusal;
+  }
+  return {
+    runtimeAuthor: { provider: "acp", model: transcript.acpAgent ?? transcript.agentId },
+    ...refusal,
+  };
 }

@@ -86,6 +86,8 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
    * (e.g. provider "acp", model "codex") so later models replay it.
    */
   runtimeAuthor?: { provider: string; model: string };
+  /** Fork (I14): the bound runtime declined; the Control UI offers a hand-off under the row. */
+  refusal?: true;
 }): Promise<GatewayInjectedTranscriptAppendResult> {
   if (!params.sessionKey.trim() || !params.sessionId.trim() || !params.storePath) {
     return { ok: false, error: "transcript identity not resolved" };
@@ -130,6 +132,9 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
     ...(params.ttsSupplement ? { openclawTtsSupplement: params.ttsSupplement } : {}),
     ...(params.contextFreeCommand === true
       ? { excludeFromContext: true, __openclaw: { contextFreeCommand: true } }
+      : {}),
+    ...(params.refusal === true && params.contextFreeCommand !== true
+      ? { __openclaw: { refusal: { signal: "provider" } } }
       : {}),
     ...(params.abortMeta
       ? {
