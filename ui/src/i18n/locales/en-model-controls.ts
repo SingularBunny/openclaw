@@ -3,6 +3,30 @@ import { en } from "./en.ts";
 
 const enModelControls = {
   chat: {
+    // Fork: switching who answers a chat by buttons (models and ACP agents).
+    handoff: {
+      agentsGroup: "Agents",
+      agentTrigger: "{agent} · agent",
+      answering: "{current} is answering",
+      returnTo: "Return to {previous}",
+      dismiss: "Hide",
+      handOff: "Hand off to…",
+      handOffTitle: "Hand off this reply's question to another model or agent",
+      models: "Models",
+      agents: "Agents",
+      longContext:
+        "Long chat: the new model or agent reads it without a warm prompt cache, which is slower and costs more.",
+      failed: "Could not hand off to {target}: {reason}",
+      offline: "the Gateway is not connected.",
+      closeFailed: "{agent} is still bound to this chat.",
+      agentNotAllowed: "{agent} is not in acp.allowedAgents.",
+      bindFailed: "the agent was not bound; the /acp reply in the chat says why.",
+      modelFailed: "the model could not be selected.",
+      retry: "Retry",
+      retryTitle: "Send the same message to the same model again",
+      chooseAnotherModel: "Choose another model",
+      writtenBy: "Written by {author}",
+    },
     modelControls: {
       subscription: "Subscription",
       api: "API",

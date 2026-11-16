@@ -618,7 +618,9 @@ function createChatModelControls(props: ChatModelControlsProps): Accessor<{
         sessionKey: props.sessionKey,
         triggerModelLabel: formatPickerModelLabel(committedModelLabel),
         triggerModelValue: triggerModelValue || undefined,
-        triggerStatusLabel: props.modelSelectionLocked ? undefined : catalogTriggerStatus,
+        triggerStatusLabel:
+          props.modelPickerTriggerLabel ??
+          (props.modelSelectionLocked ? undefined : catalogTriggerStatus),
         triggerLoading:
           !props.modelSelectionLocked && catalogLoadingWithoutSnapshot && !selectionKnown,
         onModelSetup:
