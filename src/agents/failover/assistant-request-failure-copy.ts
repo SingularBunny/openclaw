@@ -14,6 +14,7 @@ import {
 import { escapeMarkdownText } from "../../shared/text/escape-markdown.js";
 import { classifyFailoverSignalCore } from "./classify-core.js";
 import { isContextOverflowErrorFromTables } from "./context-overflow-tables.js";
+import { renderDailyFreeModelLimitCopy } from "./daily-free-model-limit.js";
 import {
   isServerErrorMessage,
   isSessionTranscriptValidationErrorMessage,
@@ -304,6 +305,17 @@ export function renderRecordedAssistantFailureCopy(message: {
     return `⚠️ ${approvalMessage}`;
   }
   const raw = typeof message.errorMessage === "string" ? message.errorMessage.trim() : "";
+  const dailyLimitCopy = renderDailyFreeModelLimitCopy(
+    [
+      raw,
+      typeof message.errorBody === "string"
+        ? message.errorBody
+        : JSON.stringify(message.errorBody ?? ""),
+    ].join("\n"),
+  );
+  if (dailyLimitCopy) {
+    return dailyLimitCopy;
+  }
   if (raw === "Worker inference result exceeds the transcript message limit.") {
     return "The worker could not save the model response because it exceeded the message size limit. Retry with a smaller response or continue on the Gateway. Earlier actions may have completed; verify their results before continuing.";
   }
