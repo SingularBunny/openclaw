@@ -2350,6 +2350,12 @@ button.chat-reply-attribution__target:disabled {
   color: var(--text);
 }
 
+.chat-refusal-hint > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
 .chat-refusal-hint--weak {
   border-style: dashed;
   color: var(--muted);
