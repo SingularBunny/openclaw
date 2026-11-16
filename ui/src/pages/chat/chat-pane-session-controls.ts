@@ -20,6 +20,16 @@ import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
 import { getAcceptedChatHistorySession } from "./chat-history-state.ts";
 import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
+import {
+  CHAT_HANDOFF_AGENT_GROUP_ID,
+  createChatHandoffController,
+  handOffChat,
+  listChatHandoffModels,
+  publishChatHandoffController,
+  recordChatPickerSwitch,
+  setPendingResend,
+  takePendingResend,
+} from "./chat-handoff.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { switchChatModel, switchChatSetting } from "./chat-session.ts";
 import { patchChatSessionSettings } from "./chat-settings-patches.ts";
@@ -245,6 +255,10 @@ export function renderChatPaneComposerControls(params: {
         undefined);
   const permissionSnapshot = sessionReady ? undefined : snapshot;
   const snapshotReason = snapshot ? t("chat.modelControls.refreshingSettings") : undefined;
+  // Fork: model and agent switch buttons share one handoff controller per chat.
+  const handoff = createChatHandoffController(state, { models: listChatHandoffModels(state) });
+  publishChatHandoffController(handoff);
+  const boundAgent = handoff.info?.binding ? handoff.current : undefined;
   return {
     composerControls: {
       component: ChatPaneModelControl,
@@ -355,14 +369,64 @@ export function renderChatPaneComposerControls(params: {
             ? switchChatSetting(state, { kind: "contextWindow", value: next }, targetSessionKey)
             : Promise.resolve(false),
         onModelPickerOpen: () => refreshChatModelCatalogOnDemand(state),
+        modelPickerTargetGroups:
+          handoff.agents.length > 0
+            ? [
+                {
+                  id: CHAT_HANDOFF_AGENT_GROUP_ID,
+                  label: t("chat.handoff.agentsGroup"),
+                  options: handoff.agents.map((agent) => ({
+                    label: agent.label,
+                    value: agent.answerer.kind === "agent" ? agent.answerer.agent : "",
+                  })),
+                  status: "ready" as const,
+                  errorLabel: "",
+                },
+              ]
+            : undefined,
+        modelPickerTriggerLabel:
+          boundAgent?.kind === "agent"
+            ? t("chat.handoff.agentTrigger", { agent: handoff.labelOf(boundAgent) })
+            : undefined,
+        onModelPickerTargetSelect: (groupId, value) =>
+          groupId === CHAT_HANDOFF_AGENT_GROUP_ID && ownsRoute()
+            ? handOffChat(
+                state,
+                { kind: "agent", agent: value },
+                { resend: takePendingResend(state, sessionKey) },
+              )
+            : Promise.resolve(false),
         onModelPickerOpenChange: (open) => {
           state.chatModelPickerOpenSessionKey = open ? state.sessionKey : null;
+          if (!open) {
+            // Fork: a choice in the closing picker takes the pending re-send first.
+            setTimeout(() => setPendingResend(state, sessionKey, undefined), 0);
+          }
           // The native picker already presents this transition.
         },
-        onModelSelect: (next, targetSessionKey, agentRuntime) =>
-          modelAccess.allowed && canPatch({ model: next, agentRuntime }, targetSessionKey)
-            ? switchChatModel(state, next, targetSessionKey, agentRuntime, agentDefaultModel)
-            : Promise.resolve(false),
+        onModelSelect: (next, targetSessionKey, agentRuntime) => {
+          if (!modelAccess.allowed || !canPatch({ model: next, agentRuntime }, targetSessionKey)) {
+            return Promise.resolve(false);
+          }
+          const resend = takePendingResend(state, sessionKey);
+          // Fork: bound to an agent, or re-sending a failed turn: unbind first, then switch and send.
+          if (next && (handoff.info?.binding || resend)) {
+            return handOffChat(
+              state,
+              { kind: "model", model: next, ...(agentRuntime ? { agentRuntime } : {}) },
+              { resend },
+            );
+          }
+          const previous = handoff.current;
+          return switchChatModel(state, next, targetSessionKey, agentRuntime, agentDefaultModel).then(
+            (switched) => {
+              if (switched && next) {
+                void recordChatPickerSwitch(state, sessionKey, previous, next);
+              }
+              return switched;
+            },
+          );
+        },
         onThinkingSelect: (next, targetSessionKey) =>
           effortAccess.allowed && canPatch({ thinkingLevel: next }, targetSessionKey)
             ? switchChatSetting(state, { kind: "thinkingLevel", value: next }, targetSessionKey)

@@ -22,6 +22,7 @@ import {
   resolveSourceMessageId,
 } from "../chat-message-recovery.ts";
 import { persistedMessageEntryId } from "../chat-thread-items.ts";
+import { ChatHandoffMessageAction, ChatTurnFailureActions } from "./chat-handoff-view.tsx";
 import {
   registerMessageActionElements,
   type MessageActionElements,
@@ -157,6 +158,15 @@ export function resolveMessageActionDetails(
           },
         }
       : {}),
+    ...(role === "assistant" && !pendingInput && params.sessionKey
+      ? {
+          handoff: {
+            sessionKey: params.sessionKey,
+            ...(sourceMessageId ? { messageKey: sourceMessageId } : {}),
+            failed: asNullableRecord(message)?.stopReason === "error",
+          },
+        }
+      : {}),
     fullMessage,
     ...(replyText
       ? {
@@ -185,6 +195,7 @@ export function hasMessageActionButtons(
   return Boolean(
     details &&
     (details.markdown ||
+      details.handoff ||
       (details.replyTarget && opts.onReply) ||
       hasActionRowReactionPicker(details.reactionMessageId, opts)),
   );
@@ -224,6 +235,18 @@ export function MessageActions(props: {
           buttonRef={(element) => {
             elements.readAloud = element;
           }}
+        />
+      </Show>
+      <Show when={props.details?.handoff?.failed}>
+        <ChatTurnFailureActions
+          sessionKey={props.details!.handoff!.sessionKey}
+          messageKey={props.details!.handoff!.messageKey}
+        />
+      </Show>
+      <Show when={props.details?.handoff}>
+        <ChatHandoffMessageAction
+          sessionKey={props.details!.handoff!.sessionKey}
+          messageKey={props.details!.handoff!.messageKey}
         />
       </Show>
       <Show when={props.details?.pluginMessage}>

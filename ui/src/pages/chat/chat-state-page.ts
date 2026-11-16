@@ -26,6 +26,7 @@ import { cachedChatAssistantIdentity } from "./chat-avatar.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
 import { cancelPendingQueuedChatInput } from "./chat-history-actions.ts";
+import { refreshChatHandoffInfo, waitForChatIdle } from "./chat-handoff.ts";
 import {
   CHAT_TRANSCRIPT_LOADING_CHANGED_EVENT,
   CHAT_HISTORY_RECOVERY_CHANGED_EVENT,
@@ -360,7 +361,15 @@ export function createPageState(
     ) {
       autoPromptNotificationsOnSend(context);
     }
-    return handleSendChat(state, messageOverride, options, submissionAction);
+    const sent = handleSendChat(state, messageOverride, options, submissionAction);
+    // Fork: a typed /acp or /session command can bind or unbind the chat; re-read its binding.
+    if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
+      void sent.then(async () => {
+        await waitForChatIdle(state);
+        await refreshChatHandoffInfo(state);
+      });
+    }
+    return sent;
   };
   state.handleAbortChat = (options) => handleAbortChat(state, options);
   state.removeQueuedMessage = (id) => {
