@@ -7,7 +7,6 @@ import { getControlUiContextHandle } from "../test-helpers/control-ui-e2e-contex
 import { takeControlUiElementScreenshot } from "../test-helpers/control-ui-e2e-screenshot.ts";
 import { controlUiSessionUrl, installMockGateway } from "../test-helpers/control-ui-e2e.ts";
 import { createControlUiE2eSuite } from "./control-ui-e2e-suite.test-support.ts";
-import { selectAllSidebarSessions } from "./sidebar-navigation.test-support.ts";
 
 const suite = createControlUiE2eSuite({ name: "Control UI warm owner-first refresh" });
 const captureProof = process.env.OPENCLAW_CAPTURE_UI_PROOF === "1";
@@ -84,11 +83,13 @@ suite.define(() => {
       await page.goto(controlUiSessionUrl(suite.server.baseUrl, "agent:main:ada"));
       const ada = page.locator('[data-session-key="agent:main:ada"]');
       const bob = page.locator('[data-session-key="agent:main:bob"]');
+      // This regression protects foreign rows during a warm refresh; All owners is the
+      // default, so the foreign row is visible without choosing an owner.
       await ada.waitFor();
-      // This regression protects foreign rows during a warm refresh.
-      expect(await bob.count()).toBe(0);
-      await selectAllSidebarSessions(page);
       await bob.waitFor();
+      expect(await page.locator("#sidebar-session-owner-title").getAttribute("aria-label")).toBe(
+        "Owners: All owners",
+      );
       await captureSidebar(page, "warm-before-event.png");
 
       // Hold the single warm roster projection open and observe the existing DOM.

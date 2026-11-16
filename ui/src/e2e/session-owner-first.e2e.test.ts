@@ -6,6 +6,7 @@ import { SIDEBAR_SESSION_ROSTER_LIMIT } from "../../../src/shared/session-list-l
 import { installMockGateway } from "../test-helpers/control-ui-e2e.ts";
 import { createControlUiE2eSuite } from "./control-ui-e2e-suite.test-support.ts";
 import { selectAllSidebarSessions } from "./sidebar-navigation.test-support.ts";
+import { chooseSidebarOwner } from "./sidebar-session-menu.test-support.ts";
 
 const suite = createControlUiE2eSuite({ name: "Control UI owner-first session roster" });
 const rosterMatch = { includeGlobal: true, ownerFirst: true };
@@ -86,12 +87,20 @@ suite.define(() => {
       expect(await gateway.getRequests("sessions.list", rosterMatch)).toHaveLength(1);
 
       await gateway.resolveDeferred("sessions.list");
+      // All owners is the default, so the owner-first window hydrates every owner's rows.
+      await adaRow.waitFor();
+      await bobRow.waitFor();
+      // The deferred owner-first request is still the only list query.
+      expect(await gateway.getRequests("sessions.list", mineMatch)).toHaveLength(0);
+      expect(await gateway.getRequests("sessions.list", { includeGlobal: true })).toHaveLength(1);
+
+      await chooseSidebarOwner(page, "owner:profile-ada");
       const mineRoster = await gateway.waitForRequest("sessions.list", { match: mineMatch });
       expect(mineRoster.params).not.toHaveProperty("ownerFirst");
       expect(mineRoster.params).toMatchObject({ limit: SIDEBAR_SESSION_ROSTER_LIMIT });
       await adaRow.waitFor();
-      // My sessions hydrates only the current human until All owners is selected.
-      expect(await bobRow.count()).toBe(0);
+      // My sessions hydrates only the current human until All owners is selected again.
+      await expect.poll(() => bobRow.count()).toBe(0);
       // The canonical owner-first window and self filter are distinct query owners.
       expect(await gateway.getRequests("sessions.list", rosterMatch)).toHaveLength(1);
       expect(await gateway.getRequests("sessions.list", mineMatch)).toHaveLength(1);

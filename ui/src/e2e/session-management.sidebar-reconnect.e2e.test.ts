@@ -10,6 +10,7 @@ import {
   createSessionManagementE2eSuite,
   installMockGateway,
 } from "./session-management.test-support.ts";
+import { storeSidebarSessionOwnerChoice } from "./sidebar-navigation.test-support.ts";
 
 const suite = createSessionManagementE2eSuite();
 
@@ -48,6 +49,8 @@ suite.define(() => {
         },
       ],
     });
+    // All owners is the default, so this case starts from a saved My sessions choice.
+    await storeSidebarSessionOwnerChoice(page, suite.server.baseUrl, "reader", "owner:reader");
     try {
       await page.goto(controlUiSessionUrl(suite.server.baseUrl, sessionKey));
       await waitForControlUiGatewayReady(page);
