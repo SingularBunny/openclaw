@@ -31,6 +31,15 @@ const enModelControls = {
       agentModelTrigger: "{agent} · {model}",
       agentModelsUnavailable: "The agent's models could not be read.",
       agentModelFailed: "Could not set the agent's model to {model}: {reason}",
+      // Fork (I14): the hint under a reply that looks like a refusal.
+      refusal: "Looks like the model declined — hand off to another model?",
+      refusalMaybe: "This may be a refusal — hand off to another model?",
+      refusalButton: "Hand off…",
+      refusalButtonTitle:
+        "Ask another model or agent the same question; the declined reply is left out of what it reads",
+      refusalNotExcluded:
+        "Handed off, but the declined reply stays in the history the next model reads: {reason}",
+      refusalUnsupported: "this Gateway has no chat.refusal.handoff method.",
     },
     // Fork: the composer's Plan toggle (workbench plan mode, the same switch as /plan).
     planMode: {

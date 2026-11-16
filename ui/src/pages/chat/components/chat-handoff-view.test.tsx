@@ -12,6 +12,7 @@ import {
 import {
   ChatHandoffChip,
   ChatHandoffMessageAction,
+  ChatRefusalHint,
   ChatTurnFailureActions,
 } from "./chat-handoff-view.tsx";
 
@@ -123,5 +124,58 @@ describe("handoff buttons", () => {
     expect(chat.retry).toHaveBeenCalledWith("a9");
     buttons[1]!.click();
     expect(chat.chooseAnotherModel).toHaveBeenCalledWith("a9");
+  });
+});
+
+describe("refusal hint (I14)", () => {
+  function openMenu(container: HTMLElement) {
+    const details = container.querySelector<HTMLDetailsElement>("[data-chat-handoff-menu]")!;
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+    flush();
+    return Array.from(container.querySelectorAll<HTMLButtonElement>("[role=menuitem]"));
+  }
+
+  it("asks before handing a declined reply off and passes the signal to the hand-off", () => {
+    const chat = controller();
+    const container = mount(() => (
+      <ChatRefusalHint sessionKey={chat.sessionKey} messageKey="a-refused-1" refusal="provider" />
+    ));
+    const hint = container.querySelector("[data-chat-refusal-hint]")!;
+    expect(hint.textContent).toContain(
+      "Looks like the model declined — hand off to another model?",
+    );
+    expect(hint.textContent).toContain("Hand off…");
+    // Nothing is switched until the user picks a target.
+    expect(chat.handOff).not.toHaveBeenCalled();
+    const items = openMenu(container);
+    expect(items.map((item) => item.textContent)).toEqual(["Junie", "Llama", "Y"]);
+    items[2]!.click();
+    expect(chat.handOff).toHaveBeenCalledWith(
+      { kind: "model", model: "openrouter/x/y" },
+      { resendBefore: "a-refused-1", refusal: "provider" },
+    );
+  });
+
+  it("words a phrase match softer", () => {
+    const chat = controller();
+    const container = mount(() => (
+      <ChatRefusalHint sessionKey={chat.sessionKey} messageKey="a-refused-2" refusal="phrase" />
+    ));
+    const hint = container.querySelector("[data-chat-refusal-hint=phrase]")!;
+    expect(hint.textContent).toContain("This may be a refusal — hand off to another model?");
+    expect(hint.classList.contains("chat-refusal-hint--weak")).toBe(true);
+  });
+
+  it("the plain hand-off button under a reply carries no refusal", () => {
+    const chat = controller();
+    const container = mount(() => (
+      <ChatHandoffMessageAction sessionKey={chat.sessionKey} messageKey="a-plain" />
+    ));
+    openMenu(container)[0]!.click();
+    expect(chat.handOff).toHaveBeenCalledWith(
+      { kind: "agent", agent: "junie" },
+      { resendBefore: "a-plain" },
+    );
   });
 });

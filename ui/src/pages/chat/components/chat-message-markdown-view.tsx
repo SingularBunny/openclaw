@@ -2,6 +2,12 @@ import { asNullableRecord } from "@openclaw/normalization-core/record-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import { Show } from "solid-js";
 import { CHAT_PENDING_INPUT_MESSAGE_PREFIX } from "../../../../../packages/gateway-protocol/src/schema/chat-history-constants.js";
+import {
+  matchesRefusalPhrase,
+  readRefusalHandoff,
+  readStoredRefusal,
+  type RefusalSignal,
+} from "../../../../../src/shared/refusal-signal.js";
 import { renderCopyAsMarkdownButton } from "../../../components/copy-button.ts";
 import { Icon } from "../../../components/solid/icon.tsx";
 import { registerChatMessageMetadataEnglish } from "../../../i18n/locales/en-chat-message-metadata.ts";
@@ -75,6 +81,25 @@ export function resolveMessageReplyText(
   return markdown || extractMessageMediaText(message, normalizedMessage.content);
 }
 
+/**
+ * Fork (I14): the refusal signal of an assistant reply, strongest first: the API's (recorded
+ * by any provider), the model's own marker, else a weak phrase match. A turn already handed
+ * off from the hint is out of the model context and shows no hint.
+ */
+export function resolveRefusalHint(
+  message: unknown,
+  visibleMarkdown: string,
+): { refusal?: RefusalSignal } {
+  if (readRefusalHandoff(message)) {
+    return {};
+  }
+  const stored = readStoredRefusal(message);
+  if (stored) {
+    return { refusal: stored.signal };
+  }
+  return matchesRefusalPhrase(visibleMarkdown) ? { refusal: "phrase" } : {};
+}
+
 export function resolveMessageActionDetails(
   { message, normalizedMessage, displayMarkdown: previewMarkdown }: ChatMessageRenderPreparation,
   params: {
@@ -135,6 +160,7 @@ export function resolveMessageActionDetails(
             sessionKey: params.sessionKey,
             ...(sourceMessageId ? { messageKey: sourceMessageId } : {}),
             failed: asNullableRecord(message)?.stopReason === "error",
+            ...resolveRefusalHint(message, visibleMarkdown),
           },
         }
       : {}),

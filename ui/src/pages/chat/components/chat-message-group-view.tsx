@@ -10,6 +10,7 @@ import { persistedMessageEntryId } from "../chat-thread.ts";
 import { hasForwardedSource, isSessionActivityGroup } from "../chat-turn-boundary.ts";
 import { renderChatAuthorAvatar } from "./chat-author-avatar.ts";
 import { renderForwardedAttribution } from "./chat-forwarded-attribution.ts";
+import { ChatRefusalHint } from "./chat-handoff-view.tsx";
 import { ActivityGroupContent } from "./chat-message-activity-view.tsx";
 import type { GroupedMessageOptions } from "./chat-message-bubble-options.ts";
 import { GroupedMessage } from "./chat-message-bubble-view.tsx";
@@ -124,6 +125,13 @@ function PreparedMessage(props: {
         options={options()}
         onOpenSidebar={props.options.onOpenSidebar}
       />
+      <Show when={!isStreaming() && prepared().actions?.handoff?.refusal}>
+        <ChatRefusalHint
+          sessionKey={prepared().actions!.handoff!.sessionKey}
+          messageKey={prepared().actions!.handoff!.messageKey}
+          refusal={prepared().actions!.handoff!.refusal!}
+        />
+      </Show>
       <GroupMessageReactions
         group={props.group}
         actionDetails={prepared().actions}
