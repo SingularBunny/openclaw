@@ -59,6 +59,15 @@ describe("sidebar session status preference", () => {
 });
 
 describe("sidebar session owner preference", () => {
+  it("defaults to all owners when no preference is stored", () => {
+    // Chats created before participants were recorded have no owner, so a
+    // "My sessions" default would hide them.
+    expect(loadStoredSidebarSessionOwnerFilter("wss://one.example/ws", "profile-ada")).toEqual({
+      ownerId: null,
+      involvingMe: false,
+    });
+  });
+
   it("isolates owner and involving-me filters by gateway and authenticated user", () => {
     storeSidebarSessionOwnerFilter("wss://one.example/ws", "profile-ada", {
       ownerId: "profile-bob",
@@ -78,7 +87,7 @@ describe("sidebar session owner preference", () => {
       involvingMe: true,
     });
     expect(loadStoredSidebarSessionOwnerFilter("wss://two.example/ws", "profile-ada")).toEqual({
-      ownerId: "profile-ada",
+      ownerId: null,
       involvingMe: false,
     });
   });
@@ -116,7 +125,7 @@ describe("sidebar session owner preference", () => {
     };
 
     expect(loadStoredSidebarSessionOwnerFilter("wss://one.example/ws", "profile-ada")).toEqual({
-      ownerId: "profile-ada",
+      ownerId: null,
       involvingMe: false,
     });
     expect(() =>

@@ -430,12 +430,11 @@ describe("AppSidebar initial managed-list hydration", () => {
       : Promise.resolve();
     const provider = createApplicationContextProvider(context);
     const sidebar = await createSidebarElement();
-    if (filter !== "self") {
-      storeSidebarSessionOwnerFilter(gateway.gateway.connection.gatewayUrl, "synthetic-operator", {
-        ownerId: filter === "owner" ? "synthetic-operator" : null,
-        involvingMe: filter === "involving-me",
-      });
-    }
+    // The default is all owners, so "self" stores My sessions like a saved choice.
+    storeSidebarSessionOwnerFilter(gateway.gateway.connection.gatewayUrl, "synthetic-operator", {
+      ownerId: filter === "involving-me" ? null : "synthetic-operator",
+      involvingMe: filter === "involving-me",
+    });
     provider.append(sidebar.hostElement);
     document.body.append(provider);
     await settleLitElement(sidebar);

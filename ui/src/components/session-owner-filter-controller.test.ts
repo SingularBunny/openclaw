@@ -93,14 +93,11 @@ function ownerFacet(id: string): SessionListSnapshot {
 }
 
 describe("SessionOwnerFilterController", () => {
-  it("schedules the default self filter and immediately refreshes explicit owner choices", () => {
+  it("schedules the default all-owners filter and immediately refreshes explicit owner choices", () => {
     const { controller, host, update } = fixture();
     controller.hostConnected();
     update();
-    expect(host.sidebarSessionOwnerFilter()).toEqual({
-      ownerId: "profile-ada",
-      involvingMe: false,
-    });
+    expect(host.sidebarSessionOwnerFilter()).toEqual({ ownerId: null, involvingMe: false });
     expect(host.sessionData.scheduleSidebarSessions).toHaveBeenCalledOnce();
     expect(host.sessionData.resetSessionList).not.toHaveBeenCalled();
     expect(host.sessionData.refreshSidebarSessions).not.toHaveBeenCalled();
@@ -112,6 +109,10 @@ describe("SessionOwnerFilterController", () => {
   });
 
   it.each([null, undefined])("uses everyone when self identity is %s", (selfUser) => {
+    storeSidebarSessionOwnerFilter("wss://one.example/ws", "profile-ada", {
+      ownerId: "profile-ada",
+      involvingMe: false,
+    });
     const { controller, context, host, update } = fixture();
     context.gateway.snapshot.selfUser = selfUser;
     controller.hostConnected();
@@ -126,6 +127,10 @@ describe("SessionOwnerFilterController", () => {
   });
 
   it("retains a known profile's filter while reconnect identity is unresolved", () => {
+    storeSidebarSessionOwnerFilter("wss://one.example/ws", "profile-ada", {
+      ownerId: "profile-ada",
+      involvingMe: false,
+    });
     const { controller, context, host, update } = fixture();
     controller.hostConnected();
     update();
@@ -170,10 +175,7 @@ describe("SessionOwnerFilterController", () => {
       update();
       expect(host.sessionData.refreshSidebarSessions).not.toHaveBeenCalled();
       expect(host.sessionData.scheduleSidebarSessions).toHaveBeenCalledTimes(2);
-      expect(host.sidebarSessionOwnerFilter()).toEqual({
-        ownerId: "replacement-profile",
-        involvingMe: false,
-      });
+      expect(host.sidebarSessionOwnerFilter()).toEqual({ ownerId: null, involvingMe: false });
     },
   );
 
@@ -220,10 +222,7 @@ describe("SessionOwnerFilterController", () => {
     expect(host.sidebarSessionOwnerFilter()).toEqual({ ownerId: null, involvingMe: true });
     context.gateway.connection.gatewayUrl = "wss://two.example/ws";
     update();
-    expect(host.sidebarSessionOwnerFilter()).toEqual({
-      ownerId: "profile-bob",
-      involvingMe: false,
-    });
+    expect(host.sidebarSessionOwnerFilter()).toEqual({ ownerId: null, involvingMe: false });
     controller.set("owner-two");
     update();
     context.gateway.connection.gatewayUrl = "wss://one.example/ws";

@@ -395,8 +395,10 @@ export function loadStoredSidebarSessionOwnerFilter(
     const stored = getSafeLocalStorage()?.getItem(
       sidebarSessionOwnerFilterStorageKey(gatewayUrl, selfUserId),
     );
+    // Workbench: a missing preference shows every owner. Chats created before
+    // participants were recorded carry no owner, so "My sessions" would hide them.
     if (stored === null || stored === undefined) {
-      return { ownerId: selfUserId, involvingMe: false };
+      return { ownerId: null, involvingMe: false };
     }
     const ownerId = stored?.startsWith("owner:") ? stored.slice("owner:".length).trim() : "";
     return {
@@ -404,8 +406,8 @@ export function loadStoredSidebarSessionOwnerFilter(
       involvingMe: stored === "involving-me",
     };
   } catch {
-    // A disabled store still uses the signed-in owner default.
-    return { ownerId: selfUserId, involvingMe: false };
+    // A disabled store still uses the all-owners default.
+    return { ownerId: null, involvingMe: false };
   }
 }
 

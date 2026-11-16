@@ -12,7 +12,7 @@ import { createControlUiE2eSuite } from "./control-ui-e2e-suite.test-support.ts"
 const suite = createControlUiE2eSuite({ name: "Personal navigation identity resolution" });
 
 suite.define(() => {
-  it("shows All owners without a profile and defaults to My sessions after identification", async () => {
+  it("shows All owners without a profile and keeps All owners after identification", async () => {
     await suite.withPage(
       { viewport: { width: 1280, height: 800 }, locale: "en-US" },
       async ({ page }) => {
@@ -93,11 +93,11 @@ suite.define(() => {
             },
           ],
         });
+        // No saved preference: identification keeps every owner visible.
         await expect
           .poll(() => ownerFilter.textContent().then((text) => text?.trim()))
-          .toBe("My sessions");
-        await expect.poll(() => rows.count()).toBe(1);
-        expect(await rows.first().getAttribute("data-session-key")).toBe(mine);
+          .toBe("All owners");
+        await expect.poll(() => rows.count()).toBe(2);
         expect(await gateway.getRequests("users.prefs.set")).toEqual([]);
       },
     );

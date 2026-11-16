@@ -19,6 +19,7 @@ import {
 import { createApplicationContextProvider } from "../test-helpers/application-context.ts";
 import { createTestGatewayClient } from "../test-helpers/gateway-client.ts";
 import { settleLitElement } from "../test-helpers/lit-settle.ts";
+import { storeSidebarSessionOwnerFilter } from "./app-sidebar-session-types.ts";
 import "./app-sidebar.tsx";
 
 it("keeps selected owners across agents and resumes the selected agent's own conversation", async () => {
@@ -88,6 +89,11 @@ it("keeps selected owners across agents and resumes the selected agent's own con
     }),
   );
   gateway.publish({ selfUser: { id: "viewer", name: "Viewer" } });
+  // The default is all owners; this case covers a saved "My sessions" choice.
+  storeSidebarSessionOwnerFilter(gateway.gateway.connection.gatewayUrl, "viewer", {
+    ownerId: "viewer",
+    involvingMe: false,
+  });
   const sessions = createTestSessionCapability(gateway.gateway);
   await sessions.refresh({ agentId: "main", force: true });
   const context = createContext(gateway.gateway, sessions, TWO_AGENTS);

@@ -89,10 +89,11 @@ back to the rail, without a second header button. In team mode, creation opens t
 same agent picker as the rail. Native apps keep their native creation controls.
 
 The owner filter is the only control for this selection. Its saved value belongs
-to the current Gateway and your profile in this browser. A signed-in profile
-without a saved choice starts with **My sessions**. Before a profile is identified,
-or when the connection has no durable profile, the list shows **All owners**.
-Identifying the profile restores its saved choice or the **My sessions** default.
+to the current Gateway and your profile in this browser. Without a saved choice
+the list shows **All owners**, also before a profile is identified and when the
+connection has no durable profile (fork: upstream starts a signed-in profile with
+**My sessions**, which hides chats created before owners were recorded).
+Identifying the profile restores its saved choice.
 During reconnection, a known profile's title and filter stay in place until identity
 resolves or the connection changes.
 The filtered session list loads before custom group metadata, so a slow group

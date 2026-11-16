@@ -19,6 +19,7 @@ import {
 import { createApplicationContextProvider } from "../test-helpers/application-context.ts";
 import { createTestGatewayClient } from "../test-helpers/gateway-client.ts";
 import { settleLitElement } from "../test-helpers/lit-settle.ts";
+import { storeSidebarSessionOwnerFilter } from "./app-sidebar-session-types.ts";
 import "./app-sidebar.tsx";
 
 const viewer = { type: "human" as const, id: "viewer", label: "Viewer" };
@@ -26,6 +27,7 @@ const viewer = { type: "human" as const, id: "viewer", label: "Viewer" };
 async function mountOwnerQuery(
   rows: GatewaySessionRow[],
   owners: NonNullable<SessionsListResult["owners"]>,
+  savedOwnerId?: string,
 ) {
   const requests: Record<string, unknown>[] = [];
   const overflow = createDeferred<SessionsListResult>();
@@ -66,6 +68,12 @@ async function mountOwnerQuery(
     selfUser: { id: viewer.id, name: viewer.label },
     hello: { ...hello, policy: { ...hello.policy, hasMultipleSessionSharingIdentities: false } },
   });
+  if (savedOwnerId) {
+    storeSidebarSessionOwnerFilter(gateway.gateway.connection.gatewayUrl, viewer.id, {
+      ownerId: savedOwnerId,
+      involvingMe: false,
+    });
+  }
   const sessions = createTestSessionCapability(gateway.gateway);
   await sessions.refresh({ agentId: "main", force: true });
   const context = createContext(gateway.gateway, sessions);
@@ -147,6 +155,7 @@ it("settles with multiple owners and keeps an explicitly selected owner's empty 
   const fixture = await mountOwnerQuery(
     [ownSession()],
     [viewer, { type: "human", id: "other", label: "Other" }],
+    viewer.id,
   );
   try {
     await fixture.settle();
@@ -170,7 +179,11 @@ it("settles with multiple owners and keeps an explicitly selected owner's empty 
 
 it("does not include an agent's sessions when its ID equals the signed-in human's ID", async () => {
   const agent = { type: "agent" as const, id: viewer.id, label: "Agent" };
-  const fixture = await mountOwnerQuery([{ ...ownSession(), owner: { actor: agent } }], [agent]);
+  const fixture = await mountOwnerQuery(
+    [{ ...ownSession(), owner: { actor: agent } }],
+    [agent],
+    viewer.id,
+  );
   try {
     await fixture.settle();
     expect(fixture.requests.length).toBeLessThanOrEqual(2);
