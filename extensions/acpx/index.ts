@@ -9,6 +9,7 @@ import {
 import type { OpenClawPluginService, OpenClawPluginServiceContext } from "openclaw/plugin-sdk/core";
 import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
 import type { OpenClawPluginApi } from "./runtime-api.js";
+import { registerChatAcpModels } from "./src/chat-acp-models.js";
 import { registerChatHandoff, type ChatHandoffRecord } from "./src/chat-handoff.js";
 import { ACPX_NATIVE_AGENT_IDS } from "./src/config-schema.js";
 import { createAcpAgentHarness } from "./src/harness.js";
@@ -280,6 +281,8 @@ const plugin = {
         maxEntries: 10_000,
       }),
     );
+    // Fork: the bound ACP agent's models for the Control UI's model picker (`/acp model` by button).
+    registerChatAcpModels(api);
   },
 };
 
