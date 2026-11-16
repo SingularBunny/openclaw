@@ -82,6 +82,7 @@ const SESSION_WRITE_METHODS: ReadonlySet<string> = new Set([
   "sessions.steer",
   "sessions.processes.stop",
   "sessions.cliTasks.stop",
+  "chat.refusal.handoff",
   "sessions.abort",
   "sessions.goal.update",
   "sessions.goal.clear",
