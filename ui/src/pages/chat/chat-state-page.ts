@@ -17,6 +17,7 @@ import { parseSlashCommand } from "../../lib/chat/commands.ts";
 import { formatUiError } from "../../lib/format-error.ts";
 import { hasUnrestrictedModelCatalogSnapshot } from "../../lib/model-catalog-cache.ts";
 import { resolveSafeExternalUrl } from "../../lib/open-external-url.ts";
+import { scopedAgentParamsForSession } from "../../lib/sessions/navigation.ts";
 import {
   canonicalUiSessionKeyForPersistence,
   isUiSelectedGlobalSessionKey,
@@ -26,7 +27,12 @@ import { requestChatAbort } from "./chat-abort-request.ts";
 import { resolveAgentIdForSession } from "./chat-avatar.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
-import { refreshChatHandoffInfo, waitForChatIdle } from "./chat-handoff.ts";
+import {
+  canUseChatAcpModels,
+  refreshChatAcpModels,
+  refreshChatHandoffInfo,
+  waitForChatIdle,
+} from "./chat-handoff.ts";
 import {
   CHAT_TRANSCRIPT_LOADING_CHANGED_EVENT,
   CHAT_HISTORY_RECOVERY_CHANGED_EVENT,
@@ -34,6 +40,7 @@ import {
 import { setChatError } from "./chat-history-state.ts";
 import { loadChatHistory } from "./chat-history.ts";
 import { getChatPendingInputs } from "./chat-pending-inputs.ts";
+import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { chatProviderReviewRow } from "./chat-provider-review.ts";
 import { removeQueuedMessage } from "./chat-queue.ts";
 import { attachChatRealtimeActions, createInitialChatRealtimeState } from "./chat-realtime.ts";
@@ -423,7 +430,24 @@ export function createPageState(
     if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
       void sent.then(async () => {
         await waitForChatIdle(state);
-        await refreshChatHandoffInfo(state);
+        const info = await refreshChatHandoffInfo(state);
+        // A typed `/acp model` changes the bound agent's model; the picker shows it.
+        if (info?.binding && canUseChatAcpModels(state)) {
+          await refreshChatAcpModels(state);
+        }
+      });
+    }
+    // Fork: `/plan` and an approved plan change the chat's plan mode; the composer toggle follows.
+    const planSessionKey = state.sessionKey;
+    const planAgentId = scopedAgentParamsForSession(state, planSessionKey).agentId;
+    if (
+      canReadChatPlanMode(state) &&
+      (/^\/plan\b/u.test(message.trim()) ||
+        readChatPlanMode(state, planSessionKey, planAgentId)?.on === true)
+    ) {
+      void sent.then(async () => {
+        await waitForChatIdle(state);
+        await refreshChatPlanMode(state, planSessionKey, planAgentId);
       });
     }
     return sent;

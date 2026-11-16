@@ -26,6 +26,34 @@ const enModelControls = {
       retryTitle: "Send the same message to the same model again",
       chooseAnotherModel: "Choose another model",
       writtenBy: "Written by {author}",
+      agentModels: "{agent} models",
+      agentModelCurrent: "{model} · current",
+      agentModelTrigger: "{agent} · {model}",
+      agentModelsUnavailable: "The agent's models could not be read.",
+      agentModelFailed: "Could not set the agent's model to {model}: {reason}",
+    },
+    // Fork: the composer's Plan toggle (workbench plan mode, the same switch as /plan).
+    planMode: {
+      label: "Plan mode",
+      on: "Plan",
+      turnOn:
+        "Plan mode is off. Turn it on: the agent researches and presents a plan before changing anything.",
+      turnOff: "Plan mode is on: files stay unchanged until you approve the plan. Turn it off.",
+      readOnly: "Changing plan mode needs operator write access.",
+      updateFailed: "Could not change plan mode: {error}",
+    },
+    // Fork: chat commands as items of the chat's menu.
+    commandMenu: {
+      new: "New chat",
+      newUnavailable: "New chat is unavailable here.",
+      reset: "Reset chat…",
+      resetConfirmTitle: "Reset this chat?",
+      resetConfirmMessage:
+        "The agent starts a fresh session in this chat and no longer sees the earlier conversation. This is the same as /reset.",
+      resetConfirm: "Reset chat",
+      learn: "Learn a skill from this chat",
+      learnDescription: "Saves the reusable workflow from this chat as a skill (/learn).",
+      offline: "The Gateway is not connected.",
     },
     modelControls: {
       subscription: "Subscription",

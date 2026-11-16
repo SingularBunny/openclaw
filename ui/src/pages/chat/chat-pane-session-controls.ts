@@ -21,7 +21,13 @@ import { buildChatClaudeModePicker } from "./chat-claude-mode-controls.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import {
   CHAT_HANDOFF_AGENT_GROUP_ID,
+  CHAT_HANDOFF_AGENT_MODEL_GROUP_ID,
+  canUseChatAcpModels,
   createChatHandoffController,
+  ensureChatAcpModels,
+  readChatAcpModels,
+  refreshChatAcpModels,
+  setChatAcpModel,
   handOffChat,
   listChatHandoffModels,
   publishChatHandoffController,
@@ -29,6 +35,7 @@ import {
   setPendingResend,
   takePendingResend,
 } from "./chat-handoff.ts";
+import { buildChatPlanModeToggle } from "./chat-plan-mode.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { switchChatModel, switchChatSetting } from "./chat-session.ts";
 import { patchChatSessionSettings } from "./chat-settings-patches.ts";
@@ -40,6 +47,7 @@ import type { ChatClaudeModePickerProps } from "./components/chat-claude-mode.ts
 import { renderChatModelAccountControl } from "./components/chat-model-account-control.ts";
 import { renderChatModelControls } from "./components/chat-model-controls.tsx";
 import type { ChatPermissionPickerProps } from "./components/chat-permission-picker.tsx";
+import type { ChatPlanModeToggleProps } from "./components/chat-plan-mode-toggle.types.ts";
 import { activeQueuedMessageEdit } from "./queued-message-edit.ts";
 
 registerModelControlsEnglish();
@@ -153,6 +161,7 @@ export function renderChatPaneComposerControls(params: {
   composerControls: NonNullable<ChatProps["composerControls"]>;
   permissionPicker: ChatPermissionPickerProps;
   claudeModePicker?: ChatClaudeModePickerProps;
+  planModeToggle?: ChatPlanModeToggleProps;
 } {
   const {
     state,
@@ -249,6 +258,48 @@ export function renderChatPaneComposerControls(params: {
   const handoff = createChatHandoffController(state, { models: listChatHandoffModels(state) });
   publishChatHandoffController(handoff);
   const boundAgent = handoff.info?.binding ? handoff.current : undefined;
+  // Fork: while an ACP agent is bound, the picker lists that agent's models (`/acp model` by button).
+  if (handoff.info?.binding && canUseChatAcpModels(state)) {
+    ensureChatAcpModels(state, sessionKey);
+  }
+  const agentModels = handoff.info?.binding ? readChatAcpModels(state, sessionKey) : undefined;
+  const agentModelLabel = (id: string) =>
+    agentModels?.models.find((model) => model.id === id)?.name ?? id;
+  const agentModelsGroup =
+    boundAgent?.kind === "agent" &&
+    agentModels &&
+    (agentModels.status !== "ready" || agentModels.models.length > 0)
+      ? {
+          id: CHAT_HANDOFF_AGENT_MODEL_GROUP_ID,
+          label: t("chat.handoff.agentModels", { agent: handoff.labelOf(boundAgent) }),
+          options: agentModels.models.map((model) => ({
+            label:
+              model.id === agentModels.current
+                ? t("chat.handoff.agentModelCurrent", { model: model.name ?? model.id })
+                : (model.name ?? model.id),
+            value: model.id,
+          })),
+          status: agentModels.status,
+          errorLabel: t("chat.handoff.agentModelsUnavailable"),
+        }
+      : undefined;
+  const pickerTargetGroups = [
+    ...(agentModelsGroup ? [agentModelsGroup] : []),
+    ...(handoff.agents.length > 0
+      ? [
+          {
+            id: CHAT_HANDOFF_AGENT_GROUP_ID,
+            label: t("chat.handoff.agentsGroup"),
+            options: handoff.agents.map((agent) => ({
+              label: agent.label,
+              value: agent.answerer.kind === "agent" ? agent.answerer.agent : "",
+            })),
+            status: "ready" as const,
+            errorLabel: "",
+          },
+        ]
+      : []),
+  ];
   return {
     composerControls: html`
       <div class="chat-composer-model-control">
@@ -326,34 +377,38 @@ export function renderChatPaneComposerControls(params: {
             contextWindowAccess.allowed && canPatch({ contextWindow: next }, targetSessionKey)
               ? switchChatSetting(state, { kind: "contextWindow", value: next }, targetSessionKey)
               : Promise.resolve(false),
-          modelPickerTargetGroups:
-            handoff.agents.length > 0
-              ? [
-                  {
-                    id: CHAT_HANDOFF_AGENT_GROUP_ID,
-                    label: t("chat.handoff.agentsGroup"),
-                    options: handoff.agents.map((agent) => ({
-                      label: agent.label,
-                      value: agent.answerer.kind === "agent" ? agent.answerer.agent : "",
-                    })),
-                    status: "ready" as const,
-                    errorLabel: "",
-                  },
-                ]
-              : undefined,
+          modelPickerTargetGroups: pickerTargetGroups.length > 0 ? pickerTargetGroups : undefined,
           modelPickerTriggerLabel:
             boundAgent?.kind === "agent"
-              ? t("chat.handoff.agentTrigger", { agent: handoff.labelOf(boundAgent) })
+              ? agentModels?.current
+                ? t("chat.handoff.agentModelTrigger", {
+                    agent: handoff.labelOf(boundAgent),
+                    model: agentModelLabel(agentModels.current),
+                  })
+                : t("chat.handoff.agentTrigger", { agent: handoff.labelOf(boundAgent) })
               : undefined,
-          onModelPickerTargetSelect: (groupId, value) =>
-            groupId === CHAT_HANDOFF_AGENT_GROUP_ID && ownsRoute()
+          onModelPickerTargetSelect: (groupId, value) => {
+            if (!ownsRoute()) {
+              return Promise.resolve(false);
+            }
+            if (groupId === CHAT_HANDOFF_AGENT_MODEL_GROUP_ID) {
+              return setChatAcpModel(state, value, sessionKey);
+            }
+            return groupId === CHAT_HANDOFF_AGENT_GROUP_ID
               ? handOffChat(
                   state,
                   { kind: "agent", agent: value },
                   { resend: takePendingResend(state, sessionKey) },
                 )
-              : Promise.resolve(false),
-          onModelPickerOpen: () => refreshChatModelCatalogOnDemand(state),
+              : Promise.resolve(false);
+          },
+          onModelPickerOpen: () => {
+            // The bound agent may have advertised other models since the last read.
+            if (handoff.info?.binding && canUseChatAcpModels(state)) {
+              void refreshChatAcpModels(state, sessionKey);
+            }
+            return refreshChatModelCatalogOnDemand(state);
+          },
           onModelPickerOpenChange: (open) => {
             state.chatModelPickerOpenSessionKey = open ? state.sessionKey : null;
             if (!open) {
@@ -405,6 +460,8 @@ export function renderChatPaneComposerControls(params: {
       canPatch: (patch) => canPatch(patch),
       ownsSelection,
     }),
+    // Fork: the workbench plan mode toggle, for any model (aiwb-plan.status / aiwb-plan.set).
+    planModeToggle: buildChatPlanModeToggle(state, sessionKey, agentScope.agentId),
     permissionPicker: {
       canSelectFull,
       defaultMode: agentDefaultPermissionMode,

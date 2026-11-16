@@ -51,6 +51,7 @@ import {
   markPointerOpenedChatComposerDropdown,
   restorePointerOpenedChatComposerTrigger,
 } from "./chat-picker-overlay.ts";
+import { ChatPlanModeToggle } from "./chat-plan-mode-toggle.tsx";
 import { renderChatVoiceStatus } from "./chat-voice-activity.ts";
 
 type ChatComposerViewContext = ReturnType<typeof createChatComposerContext>;
@@ -73,6 +74,7 @@ export function renderChatComposerView(context: ChatComposerViewContext) {
       <Show when={props.claudeModePicker}>
         {(picker) => <ChatClaudeModePicker {...picker()} />}
       </Show>
+      <Show when={props.planModeToggle}>{(toggle) => <ChatPlanModeToggle {...toggle()} />}</Show>
     </>
   );
   // A predicted next prompt replaces the placeholder as grey ghost text (Tab accepts it).

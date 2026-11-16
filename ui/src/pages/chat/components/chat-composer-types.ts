@@ -45,6 +45,7 @@ import type {
 import type { SkillMenuState } from "./chat-composer-skill-menu.tsx";
 import type { SlashMenuState } from "./chat-composer-slash-menu.tsx";
 import type { ChatPermissionPickerProps } from "./chat-permission-picker.tsx";
+import type { ChatPlanModeToggleProps } from "./chat-plan-mode-toggle.types.ts";
 
 type ChatQueuedEditProps = {
   editingId: string | null;
@@ -160,6 +161,8 @@ export type ChatComposerProps = ChatAttachmentControlsProps & {
   permissionPicker?: ChatPermissionPickerProps;
   /** Fork (F49): Claude Code permission mode picker, present for claude-cli sessions. */
   claudeModePicker?: ChatClaudeModePickerProps;
+  /** Fork: the workbench plan mode toggle (aiwb-plan), present when the Gateway offers it. */
+  planModeToggle?: ChatPlanModeToggleProps;
   onDraftChange: (next: string, mentions?: readonly HumanMention[]) => void;
   onHistoryKeydown?: (input: ChatInputHistoryKeyInput) => ChatInputHistoryKeyResult;
   onSlashIntent?: () => void | Promise<void>;
