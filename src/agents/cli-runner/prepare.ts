@@ -1571,6 +1571,7 @@ async function prepareCliRunContextWithinReadFence(
           messages: sessionPromptContext?.reseedMessages ?? [],
           prompt: historyPromptCurrentTurn,
           maxHistoryChars: autoReseedHistoryChars,
+          currentAuthor: { provider: params.provider },
         })
       : undefined;
     const systemPromptWithReplacements = skipsTurnPreparation

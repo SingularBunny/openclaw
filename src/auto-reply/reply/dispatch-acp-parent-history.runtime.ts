@@ -1,9 +1,11 @@
 // Fork (F72): a bound ACP session shares the chat it is bound to. Its first prompt carries the
 // chat's earlier messages; later prompts carry only what other models added since its last turn.
 import {
-  buildCliSessionHistoryPrompt,
   loadCliSessionConversationMessages,
   readCliSessionLastMessageAt,
+} from "../../agents/cli-runner/session-history-conversation.js";
+import {
+  buildCliSessionHistoryPrompt,
   resolveAutoCliSessionReseedHistoryChars,
 } from "../../agents/cli-runner/session-history.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
@@ -89,5 +91,6 @@ export async function buildAcpParentHistoryPrompt(params: {
     messages,
     prompt: params.prompt,
     maxHistoryChars: ACP_PARENT_HISTORY_CHARS,
+    currentAuthor: { provider: "acp", model: params.acpAgent },
   });
 }

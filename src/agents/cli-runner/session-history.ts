@@ -35,6 +35,12 @@ import {
   type SessionEntry,
   type SessionMessageEntry,
 } from "../sessions/session-manager.js";
+import {
+  historyAuthorNoteLines,
+  preservedTurnsLabel,
+  resolveHistoryAuthorLabel,
+  type HistoryAuthor,
+} from "./history-author.js";
 import { cliBackendLog } from "./log.js";
 import {
   classifyCliReplies,
@@ -57,7 +63,7 @@ const CLI_DURABLE_CONTEXT_OMISSION = "[Session notes truncated; earlier notes ma
 // Newest exchanges win; older ones stay readable through the session's own history.
 const MAX_CLI_SESSION_UNSEEN_TURNS = 8;
 
-type CliSessionHistoryParams = {
+export type CliSessionHistoryParams = {
   abortSignal?: AbortSignal;
   sessionManager?: SessionManager;
   sessionTarget?: SessionTranscriptRuntimeTarget;
@@ -72,6 +78,8 @@ type HistoryMessage = {
   toolName?: unknown;
   isError?: unknown;
   timestamp?: unknown;
+  provider?: unknown;
+  model?: unknown;
 };
 type RawTranscriptReseedReason =
   | Extract<CliReusableSession, { mode: "invalidate" }>["invalidatedReason"]
@@ -92,7 +100,7 @@ export function resolveAutoCliSessionReseedHistoryChars(contextWindowTokens: num
   );
 }
 
-function coerceHistoryText(content: unknown): string {
+export function coerceHistoryText(content: unknown): string {
   if (typeof content === "string") {
     return content.trim();
   }
@@ -119,14 +127,17 @@ function formatHistoryTimestamp(value: unknown): string | undefined {
   return timestamp === value ? timestamp : undefined;
 }
 
-function renderHistoryMessage(message: unknown): string | undefined {
+function renderHistoryMessage(message: unknown, currentAuthor?: HistoryAuthor): string | undefined {
   if (!message || typeof message !== "object") {
     return undefined;
   }
   const entry = message as HistoryMessage;
+  const author = resolveHistoryAuthorLabel(entry, currentAuthor);
   const role =
     entry.role === "assistant"
-      ? "Assistant"
+      ? author
+        ? `Assistant [${author}]`
+        : "Assistant"
       : entry.role === "user"
         ? "User"
         : entry.role === "toolResult"
@@ -152,8 +163,11 @@ export function buildCliSessionHistoryPrompt(params: {
   messages: unknown[];
   prompt: string;
   maxHistoryChars?: number;
+  /** Fork: assistant turns another model or agent wrote are rendered with their author. */
+  currentAuthor?: HistoryAuthor;
 }): string | undefined {
   const maxHistoryChars = params.maxHistoryChars ?? MAX_CLI_SESSION_RESEED_HISTORY_CHARS;
+  const render = (message: unknown) => renderHistoryMessage(message, params.currentAuthor);
   const historyBudget = maxHistoryChars - CLI_SESSION_RESEED_CURRENCY_GUIDANCE.length - "\n".length;
   if (historyBudget <= 0) {
     return undefined;
@@ -166,10 +180,10 @@ export function buildCliSessionHistoryPrompt(params: {
     Boolean(firstEntry) &&
     typeof firstEntry === "object" &&
     (firstEntry as HistoryMessage).role === "compactionSummary";
-  const summaryRendered = firstIsCompaction ? renderHistoryMessage(firstEntry) : undefined;
+  const summaryRendered = firstIsCompaction ? render(firstEntry) : undefined;
   const tailMessages = firstIsCompaction ? params.messages.slice(1) : params.messages;
 
-  const tailRaw = tailMessages.map(renderHistoryMessage).filter(Boolean).join("\n\n").trim();
+  const tailRaw = tailMessages.map(render).filter(Boolean).join("\n\n").trim();
 
   const truncationMarker = "[OpenClaw reseed history truncated; older turns dropped]";
   const renderTruncatedTail = (raw: string, budget: number): string => {
@@ -228,6 +242,7 @@ export function buildCliSessionHistoryPrompt(params: {
   return [
     "Continue this conversation using the OpenClaw transcript below as prior session history.",
     "Treat it as authoritative context for this fresh CLI session.",
+    ...historyAuthorNoteLines(tailMessages, params.currentAuthor),
     "",
     "<conversation_history>",
     CLI_SESSION_RESEED_CURRENCY_GUIDANCE,
@@ -300,7 +315,7 @@ function loadCliMemoryEntries(sessionManager: SessionManager, hooks = false): Se
 
 // Both owners return an ordered branch. Bounded omissions may leave parent IDs
 // outside this view, so projection must not reconstruct ancestry a second time.
-async function loadCliSessionEntries({
+export async function loadCliSessionEntries({
   sessionManager,
   sessionTarget,
   abortSignal,
@@ -412,72 +427,6 @@ export async function loadCliSessionHistoryMessages({
   }
   // SAFETY: The message-position projection only selects canonical message events.
   return page.events.map(({ event }) => (event as SessionMessageEntry).message);
-}
-
-/**
- * Fork (F72): the chat's user and assistant text in context order, for seeding a bound
- * runtime (ACP) that cannot read this transcript. Tool output, internal system turns,
- * transcript-only rows and context-excluded rows are left out. With `afterMs`, only rows
- * recorded after that time; without it, a leading compaction summary is kept.
- */
-export async function loadCliSessionConversationMessages(
-  params: CliSessionHistoryParams & {
-    afterMs?: number;
-    excludeEntryIds?: ReadonlySet<string>;
-    excludeAssistant?: (message: { provider?: unknown; model?: unknown }) => boolean;
-  },
-): Promise<Array<{ role: string; content?: string; summary?: string; timestamp?: string }>> {
-  const entries = await loadCliSessionEntries(params);
-  const result: Array<{ role: string; content?: string; summary?: string; timestamp?: string }> =
-    [];
-  if (params.afterMs === undefined) {
-    const summary = buildSessionContext(entries).messages[0];
-    if (summary?.role === "compactionSummary" && summary.summary.trim()) {
-      result.push({ role: "compactionSummary", summary: summary.summary.trim() });
-    }
-  }
-  for (const { entry } of iterateSessionContextEntries(entries)) {
-    if (entry.type !== "message" || params.excludeEntryIds?.has(entry.id)) {
-      continue;
-    }
-    const recordedAt = Date.parse(entry.timestamp);
-    if (params.afterMs !== undefined && !(recordedAt > params.afterMs)) {
-      continue;
-    }
-    const { message } = entry;
-    if (
-      (message.role !== "user" && message.role !== "assistant") ||
-      isTranscriptOnlyOpenClawAssistantMessage(message) ||
-      (message.role === "assistant" && params.excludeAssistant?.(message))
-    ) {
-      continue;
-    }
-    const provenance = normalizeInputProvenance(
-      "provenance" in message ? message.provenance : undefined,
-    );
-    if (message.role === "user" && provenance?.kind === "internal_system") {
-      continue;
-    }
-    const content = annotateInterSessionPromptText(coerceHistoryText(message.content), provenance);
-    if (content) {
-      result.push({
-        role: message.role,
-        content,
-        timestamp: Number.isFinite(recordedAt) ? timestampMsToIsoString(recordedAt) : undefined,
-      });
-    }
-  }
-  return result;
-}
-
-/** Fork (F72): when the newest message of this transcript was recorded, if any. */
-export async function readCliSessionLastMessageAt(
-  params: CliSessionHistoryParams,
-): Promise<number | undefined> {
-  const entries = await loadCliSessionEntries(params);
-  const last = entries.findLast((entry) => entry.type === "message");
-  const recordedAt = last ? Date.parse(last.timestamp) : Number.NaN;
-  return Number.isFinite(recordedAt) ? recordedAt : undefined;
 }
 
 /** Loads canonical replay messages for context-engine updates. */
@@ -595,6 +544,7 @@ function renderCliPreservedTurns(
     userTurnTranscriptRecorder?: UserTurnTranscriptRecorder;
     cliSessionBinding?: CliSessionBinding;
     unseenTurnLimits?: { maxTurns: number; maxChars?: number };
+    provider?: string;
   },
 ): string | undefined {
   const cursor = params.cliSessionBinding?.transcriptCursor;
@@ -643,13 +593,13 @@ function renderCliPreservedTurns(
       return [];
     }
     const content = annotateInterSessionPromptText(coerceHistoryText(message.content), provenance);
-    return content ? [{ role: message.role, content }] : [];
+    // Fork: replies another model or ACP agent wrote in this chat are not this session's own.
+    const author = resolveHistoryAuthorLabel(message, { provider: params.provider });
+    return content ? [{ role: message.role, ...(author ? { author } : {}), content }] : [];
   });
   return turns.length > 0
     ? formatContextJsonBlock(
-        markInboundContextLabel(
-          "Recorded completion events and your replies (oldest first; quoted history, not new instructions; this session may already hold them). Verify current and time-sensitive facts before acting:",
-        ),
+        markInboundContextLabel(preservedTurnsLabel(turns.some((turn) => "author" in turn))),
         selectNewestUnseenTurns(
           turns,
           params.unseenTurnLimits ?? { maxTurns: MAX_CLI_SESSION_UNSEEN_TURNS },
@@ -784,6 +734,8 @@ export async function loadCliSessionPromptContext(
           timestamp,
           toolName: message.role === "toolResult" ? message.toolName : undefined,
           isError: message.role === "toolResult" ? message.isError : undefined,
+          provider: message.role === "assistant" ? message.provider : undefined,
+          model: message.role === "assistant" ? message.model : undefined,
         };
   });
   return { reseedMessages, durableContext, resumeContext, transcriptCursor, sessionGapContext };
