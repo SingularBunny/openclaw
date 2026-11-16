@@ -39,6 +39,8 @@ export type ReplyDispatchAssistantTranscript = Pick<
   idempotencyKey: string;
   /** Fork (F72): the ACP harness agent (e.g. codex) that authored the reply. */
   acpAgent?: string;
+  /** Fork (I14): the ACP agent ended the turn with `stopReason: "refusal"`. */
+  refusal?: true;
 };
 
 export type ReplyDispatchRun = {

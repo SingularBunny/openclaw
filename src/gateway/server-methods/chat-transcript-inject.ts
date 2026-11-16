@@ -93,6 +93,8 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
    * (e.g. provider "acp", model "codex") so later models replay it.
    */
   runtimeAuthor?: { provider: string; model: string };
+  /** Fork (I14): the bound runtime declined; the Control UI offers a hand-off under the row. */
+  refusal?: true;
 }): Promise<GatewayInjectedTranscriptAppendResult> {
   if (!params.sessionKey.trim() || !params.sessionId.trim() || !params.storePath) {
     return { ok: false, error: "transcript identity not resolved" };
@@ -120,6 +122,10 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
   }
   const openclawMeta = {
     ...(params.contextFreeCommand === true ? { contextFreeCommand: true } : {}),
+    // Fork (I14): a bound runtime's reply the provider stopped as a refusal.
+    ...(params.refusal === true && params.contextFreeCommand !== true
+      ? { refusal: { signal: "provider" } }
+      : {}),
     ...(params.humanMentions?.length
       ? { humanMentions: params.humanMentions.map((mention) => ({ ...mention })) }
       : {}),
