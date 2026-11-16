@@ -510,6 +510,11 @@ buttons, for any model or ACP agent:
   (`429 free-models-per-day`) reads "Daily free-model limit reached for this provider. It resets at
   <time> UTC" when the error names the reset time.
 - Each reply's footer names the model or ACP agent that wrote it, next to its time.
+- While an ACP agent is bound, the model picker also lists **<agent> models**: the models the agent
+  advertised for its session (ACP `models` or a model config option), with the current one marked, and
+  the picker button reads **<agent> · <model>**. Choosing one is `/acp model <id>`
+  (`acpx.chat.models.get` / `acpx.chat.models.set`; reading them starts no turn). An agent that
+  advertises no models shows no such group; `/acp model <id>` still works there.
 
 The switch runs the same commands you would type, so their replies (and any reason a bind failed,
 such as an agent missing from `acp.allowedAgents`) show in the chat, and a failed switch also says why
@@ -517,6 +522,24 @@ above the composer; the chat then stays with the model or agent it had. After a 
 of a model that reads plugin turn context gets a one-line note naming the new and previous
 answerer (as Hermes Agent does). For shared history across the switch, set
 `acp.seedParentHistory: true` (see [ACP bindings](/tools/acp-agents/bindings#shared-chat-history-fork)).
+
+## Chat commands as buttons
+
+Commands you would type to turn something on or run it in a chat also have a button; the command stays
+as a fallback and does the same thing:
+
+- **Plan** in the composer, next to the permission and Claude Code mode pickers, is the plan mode of
+  the workbench `aiwb-plan` plugin (`/plan`, `/plan off`). Highlighted with the word **Plan** it is on:
+  the agent researches and presents a plan, files stay unchanged until you approve it, and approving
+  the plan turns it off. Click to switch; a typed `/plan` or an approved plan shows on the toggle after
+  the turn. It appears when the Gateway offers `aiwb-plan.status` and `aiwb-plan.set` (`aiwb-plan`
+  0.2.0 or later), for any model.
+- The chat's **⋯** menu starts with **New chat** (`/new`: a new chat; this one stays in the sidebar),
+  **Learn a skill from this chat** (`/learn`: the agent saves the reusable workflow as a skill with the
+  skill workshop and says how to undo it) and **Reset chat…** (`/reset`, after a confirmation: a fresh
+  session in the same chat; needs operator admin, as the command does).
+- Switching models and ACP agents, and the bound agent's model: see
+  [Switching models and agents](#switching-models-and-agents).
 
 ## Claude CLI todo list and background tasks
 
