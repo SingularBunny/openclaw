@@ -26,6 +26,7 @@ import { requestChatAbort } from "./chat-abort-request.ts";
 import { resolveAgentIdForSession } from "./chat-avatar.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
+import { refreshChatHandoffInfo, waitForChatIdle } from "./chat-handoff.ts";
 import {
   CHAT_TRANSCRIPT_LOADING_CHANGED_EVENT,
   CHAT_HISTORY_RECOVERY_CHANGED_EVENT,
@@ -417,7 +418,15 @@ export function createPageState(
     ) {
       autoPromptNotificationsOnSend(context);
     }
-    return handleSendChat(state, messageOverride, options, submissionAction);
+    const sent = handleSendChat(state, messageOverride, options, submissionAction);
+    // Fork: a typed /acp or /session command can bind or unbind the chat; re-read its binding.
+    if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
+      void sent.then(async () => {
+        await waitForChatIdle(state);
+        await refreshChatHandoffInfo(state);
+      });
+    }
+    return sent;
   };
   const runAndInvalidate =
     <Arg>(action: (host: ChatPageHost, argument: Arg) => Promise<unknown>) =>

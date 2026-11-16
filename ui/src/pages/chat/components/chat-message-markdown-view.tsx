@@ -15,12 +15,14 @@ import {
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { stripThinkingTags } from "../../../lib/strip-thinking-tags.ts";
 import { LitContent } from "../../../lit/solid-content.tsx";
+import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import {
   type AssistantMessageExpansionState,
   resolveCappedMessageId,
   resolveSourceMessageId,
 } from "../chat-message-recovery.ts";
 import { persistedMessageEntryId } from "../chat-thread.ts";
+import { ChatHandoffMessageAction, ChatTurnFailureActions } from "./chat-handoff-view.tsx";
 import type { MessageActionDetails, MessageReplyTarget } from "./chat-message-markdown.types.ts";
 import { extractMessageMediaText } from "./chat-message-media.ts";
 import {
@@ -29,7 +31,6 @@ import {
   ownReactionEmoji,
 } from "./chat-message-reaction-model.ts";
 import { MessageReactionPicker } from "./chat-message-reactions-view.tsx";
-import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import { ReadAloud } from "./chat-read-aloud.tsx";
 
 registerEnglishCatalog(registerChatMessageMetadataEnglish);
@@ -120,7 +121,20 @@ export function resolveMessageActionDetails(
           pluginMessage: {
             sessionKey: params.sessionKey,
             ...(params.agentId ? { agentId: params.agentId } : {}),
-            message: { role, text: copyMarkdown, ...(sourceMessageId ? { id: sourceMessageId } : {}) },
+            message: {
+              role,
+              text: copyMarkdown,
+              ...(sourceMessageId ? { id: sourceMessageId } : {}),
+            },
+          },
+        }
+      : {}),
+    ...(role === "assistant" && !pendingInput && params.sessionKey
+      ? {
+          handoff: {
+            sessionKey: params.sessionKey,
+            ...(sourceMessageId ? { messageKey: sourceMessageId } : {}),
+            failed: asNullableRecord(message)?.stopReason === "error",
           },
         }
       : {}),
@@ -145,6 +159,7 @@ export function hasMessageActionButtons(
   return Boolean(
     details &&
     (details.markdown ||
+      details.handoff ||
       (details.replyTarget && opts.onReply) ||
       (details.reactionMessageId && opts.onReact)),
   );
@@ -168,6 +183,18 @@ export function MessageActions(props: {
       </Show>
       <Show when={props.details?.readAloudText}>
         <ReadAloud text={props.details!.readAloudText!} />
+      </Show>
+      <Show when={props.details?.handoff?.failed}>
+        <ChatTurnFailureActions
+          sessionKey={props.details!.handoff!.sessionKey}
+          messageKey={props.details!.handoff!.messageKey}
+        />
+      </Show>
+      <Show when={props.details?.handoff}>
+        <ChatHandoffMessageAction
+          sessionKey={props.details!.handoff!.sessionKey}
+          messageKey={props.details!.handoff!.messageKey}
+        />
       </Show>
       <Show when={props.details?.pluginMessage}>
         <PluginMessageActions

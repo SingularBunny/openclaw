@@ -1,0 +1,388 @@
+// Fork: switching who answers a chat by buttons. A chat is answered by a model (its session model)
+// or, while bound with `/acp spawn <agent> --bind here`, by an ACP agent. Handing off runs the same
+// steps as the slash commands (`/acp close`, sessions.patch model, `/acp spawn ... --bind here`),
+// records who answered before through the ACPX gateway methods, and can re-send the last user
+// message so the new model or agent answers it with the chat history. Nothing is provider-specific.
+import { t } from "../../i18n/index.ts";
+import { extractText } from "../../lib/chat/message-extract.ts";
+import { resolveChatModelOverrideValue } from "../../lib/chat/model-select-state.ts";
+import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
+import {
+  formatAgentLabel,
+  sameChatAnswerer,
+  type ChatAnswerer,
+  type ChatHandoffController,
+  type ChatHandoffInfo,
+  type ChatHandoffTarget,
+} from "./chat-handoff-registry.ts";
+import { setChatError } from "./chat-history-state.ts";
+import { switchChatModel } from "./chat-session.ts";
+import type { ChatPageHost } from "./chat-state-host.ts";
+import { selectedChatSessionRow } from "./chat-state-route.ts";
+import { persistedMessageEntryId } from "./chat-thread.ts";
+
+export {
+  formatAgentLabel,
+  publishChatHandoffController,
+  readChatHandoffController,
+  sameChatAnswerer,
+} from "./chat-handoff-registry.ts";
+export type {
+  ChatAnswerer,
+  ChatHandoffController,
+  ChatHandoffInfo,
+  ChatHandoffRecord,
+  ChatHandoffTarget,
+} from "./chat-handoff-registry.ts";
+
+export const CHAT_HANDOFF_AGENT_GROUP_ID = "acpAgents";
+export const CHAT_HANDOFF_GET_METHOD = "acpx.chat.handoff.get";
+export const CHAT_HANDOFF_SET_METHOD = "acpx.chat.handoff.set";
+/** Above this many prompt tokens a switch re-reads the whole chat without a warm cache. */
+export const CHAT_HANDOFF_LONG_CONTEXT_TOKENS = 100_000;
+const IDLE_WAIT_MS = 120_000;
+const IDLE_POLL_MS = 100;
+
+const infoByHost = new WeakMap<object, Map<string, ChatHandoffInfo>>();
+const pendingInfo = new WeakMap<object, Set<string>>();
+const pendingResend = new WeakMap<object, Map<string, string>>();
+
+function gatewaySnapshot(state: ChatPageHost) {
+  return {
+    client: state.client,
+    hello: state.hello,
+    phase: state.connected ? ("connected" as const) : ("offline" as const),
+  };
+}
+
+export function canUseChatHandoff(state: ChatPageHost): boolean {
+  return canCallGatewayMethod(gatewaySnapshot(state), CHAT_HANDOFF_GET_METHOD, "operator.read");
+}
+
+export function readChatHandoffInfo(state: ChatPageHost, sessionKey: string) {
+  return infoByHost.get(state)?.get(sessionKey);
+}
+
+function storeInfo(state: ChatPageHost, sessionKey: string, info: ChatHandoffInfo) {
+  const map = infoByHost.get(state) ?? new Map<string, ChatHandoffInfo>();
+  infoByHost.set(state, map);
+  map.set(sessionKey, info);
+}
+
+export async function refreshChatHandoffInfo(
+  state: ChatPageHost,
+  sessionKey = state.sessionKey,
+): Promise<ChatHandoffInfo | undefined> {
+  if (!state.client || !canUseChatHandoff(state)) {
+    return undefined;
+  }
+  try {
+    const result = await state.client.request<Partial<ChatHandoffInfo>>(CHAT_HANDOFF_GET_METHOD, {
+      sessionKey,
+    });
+    const info: ChatHandoffInfo = {
+      binding: result?.binding ?? null,
+      handoff: result?.handoff ?? null,
+      agents: Array.isArray(result?.agents) ? result.agents : [],
+    };
+    storeInfo(state, sessionKey, info);
+    state.requestUpdate?.();
+    return info;
+  } catch {
+    return readChatHandoffInfo(state, sessionKey);
+  }
+}
+
+/** Loads the chat's binding once per session; later reads follow the switches made here. */
+export function ensureChatHandoffInfo(state: ChatPageHost, sessionKey = state.sessionKey) {
+  const pending = pendingInfo.get(state) ?? new Set<string>();
+  pendingInfo.set(state, pending);
+  if (readChatHandoffInfo(state, sessionKey) || pending.has(sessionKey)) {
+    return;
+  }
+  pending.add(sessionKey);
+  void refreshChatHandoffInfo(state, sessionKey).finally(() => pending.delete(sessionKey));
+}
+
+/** The session's selected model (its override, else the row's resolved model). */
+export function currentChatModel(state: ChatPageHost, sessionKey = state.sessionKey): string {
+  const row = selectedChatSessionRow(state);
+  return (
+    resolveChatModelOverrideValue({
+      activeSession: row,
+      chatModelCatalog: state.chatModelCatalog,
+      modelOverrides: state.sessions.state.modelOverrides,
+      sessionKey,
+      sessionsResult: state.sessionsResult ?? null,
+    }) ||
+    (state.sessionsResult?.defaults?.modelProvider && state.sessionsResult.defaults.model
+      ? `${state.sessionsResult.defaults.modelProvider}/${state.sessionsResult.defaults.model}`
+      : (state.sessionsResult?.defaults?.model ?? ""))
+  );
+}
+
+export function currentChatAnswerer(
+  state: ChatPageHost,
+  sessionKey = state.sessionKey,
+): ChatAnswerer | undefined {
+  const binding = readChatHandoffInfo(state, sessionKey)?.binding;
+  if (binding) {
+    return { kind: "agent", agent: binding.agent };
+  }
+  const model = currentChatModel(state, sessionKey);
+  return model ? { kind: "model", model } : undefined;
+}
+
+export function chatModelLabel(state: ChatPageHost, model: string): string {
+  const entry = state.chatModelCatalog?.find(
+    (candidate) => `${candidate.provider}/${candidate.id}` === model || candidate.id === model,
+  );
+  return entry?.name?.trim() || model.split("/").pop() || model;
+}
+
+export function chatAnswererLabel(state: ChatPageHost, answerer: ChatAnswerer): string {
+  return answerer.kind === "agent"
+    ? formatAgentLabel(answerer.agent)
+    : chatModelLabel(state, answerer.model);
+}
+
+function chatIdle(state: ChatPageHost): boolean {
+  return !state.chatSending && !state.chatRunId && state.chatStream === null;
+}
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+/** Waits until the chat finished the turn a command or message started. */
+export async function waitForChatIdle(state: ChatPageHost, timeoutMs = IDLE_WAIT_MS) {
+  const deadline = Date.now() + timeoutMs;
+  // Let the submitted turn register before reading idleness.
+  await sleep(IDLE_POLL_MS);
+  while (!chatIdle(state)) {
+    if (Date.now() > deadline) {
+      return false;
+    }
+    await sleep(IDLE_POLL_MS);
+  }
+  return true;
+}
+
+async function sendChatCommand(state: ChatPageHost, command: string): Promise<boolean> {
+  await state.handleSendChat(command);
+  return await waitForChatIdle(state);
+}
+
+async function recordHandoff(
+  state: ChatPageHost,
+  sessionKey: string,
+  record: { previous: ChatAnswerer; current: ChatAnswerer } | null,
+) {
+  const info = readChatHandoffInfo(state, sessionKey) ?? {
+    binding: null,
+    handoff: null,
+    agents: [],
+  };
+  storeInfo(state, sessionKey, {
+    ...info,
+    handoff: record ? { ...record, at: Date.now() } : null,
+  });
+  state.requestUpdate?.();
+  if (
+    !state.client ||
+    !canCallGatewayMethod(gatewaySnapshot(state), CHAT_HANDOFF_SET_METHOD, "operator.write")
+  ) {
+    return;
+  }
+  try {
+    await state.client.request(CHAT_HANDOFF_SET_METHOD, {
+      sessionKey,
+      previous: record?.previous ?? null,
+      current: record?.current ?? null,
+    });
+  } catch {
+    // The chip keeps the local record; the next load reads whatever the Gateway kept.
+  }
+}
+
+/** The text of the user message a reply answered (the last user message before it). */
+export function findPromptBefore(
+  messages: readonly unknown[],
+  messageKey?: string,
+): string | undefined {
+  let end = messages.length;
+  if (messageKey) {
+    const index = messages.findIndex((message) => persistedMessageEntryId(message) === messageKey);
+    if (index >= 0) {
+      end = index;
+    }
+  }
+  for (let index = end - 1; index >= 0; index -= 1) {
+    const message = messages[index] as { role?: unknown } | null;
+    if (message?.role === "user") {
+      const text = extractText(message)?.trim();
+      if (text && !text.startsWith("/")) {
+        return text;
+      }
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Hands the chat to `target`: unbinds a bound agent first (`/acp close`), then sets the model or
+ * binds the agent (`/acp spawn <agent> --bind here`), records the handoff and re-sends `resend`.
+ * A failed step leaves the command's own reply in the chat and adds the reason as the chat error.
+ */
+export async function handOffChat(
+  state: ChatPageHost,
+  target: ChatAnswerer,
+  opts: { resend?: string; record?: "handoff" | "clear" } = {},
+): Promise<boolean> {
+  const sessionKey = state.sessionKey;
+  const label = chatAnswererLabel(state, target);
+  const fail = (reason: string) => {
+    setChatError(state, t("chat.handoff.failed", { target: label, reason }), true);
+    return false;
+  };
+  if (!state.client || !state.connected) {
+    return fail(t("chat.handoff.offline"));
+  }
+  const info = readChatHandoffInfo(state, sessionKey) ?? (await refreshChatHandoffInfo(state));
+  const previous = currentChatAnswerer(state, sessionKey);
+  if (!sameChatAnswerer(previous, target)) {
+    if (info?.binding && !(target.kind === "agent" && info.binding.agent === target.agent)) {
+      await sendChatCommand(state, "/acp close");
+      const after = await refreshChatHandoffInfo(state, sessionKey);
+      if (after?.binding) {
+        return fail(
+          t("chat.handoff.closeFailed", { agent: formatAgentLabel(after.binding.agent) }),
+        );
+      }
+    }
+    if (target.kind === "agent") {
+      if (info && info.agents.length > 0 && !info.agents.includes(target.agent)) {
+        return fail(t("chat.handoff.agentNotAllowed", { agent: target.agent }));
+      }
+      await sendChatCommand(state, `/acp spawn ${target.agent} --bind here`);
+      const after = await refreshChatHandoffInfo(state, sessionKey);
+      if (after?.binding?.agent !== target.agent) {
+        return fail(t("chat.handoff.bindFailed"));
+      }
+    } else if (currentChatModel(state, sessionKey) !== target.model) {
+      const switched = await switchChatModel(state, target.model, sessionKey, target.agentRuntime);
+      if (!switched) {
+        return fail(t("chat.handoff.modelFailed"));
+      }
+    }
+    if (previous) {
+      await recordHandoff(
+        state,
+        sessionKey,
+        opts.record === "clear" ? null : { previous, current: target },
+      );
+    }
+  }
+  if (opts.resend && state.sessionKey === sessionKey) {
+    await waitForChatIdle(state);
+    await state.handleSendChat(opts.resend);
+  }
+  return true;
+}
+
+/** A plain model switch in the picker is a handoff too, so the chip can switch back. */
+export async function recordChatPickerSwitch(
+  state: ChatPageHost,
+  sessionKey: string,
+  previous: ChatAnswerer | undefined,
+  model: string,
+) {
+  const current: ChatAnswerer = { kind: "model", model };
+  if (previous && !sameChatAnswerer(previous, current)) {
+    await recordHandoff(state, sessionKey, { previous, current });
+  }
+}
+
+/** Every catalog model, labelled as in the picker, as a handoff target. */
+export function listChatHandoffModels(state: ChatPageHost): ChatHandoffTarget[] {
+  return (state.chatModelCatalog ?? []).map((entry) => ({
+    answerer: { kind: "model", model: `${entry.provider}/${entry.id}` },
+    label: entry.name?.trim() || entry.id,
+    provider: entry.provider,
+  }));
+}
+
+/** Remembers a failed turn's prompt for the next choice in the model picker. */
+export function setPendingResend(
+  state: ChatPageHost,
+  sessionKey: string,
+  text: string | undefined,
+) {
+  const map = pendingResend.get(state) ?? new Map<string, string>();
+  pendingResend.set(state, map);
+  if (text) {
+    map.set(sessionKey, text);
+  } else {
+    map.delete(sessionKey);
+  }
+}
+
+export function takePendingResend(state: ChatPageHost, sessionKey: string): string | undefined {
+  const text = pendingResend.get(state)?.get(sessionKey);
+  pendingResend.get(state)?.delete(sessionKey);
+  return text;
+}
+
+export function createChatHandoffController(
+  state: ChatPageHost,
+  params: { models: readonly ChatHandoffTarget[] },
+): ChatHandoffController {
+  const sessionKey = state.sessionKey;
+  ensureChatHandoffInfo(state, sessionKey);
+  const info = readChatHandoffInfo(state, sessionKey);
+  const row = selectedChatSessionRow(state);
+  const agents = (info?.agents ?? []).map((agent): ChatHandoffTarget => ({
+    answerer: { kind: "agent", agent },
+    label: formatAgentLabel(agent),
+  }));
+  const current = currentChatAnswerer(state, sessionKey);
+  const sessionModel = currentChatModel(state, sessionKey);
+  const previous =
+    info?.handoff && sameChatAnswerer(info.handoff.current, current)
+      ? info.handoff.previous
+      : info?.binding && sessionModel
+        ? ({ kind: "model", model: sessionModel } as const)
+        : undefined;
+  return {
+    sessionKey,
+    current,
+    previous,
+    info,
+    models: params.models,
+    agents,
+    longContext: (row?.totalTokens ?? 0) > CHAT_HANDOFF_LONG_CONTEXT_TOKENS,
+    busy: !chatIdle(state),
+    labelOf: (answerer) => chatAnswererLabel(state, answerer),
+    handOff: (target, opts) =>
+      handOffChat(state, target, {
+        resend: findPromptBefore(state.chatMessages, opts?.resendBefore),
+      }),
+    // Bound without a recorded handoff (a typed /acp spawn), returning unbinds to the session model.
+    returnToPrevious: async () =>
+      previous ? await handOffChat(state, previous, { record: "clear" }) : false,
+    dismiss: () => void recordHandoff(state, sessionKey, null),
+    retry: (failedMessageKey) => {
+      const prompt = findPromptBefore(state.chatMessages, failedMessageKey);
+      if (prompt) {
+        void state.handleSendChat(prompt);
+      }
+    },
+    chooseAnotherModel: (failedMessageKey) => {
+      setPendingResend(state, sessionKey, findPromptBefore(state.chatMessages, failedMessageKey));
+      state.chatModelPickerOpenSessionKey = sessionKey;
+      state.requestUpdate?.();
+    },
+  };
+}

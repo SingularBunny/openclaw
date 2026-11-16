@@ -1,5 +1,5 @@
-import type { ChatReplyTarget } from "../../../lib/chat/chat-types.ts";
 import type { ControlUiMessage } from "../../../../../src/plugin-sdk/control-ui.js";
+import type { ChatReplyTarget } from "../../../lib/chat/chat-types.ts";
 import type { AssistantMessageExpansionState } from "../chat-message-recovery.ts";
 
 export type MessageReplyTarget = ChatReplyTarget;
@@ -14,4 +14,6 @@ export type MessageActionDetails = {
   reactionMessageId?: string;
   /** Fork: what plugin "message" actions run on — the chat's session and this message. */
   pluginMessage?: { sessionKey: string; agentId?: string; message: ControlUiMessage };
+  /** Fork: an assistant reply's handoff and failed-turn buttons (chat-handoff-view.tsx). */
+  handoff?: { sessionKey: string; messageKey?: string; failed: boolean };
 };

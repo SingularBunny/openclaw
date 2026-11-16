@@ -67,6 +67,8 @@ type ChatModelControlsProps = {
   modelSelectionLocked?: boolean;
   modelSelectionTarget?: SessionsListResult["defaults"]["modelSelectionTarget"];
   modelPickerTargetGroups?: readonly ChatModelPickerTargetGroup[];
+  /** Fork: who answers instead of the session model (an ACP agent bound to the chat). */
+  modelPickerTriggerLabel?: string;
   modelPickerOpen?: boolean;
   modelSwitching: boolean;
   modelMutationDisabledReason?: string;
@@ -590,7 +592,9 @@ function createChatModelControls(props: ChatModelControlsProps): Accessor<{
         sessionKey: props.sessionKey,
         triggerModelLabel: formatPickerModelLabel(committedModelLabel),
         triggerModelValue: triggerModelValue || undefined,
-        triggerStatusLabel: props.modelSelectionLocked ? undefined : catalogTriggerStatus,
+        triggerStatusLabel:
+          props.modelPickerTriggerLabel ??
+          (props.modelSelectionLocked ? undefined : catalogTriggerStatus),
         triggerLoading:
           !props.modelSelectionLocked && catalogLoadingWithoutSnapshot && !selectionKnown,
         onModelSetup:
