@@ -487,6 +487,37 @@ so reloading the chat shows it again until a new run starts. Set
 `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS=0` to turn predictions off (see
 [Environment variables](/help/environment#worker-and-catalog-limits)).
 
+## Switching models and agents
+
+Everything `/model`, `/acp spawn <agent> --bind here` and `/acp close` do in a chat also works by
+buttons, for any model or ACP agent:
+
+- **Model picker**: with `acp.enabled` (on unless set to `false`), an **Agents** group lists
+  `acp.allowedAgents` (or `acp.defaultAgent` when the list is empty). Choosing an agent binds the chat
+  to it, exactly like `/acp spawn <agent> --bind here`; the picker then shows the agent. Choosing a model
+  while an agent is bound unbinds it first (`/acp close`) and then sets the model.
+- **Hand off to…** under an assistant reply opens a menu of every model and agent. Choosing one
+  switches the chat to it and sends the question that reply answered again, so the new model or agent
+  answers it with the whole chat history. On a chat over about 100,000 prompt tokens the menu warns
+  that the new model reads it without a warm prompt cache.
+- **"<new> is answering · Return to <previous>"** appears by the composer after a handoff or a picker
+  switch, and while an agent is bound. **Return** restores exactly the model or agent that answered
+  before; the cross hides the chip. The record is kept per chat on the Gateway
+  (`acpx.chat.handoff.get` / `acpx.chat.handoff.set`).
+- Under a failed turn (an error, a rate or daily limit), **Retry** sends the same message to the same
+  model again; **Choose another model** opens the model picker, and the model or agent chosen there
+  answers the failed message. Nothing switches models on its own. OpenRouter's daily free-model quota
+  (`429 free-models-per-day`) reads "Daily free-model limit reached for this provider. It resets at
+  <time> UTC" when the error names the reset time.
+- Each reply's footer names the model or ACP agent that wrote it, next to its time.
+
+The switch runs the same commands you would type, so their replies (and any reason a bind failed,
+such as an agent missing from `acp.allowedAgents`) show in the chat, and a failed switch also says why
+above the composer; the chat then stays with the model or agent it had. After a switch, the next turn
+of a model that reads plugin turn context gets a one-line note naming the new and previous
+answerer (as Hermes Agent does). For shared history across the switch, set
+`acp.seedParentHistory: true` (see [ACP bindings](/tools/acp-agents/bindings#shared-chat-history-fork)).
+
 ## Claude CLI todo list and background tasks
 
 Sessions on the Claude CLI backend (`claude-cli`) show Claude's own todo list in
