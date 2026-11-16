@@ -8,7 +8,10 @@ import {
   createChatFlowE2eSuite,
   installMockGateway,
 } from "./chat-flow.test-support.ts";
-import { selectAllSidebarSessions } from "./sidebar-navigation.test-support.ts";
+import {
+  selectAllSidebarSessions,
+  storeSidebarSessionOwnerChoice,
+} from "./sidebar-navigation.test-support.ts";
 
 const suite = createChatFlowE2eSuite();
 const pageOptions = {
@@ -99,6 +102,14 @@ suite.define(() => {
         sessionKey: selectedSessionKey,
       });
 
+      // All owners is the default; start from a saved My sessions choice so the
+      // explicit All owners selection below is what survives navigation.
+      await storeSidebarSessionOwnerChoice(
+        page,
+        suite.server.baseUrl,
+        "profile-self",
+        "owner:profile-self",
+      );
       await page.goto(controlUiSessionUrl(suite.server.baseUrl, selectedSessionKey));
       const sidebar = page.locator("openclaw-app-sidebar");
       const ownerTitle = sidebar.locator("#sidebar-session-owner-title");

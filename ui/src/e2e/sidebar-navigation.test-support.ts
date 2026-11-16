@@ -1,6 +1,11 @@
+import { gatewayOriginScope } from "@openclaw/gateway-client/browser";
 import type { Page } from "playwright";
 import { expect } from "vitest";
-import { controlUiSessionPath, waitForControlUiRoute } from "../test-helpers/control-ui-e2e.ts";
+import {
+  controlUiBundledGatewayUrl,
+  controlUiSessionPath,
+  waitForControlUiRoute,
+} from "../test-helpers/control-ui-e2e.ts";
 import { openProgressHomeDock } from "./session-progress-home.test-support.ts";
 
 /** Home can focus its existing page directly or first open the dock on another conversation. */
@@ -27,7 +32,31 @@ export async function openHomeFullPage(page: Page, agentId = "main"): Promise<vo
   await waitForControlUiRoute(page, { pathname, routeId: "chat" });
 }
 
-/** Cross-owner scenarios choose All owners explicitly instead of broadening the default. */
+/**
+ * Seeds a saved sidebar owner choice (`owner:<id>` or `involving-me`) before the page loads.
+ * Without a saved choice the sidebar shows All owners.
+ */
+export async function storeSidebarSessionOwnerChoice(
+  page: Page,
+  baseUrl: string,
+  profileId: string,
+  value: string,
+): Promise<void> {
+  const key = `openclaw.control.sidebarSessionOwnerFilter.v1:${gatewayOriginScope(
+    controlUiBundledGatewayUrl(baseUrl),
+  )}:${encodeURIComponent(profileId)}`;
+  await page.addInitScript(
+    ([storageKey, storedValue]) => {
+      // Keep a choice made later in the test across reloads.
+      if (localStorage.getItem(storageKey) === null) {
+        localStorage.setItem(storageKey, storedValue);
+      }
+    },
+    [key, value] as const,
+  );
+}
+
+/** Selects All owners explicitly, e.g. after another owner choice. */
 export async function selectAllSidebarSessions(page: Page): Promise<void> {
   await page.locator("#sidebar-session-owner-title").click();
   await page.locator('.sidebar-session-owner-filter [role="option"][data-value="all"]').click();

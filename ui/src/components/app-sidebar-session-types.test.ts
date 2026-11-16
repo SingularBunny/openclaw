@@ -56,12 +56,18 @@ describe("sidebar session preferences", () => {
     expect(loadStoredSidebarSessionStatusFilter()).toBe(filter);
   });
 
+  it("defaults to all owners when no preference is stored", () => {
+    // Chats created before participants were recorded have no owner, so a
+    // "My sessions" default would hide them.
+    expect(loadOwner()).toEqual(ownerFilter(null));
+  });
+
   it("isolates owner and involving-me filters by gateway and authenticated user", () => {
     storeOwner("profile-bob");
     storeOwner(null, true, "profile-grace");
     expect(loadOwner()).toEqual(ownerFilter("profile-bob"));
     expect(loadOwner("profile-grace")).toEqual(ownerFilter(null, true));
-    expect(loadOwner("profile-ada", "wss://two.example/ws")).toEqual(ownerFilter("profile-ada"));
+    expect(loadOwner("profile-ada", "wss://two.example/ws")).toEqual(ownerFilter(null));
   });
 
   it("stores an explicit all-owner choice and rejects malformed stored values", () => {
@@ -83,7 +89,7 @@ describe("sidebar session preferences", () => {
       throw new Error("storage disabled");
     };
 
-    expect(loadOwner()).toEqual(ownerFilter("profile-ada"));
+    expect(loadOwner()).toEqual(ownerFilter(null));
     expect(() => storeOwner(null, true)).not.toThrow();
   });
 

@@ -449,8 +449,9 @@ Navigation changes on read-only connections or connections without a durable
 profile stay browser-local rather than writing shared server configuration. See [Navigation rail](/web/control-ui/sessions-and-sidebar#navigation-rail).
 
 The Sessions owner filter is stored separately in the browser for each Gateway
-and profile. A profile without a saved choice starts with **My sessions**;
-unresolved identities and connections without a durable profile show **All owners**.
+and profile. Without a saved choice it shows **All owners** (guests start on
+**Involving me**), as do unresolved identities and connections without a durable
+profile (fork; upstream starts a profile with **My sessions**).
 Choosing **Involving me**, **All owners**, or a person changes that owner filter
 directly.
 

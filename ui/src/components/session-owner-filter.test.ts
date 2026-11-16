@@ -104,6 +104,8 @@ function expectReads(host: ReturnType<typeof fixture>["host"], scheduled: number
 
 describe("sidebar owner filter", () => {
   it("retains a known profile's filter while reconnect identity is unresolved", () => {
+    // The default is all owners; this case covers a saved "My sessions" choice.
+    storeSidebarSessionOwnerFilter(gatewayUrl, "profile-ada", choice("profile-ada"));
     const { gateway, host, update } = fixture();
     update();
     for (const phase of ["reconnecting", "connected"] as const) {
@@ -135,7 +137,8 @@ describe("sidebar owner filter", () => {
       }
       update({ selfUser: { id: "replacement-profile" } });
       expectReads(host, 2);
-      expectOwner(host, "replacement-profile");
+      // Without a saved choice the replacement profile starts on All owners.
+      expectOwner(host, null);
     },
   );
 
@@ -182,8 +185,8 @@ describe("sidebar owner filter", () => {
       ["write role", auth(["operator.sessions.write"], "write")],
       ["admin operator", auth(["operator.admin"])],
       ["legacy hello", {}],
-    ])("keeps the own-sessions default: %s", (_label, snapshot) => {
-      expect(fixture(snapshot).host.sidebarSessionOwnerFilter()).toEqual(choice("profile-ada"));
+    ])("starts everyone else on All owners: %s", (_label, snapshot) => {
+      expect(fixture(snapshot).host.sidebarSessionOwnerFilter()).toEqual(choice(null));
     });
   });
 
@@ -198,7 +201,7 @@ describe("sidebar owner filter", () => {
     update({ selfUser: { id: "profile-bob" } });
     expectOwner(host, null, true);
     update({}, "wss://two.example/ws");
-    expectOwner(host, "profile-bob");
+    expectOwner(host, null);
     filter.set("owner-two");
     update();
     update({ selfUser: { id: "profile-ada" } }, gatewayUrl);

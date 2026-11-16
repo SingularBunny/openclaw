@@ -7,7 +7,6 @@ import {
   createChatFlowE2eSuite,
   installMockGateway,
 } from "./chat-flow.test-support.ts";
-import { selectAllSidebarSessions } from "./sidebar-navigation.test-support.ts";
 import { chooseSidebarOwner, closeSidebarMenu } from "./sidebar-session-menu.test-support.ts";
 
 const suite = createChatFlowE2eSuite();
@@ -70,8 +69,7 @@ suite.define(() => {
         const sidebar = page.locator("openclaw-app-sidebar");
         const sessionList = sidebar.locator(".sidebar-session-content");
         const personalRow = sessionList.locator(`[data-session-key="${personal}"]`);
-        await expectBrowser(personalRow).toHaveCount(0);
-        await selectAllSidebarSessions(page);
+        // All owners is the default (fork), so another owner's session is listed at once.
         await expectBrowser(personalRow).toBeVisible();
         await chooseSidebarOwner(page, "involving-me");
         await closeSidebarMenu(page);
