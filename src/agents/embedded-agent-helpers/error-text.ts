@@ -33,6 +33,7 @@ import {
   isTimeoutErrorMessage,
 } from "../failover/classify.js";
 import { isReasoningConstraintErrorMessage } from "../failover/context-overflow-tables.js";
+import { renderDailyFreeModelLimitCopy } from "../failover/daily-free-model-limit.js";
 import { resolveExecutionApprovalFailureMessage } from "../failover/message-patterns.js";
 import type { PreparedProviderFailoverOwner } from "../failover/provider-patterns.js";
 import {
@@ -134,6 +135,10 @@ export function formatAssistantErrorText(
   const providerRefusalText = formatProviderRefusalText(msg);
   if (providerRefusalText) {
     return providerRefusalText;
+  }
+  const dailyLimitCopy = renderDailyFreeModelLimitCopy(raw);
+  if (dailyLimitCopy) {
+    return dailyLimitCopy;
   }
   const formatCopy = renderFormatErrorCopy(raw);
   const classifiedFacts = facts ?? classifyAssistantErrorFacts(msg, opts);

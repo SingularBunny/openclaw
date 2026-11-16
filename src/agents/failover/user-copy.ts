@@ -18,6 +18,10 @@ import { formatExecDeniedUserMessage } from "../exec-approval-result.js";
 import { ERROR_DETAILS_HINT, ERROR_PREFIX_RE } from "./assistant-request-failure-copy.js";
 import { classifyFailoverReasonCore } from "./classify-core.js";
 import {
+  isDailyFreeModelLimitMessage,
+  renderDailyFreeModelLimitCopy,
+} from "./daily-free-model-limit.js";
+import {
   AUTH_PROFILE_COOLDOWN_ERROR_CODE,
   CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE,
   MODEL_CHAT_REJECTED_CODE,
@@ -421,6 +425,15 @@ export function renderRateLimitReplyCopy(params: {
   }
   // Local cooldown diagnostics name the operator's saved login; only provider text becomes copy.
   const providerMessage = params.code === AUTH_PROFILE_COOLDOWN_ERROR_CODE ? "" : params.message;
+  const dailyLimitCopy = renderDailyFreeModelLimitCopy(
+    [providerMessage, ...attempts.map((attempt) => attempt.error ?? "")].find(
+      isDailyFreeModelLimitMessage,
+    ),
+    params.nowMs,
+  );
+  if (dailyLimitCopy) {
+    return dailyLimitCopy;
+  }
   if (params.reason === "rate_limit") {
     const promptSizeCopy = renderProviderPromptSizeLimitCopy(params.message);
     if (promptSizeCopy) {
