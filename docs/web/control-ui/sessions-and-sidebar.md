@@ -129,13 +129,15 @@ focus reveal row actions. Shared-owner activity traces around the avatar pair;
 team mode keeps its compact status layout.
 
 The owner filter is the only control for this selection. Its saved value belongs
-to the current Gateway and your profile in this browser. A signed-in profile
-without a saved choice starts with **My sessions**, except guests: a role that can
-only view other people's sessions and has no general read access (the role
+to the current Gateway and your profile in this browser. Without a saved choice
+the list shows **All owners**, except guests: a role that can only view other
+people's sessions and has no general read access (the role
 [Visitor Access](/gateway/team-server#invite-guests) requires) starts with **Involving me**.
-A saved choice always wins. Before a profile is identified,
-or when the connection has no durable profile, the list shows **All owners**.
-Identifying the profile restores its saved choice or the default for that role.
+(Fork: upstream starts other signed-in profiles with **My sessions**, which hides
+chats created before owners were recorded.) A saved choice always wins. Before a
+profile is identified, or when the connection has no durable profile, the list
+also shows **All owners**. Identifying the profile restores its saved choice or the
+default for that role.
 During reconnection, a known profile's title and filter stay in place until identity
 resolves or the connection changes.
 The filtered session list loads before custom group metadata, so a slow group
