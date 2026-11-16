@@ -2564,6 +2564,44 @@ button.chat-reply-attribution__target:disabled {
   align-items: center;
 }
 
+/* Fork (I14): hint under a reply that looks like a refusal; always visible, not hover-revealed. */
+.chat-refusal-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted, rgb(127 127 127 / 6%));
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chat-refusal-hint--weak {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.chat-refusal-hint__text {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.chat-refusal-hint__menu {
+  position: relative;
+}
+
+.chat-refusal-hint__button {
+  list-style: none;
+  cursor: pointer;
+}
+
+.chat-refusal-hint__button::-webkit-details-marker {
+  display: none;
+}
+
 .chat-reply-author {
   font-size: 11px;
   color: var(--muted);

@@ -1,3 +1,4 @@
+import type { RefusalSignal } from "../../../../src/shared/refusal-signal.js";
 // Fork: switching who answers a chat by buttons. A chat is answered by a model (its session model)
 // or, while bound with `/acp spawn <agent> --bind here`, by an ACP agent. Handing off runs the same
 // steps as the slash commands (`/acp close`, sessions.patch model, `/acp spawn ... --bind here`),
@@ -9,6 +10,7 @@ import { resolveChatModelOverrideValue } from "../../lib/chat/model-select-state
 import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
 import {
   formatAgentLabel,
+  markRefusalHandedOff,
   sameChatAnswerer,
   type ChatAnswerer,
   type ChatHandoffController,
@@ -23,6 +25,7 @@ import { persistedMessageEntryId } from "./chat-thread.ts";
 
 export {
   formatAgentLabel,
+  isRefusalHandedOff,
   publishChatHandoffController,
   readChatHandoffController,
   sameChatAnswerer,
@@ -402,6 +405,37 @@ export async function handOffChat(
   return true;
 }
 
+export const CHAT_REFUSAL_HANDOFF_METHOD = "chat.refusal.handoff";
+
+/**
+ * Fork (I14): handing off from the refusal hint. The Gateway writes a log line and leaves the
+ * refused turn (its question and reply) out of the model context, so the next model gets the
+ * question once, as the re-sent message, and never the refused answer. The rows stay visible.
+ * Without the method (an older Gateway) the hand-off still runs and the error says so.
+ */
+export async function recordRefusalHandoff(
+  state: ChatPageHost,
+  sessionKey: string,
+  params: { messageId: string; signal: RefusalSignal; target: string },
+): Promise<boolean> {
+  markRefusalHandedOff(params.messageId);
+  if (
+    !state.client ||
+    !canCallGatewayMethod(gatewaySnapshot(state), CHAT_REFUSAL_HANDOFF_METHOD, "operator.write")
+  ) {
+    const reason = state.client ? t("chat.handoff.refusalUnsupported") : t("chat.handoff.offline");
+    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason }), true);
+    return false;
+  }
+  try {
+    await state.client.request(CHAT_REFUSAL_HANDOFF_METHOD, { sessionKey, ...params });
+    return true;
+  } catch (error) {
+    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason: String(error) }), true);
+    return false;
+  }
+}
+
 /** A plain model switch in the picker is a handoff too, so the chip can switch back. */
 export async function recordChatPickerSwitch(
   state: ChatPageHost,
@@ -475,10 +509,17 @@ export function createChatHandoffController(
     longContext: (row?.totalTokens ?? 0) > CHAT_HANDOFF_LONG_CONTEXT_TOKENS,
     busy: !chatIdle(state),
     labelOf: (answerer) => chatAnswererLabel(state, answerer),
-    handOff: (target, opts) =>
-      handOffChat(state, target, {
-        resend: findPromptBefore(state.chatMessages, opts?.resendBefore),
-      }),
+    handOff: async (target, opts) => {
+      const resend = findPromptBefore(state.chatMessages, opts?.resendBefore);
+      if (opts?.refusal && opts.resendBefore) {
+        await recordRefusalHandoff(state, sessionKey, {
+          messageId: opts.resendBefore,
+          signal: opts.refusal,
+          target: chatAnswererLabel(state, target),
+        });
+      }
+      return await handOffChat(state, target, { resend });
+    },
     // Bound without a recorded handoff (a typed /acp spawn), returning unbinds to the session model.
     returnToPrevious: async () =>
       previous ? await handOffChat(state, previous, { record: "clear" }) : false,
