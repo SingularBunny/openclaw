@@ -6,6 +6,7 @@ import { createAgentRegistry } from "acpx/agent-registry";
 import { tryDispatchAcpReplyHook } from "openclaw/plugin-sdk/acp-runtime-backend";
 import { createAcpxRuntimeService } from "./register.runtime.js";
 import type { OpenClawPluginApi } from "./runtime-api.js";
+import { registerChatHandoff, type ChatHandoffRecord } from "./src/chat-handoff.js";
 import { ACPX_NATIVE_AGENT_IDS } from "./src/config-schema.js";
 import { createAcpAgentHarness } from "./src/harness.js";
 import { isAcpxNativeAgentEnabled, listAcpxNativeAgents } from "./src/native-agents.js";
@@ -63,6 +64,13 @@ const plugin = {
       { scope: "operator.read", profileAccess: "independent" },
     );
     api.on("reply_dispatch", tryDispatchAcpReplyHook, { eligibleDispatchKinds: ["acp"] });
+    // Fork: model and agent switch buttons in the Control UI read and record handoffs here.
+    registerChatHandoff(api, () =>
+      api.runtime.state.openKeyedStoreV2<ChatHandoffRecord>({
+        namespace: "chat-handoff",
+        maxEntries: 10_000,
+      }),
+    );
   },
 };
 
