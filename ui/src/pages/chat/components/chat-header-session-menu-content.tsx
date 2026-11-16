@@ -190,13 +190,14 @@ export function ChatHeaderSessionMenuContent(inputs: HeaderMenuContentProps) {
     const source = props.actionSource;
     const actions = source
       ? [
+          // Fork: the chat command items (New chat, Learn, Reset) lead the native ones.
+          ...props.sessionActions,
           ...nativeActions.read(
             source.readOwner().context,
             source.readRow(),
             source.stopDisabledReason,
             onAction,
           ),
-          ...props.sessionActions,
         ]
       : props.sessionActions;
     return props.composeSessionActions?.(actions) ?? actions;
