@@ -410,6 +410,29 @@ describe("generic plugin-owned live session registry", () => {
     expect(original.close).not.toHaveBeenCalled();
   });
 
+  it.each(["restart", "register"] as const)(
+    "does not let a failed spawn poison the owner's next turn (%s)",
+    async (route) => {
+      const cleanup = vi.fn(async () => {});
+      const original = await createOwner({ cleanup });
+      original.register();
+      const spawnError = new Error("spawn /usr/bin/claude ENOENT");
+      original.waitForExit.mockImplementation(() => Promise.reject(spawnError));
+      original.capability.remove(original.session);
+      sessions.delete(original.session);
+      const next = await createOwner({ sessionId: original.sessionId });
+      if (route === "restart") {
+        await expect(next.capability.restart()).resolves.toBeUndefined();
+        next.register();
+      } else {
+        await vi.waitFor(() => expect(() => next.register()).not.toThrow());
+      }
+      expect(next.capability.current()).toBe(next.session);
+      // Resources claimed for the never-started process are still released.
+      expect(cleanup).toHaveBeenCalledOnce();
+    },
+  );
+
   it.each([false, true])(
     "rejects the same process handle under a different owner (retired=%s)",
     async (retired) => {

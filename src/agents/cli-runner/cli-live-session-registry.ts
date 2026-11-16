@@ -555,6 +555,11 @@ export function createCliLiveSessionCapability(params: {
       // Native runtime artifacts remain process-owned until its child exits.
       record.cleanupPromise = Promise.resolve()
         .then(() => handle.waitForExit())
+        // A process that never started (spawn ENOENT) has nothing left to wait
+        // for; settle as exited so the owner is not fenced forever by the error.
+        .catch((error: unknown) => {
+          cliBackendLog.warn(`cli live session ended without a clean exit: ${String(error)}`);
+        })
         .then(() => record.cleanup?.())
         .then(() => {
           retiringSessionHandles.delete(handle);
