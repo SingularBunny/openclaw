@@ -38,6 +38,8 @@ export type ChatModelControlsProps = {
   modelSelectionLocked?: boolean;
   modelSelectionTarget?: SessionsListResult["defaults"]["modelSelectionTarget"];
   modelPickerTargetGroups?: readonly ChatModelPickerTargetGroup[];
+  /** Fork: who answers instead of the session model (an ACP agent bound to the chat). */
+  modelPickerTriggerLabel?: string;
   modelPickerOpen?: boolean;
   modelSwitching: boolean;
   modelMutationDisabledReason?: string;
