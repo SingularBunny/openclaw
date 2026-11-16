@@ -104,6 +104,116 @@ export function ensureChatHandoffInfo(state: ChatPageHost, sessionKey = state.se
   void refreshChatHandoffInfo(state, sessionKey).finally(() => pending.delete(sessionKey));
 }
 
+export const CHAT_HANDOFF_AGENT_MODEL_GROUP_ID = "acpAgentModels";
+export const CHAT_ACP_MODELS_GET_METHOD = "acpx.chat.models.get";
+export const CHAT_ACP_MODELS_SET_METHOD = "acpx.chat.models.set";
+
+/** The bound ACP agent's models (`/acp model` by button), per chat and bound ACP session. */
+export type ChatAcpModelsState = {
+  target: string;
+  status: "loading" | "ready" | "error";
+  current: string | null;
+  models: { id: string; name?: string }[];
+  error?: string;
+};
+
+const acpModelsByHost = new WeakMap<object, Map<string, ChatAcpModelsState>>();
+
+export function canUseChatAcpModels(state: ChatPageHost): boolean {
+  return canCallGatewayMethod(gatewaySnapshot(state), CHAT_ACP_MODELS_GET_METHOD, "operator.read");
+}
+
+export function readChatAcpModels(state: ChatPageHost, sessionKey = state.sessionKey) {
+  return acpModelsByHost.get(state)?.get(sessionKey);
+}
+
+function storeAcpModels(state: ChatPageHost, sessionKey: string, value: ChatAcpModelsState) {
+  const map = acpModelsByHost.get(state) ?? new Map<string, ChatAcpModelsState>();
+  acpModelsByHost.set(state, map);
+  map.set(sessionKey, value);
+  state.requestUpdate?.();
+}
+
+export async function refreshChatAcpModels(
+  state: ChatPageHost,
+  sessionKey = state.sessionKey,
+): Promise<ChatAcpModelsState | undefined> {
+  const target = readChatHandoffInfo(state, sessionKey)?.binding?.targetSessionKey;
+  if (!state.client || !target || !canUseChatAcpModels(state)) {
+    return undefined;
+  }
+  const previous = readChatAcpModels(state, sessionKey);
+  if (!previous || previous.target !== target) {
+    storeAcpModels(state, sessionKey, { target, status: "loading", current: null, models: [] });
+  }
+  try {
+    const result = await state.client.request<{
+      models?: { current?: unknown; models?: unknown } | null;
+    }>(CHAT_ACP_MODELS_GET_METHOD, { sessionKey });
+    const models = Array.isArray(result?.models?.models)
+      ? (result.models.models as unknown[]).flatMap((entry) => {
+          const item = entry as { id?: unknown; name?: unknown } | null;
+          return typeof item?.id === "string"
+            ? [{ id: item.id, ...(typeof item.name === "string" ? { name: item.name } : {}) }]
+            : [];
+        })
+      : [];
+    const current = typeof result?.models?.current === "string" ? result.models.current : null;
+    storeAcpModels(state, sessionKey, { target, status: "ready", current, models });
+  } catch (error) {
+    storeAcpModels(state, sessionKey, {
+      target,
+      status: "error",
+      current: previous?.current ?? null,
+      models: previous?.models ?? [],
+      error: String(error),
+    });
+  }
+  return readChatAcpModels(state, sessionKey);
+}
+
+const pendingAcpModels = new WeakMap<object, Set<string>>();
+
+/** Loads the bound agent's models once per bound ACP session. */
+export function ensureChatAcpModels(state: ChatPageHost, sessionKey = state.sessionKey) {
+  const target = readChatHandoffInfo(state, sessionKey)?.binding?.targetSessionKey;
+  const pending = pendingAcpModels.get(state) ?? new Set<string>();
+  pendingAcpModels.set(state, pending);
+  const key = `${sessionKey}\u0000${target}`;
+  if (!target || readChatAcpModels(state, sessionKey)?.target === target || pending.has(key)) {
+    return;
+  }
+  pending.add(key);
+  void refreshChatAcpModels(state, sessionKey).finally(() => pending.delete(key));
+}
+
+/** Sets the bound agent's model, as `/acp model <id>` does; the reason lands in the chat error. */
+export async function setChatAcpModel(
+  state: ChatPageHost,
+  model: string,
+  sessionKey = state.sessionKey,
+): Promise<boolean> {
+  if (
+    !state.client ||
+    !canCallGatewayMethod(gatewaySnapshot(state), CHAT_ACP_MODELS_SET_METHOD, "operator.write")
+  ) {
+    setChatError(
+      state,
+      t("chat.handoff.agentModelFailed", { model, reason: t("chat.handoff.offline") }),
+      true,
+    );
+    return false;
+  }
+  try {
+    await state.client.request(CHAT_ACP_MODELS_SET_METHOD, { sessionKey, model });
+    await refreshChatAcpModels(state, sessionKey);
+    return true;
+  } catch (error) {
+    setChatError(state, t("chat.handoff.agentModelFailed", { model, reason: String(error) }), true);
+    return false;
+  }
+}
+
 /** The session's selected model (its override, else the row's resolved model). */
 export function currentChatModel(state: ChatPageHost, sessionKey = state.sessionKey): string {
   const row = selectedChatSessionRow(state);

@@ -18,6 +18,7 @@ import { currentDisplaySpeechConfig } from "../../lib/config/config-state-model.
 import { hasUnrestrictedModelCatalogSnapshot } from "../../lib/model-catalog-cache.ts";
 import { resolveSafeExternalUrl } from "../../lib/open-external-url.ts";
 import { projectOwner, projectSource } from "../../lib/reactive/projection.ts";
+import { scopedAgentParamsForSession } from "../../lib/sessions/navigation.ts";
 import { canonicalUiSessionKeyForPersistence } from "../../lib/sessions/session-key.ts";
 import { resolveSpeechTextLimit } from "../../lib/speech-playback.ts";
 import { DraftPreferenceState } from "../new-session/draft-preference-state.ts";
@@ -25,8 +26,13 @@ import { loadPageAssistantIdentity } from "./chat-assistant-identity.ts";
 import { cachedChatAssistantIdentity } from "./chat-avatar.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
+import {
+  canUseChatAcpModels,
+  refreshChatAcpModels,
+  refreshChatHandoffInfo,
+  waitForChatIdle,
+} from "./chat-handoff.ts";
 import { cancelPendingQueuedChatInput } from "./chat-history-actions.ts";
-import { refreshChatHandoffInfo, waitForChatIdle } from "./chat-handoff.ts";
 import {
   CHAT_TRANSCRIPT_LOADING_CHANGED_EVENT,
   CHAT_HISTORY_RECOVERY_CHANGED_EVENT,
@@ -34,6 +40,7 @@ import {
 import { chatHistoryRequests, setChatError } from "./chat-history-state.ts";
 import { subscribeChatOutboxQueue } from "./chat-outbox-queue.ts";
 import { ChatPaneComposerHandoff } from "./chat-pane-attachment-handoff.ts";
+import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { chatSessionPresentationKey } from "./chat-pane-session-presentation.ts";
 import { chatProviderReviewRow } from "./chat-provider-review.ts";
 import { removeQueuedMessage } from "./chat-queue.ts";
@@ -366,7 +373,24 @@ export function createPageState(
     if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
       void sent.then(async () => {
         await waitForChatIdle(state);
-        await refreshChatHandoffInfo(state);
+        const info = await refreshChatHandoffInfo(state);
+        // A typed `/acp model` changes the bound agent's model; the picker shows it.
+        if (info?.binding && canUseChatAcpModels(state)) {
+          await refreshChatAcpModels(state);
+        }
+      });
+    }
+    // Fork: `/plan` and an approved plan change the chat's plan mode; the composer toggle follows.
+    const planSessionKey = state.sessionKey;
+    const planAgentId = scopedAgentParamsForSession(state, planSessionKey).agentId;
+    if (
+      canReadChatPlanMode(state) &&
+      (/^\/plan\b/u.test(message.trim()) ||
+        readChatPlanMode(state, planSessionKey, planAgentId)?.on === true)
+    ) {
+      void sent.then(async () => {
+        await waitForChatIdle(state);
+        await refreshChatPlanMode(state, planSessionKey, planAgentId);
       });
     }
     return sent;

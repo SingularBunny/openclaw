@@ -9,8 +9,11 @@ import {
   createChatHandoffController,
   findPromptBefore,
   handOffChat,
+  readChatAcpModels,
   readChatHandoffInfo,
+  refreshChatAcpModels,
   refreshChatHandoffInfo,
+  setChatAcpModel,
   takePendingResend,
   type ChatHandoffInfo,
 } from "./chat-handoff.ts";
@@ -31,6 +34,7 @@ function createChat(options: { model?: string; agents?: string[]; failSpawn?: bo
   const info: ChatHandoffInfo = { binding: null, handoff: null, agents: options.agents ?? [] };
   const sent: string[] = [];
   const requests: Array<[string, unknown]> = [];
+  let agentModel = "m1";
   const state = {
     sessionKey: SESSION,
     connected: true,
@@ -49,6 +53,22 @@ function createChat(options: { model?: string; agents?: string[]; failSpawn?: bo
     client: {
       request: vi.fn(async (method: string, params: Record<string, unknown>) => {
         requests.push([method, params]);
+        if (method === "acpx.chat.models.get") {
+          return {
+            models: {
+              agent: "junie",
+              current: agentModel,
+              models: [{ id: "m1", name: "One" }, { id: "m2" }],
+            },
+          };
+        }
+        if (method === "acpx.chat.models.set") {
+          if (params.model === "bad") {
+            throw new Error("unsupported model");
+          }
+          agentModel = String(params.model);
+          return { model: agentModel };
+        }
         if (method === "acpx.chat.handoff.get") {
           return structuredClone(info);
         }
@@ -175,5 +195,23 @@ describe("chat handoff", () => {
     expect(state.chatModelPickerOpenSessionKey).toBe(SESSION);
     expect(takePendingResend(state, SESSION)).toBe("Summarize");
     expect(takePendingResend(state, SESSION)).toBeUndefined();
+  });
+
+  it("lists the bound agent's models and sets one as /acp model does", async () => {
+    const { state, info, requests } = createChat({ agents: ["junie"] });
+    expect(await refreshChatAcpModels(state)).toBeUndefined();
+    info.binding = { agent: "junie", targetSessionKey: "agent:main:acp:1" };
+    await refreshChatHandoffInfo(state);
+    expect(await refreshChatAcpModels(state)).toMatchObject({
+      target: "agent:main:acp:1",
+      status: "ready",
+      current: "m1",
+      models: [{ id: "m1", name: "One" }, { id: "m2" }],
+    });
+    expect(await setChatAcpModel(state, "m2")).toBe(true);
+    expect(requests).toContainEqual(["acpx.chat.models.set", { sessionKey: SESSION, model: "m2" }]);
+    expect(readChatAcpModels(state)?.current).toBe("m2");
+    expect(await setChatAcpModel(state, "bad")).toBe(false);
+    expect(readChatAcpModels(state)?.current).toBe("m2");
   });
 });
