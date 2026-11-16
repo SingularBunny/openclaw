@@ -523,6 +523,40 @@ of a model that reads plugin turn context gets a one-line note naming the new an
 answerer (as Hermes Agent does). For shared history across the switch, set
 `acp.seedParentHistory: true` (see [ACP bindings](/tools/acp-agents/bindings#shared-chat-history-fork)).
 
+### When a model declines
+
+Under a reply that looks like a refusal the chat shows **Looks like the model declined — hand off to
+another model?** with a **Hand off…** button that opens the same menu as **Hand off to…**. Nothing
+switches on its own: Anthropic's usage policy forbids intentionally getting around a model's
+safeguards, so the choice is yours. The hint works for any model and comes from, strongest first:
+
+1. **The API's signal.** The provider stopped the turn as a refusal (`stop_reason: "refusal"`, with
+   `stop_details` when the provider gives a category, or a refusal content part). Anthropic, Amazon
+   Bedrock, OpenAI Responses and Codex report it through OpenClaw's `provider_refusal` diagnostic; a
+   Claude CLI turn reports it in its result; an ACP agent reports it as its `stopReason`.
+2. **The model's own marker.** A model that declines may end its reply with
+   `<!-- openclaw:refusal -->`. The marker is never shown. Models add it only when their instructions
+   ask for it, for example with this rule in shared agent instructions (such as the shared memory
+   `MEMORY.md` of the `aiwb-memory` plugin, which every agent reads):
+
+   ```text
+   When you decline a request, end the reply with <!-- openclaw:refusal --> on its own line.
+   ```
+
+3. **A phrase match** (weak). A reply of at most 600 characters that opens, within its first 200
+   characters, with a common way of declining in English or Russian ("I can't help with", "I must
+   decline", "не могу помочь", "вынужден отказать"). String matching is unreliable (about F1 66–71 in
+   published evaluations), so this hint reads **This may be a refusal — hand off to another model?**.
+
+Handing off from the hint asks the Gateway (`chat.refusal.handoff`) to write a log line
+(`chat refusal handoff: session=… message=… signal=… to=…`) and to leave the declined turn, its
+question and the refused reply, out of what any model reads next: both rows get `excludeFromContext`
+and stay in the chat. The question is then sent again, so the new model or agent sees it once and
+never the refused answer (Hermes Agent likewise keeps a refused turn out of its history). This covers
+the Claude CLI history replay, a resumed Claude session's unseen turns, the history an ACP agent gets
+when it is bound, and models that read the chat transcript directly. **Hand off to…** under a reply
+does not do this; use the hint's button.
+
 ## Chat commands as buttons
 
 Commands you would type to turn something on or run it in a chat also have a button; the command stays
