@@ -3809,7 +3809,11 @@ describe("prepareCliRunContext", () => {
     });
     const allowed = await fixture.prepare({ provider: "claude-cli", model: "opus" });
     expect(allowed.openClawHistoryPrompt).toContain("User: prior task");
-    expect(allowed.openClawHistoryPrompt).toContain("Assistant: answer from another model");
+    // The reply another model wrote is labelled with its author.
+    expect(allowed.openClawHistoryPrompt).toContain(
+      "Assistant [openai/gpt-test]: answer from another model",
+    );
+    expect(allowed.openClawHistoryPrompt).toContain("Assistant turns marked [name] were written");
   });
 
   it("redelivers conversation and tool results after a native transcript disappears", async () => {
