@@ -44,6 +44,7 @@ import { renderComposerTextarea, type ComposerTextareaProps } from "./chat-compo
 import type { ChatComposerProps, ChatComposerState } from "./chat-composer-types.ts";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { ChatPermissionPicker } from "./chat-permission-picker.tsx";
+import { ChatPlanModeToggle } from "./chat-plan-mode-toggle.tsx";
 import { ChatVoiceStatus, ComposerDictationStatus } from "./chat-voice-activity.tsx";
 
 type ChatComposerViewContext = ReturnType<typeof createChatComposerContext>;
@@ -110,6 +111,7 @@ export function renderChatComposerView(
       <Show when={props.claudeModePicker}>
         {(picker) => <ChatClaudeModePicker {...picker()} />}
       </Show>
+      <Show when={props.planModeToggle}>{(toggle) => <ChatPlanModeToggle {...toggle()} />}</Show>
     </>
   );
   const placeholder = createMemo(() =>
