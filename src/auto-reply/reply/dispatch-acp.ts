@@ -38,6 +38,7 @@ import type { PrepareAssistantTranscriptMessage } from "../../config/sessions/tr
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { getGatewayLocalUserIngress } from "../../gateway/local-user-ingress.js";
 import { logVerbose } from "../../globals.js";
+import { drainAgentRunTerminalWrites } from "../../infra/agent-run-terminal-writes.js";
 import { isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { generateSecureUuid } from "../../infra/secure-random.js";
@@ -823,7 +824,15 @@ export async function tryDispatchAcpReplyCore(
     return finishAttempt(queuedFinal, acpError);
   } finally {
     if (admittedRunContext) {
-      closeAdmittedRunDelegatedAuthority(admittedRunContext);
+      const closingRunContext = admittedRunContext;
+      // The lifecycle end commits asynchronously under this admission, and the chat turn joins
+      // it only after dispatch returns. Closing now refuses that write: a bound chat's row stays
+      // mid-run, and its next send reconciles the finished turn as an interrupted one.
+      void drainAgentRunTerminalWrites(closingRunContext.operationalRunInstance)
+        .finally(() => closeAdmittedRunDelegatedAuthority(closingRunContext))
+        .catch((error: unknown) => {
+          logVerbose(`dispatch-acp: closing turn admission failed: ${formatErrorMessage(error)}`);
+        });
     }
   }
 }
