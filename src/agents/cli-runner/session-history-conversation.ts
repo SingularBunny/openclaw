@@ -66,6 +66,9 @@ export async function loadCliSessionConversationMessages(
         role: message.role,
         content,
         timestamp: Number.isFinite(recordedAt) ? timestampMsToIsoString(recordedAt) : undefined,
+        ...(message.role === "assistant"
+          ? { provider: message.provider, model: message.model }
+          : {}),
       });
     }
   }

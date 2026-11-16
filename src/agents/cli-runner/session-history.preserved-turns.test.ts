@@ -138,4 +138,48 @@ it("carries other models' turns since Claude's last reply within a configured co
     expect(budgeted).toContain("gpt-5");
     expect(budgeted).not.toContain("question-3");
   });
+
+  it("names the author of replies an ACP agent or another model wrote since Claude's last reply", async () => {
+    const { target, params } = await createSession();
+    const admission = prepareSystemAgentRunAdmission({}, "preserved", "main", "history-test");
+    const admittedRunContext = await admission.admit("embedded");
+    let seq = 0;
+    const append = async (message: object) =>
+      await appendTranscriptMessage(target, { eventId: `row-${++seq}`, now: seq * 1000, message });
+    const assistant = (provider: string, id: string, text: string) =>
+      buildAssistantMessage({
+        model: { api: "cli", provider, id },
+        content: [{ type: "text", text }],
+        stopReason: "stop",
+        usage: buildUsageWithNoCost({}),
+      });
+    try {
+      await append(makeUserMessage("Hi.", 1));
+      await append(assistant("claude-cli", "opus", "Hello."));
+      const resumed = {
+        ...params,
+        sessionKey: target.sessionKey,
+        sessionId: target.sessionId,
+        admittedRunContext,
+        nativeSessionId: "native-session",
+        provider: "claude-cli",
+        tools: [],
+      };
+      expect((await loadCliSessionPromptContext(resumed)).resumeContext).toBeUndefined();
+      // The chat was bound to the ACP agent junie, which answered.
+      await append(makeUserMessage("What is six times seven?", 1));
+      await append(assistant("acp", "junie", "42"));
+      const context = (await loadCliSessionPromptContext(resumed)).resumeContext;
+      expect(context).toContain(
+        JSON.stringify([
+          { role: "user", content: "What is six times seven?" },
+          { role: "assistant", author: "junie", content: "42" },
+        ]),
+      );
+      expect(context).toContain("written by that model or agent, not by you");
+      expect(context).not.toContain("and your replies");
+    } finally {
+      admission.close();
+    }
+  });
 });

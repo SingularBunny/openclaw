@@ -91,5 +91,6 @@ export async function buildAcpParentHistoryPrompt(params: {
     messages,
     prompt: params.prompt,
     maxHistoryChars: ACP_PARENT_HISTORY_CHARS,
+    currentAuthor: { provider: "acp", model: params.acpAgent },
   });
 }
