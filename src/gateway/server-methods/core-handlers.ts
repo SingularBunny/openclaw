@@ -132,6 +132,9 @@ const CORE_GATEWAY_HANDLER_MODULES = {
     import("./sessions-mutations.js").then((module) => module.sessionMutationHandlers),
   "session-processes": () =>
     import("./session-processes.js").then((module) => module.sessionProcessHandlers),
+  // Fork (I14): hand a refused reply off; logs and leaves the refused turn out of context.
+  "chat-refusal": () =>
+    import("./chat-refusal-handoff.js").then((module) => module.chatRefusalHandoffHandlers),
   "sessions-cli-tasks": () =>
     import("./sessions-cli-tasks.js").then((module) => module.sessionCliTaskHandlers),
   "sessions-read": () => import("./sessions-read.js").then((module) => module.sessionReadHandlers),

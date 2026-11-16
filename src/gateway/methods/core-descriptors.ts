@@ -1,4 +1,5 @@
 import type { CoreGatewayMethodSpecRow } from "./core-descriptor-types.js";
+import { FORK_GATEWAY_METHOD_SPECS } from "./core-descriptors.fork.js";
 import { cronListShareKey, modelsListShareKey, operatorReadShareKey } from "./read-share-keys.js";
 
 // Canonical append-only method table; derived lookup and dispatch policy lives in core-method-policy.ts.
@@ -762,9 +763,5 @@ export const CORE_GATEWAY_METHOD_SPECS = [
   ["canvas.storage.list", "canvas", "operator.read", "2026.10"],
   ["canvas.storage.set", "canvas", "operator.write", "2026.10"],
   ["canvas.storage.delete", "canvas", "operator.write", "2026.10"],
-  // Fork (F47): stop one Claude CLI background task of the session.
-  ["sessions.cliTasks.stop", "sessions-cli-tasks", "operator.write", "2026.10"],
-  // Fork (F52): files a Claude CLI rewind would restore (dry run); admin like sessions.rewind.
-  ["sessions.rewind.files", "sessions-rewind", "operator.admin", "2026.10"],
-  ["commands.claude", "commands", "operator.read", "2026.10"],
+  ...FORK_GATEWAY_METHOD_SPECS,
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];
