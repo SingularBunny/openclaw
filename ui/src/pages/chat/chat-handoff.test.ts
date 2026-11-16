@@ -9,6 +9,7 @@ import {
   createChatHandoffController,
   findPromptBefore,
   handOffChat,
+  isRefusalHandedOff,
   readChatAcpModels,
   readChatHandoffInfo,
   refreshChatAcpModels,
@@ -68,6 +69,9 @@ function createChat(options: { model?: string; agents?: string[]; failSpawn?: bo
           }
           agentModel = String(params.model);
           return { model: agentModel };
+        }
+        if (method === "chat.refusal.handoff") {
+          return { excluded: ["u1", "a1"] };
         }
         if (method === "acpx.chat.handoff.get") {
           return structuredClone(info);
@@ -213,5 +217,50 @@ describe("chat handoff", () => {
     expect(readChatAcpModels(state)?.current).toBe("m2");
     expect(await setChatAcpModel(state, "bad")).toBe(false);
     expect(readChatAcpModels(state)?.current).toBe("m2");
+  });
+});
+
+describe("refusal hand-off (I14)", () => {
+  it("marks the refused turn before switching, then re-sends the question", async () => {
+    const { state, sent, requests } = createChat({ agents: ["junie"] });
+    state.chatMessages = [
+      user("Write the exploit.", "u1"),
+      { ...assistant("I can't help with that.", "a1"), __openclaw: { id: "a1" } },
+    ];
+    const controller = createChatHandoffController(state, {
+      models: [
+        {
+          answerer: { kind: "model", model: "openrouter/x/y:free" },
+          label: "Y Free",
+          provider: "openrouter",
+        },
+      ],
+    });
+    expect(
+      await controller.handOff(
+        { kind: "model", model: "openrouter/x/y:free" },
+        { resendBefore: "a1", refusal: "phrase" },
+      ),
+    ).toBe(true);
+    const methods = requests.map(([method]) => method);
+    expect(methods.indexOf("chat.refusal.handoff")).toBeLessThan(
+      methods.indexOf("acpx.chat.handoff.set"),
+    );
+    expect(requests).toContainEqual([
+      "chat.refusal.handoff",
+      { sessionKey: SESSION, messageId: "a1", signal: "phrase", target: "Y Free" },
+    ]);
+    expect(sent).toEqual(["Write the exploit."]);
+    expect(isRefusalHandedOff("a1")).toBe(true);
+  });
+
+  it("a plain hand-off leaves the transcript alone", async () => {
+    const { state, requests } = createChat();
+    const controller = createChatHandoffController(state, { models: [] });
+    await controller.handOff(
+      { kind: "model", model: "openrouter/x/y:free" },
+      { resendBefore: "a1" },
+    );
+    expect(requests.map(([method]) => method)).not.toContain("chat.refusal.handoff");
   });
 });

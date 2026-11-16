@@ -1,6 +1,7 @@
 // Fork: the chat handoff controller each chat pane publishes for its message actions, failure
 // buttons and composer chip (see chat-handoff.ts). Kept free of chat-state imports.
 import { createSignal } from "solid-js";
+import type { RefusalSignal } from "../../../../src/shared/refusal-signal.js";
 
 export type ChatAnswerer =
   | { kind: "model"; model: string; agentRuntime?: string }
@@ -29,7 +30,14 @@ export type ChatHandoffController = {
   longContext: boolean;
   busy: boolean;
   labelOf: (answerer: ChatAnswerer) => string;
-  handOff: (target: ChatAnswerer, opts?: { resendBefore?: string }) => Promise<boolean>;
+  /**
+   * `refusal` (fork, I14): handed off from the refusal hint; the Gateway logs it and leaves the
+   * refused turn out of the model context before the question is re-sent.
+   */
+  handOff: (
+    target: ChatAnswerer,
+    opts?: { resendBefore?: string; refusal?: RefusalSignal },
+  ) => Promise<boolean>;
   returnToPrevious: () => Promise<boolean>;
   dismiss: () => void;
   retry: (failedMessageKey?: string) => void;
@@ -85,4 +93,15 @@ export function formatReplyAuthor(provider: unknown, model: unknown): string | u
     return undefined;
   }
   return provider === "acp" ? formatAgentLabel(modelId) : modelId.split("/").pop() || modelId;
+}
+
+const [refusalHandoffs, setRefusalHandoffs] = createSignal<ReadonlySet<string>>(new Set());
+
+/** Fork (I14): a reply handed off from its refusal hint hides the hint at once. */
+export function markRefusalHandedOff(messageKey: string): void {
+  setRefusalHandoffs((current) => new Set([...current, messageKey]));
+}
+
+export function isRefusalHandedOff(messageKey: string | undefined): boolean {
+  return messageKey !== undefined && refusalHandoffs().has(messageKey);
 }

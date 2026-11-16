@@ -14,6 +14,7 @@ import { hasForwardedSource, isSessionActivityGroup } from "../chat-turn-boundar
 import { ChatAuthorAvatar } from "./chat-author-avatar.ts";
 import { BrowserTabPreviews } from "./chat-browser-tab-previews.tsx";
 import { ForwardedAttribution } from "./chat-forwarded-attribution.tsx";
+import { ChatRefusalHint } from "./chat-handoff-view.tsx";
 import { ChatHandoffResume } from "./chat-handoff-sessions.tsx";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { ActivityGroupContent } from "./chat-message-activity-view.tsx";
@@ -184,6 +185,13 @@ function PreparedMessage(props: {
             }
           />
         )}
+      </Show>
+      <Show when={!isStreaming() && prepared().actions?.handoff?.refusal}>
+        <ChatRefusalHint
+          sessionKey={prepared().actions!.handoff!.sessionKey}
+          messageKey={prepared().actions!.handoff!.messageKey}
+          refusal={prepared().actions!.handoff!.refusal!}
+        />
       </Show>
       <Show when={props.showReactions !== false}>
         <GroupMessageReactions
