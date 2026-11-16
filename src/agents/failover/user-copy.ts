@@ -17,6 +17,10 @@ import {
 import { formatExecDeniedUserMessage } from "../exec-approval-result.js";
 import { ERROR_DETAILS_HINT, ERROR_PREFIX_RE } from "./assistant-request-failure-copy.js";
 import { classifyFailoverReasonCore } from "./classify-core.js";
+import {
+  isDailyFreeModelLimitMessage,
+  renderDailyFreeModelLimitCopy,
+} from "./daily-free-model-limit.js";
 import type { CliTimeoutContext, FallbackAttemptRecord } from "./error.js";
 import {
   isPeriodicUsageLimitErrorMessage,
@@ -431,6 +435,15 @@ export function renderRateLimitReplyCopy(params: {
   sanitizeText?: (text: string) => string;
 }): string {
   const attempts = params.attempts ?? [];
+  const dailyLimitCopy = renderDailyFreeModelLimitCopy(
+    [params.message, ...attempts.map((attempt) => attempt.error ?? "")].find(
+      isDailyFreeModelLimitMessage,
+    ),
+    params.nowMs,
+  );
+  if (dailyLimitCopy) {
+    return dailyLimitCopy;
+  }
   if (params.reason === "rate_limit") {
     const promptSizeCopy = renderProviderPromptSizeLimitCopy(params.message);
     if (promptSizeCopy) {
