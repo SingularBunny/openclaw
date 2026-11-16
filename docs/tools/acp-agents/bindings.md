@@ -54,6 +54,18 @@ Set `acp.seedParentHistory: true` to let a chat keep one context across
 The ACP session's own transcript keeps the plain prompts. Agents started with
 `sessions_spawn({ runtime: "acp" })` still receive only their `task`.
 
+Replayed history names who wrote each assistant turn when it was not the model or
+agent answering now: `Assistant [junie]: ...` for an ACP agent's reply,
+`Assistant [openrouter/x/y]: ...` for another model's, with one line telling the
+reader those turns are not its own. The same holds for the history a fresh Claude
+CLI session is reseeded with and for the unseen turns a resumed one receives
+(`"author": "junie"`). Models of one provider count as one author; each ACP agent
+is its own.
+
+In the Control UI the same switches work by buttons (an **Agents** group in the
+model picker, **Hand off to…** under replies, a **Return to ...** chip); see
+[Chat: switching models and agents](/web/control-ui/chat#switching-models-and-agents).
+
 <AccordionGroup>
   <Accordion title="Binding rules and exclusivity">
     - `--bind here` and `--thread ...` are mutually exclusive.
