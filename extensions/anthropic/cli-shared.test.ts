@@ -231,7 +231,6 @@ describe("Claude CLI prompt suggestions", () => {
   });
 
   it("reads the environment on use for fresh and resumed backend args", () => {
-    const backend = buildAnthropicCliBackend();
     const fresh = backend.config.args ?? [];
     const resumed = (backend.config.resumeArgs ?? []).map((arg) =>
       arg.replaceAll("{sessionId}", "native-session"),
