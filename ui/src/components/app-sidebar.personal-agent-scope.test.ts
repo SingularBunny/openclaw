@@ -96,7 +96,8 @@ it("intersects selected owners with each agent and opens an unloaded agent's Hom
         '.sidebar-agent-menu [data-value="agent:research"] [aria-label="Unread"]',
       ),
     ).toBeNull();
-  });
+    // The default is all owners; this case covers a saved "My sessions" choice.
+  }, { savedOwnerId: viewer.id });
 });
 
 it("keeps an explicitly empty route selection instead of discovering ambient Home", async () => {
