@@ -76,7 +76,9 @@ describe("ACP parent chat history (F72)", () => {
 
     const first = await build("Continue from step one.");
     expect(first).toContain("User: Plan the migration.");
-    expect(first).toContain("Assistant: Step one: freeze writes.");
+    // Another model's replies carry their author, so the agent does not take them as its own.
+    expect(first).toContain("Assistant [claude-cli/claude-opus]: Step one: freeze writes.");
+    expect(first).toContain("Assistant turns marked [name] were written by that model or agent");
     expect(first).not.toContain("Refresh the card.");
     expect(first).not.toContain("mirror only");
     expect(first).toContain("<next_user_message>\nContinue from step one.\n</next_user_message>");
@@ -94,9 +96,20 @@ describe("ACP parent chat history (F72)", () => {
     await user(parent, "Codex, step three.", 7_000);
     const delta = await build("Codex, step three.");
     expect(delta).toContain("User: Gemini, review step two.");
-    expect(delta).toContain("Assistant: Looks fine.");
+    expect(delta).toContain("Assistant [google/gemini-pro]: Looks fine.");
     expect(delta).not.toContain("Plan the migration.");
     expect(delta).not.toContain("Codex: step two done.");
     expect(delta?.match(/Codex, step three\./g)).toHaveLength(1);
+  });
+
+  it("leaves the bound agent's own earlier replies unlabelled on a new first prompt", async () => {
+    const { parent, user, assistant, build } = await createChat();
+    await user(parent, "What is six times seven?", 1_000);
+    await assistant(parent, "42", 2_000, ["acp", "codex"]);
+    await assistant(parent, "Junie says hi", 2_500, ["acp", "junie"]);
+    await user(parent, "Again?", 3_000);
+    const prompt = await build("Again?");
+    expect(prompt).toContain("Assistant: 42");
+    expect(prompt).toContain("Assistant [junie]: Junie says hi");
   });
 });
