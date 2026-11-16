@@ -35,7 +35,7 @@ import { messageReactionOptions } from "./chat-message-reaction-model.ts";
 import { ChatSendStatus } from "./chat-message-send-status-view.tsx";
 import { renderSolidEmptyGroupFooter, StreamGroupParts } from "./chat-message-stream-view.tsx";
 import type { AssistantMessageDisclosure } from "./chat-message-text-view.tsx";
-import { MessageMeta } from "./chat-message-timestamp-view.tsx";
+import { MessageMeta, ReplyAuthorBadge } from "./chat-message-timestamp-view.tsx";
 import {
   NO_REPLY_LINE,
   renderReplyLine,
@@ -473,6 +473,9 @@ function FramedMessageGroup(props: {
               <SenderIdentity frame={frame()} />
               <ChatSendStatus status={frame().sendStatus} actions={options()} />
               <MessageMeta timestamp={props.group.timestamp} meta={frame().meta} />
+              <Show when={frame().normalizedRole === "assistant"}>
+                <ReplyAuthorBadge meta={frame().meta} />
+              </Show>
             </div>
             <Show
               when={frame().isPeerGroup}
