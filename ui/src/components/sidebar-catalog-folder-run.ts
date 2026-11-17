@@ -8,8 +8,9 @@ import { t } from "../lib/reactive/i18n.ts";
 import { showToast } from "../lib/toast.ts";
 import type { NewSessionTarget } from "../pages/new-session/location.ts";
 import {
-  catalogFolderRevealPath,
+  catalogFolderRevealTarget,
   type CatalogFolderMenuContext,
+  type CatalogFolderRevealTarget,
   type CatalogFolderNewChat,
   type FolderAppContext,
 } from "./sidebar-catalog-folder-actions.ts";
@@ -70,18 +71,19 @@ export function catalogFolderRevealSource(
   return owner && sessionKey ? { sessionKey, agentId: owner } : null;
 }
 
-/** The folder relative to that chat's workspace, or null when the Gateway cannot open it. */
+/** Where the Gateway opens the folder for that chat, or null when no folder of the chat holds it. */
 export async function checkCatalogFolderReveal(
   app: FolderAppContext,
   source: { sessionKey: string; agentId: string },
   folder: string,
-): Promise<string | null> {
+): Promise<CatalogFolderRevealTarget | null> {
   try {
     const listed = await app?.sessions.listFiles(source.sessionKey, {
       agentId: source.agentId,
       path: "",
     });
-    return catalogFolderRevealPath(listed?.roots?.[0] ?? listed?.root, folder);
+    const roots = listed?.roots ?? (listed?.root ? [listed.root] : []);
+    return catalogFolderRevealTarget(roots, folder);
   } catch {
     return null;
   }
@@ -90,7 +92,7 @@ export async function checkCatalogFolderReveal(
 export async function revealCatalogFolder(
   app: FolderAppContext,
   source: { sessionKey: string; agentId: string },
-  relativePath: string,
+  target: CatalogFolderRevealTarget,
 ): Promise<void> {
   const client = app?.gateway.snapshot.client;
   if (!client) {
@@ -100,7 +102,8 @@ export async function revealCatalogFolder(
     const result = await client.request<SessionsFilesRevealResult>(REVEAL_METHOD, {
       key: source.sessionKey,
       agentId: source.agentId,
-      ...(relativePath ? { path: relativePath } : {}),
+      ...(target.root ? { root: target.root } : {}),
+      ...(target.path ? { path: target.path } : {}),
     });
     if (!result.ok) {
       showToast({ message: result.error ?? t("chat.sidebar.folderRevealFailed") });

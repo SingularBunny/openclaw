@@ -3496,7 +3496,8 @@ export const en: TranslationMap & {
         "No agent is known for this folder yet: open one of its chats in OpenClaw, or set an agent's workspace to this folder.",
       folderReveal: "Open folder in file manager",
       folderRevealChecking: "Checking the folder…",
-      folderRevealOutside: "The Gateway opens only folders inside the agent workspace.",
+      folderRevealOutside:
+        "The Gateway opens only folders inside the agent workspace or its run folder.",
       folderRevealFailed: "Couldn’t open the folder.",
       folderCopyPath: "Copy folder path",
       folderPathCopied: "Folder path copied.",

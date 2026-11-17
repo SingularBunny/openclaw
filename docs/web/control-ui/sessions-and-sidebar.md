@@ -460,8 +460,8 @@ Right-click a catalog section heading and choose **Hide from sidebar** to hide t
 
 A catalog folder also has a folder menu. Open it by right-clicking the folder header, with the Menu key or Shift+F10 on the focused header, or with the **⋯** button that appears on the header on hover or keyboard focus. It offers:
 
-- **New chat in this folder** opens a new-chat draft with the folder's agent: the agent of most chats in the folder that OpenClaw already opened, else the agent whose workspace is the project folder. A custom folder named like a session group opens the draft in that group. When no agent is known the item stays disabled and says why; a **+** button on the header does the same in one click.
-- **Open folder in file manager** (administrators only) opens the project folder on the Gateway host through `sessions.files.reveal`. It is enabled when the folder lies inside the workspace of the folder's agent; otherwise it stays disabled with the reason.
+- **New chat in this folder** opens a new-chat draft with the folder's agent: the agent of most chats in the folder that OpenClaw already opened, else the agent whose run folder (`cwd`, reported by `agents.list`) is the project folder, else the agent whose workspace is it. A custom folder named like a session group opens the draft in that group. When no agent is known the item stays disabled and says why; a **+** button on the header does the same in one click.
+- **Open folder in file manager** (administrators only) opens the project folder on the Gateway host through `sessions.files.reveal`. It is enabled when the folder lies inside the workspace of the folder's agent or inside one of the session's other folders that the Files panel can browse (the agent's run folder or the session's own folder, passed as `root`; the session needs the same host-read access as for browsing it); otherwise it stays disabled with the reason.
 - **Copy folder path** copies the project folder's path.
 - **Agent settings** opens **Settings > Agents** for the folder's agent.
 - **Collapse** or **Expand**, and **Hide from sidebar** as above.

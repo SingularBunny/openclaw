@@ -8,6 +8,7 @@ import {
   catalogFolderMenuEntries,
   resolveCatalogFolderTargets,
   type CatalogFolderMenuAction,
+  type CatalogFolderRevealTarget,
 } from "./sidebar-catalog-folder-actions.ts";
 import {
   catalogFolderRevealSource,
@@ -48,8 +49,10 @@ export function renderSidebarCatalogFolderMenu(controller: SidebarMenusControlle
     : undefined;
   const newSessionAccess = host.readNewSessionAccess();
   const revealSource = catalogFolderRevealSource(app, context, agentId);
-  // undefined: still asking the Gateway; null: outside the workspace it can open.
-  const [revealPath, setRevealPath] = createSignal<string | null | undefined>(undefined);
+  // undefined: still asking the Gateway; null: outside every folder it can open for the chat.
+  const [revealPath, setRevealPath] = createSignal<CatalogFolderRevealTarget | null | undefined>(
+    undefined,
+  );
   if (revealSource && context.path) {
     void checkCatalogFolderReveal(app, revealSource, context.path).then((path) =>
       setRevealPath(path),
@@ -127,9 +130,9 @@ export function renderSidebarCatalogFolderMenu(controller: SidebarMenusControlle
         openCatalogFolderNewChat(newChat, (id, target) => host.requestOpenNewSession(id, target));
         break;
       case "reveal": {
-        const path = revealPath();
-        if (revealSource && typeof path === "string") {
-          void revealCatalogFolder(app, revealSource, path);
+        const target = revealPath();
+        if (revealSource && target) {
+          void revealCatalogFolder(app, revealSource, target);
         }
         break;
       }
