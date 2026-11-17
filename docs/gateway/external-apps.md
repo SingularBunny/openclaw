@@ -355,7 +355,7 @@ RPC:
 - `gateway.maintenance.enter` — `operator.admin`; params `{ "source"?, "reason"?, "ttlMs"? }`
   (`ttlMs` 1 s to 24 h). Entering again keeps the start time.
 - `gateway.maintenance.status` — `operator.read`; returns `{ active, maintenance, activeTurns,
-  activeWork, blockers }`. Wait for `activeWork: 0` before replacing OpenClaw.
+activeWork, blockers }`. Wait for `activeWork: 0` before replacing OpenClaw.
 - `gateway.maintenance.exit` — `operator.admin`; returns the status plus `resumed`.
 
 The hello snapshot carries `gatewayMaintenance` and the `gateway.maintenance` event
