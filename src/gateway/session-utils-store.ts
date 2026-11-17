@@ -9,6 +9,7 @@ import {
   listAgentIds,
   resolveAgentConfig,
   resolveAgentModelFallbacksOverride,
+  resolveAgentRunCwd,
   resolveAgentWorkspaceDir,
 } from "../agents/agent-scope.js";
 import { resolveConversationCapabilityProfile } from "../agents/conversation-capability-profile.js";
@@ -554,6 +555,8 @@ export async function listAgentsForGateway(
     // Must mirror the sessions.create worktree preflight: subdirectory workspaces inside a
     // repo are worktree-capable, so the UI toggle and the create path cannot diverge.
     const workspaceGit = hasWorkspaceGitCheckout(workspace);
+    // Fork: the run folder lets clients match folder-keyed chats (session catalogs) to their agent.
+    const cwd = resolveAgentRunCwd(cfg, id);
     const agent = Object.assign(
       {
         id,
@@ -565,6 +568,7 @@ export async function listAgentsForGateway(
         identity: identityById.get(id),
         workspace,
         workspaceGit,
+        ...(cwd ? { cwd } : {}),
         agentRuntime,
         // Preserve the established serialized projection order for byte-stable responses.
         thinkingLevels: thinkingProfile.thinkingLevels,
