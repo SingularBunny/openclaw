@@ -8,7 +8,8 @@ const catalog = {
       status: "Maintenance: chats paused",
       banner:
         "Maintenance: chats paused ({reason}, since {since}). Messages you send wait and go out when it ends.",
-      bannerBy: "Maintenance: chats paused ({reason}, since {since}, by {source}). Messages you send wait and go out when it ends.",
+      bannerBy:
+        "Maintenance: chats paused ({reason}, since {since}, by {source}). Messages you send wait and go out when it ends.",
       resume: "Resume chats",
       resuming: "Resuming…",
       pause: "Pause chats (maintenance)",
