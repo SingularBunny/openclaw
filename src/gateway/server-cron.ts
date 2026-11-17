@@ -1,3 +1,7 @@
+import {
+  isGatewayMaintenanceActive,
+  onGatewayMaintenanceChange,
+} from "../process/gateway-maintenance-mode.js";
 import { finiteSecondsToTimerSafeMilliseconds } from "@openclaw/normalization-core/number-coercion";
 import { retireSessionMcpRuntime } from "../agents/agent-bundle-mcp-tools.js";
 import {
@@ -1180,10 +1184,23 @@ export function buildGatewayCronService(params: {
       unregisterSessionAutomationSource(automationSource);
     }
   };
+  // Fork: maintenance mode keeps scheduling paused; due jobs run once it ends (deferred, not skipped).
+  if (isGatewayMaintenanceActive()) {
+    cron.pauseScheduling();
+  }
+  const unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
+    if (maintenance) {
+      cron.pauseScheduling();
+    } else {
+      cron.resumeScheduling();
+    }
+  });
   cron.stop = () => {
+    unsubscribeMaintenance();
     stopCronLifecycle();
   };
   const stopAndDrainCron = async (preserveExitWatchers = false) => {
+    unsubscribeMaintenance();
     stopCronLifecycle(preserveExitWatchers);
     await drainGatewayCron({
       settlements: [

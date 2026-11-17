@@ -1,3 +1,4 @@
+import { isGatewayMaintenanceActive } from "../process/gateway-maintenance-mode.js";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import { clearBootstrapSnapshotOnSessionRollover } from "../agents/bootstrap-cache.js";
 import {
@@ -210,6 +211,10 @@ export async function resolveHeartbeatWakeStage(opts: HeartbeatRunOptions) {
     scheduledTasks.length === 0 &&
     preflight.pendingEventEntries.some((event) => isExecCompletionSystemEvent(event));
   const getSize = opts.deps?.getQueueSize ?? getQueueSize;
+  // Fork: maintenance mode defers heartbeats like busy work, so their events are retried later.
+  if (isGatewayMaintenanceActive()) {
+    return skippedBusyStage(HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT);
+  }
   if (!isSessionExecCompletion && getSize(CommandLane.Main) > 0) {
     return skippedBusyStage(HEARTBEAT_SKIP_REQUESTS_IN_FLIGHT);
   }

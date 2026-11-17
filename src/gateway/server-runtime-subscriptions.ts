@@ -1,4 +1,5 @@
 // Gateway event subscription wiring for agent, heartbeat, transcript, and lifecycle broadcasts.
+import { onGatewayMaintenanceChange } from "../process/gateway-maintenance-mode.js";
 import { resolveAgentRunLifecycleTerminalFacts } from "@openclaw/normalization-core/agent-run-terminal-outcome";
 import { isAgentLifecycleYieldedWaiting } from "../agents/agent-lifecycle-parent-state.js";
 import { isDefinitiveRunLifecycle } from "../agents/agent-run-terminal-outcome.js";
@@ -720,6 +721,10 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
   const unsubscribeSuspension = onGatewaySuspendAdmissionChange((phase) => {
     params.broadcast("gateway.suspension", { phase });
   });
+  // Fork: maintenance mode on/off, including its own expiry.
+  const unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
+    params.broadcast("gateway.maintenance", { maintenance });
+  });
   // Claude Code's next-prompt prediction is composer presentation only; it is never persisted.
   const unsubscribePromptSuggestions = onPromptSuggestion((evt) => {
     params.broadcast(
@@ -757,6 +762,7 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
       unsubscribePromptSuggestionRuns();
       unsubscribeSessionIdentity();
       unsubscribeSuspension();
+      unsubscribeMaintenance();
       unsubscribeProfileChanges();
       unsubscribeLifecycle();
     },

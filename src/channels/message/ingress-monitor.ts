@@ -1,4 +1,5 @@
 /** Shared durable channel-ingress admission, pump, retention, and shutdown lifecycle. */
+import { isGatewayMaintenanceActive } from "../../process/gateway-maintenance-mode.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { hasSqliteWorkerOutcomeUnknown } from "../../infra/sqlite-worker-contract.js";
 import {
@@ -420,6 +421,7 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
               !running ||
               isAborted() ||
               getGatewaySuspendAdmissionPhase() !== "accepting" ||
+              isGatewayMaintenanceActive() ||
               (options.drain?.startLimit !== undefined &&
                 activeDeliveries.size + activeInspections.size - deferredStartCapacity >=
                   options.drain.startLimit),
@@ -493,7 +495,8 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
       publishActivity();
       return;
     }
-    if (getGatewaySuspendAdmissionPhase() !== "accepting") {
+    // Fork: maintenance mode keeps durable rows queued too; the poll timer resumes after it.
+    if (getGatewaySuspendAdmissionPhase() !== "accepting" || isGatewayMaintenanceActive()) {
       // Keep durable rows queued without reporting active ingress while suspension drains.
       suspensionDrainPending = true;
       requested = false;
