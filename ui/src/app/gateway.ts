@@ -1,4 +1,5 @@
 import type {
+  GatewayMaintenance,
   GatewayRestartNotice,
   ModelCatalogTarget,
   UserProfile,
@@ -40,6 +41,8 @@ export type ApplicationGatewaySnapshot = {
   /** Fork: when this page reconnected after a Gateway restart it was told about. */
   restartedAt?: number;
   suspensionPhase?: GatewaySuspension["phase"];
+  /** Fork: maintenance mode pauses chats (`gateway.maintenance`, hello snapshot). */
+  maintenance?: GatewayMaintenance | null;
   /**
    * Last accepted handshake for the current client identity, retained while reconnecting.
    * A new hello replaces it; plugin capability refreshes preserve its object identity.
