@@ -3,6 +3,7 @@ import { ErrorCodes, errorShape } from "../../packages/gateway-protocol/src/inde
 import {
   GATEWAY_MAINTENANCE_UNAVAILABLE_REASON,
   getGatewayMaintenance,
+  onGatewayMaintenanceChange,
   type GatewayMaintenanceState,
 } from "../process/gateway-maintenance-mode.js";
 
@@ -53,4 +54,16 @@ export function gatewayMaintenanceRefusal(method: string, ownsRoot: boolean) {
   }
   const state = getGatewayMaintenance();
   return state ? gatewayMaintenanceUnavailableError(method, state) : null;
+}
+
+type MaintenanceBroadcast = (
+  event: "gateway.maintenance",
+  payload: { maintenance: GatewayMaintenanceState | null },
+) => void;
+
+/** Publishes `gateway.maintenance` on every change, its own expiry included. */
+export function broadcastGatewayMaintenance(broadcast: MaintenanceBroadcast): () => void {
+  return onGatewayMaintenanceChange((maintenance) =>
+    broadcast("gateway.maintenance", { maintenance }),
+  );
 }

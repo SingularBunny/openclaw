@@ -1,6 +1,6 @@
+/** Shared durable channel-ingress admission, pump, retention, and shutdown lifecycle. */
 import { formatErrorMessage } from "../../infra/errors.js";
 import { hasSqliteWorkerOutcomeUnknown } from "../../infra/sqlite-worker-contract.js";
-/** Shared durable channel-ingress admission, pump, retention, and shutdown lifecycle. */
 import { isGatewayMaintenanceActive } from "../../process/gateway-maintenance-mode.js";
 import {
   getGatewayRestartDrainSignal,
