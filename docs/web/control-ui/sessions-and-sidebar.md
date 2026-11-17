@@ -573,6 +573,16 @@ Catalogs whose provider can persist an order (`capabilities.reorder`) let you dr
 
 Right-click a catalog section heading and choose **Hide from sidebar** to hide the whole section, or right-click one of its folders (a project, person, or custom folder) to hide just that folder and its rows. A hidden folder stays visible while it holds the open session. Both choices are stored in this browser only; restore them under **Settings > Appearance > Sidebar** (**Hidden session sections** and **Hidden folders**).
 
+A catalog folder also has a folder menu. Open it by right-clicking the folder header, with the Menu key or Shift+F10 on the focused header, or with the **⋯** button that appears on the header on hover or keyboard focus. It offers:
+
+- **New chat in this folder** opens a new-chat draft with the folder's agent: the agent of most chats in the folder that OpenClaw already opened, else the agent whose workspace is the project folder. A custom folder named like a session group opens the draft in that group. When no agent is known the item stays disabled and says why; a **+** button on the header does the same in one click.
+- **Open folder in file manager** (administrators only) opens the project folder on the Gateway host through `sessions.files.reveal`. It is enabled when the folder lies inside the workspace of the folder's agent; otherwise it stays disabled with the reason.
+- **Copy folder path** copies the project folder's path.
+- **Agent settings** opens **Settings > Agents** for the folder's agent.
+- **Collapse** or **Expand**, and **Hide from sidebar** as above.
+
+The menu works for any model: it uses only the new-chat draft, existing Gateway methods, and the browser clipboard.
+
 **Mark as unread** creates a reminder that remains unread while the current chat stays open, including while a run streams or completes. Leave and reopen the session, or choose **Mark as read**, to clear it.
 
 New activity arriving during a pending read is acknowledged after that read succeeds. Automatic reads wait until the chat is visible and its history is ready, including after reconnecting or returning to a hidden tab.
