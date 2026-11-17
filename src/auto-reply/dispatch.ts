@@ -14,7 +14,12 @@ import {
   type ReplyPayloadSuppressedObserver,
 } from "../infra/outbound/deliver-hooks.js";
 import { logMessageReceived } from "../logging/diagnostic.js";
+import {
+  formatGatewayMaintenanceMessage,
+  getGatewayMaintenance,
+} from "../process/gateway-maintenance-mode.js";
 import { createKeyedFifoLeaseRegistry, type KeyedFifoLease } from "../shared/keyed-fifo-lease.js";
+import { isInternalMessageChannel } from "../utils/message-channel.js";
 import { observeAgentRunStart } from "./agent-run-start.js";
 import { resolveCommandTurnContext } from "./command-turn-context.js";
 import { isActiveRunSafeCommandTurn } from "./commands-registry.js";
@@ -242,6 +247,16 @@ export async function dispatchInboundMessage(params: {
       measureDiagnosticsTimelineSpan(
         "auto_reply.dispatch_reply_from_config",
         async () => {
+          // Fork: in maintenance mode a channel message starts no turn; the sender is told why.
+          // Durable channel ingress keeps its rows queued instead and never reaches this point.
+          const maintenance = getGatewayMaintenance();
+          const channel = finalized.Surface ?? finalized.Provider;
+          if (maintenance && channel && !isInternalMessageChannel(channel)) {
+            params.dispatcher.sendFinalReply({
+              text: formatGatewayMaintenanceMessage(maintenance),
+            });
+            return { queuedFinal: true, counts: { tool: 0, block: 0, final: 1 } };
+          }
           const dispatch = params.dispatchReplyFromConfig ?? dispatchReplyFromConfig;
           const request = {
             ctx: finalized,

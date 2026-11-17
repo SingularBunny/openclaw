@@ -59,6 +59,7 @@ import type {
   GatewayRequestHandlers,
   GatewayRequestOptions,
 } from "./server-methods/types.js";
+import { gatewayMaintenanceRefusal } from "./maintenance-mode-gate.js";
 import type { GatewayRequestEntry } from "./server-request-entry.js";
 import {
   isGatewayRootlessRequestAllowed,
@@ -205,6 +206,14 @@ export async function runWithGatewayRequestEnvelope<T>(
   }
   if (!rootWorkAdmission && !isGatewayRootlessRequestAllowed(method)) {
     return await options.reject(workAdmissionUnavailableError(method));
+  }
+  // Fork: maintenance mode refuses new chat turns; requests nested in a running turn pass.
+  const maintenanceRefusal = rootWorkAdmission
+    ? gatewayMaintenanceRefusal(method, rootWorkAdmission.ownsRoot)
+    : null;
+  if (rootWorkAdmission && maintenanceRefusal) {
+    rootWorkAdmission.release();
+    return await options.reject(maintenanceRefusal);
   }
   async function invokeWithRequestScope() {
     const postAdmissionRateLimitError = isSuspendPrepare

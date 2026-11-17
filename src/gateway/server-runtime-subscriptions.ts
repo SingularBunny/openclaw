@@ -31,6 +31,7 @@ import { captureAgentRunTerminalPersistence } from "../infra/agent-run-terminal-
 import { onTrustedToolExecutionEvent } from "../infra/diagnostic-events.js";
 import { heartbeatNotifications } from "../infra/heartbeat-events.js";
 import { clearPromptSuggestion, onPromptSuggestion } from "../infra/prompt-suggestion-events.js";
+import { onGatewayMaintenanceChange } from "../process/gateway-maintenance-mode.js";
 import {
   onGatewaySuspendAdmissionChange,
   retainGatewayRootWorkAdmissionContinuation,
@@ -695,6 +696,10 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
       });
     }
   });
+  // Fork: maintenance mode on/off, including its own expiry.
+  const unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
+    params.broadcast("gateway.maintenance", { maintenance });
+  });
   // Claude Code's next-prompt prediction is composer presentation only; it is never persisted.
   const unsubscribePromptSuggestions = onPromptSuggestion((evt) => {
     params.broadcast(
@@ -732,6 +737,7 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
       unsubscribePromptSuggestionRuns();
       unsubscribeSessionIdentity();
       unsubscribeSuspension();
+      unsubscribeMaintenance();
       unsubscribeProfileChanges();
       unsubscribeLifecycle();
     },
