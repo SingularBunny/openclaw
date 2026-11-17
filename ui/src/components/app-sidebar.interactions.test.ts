@@ -11,6 +11,7 @@ import { createApplicationContextProvider } from "../test-helpers/application-co
 import { sessionListResult } from "../test-helpers/chat-model.ts";
 import "../test-helpers/app-sidebar-suite.ts";
 import "../test-helpers/app-sidebar-cases/basics.ts";
+import "../test-helpers/app-sidebar-cases/catalog-folder-menu.ts";
 import "../test-helpers/app-sidebar-cases/footer-status.ts";
 import "../test-helpers/app-sidebar-cases/group-mutations.ts";
 import "../test-helpers/app-sidebar-cases/interactions.ts";

@@ -31,6 +31,7 @@ import {
 import { sessionNavigationTarget } from "../lib/sessions/route-navigation.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
 import { showToast } from "../lib/toast.ts";
+import { renderCatalogFolderHead as CatalogFolderHead } from "./app-sidebar-catalog-folder-head.tsx";
 import {
   catalogFolderMoveDragOver,
   catalogFolderMoveDrop,
@@ -683,20 +684,6 @@ function renderCatalogHostGroup(
                   .filter(Boolean)
                   .join(" ");
               });
-              const openFolderMenu: JSX.EventHandler<
-                HTMLButtonElement,
-                MouseEvent | KeyboardEvent
-              > = (event) =>
-                handleContextMenuEvent(event, event.currentTarget, (trigger, x, y) =>
-                  params.host.sidebarMenus.openCatalogFolderMenu(
-                    identity().catalogId,
-                    group().key,
-                    group().label,
-                    x,
-                    y,
-                    trigger,
-                  ),
-                );
               const rowDrop: CatalogFolderRowDrop = {
                 identity: {
                   get catalogId() {
@@ -815,24 +802,13 @@ function renderCatalogHostGroup(
                     }
                   }}
                 >
-                  <button
-                    type="button"
-                    class="sidebar-session-catalog-project__head"
-                    data-session-catalog-project={group().key}
-                    aria-expanded={collapsed() ? "false" : "true"}
-                    title={group().title}
-                    onClick={() => params.host.toggleSection(collapsedSectionId() ?? sectionId())}
-                    onContextMenu={openFolderMenu}
-                    onKeyDown={openFolderMenu}
-                  >
-                    <span class="sidebar-session-catalog-project__icon" aria-hidden="true">
-                      {collapsed() ? <Icon name="chevronRight" /> : <Icon name="chevronDown" />}
-                    </span>
-                    <span class="sidebar-session-catalog-project__label">{group().label}</span>
-                    <span class="sidebar-session-catalog-project__count" aria-hidden="true">
-                      {group().sessions.length}
-                    </span>
-                  </button>
+                  <CatalogFolderHead
+                    catalogId={identity().catalogId}
+                    group={group}
+                    collapsed={collapsed}
+                    onToggle={() => params.host.toggleSection(collapsedSectionId() ?? sectionId())}
+                    params={params}
+                  />
                   {collapsed() ? undefined : (
                     <>
                       <div
