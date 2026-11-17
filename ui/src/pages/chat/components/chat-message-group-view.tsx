@@ -267,6 +267,24 @@ export function MessageGroupContent(props: {
   );
 }
 
+/** Fork: an ACP agent's reply shows that agent's avatar; other replies keep the chat agent's. */
+function groupAssistantAvatar(frame: MessageGroupFrame) {
+  const author = frame.authorIdentity;
+  return author?.kind === "agent"
+    ? {
+        agentId: author.avatarId,
+        name: author.name,
+        avatar: author.avatar,
+        textAvatar: author.textAvatar,
+      }
+    : {
+        agentId: frame.options.agentId,
+        name: frame.assistantName,
+        avatar: frame.options.assistantAvatar ?? null,
+        textAvatar: frame.options.assistantTextAvatar,
+      };
+}
+
 function GroupAvatar(props: {
   frame: MessageGroupFrame;
   elementRef?: (element: HTMLElement) => void;
@@ -282,12 +300,7 @@ function GroupAvatar(props: {
             elementRef={props.elementRef}
             mediaReadAllowed={options().mediaReadAllowed}
             role={frame().group.role}
-            assistant={{
-              agentId: options().agentId,
-              name: frame().assistantName,
-              avatar: options().assistantAvatar ?? null,
-              textAvatar: options().assistantTextAvatar,
-            }}
+            assistant={groupAssistantAvatar(frame())}
             user={
               frame().isOwnGroup
                 ? { name: options().userName ?? null, avatar: options().userAvatar ?? null }
@@ -597,7 +610,12 @@ function FramedMessageGroup(props: {
                 >
                   <ChatSendStatus status={frame().sendStatus} actions={options()} />
                 </Show>
-                <Show when={frame().normalizedRole === "assistant"}>
+                <Show
+                  when={
+                    frame().normalizedRole === "assistant" &&
+                    !(frame().showSenderName && frame().authorIdentity)
+                  }
+                >
                   <ReplyAuthorBadge meta={frame().meta} />
                 </Show>
               </div>

@@ -9,7 +9,6 @@ import { extractText } from "../../lib/chat/message-extract.ts";
 import { resolveChatModelOverrideValue } from "../../lib/chat/model-select-state.ts";
 import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
 import {
-  formatAgentLabel,
   markRefusalHandedOff,
   sameChatAnswerer,
   type ChatAnswerer,
@@ -19,6 +18,11 @@ import {
 } from "./chat-handoff-registry.ts";
 import { setChatError } from "./chat-history-state.ts";
 import { lastOtherReplyAnswerer, transcriptNamesAuthors } from "./chat-reply-authors.ts";
+import {
+  publishAcpAgentIdentities,
+  publishReplyModelLabeler,
+  resolveAnswererIdentity,
+} from "./chat-reply-identity.ts";
 import { switchChatModel } from "./chat-session.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 import { selectedChatSessionRow } from "./chat-state-route.ts";
@@ -81,9 +85,11 @@ export async function refreshChatHandoffInfo(
     return undefined;
   }
   try {
-    const result = await state.client.request<Partial<ChatHandoffInfo>>(CHAT_HANDOFF_GET_METHOD, {
-      sessionKey,
-    });
+    const result = await state.client.request<Partial<ChatHandoffInfo> & { identities?: unknown }>(
+      CHAT_HANDOFF_GET_METHOD,
+      { sessionKey },
+    );
+    publishAcpAgentIdentities(result?.identities);
     const info: ChatHandoffInfo = {
       binding: result?.binding ?? null,
       handoff: result?.handoff ?? null,
@@ -274,8 +280,20 @@ export function chatModelLabel(state: ChatPageHost, model: string): string {
 
 export function chatAnswererLabel(state: ChatPageHost, answerer: ChatAnswerer): string {
   return answerer.kind === "agent"
-    ? formatAgentLabel(answerer.agent)
+    ? resolveAnswererIdentity(answerer).name
     : chatModelLabel(state, answerer.model);
+}
+
+const modelLabelers = new WeakMap<object, (model: string) => string>();
+
+/** Reply sender names use the picker's model labels (fork: who wrote each reply). */
+function publishModelLabels(state: ChatPageHost) {
+  let labeler = modelLabelers.get(state);
+  if (!labeler) {
+    labeler = (model) => chatModelLabel(state, model);
+    modelLabelers.set(state, labeler);
+  }
+  publishReplyModelLabeler(labeler);
 }
 
 function chatIdle(state: ChatPageHost): boolean {
@@ -390,7 +408,9 @@ export async function handOffChat(
       const after = await refreshChatHandoffInfo(state, sessionKey);
       if (after?.binding) {
         return fail(
-          t("chat.handoff.closeFailed", { agent: formatAgentLabel(after.binding.agent) }),
+          t("chat.handoff.closeFailed", {
+            agent: resolveAnswererIdentity({ kind: "agent", agent: after.binding.agent }).name,
+          }),
         );
       }
     }
@@ -503,11 +523,12 @@ export function createChatHandoffController(
 ): ChatHandoffController {
   const sessionKey = state.sessionKey;
   ensureChatHandoffInfo(state, sessionKey);
+  publishModelLabels(state);
   const info = readChatHandoffInfo(state, sessionKey);
   const row = selectedChatSessionRow(state);
   const agents = (info?.agents ?? []).map((agent): ChatHandoffTarget => ({
     answerer: { kind: "agent", agent },
-    label: formatAgentLabel(agent),
+    label: resolveAnswererIdentity({ kind: "agent", agent }).name,
   }));
   const current = currentChatAnswerer(state, sessionKey);
   const sessionModel = currentChatModel(state, sessionKey);
