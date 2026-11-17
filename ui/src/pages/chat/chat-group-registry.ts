@@ -61,7 +61,8 @@ export function publishChatGroupController(controller: ChatGroupController): voi
   ]);
   if (signatures.get(controller.sessionKey) !== signature) {
     signatures.set(controller.sessionKey, signature);
-    setVersion((value) => value + 1);
+    // Published while the chat pane renders; re-render the group buttons after it, not inside it.
+    queueMicrotask(() => setVersion((value) => value + 1));
   }
 }
 
