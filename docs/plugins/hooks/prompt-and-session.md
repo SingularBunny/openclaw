@@ -304,6 +304,12 @@ older plugins. Core does not populate it; new channel-specific sender
 identities should live under `ctx.channelContext.sender` through module
 augmentation.
 
+Fork: an ACP turn fires `agent_end` too, both in a chat bound to an ACP agent
+and in a run on an ACP session started through the Gateway `agent` method
+(`api.runtime.subagent.run`). Its `messages` are the prompt and the agent's reply
+(provider `acp`, model `<agent>`), `ctx.sessionKey` is the ACP session and
+`ctx.modelProviderId` is `acp`. It is fired best effort and never delays the turn.
+
 `agent_end` is an observation hook. Channel-backed paths generally run
 it fire-and-forget after the turn, while local one-shot paths can wait
 for the hook promise before process cleanup so trusted plugins can flush
