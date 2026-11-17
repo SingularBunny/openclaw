@@ -23,6 +23,10 @@ import { appendCronJobScratchPrompt, buildCronCommandBody } from "./run-prompt.j
 import { isCronScratchEffectivelyEmpty } from "./scratch-contract.js";
 import { readCronScratchSnapshot } from "./scratch-read.js";
 import type { CronServiceDeps } from "./service/state.js";
+import {
+  markAutomationRunUnread,
+  shouldMarkAutomationRunUnread,
+} from "./session-run-unread-mark.js";
 import { resolveCronJobsStorePathFromConfigAsync } from "./store.js";
 import type { CronResolvedDeliveryState } from "./types.js";
 
@@ -283,6 +287,21 @@ export async function runCronSessionTurn(
     });
     // Source, notice, and Cron custody remain live until the controller settles.
     const result = await receipt.settled;
+    // Fork: a silent or failed automation run keeps the chat row unread for the owner.
+    if (
+      shouldMarkAutomationRunUnread({
+        status: result.status,
+        executionStarted: result.executionStarted,
+        replyDisposition: result.automationResult?.replyDisposition,
+      })
+    ) {
+      await markAutomationRunUnread({
+        agentId: params.agentId,
+        sessionKey: expectedTarget.sessionKey ?? params.sessionKey,
+        storePath: expectedTarget.storePath,
+        sessionId: sessionId ?? (expectedTarget.sessionId || undefined),
+      });
+    }
     return {
       ...result.automationResult,
       status: result.admissionDeferred ? "skipped" : result.status === "completed" ? "ok" : "error",
