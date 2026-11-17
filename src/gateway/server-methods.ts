@@ -25,6 +25,7 @@ import {
 } from "./control-plane-rate-limit.js";
 import { errorShapeFromError } from "./error-shape.js";
 import { createExpectedProfileBinding } from "./expected-profile.js";
+import { gatewayMaintenanceRefusal } from "./maintenance-mode-gate.js";
 import { ADMIN_SCOPE } from "./method-scopes.js";
 import type { GatewayMethodRegistryView } from "./methods/descriptor.js";
 import {
@@ -203,6 +204,14 @@ export async function runWithGatewayRequestEnvelope<T>(
   }
   if (!rootWorkAdmission && !isGatewayRootlessRequestAllowed(method)) {
     return await options.reject(workAdmissionUnavailableError(method));
+  }
+  // Fork: maintenance mode refuses new chat turns; requests nested in a running turn pass.
+  const maintenanceRefusal = rootWorkAdmission
+    ? gatewayMaintenanceRefusal(method, rootWorkAdmission.ownsRoot)
+    : null;
+  if (rootWorkAdmission && maintenanceRefusal) {
+    rootWorkAdmission.release();
+    return await options.reject(maintenanceRefusal);
   }
   async function invokeWithRequestScope() {
     const postAdmissionRateLimitError = isSuspendPrepare

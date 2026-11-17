@@ -16,6 +16,7 @@ import {
   captureChatOutboxAdmission,
   storedChatOutboxScopeKey,
 } from "../../lib/chat/outbox-store.ts";
+import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import { visibleSessionMatches } from "../../lib/sessions/index.ts";
 import { resolveUiConversationIdentity } from "../../lib/sessions/session-key.ts";
 import { generateUUID } from "../../lib/uuid.ts";
@@ -435,7 +436,10 @@ export function settleQueuedChatSendFailure(
         host,
         retryDelayMs === null
           ? "Message will send when the Gateway reconnects."
-          : "The Gateway asked us to retry this message shortly.",
+          : isGatewayMaintenanceRefusal(err)
+            ? // Fork: maintenance mode keeps the message in the outbox until chats resume.
+              "Chats are paused for maintenance. The message waits and sends itself when maintenance ends."
+            : "The Gateway asked us to retry this message shortly.",
       );
     }
     if (retryDelayMs !== null) {

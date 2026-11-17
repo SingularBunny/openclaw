@@ -137,6 +137,9 @@ const CORE_GATEWAY_HANDLER_MODULES = {
   // Fork (I14): hand a refused reply off; logs and leaves the refused turn out of context.
   "chat-refusal": () =>
     import("./chat-refusal-handoff.js").then((module) => module.chatRefusalHandoffHandlers),
+  // Fork: maintenance mode (gateway.maintenance.*).
+  "maintenance-mode": () =>
+    import("./maintenance-mode.js").then((module) => module.maintenanceModeHandlers),
   "sessions-cli-tasks": () =>
     import("./sessions-cli-tasks.js").then((module) => module.sessionCliTaskHandlers),
   "sessions-read": () => import("./sessions-read.js").then((module) => module.sessionReadHandlers),

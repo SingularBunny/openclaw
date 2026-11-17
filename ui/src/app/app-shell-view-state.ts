@@ -19,6 +19,7 @@ import type { ShellViewCallbacks } from "./app-shell-view-callbacks.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import { canGoBackInNativeEmbed } from "./browser.ts";
 import type { ApplicationNavigationOptions } from "./context.ts";
+import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { gatewayPresentationScope } from "./gateway-presentation-scope.ts";
 import {
   APP_SIDEBAR_ELEMENT,
@@ -239,6 +240,11 @@ export function readShellView(host: ShellViewHost) {
     terminalAvailable,
     catalogOpenTarget: normalizeCatalogOpenTarget(uiSettings.catalogOpenTarget),
     canPairDevice: gatewayConnected && operatorAccess.canAdmin,
+    // Fork: Pause chats / Resume chats (maintenance mode) for admins.
+    maintenanceControl:
+      gatewayConnected && operatorAccess.canAdmin
+        ? createGatewayMaintenanceControl(gatewaySnapshot)
+        : null,
     sidebarEntries: navigationSnapshot.sidebarEntries,
     navigationVisible: !navigationSurfaceHidden,
     navigationCollapsed: navCollapsed,

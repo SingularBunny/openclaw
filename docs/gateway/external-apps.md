@@ -326,6 +326,50 @@ contract.
   projection](/plugins/hooks/lifecycle#safe-external-cron-projection).
 </Tip>
 
+## Maintenance mode (ai-workbench fork)
+
+Suspension fences every method except `gateway.suspend.*`, so an installer cannot write config or
+reinstall plugins while it holds one, and the lease is lost when the Gateway restarts. Maintenance
+mode is the fork's answer for installs and updates: it pauses chats only.
+
+While maintenance is on:
+
+- New chat turns are refused with retryable `UNAVAILABLE`, `details.reason: "gateway-maintenance"`
+  and `retryAfterMs: 15000`: `chat.send`, `sessions.send`, `sessions.steer`, `agent`,
+  `openclaw.chat`, `cron.run`, `talk.client.create`, `talk.session.create`. Requests nested in a
+  turn that was already running (a subagent of it) still pass, so running turns finish.
+- The Control UI keeps a refused message in its outbox ("Chats are paused for maintenance. The
+  message waits and sends itself when maintenance ends.") and retries it until it is accepted.
+- Durable channel ingress keeps new messages queued and delivers them afterwards. A channel without
+  durable ingress gets a reply: "OpenClaw is under maintenance…: chats are paused. Your message was
+  not sent; send it again when maintenance ends."
+- Cron scheduling is paused; jobs that fall due run when maintenance ends (deferred, not skipped).
+  A suspension that ends meanwhile does not restart scheduling. Heartbeats are deferred like busy work.
+- Config, plugin, skill and cron edits, history reads, aborts and approvals stay available.
+
+The state lives in `<stateDir>/gateway-maintenance.json`, so it survives a Gateway restart (the
+replacement of OpenClaw). An optional time limit ends it on its own.
+
+RPC:
+
+- `gateway.maintenance.enter` — `operator.admin`; params `{ "source"?, "reason"?, "ttlMs"? }`
+  (`ttlMs` 1 s to 24 h). Entering again keeps the start time.
+- `gateway.maintenance.status` — `operator.read`; returns `{ active, maintenance, activeTurns,
+activeWork, blockers }`. Wait for `activeWork: 0` before replacing OpenClaw.
+- `gateway.maintenance.exit` — `operator.admin`; returns the status plus `resumed`.
+
+The hello snapshot carries `gatewayMaintenance` and the `gateway.maintenance` event
+(`{ maintenance: {...} | null }`) publishes every change. The Control UI shows a banner
+"Maintenance: chats paused (…)" with a **Resume chats** button, the bottom-left connection
+indicator reads **Maintenance: chats paused**, and admins get **Pause chats (maintenance)** /
+**Resume chats** in the account menu (bottom-left).
+
+```bash
+openclaw gateway call gateway.maintenance.enter --params '{"source":"installer","reason":"OpenClaw update","ttlMs":7200000}' --json
+openclaw gateway call gateway.maintenance.status --json
+openclaw gateway call gateway.maintenance.exit --json
+```
+
 ## App code vs plugin code
 
 Use Gateway RPC when code lives outside OpenClaw:

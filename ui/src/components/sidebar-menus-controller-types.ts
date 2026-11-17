@@ -4,6 +4,7 @@ import type { NavigationRouteId } from "../app-navigation.ts";
 import type { ApplicationContext, ApplicationNavigationOptions } from "../app/context.ts";
 import type { NativeGatewaysSnapshot } from "../app/native-gateways.runtime.ts";
 import type { ThemeMode } from "../app/theme.ts";
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import type { GatewayStatus } from "../lib/gateway-status.ts";
 import type { SessionOwnerOption } from "../lib/session-owner.ts";
 import type { CatalogProjectGrouping } from "../lib/sessions/catalog-project-grouping.ts";
@@ -37,6 +38,7 @@ export interface SidebarMenusControllerHost extends SessionOrganizerControllerHo
   ) => void;
   readonly onPairMobile?: () => void;
   readonly onRetryConnect?: () => void;
+  readonly maintenanceControl?: GatewayMaintenanceControl | null;
   readonly onPreloadRoute?: (routeId: NavigationRouteId) => Promise<void>;
   sidebarAgentsMode: "chip" | "roster";
   readonly pinnedAgentIds: readonly string[];

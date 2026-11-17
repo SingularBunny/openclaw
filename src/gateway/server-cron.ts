@@ -63,6 +63,10 @@ import type {
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import type { PluginRegistry } from "../plugins/registry-types.js";
 import {
+  isGatewayMaintenanceActive,
+  onGatewayMaintenanceChange,
+} from "../process/gateway-maintenance-mode.js";
+import {
   getGatewaySuspendAdmissionPhase,
   runWithGatewayIndependentRootWorkAdmission,
 } from "../process/gateway-work-admission.js";
@@ -1180,10 +1184,23 @@ export function buildGatewayCronService(params: {
       unregisterSessionAutomationSource(automationSource);
     }
   };
+  // Fork: maintenance mode keeps scheduling paused; due jobs run once it ends (deferred, not skipped).
+  if (isGatewayMaintenanceActive()) {
+    cron.pauseScheduling();
+  }
+  const unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
+    if (maintenance) {
+      cron.pauseScheduling();
+    } else {
+      cron.resumeScheduling();
+    }
+  });
   cron.stop = () => {
+    unsubscribeMaintenance();
     stopCronLifecycle();
   };
   const stopAndDrainCron = async (preserveExitWatchers = false) => {
+    unsubscribeMaintenance();
     stopCronLifecycle(preserveExitWatchers);
     await drainGatewayCron({
       settlements: [

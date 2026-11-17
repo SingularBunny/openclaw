@@ -1,4 +1,5 @@
 import type {
+  GatewayMaintenance,
   GatewayRestartNotice,
   UserProfile,
 } from "../../../packages/gateway-protocol/src/index.js";
@@ -29,6 +30,8 @@ export type ApplicationGatewaySnapshot = {
   /** Fork: when this page reconnected after a Gateway restart it was told about. */
   restartedAt?: number;
   suspensionPhase?: GatewaySuspension["phase"];
+  /** Fork: maintenance mode pauses chats (`gateway.maintenance`, hello snapshot). */
+  maintenance?: GatewayMaintenance | null;
   /** Transport identity stays stable while plugin capability fields are refreshed. */
   hello: GatewayHelloOk | null;
   pluginCapabilities?: PluginsUiDescriptorsResult | null;

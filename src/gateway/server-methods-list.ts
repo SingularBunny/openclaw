@@ -62,6 +62,8 @@ export const GATEWAY_EVENTS = [
   "gateway.suspension",
   // Fork: restart-pending notice.
   "gateway.restart",
+  // Fork: maintenance mode on/off.
+  "gateway.maintenance",
   "health",
   "heartbeat",
   "cron",

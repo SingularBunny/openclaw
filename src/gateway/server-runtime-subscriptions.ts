@@ -61,6 +61,7 @@ import {
 } from "./chat-abort-lifecycle-internal.js";
 import { type ChatAbortControllerEntry, removeChatAbortControllerEntry } from "./chat-abort.js";
 import { bumpGatewayAccessRevision } from "./gateway-access-revision.js";
+import { broadcastGatewayMaintenance } from "./maintenance-mode-gate.js";
 import { resolveVisibleActiveSessionRunState } from "./server-methods/session-active-runs.js";
 import { dispatchEventHandler } from "./server-runtime-event-dispatch.js";
 import type { GatewayEventSubscriptionParams } from "./server-runtime-subscriptions.types.js";
@@ -720,6 +721,8 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
   const unsubscribeSuspension = onGatewaySuspendAdmissionChange((phase) => {
     params.broadcast("gateway.suspension", { phase });
   });
+  // Fork: maintenance mode on/off, including its own expiry.
+  const unsubscribeMaintenance = broadcastGatewayMaintenance(params.broadcast);
   // Claude Code's next-prompt prediction is composer presentation only; it is never persisted.
   const unsubscribePromptSuggestions = onPromptSuggestion((evt) => {
     params.broadcast(
@@ -757,6 +760,7 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
       unsubscribePromptSuggestionRuns();
       unsubscribeSessionIdentity();
       unsubscribeSuspension();
+      unsubscribeMaintenance();
       unsubscribeProfileChanges();
       unsubscribeLifecycle();
     },

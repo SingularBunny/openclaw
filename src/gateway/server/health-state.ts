@@ -6,6 +6,7 @@ import { getRuntimeConfigAppliedHash } from "../../config/runtime-snapshot.js";
 import { resolveAgentMainSessionKey } from "../../config/sessions.js";
 import { listSystemPresence } from "../../infra/system-presence.js";
 import { getUpdateAvailable, getUpdateSchedule } from "../../infra/update-status-state.js";
+import { getGatewayMaintenance } from "../../process/gateway-maintenance-mode.js";
 import { getGatewaySuspendAdmissionPhase } from "../../process/gateway-work-admission.js";
 import { normalizeMainKey } from "../../routing/session-key.js";
 import { resolveGatewayAgentSelectionState } from "../agent-list.js";
@@ -80,6 +81,7 @@ export function buildGatewaySnapshot(opts: {
   const gatewayRestart = includeUpdateDetails
     ? (getGatewayRestartNotice() ?? undefined)
     : undefined;
+  const gatewayMaintenance = getGatewayMaintenance() ?? undefined;
   const snapshot: Snapshot = {
     suspension: { phase: getGatewaySuspendAdmissionPhase() },
     presence,
@@ -102,6 +104,8 @@ export function buildGatewaySnapshot(opts: {
     updateAvailable,
     updateSchedule,
     ...(gatewayRestart ? { gatewayRestart } : {}),
+    // Fork: maintenance mode, for clients that connect while chats are paused.
+    ...(gatewayMaintenance ? { gatewayMaintenance } : {}),
   };
   if (opts.includeSensitive === true) {
     const auth = resolveGatewayAuth({ authConfig: cfg.gateway?.auth, env: process.env });
