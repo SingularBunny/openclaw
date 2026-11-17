@@ -6,6 +6,7 @@ import type { NativeGatewaysSnapshot } from "../app/native-gateways.runtime.ts";
 import { nativeGatewaysCapability } from "../app/native-gateways.runtime.ts";
 import type { ThemeMode } from "../app/theme.ts";
 import { registerUpdateActionsEnglish } from "../i18n/locales/en-update-actions.ts";
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import { KEYBOARD_SHORTCUT_COMBOS } from "../lib/keyboard-shortcut-contract.ts";
 import type { PresenceViewer } from "../lib/presence-users.ts";
 import { registerEnglishCatalog, t } from "../lib/reactive/i18n.ts";
@@ -91,6 +92,8 @@ type SidebarIdentityMenuParams = {
   onNavigate: (routeId: NavigationRouteId, options?: ApplicationNavigationOptions) => void;
   onPairMobile: () => void;
   onRetryConnect?: () => void;
+  /** Fork: Pause chats / Resume chats (maintenance mode); null hides the item. */
+  maintenanceControl?: GatewayMaintenanceControl | null;
 };
 
 // The slot shares the command icon column so dots, glyphs, and labels line up.
@@ -267,6 +270,23 @@ export function renderSidebarIdentityMenu(params: SidebarIdentityMenuParams): So
           : titleForRoute("updates"),
       },
       renderSidebarMenuAction("command:usage", titleForRoute("usage"), "coins"),
+      ...(params.maintenanceControl
+        ? [
+            renderSidebarMenuAction(
+              "command:maintenance",
+              params.maintenanceControl.active
+                ? t("common.gatewayMaintenance.resume")
+                : t("common.gatewayMaintenance.pause"),
+              params.maintenanceControl.active ? "play" : "pause",
+              {
+                className: "sidebar-identity-menu__maintenance",
+                title: params.maintenanceControl.active
+                  ? undefined
+                  : t("common.gatewayMaintenance.pauseHint"),
+              },
+            ),
+          ]
+        : []),
       usageSeparator,
       renderSidebarMenuAction("command:pair-mobile", t("devices.pairing.button"), "smartphone", {
         className: "sidebar-pair-mobile",
@@ -400,6 +420,9 @@ export function renderSidebarIdentityMenu(params: SidebarIdentityMenuParams): So
             break;
           case `${COMMAND_VALUE_PREFIX}retry-connect`:
             params.onRetryConnect?.();
+            break;
+          case `${COMMAND_VALUE_PREFIX}maintenance`:
+            params.maintenanceControl?.toggle();
             break;
         }
       }}

@@ -7,6 +7,7 @@ export type GatewayStatus =
   | "restarting"
   | "suspending"
   | "suspended"
+  | "maintenance"
   | "reconnecting"
   | "restoring"
   | "reload-required"
@@ -24,7 +25,7 @@ export function isGatewayConnectionAttemptPending(
 
 export type GatewayStatusSnapshot = Pick<
   ApplicationGatewaySnapshot,
-  "phase" | "offlineStable" | "restartPending" | "suspensionPhase"
+  "phase" | "offlineStable" | "restartPending" | "suspensionPhase" | "maintenance"
 > & {
   client: Pick<GatewayBrowserClient, "recoveryScopeReady"> | null;
 };
@@ -50,7 +51,11 @@ export function resolveGatewayStatus(
     return snapshot.phase;
   }
   if (snapshot.phase === "connected") {
-    return snapshot.client?.recoveryScopeReady === false || historyRecovering ? "restoring" : null;
+    if (snapshot.client?.recoveryScopeReady === false || historyRecovering) {
+      return "restoring";
+    }
+    // Fork: maintenance mode pauses chats while the connection itself is fine.
+    return snapshot.maintenance ? "maintenance" : null;
   }
   if (snapshot.offlineStable) {
     return snapshot.phase === "reconnecting" ? "reconnecting" : "offline";
