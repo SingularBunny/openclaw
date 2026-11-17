@@ -1,3 +1,4 @@
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import type { AgentIdentityResult, GatewayAgentRow } from "../api/types.ts";
 import type { NavigationRouteId } from "../app-navigation.ts";
 import type { ApplicationContext, ApplicationNavigationOptions } from "../app/context.ts";
@@ -42,6 +43,8 @@ export interface SidebarMenusOwner extends SidebarRouteView {
   readonly gatewayVersion: string | null;
   readonly onPairMobile?: () => void;
   readonly onRetryConnect?: () => void;
+  /** Fork: Pause chats / Resume chats in the identity menu; null hides it. */
+  readonly maintenanceControl?: GatewayMaintenanceControl | null;
   sidebarAgentsMode: "chip" | "roster";
   navigationView: "pages" | "sessions" | "online";
   readonly pinnedAgentIds: readonly string[];

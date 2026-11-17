@@ -306,6 +306,7 @@ function renderSidebarMenus(
               onNavigate: (routeId, options) => view.onNavigate?.(routeId, options),
               onPairMobile: () => view.onPairMobile?.(),
               onRetryConnect: view.onRetryConnect,
+              maintenanceControl: view.maintenanceControl ?? null,
             }}
           />
         );

@@ -3244,6 +3244,20 @@ openclaw-tooltip.sidebar-hover-tooltip {
   overflow-wrap: anywhere;
 }
 
+/* Fork: maintenance mode banner; sits under a restart notice when both show. */
+.shell-restart-notice + .shell-maintenance-notice {
+  top: calc(var(--shell-topbar-height, 44px) + 56px);
+}
+
+.shell-maintenance-notice__hint,
+.shell-maintenance-notice__error {
+  color: var(--muted);
+}
+
+.shell-maintenance-notice__resume {
+  flex: none;
+}
+
 .shell-restart-notice__dismiss {
   flex: none;
   padding: 0 6px;

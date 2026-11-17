@@ -35,7 +35,7 @@ export function GatewayStatus(params: GatewayStatusProps & { row?: boolean }): J
               name={
                 params.kind === "connected"
                   ? "check"
-                  : params.kind === "suspended"
+                  : params.kind === "suspended" || params.kind === "maintenance"
                     ? "pause"
                     : params.kind === "offline"
                       ? "alertTriangle"

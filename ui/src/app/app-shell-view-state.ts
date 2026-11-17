@@ -1,3 +1,4 @@
+import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { isSettingsNavigationRoute, isSettingsTakeover } from "../app-navigation.ts";
 import { isSessionRouteId } from "../app-route-paths.ts";
 import { APP_ROUTE_IDS } from "../app-routes.ts";
@@ -211,6 +212,11 @@ export function readShellView(host: ShellViewHost) {
     terminalAvailable,
     catalogOpenTarget: normalizeCatalogOpenTarget(uiSettings.catalogOpenTarget),
     canPairDevice: gatewayConnected && operatorAccess.canAdmin,
+    // Fork: Pause chats / Resume chats (maintenance mode) for admins.
+    maintenanceControl:
+      gatewayConnected && operatorAccess.canAdmin
+        ? createGatewayMaintenanceControl(gatewaySnapshot)
+        : null,
     sidebarEntries: navigationSnapshot.sidebarEntries,
     navigationVisible: !navigationSurfaceHidden,
     navigationCollapsed: navCollapsed,

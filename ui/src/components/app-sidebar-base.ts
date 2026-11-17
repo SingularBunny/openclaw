@@ -1,4 +1,5 @@
 import { createChangeListeners } from "../../../src/shared/listeners.js";
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import { DEFAULT_SIDEBAR_ENTRIES, type NavigationRouteId } from "../app-navigation.ts";
 import type { ApplicationRouter } from "../app-routes.ts";
 import { selectApplicationSession } from "../app/agent-selection.ts";
@@ -60,6 +61,8 @@ export type AppSidebarProps = {
   watchUpdateProgress: ((listener: (progress: UpdateProgress) => void) => () => void) | undefined;
   onOpenPalette: (() => void) | undefined;
   onRetryConnect: (() => void) | undefined;
+  /** Fork: Pause chats / Resume chats in the identity menu; null hides it. */
+  maintenanceControl: GatewayMaintenanceControl | null;
   onToggleSidebar: (() => void) | undefined;
   onOpenNewSession: ((agentId: string, target?: NewSessionTarget) => void) | undefined;
   onUpdateSidebarEntries: ((entries: string[]) => void) | undefined;
@@ -100,6 +103,7 @@ export const appSidebarProperties = {
   watchUpdateProgress: { default: undefined, attribute: false },
   onOpenPalette: { default: undefined, attribute: false },
   onRetryConnect: { default: undefined, attribute: false },
+  maintenanceControl: { default: null, attribute: false },
   onToggleSidebar: { default: undefined, attribute: false },
   onOpenNewSession: { default: undefined, attribute: false },
   onUpdateSidebarEntries: { default: undefined, attribute: false },
@@ -145,6 +149,7 @@ export abstract class AppSidebarBase {
   declare watchUpdateProgress: AppSidebarProps["watchUpdateProgress"];
   declare onOpenPalette: AppSidebarProps["onOpenPalette"];
   declare onRetryConnect: AppSidebarProps["onRetryConnect"];
+  declare maintenanceControl: AppSidebarProps["maintenanceControl"];
   declare onToggleSidebar: AppSidebarProps["onToggleSidebar"];
   declare onOpenNewSession: AppSidebarProps["onOpenNewSession"];
   declare onUpdateSidebarEntries: AppSidebarProps["onUpdateSidebarEntries"];
