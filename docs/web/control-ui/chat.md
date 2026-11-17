@@ -305,15 +305,48 @@ buttons, for any model or ACP agent:
   answers it with the whole chat history. On a chat over about 100,000 prompt tokens the menu warns
   that the new model reads it without a warm prompt cache.
 - **"<new> is answering · Return to <previous>"** appears by the composer after a handoff or a picker
-  switch, and while an agent is bound. **Return** restores exactly the model or agent that answered
-  before; the cross hides the chip. The record is kept per chat on the Gateway
-  (`acpx.chat.handoff.get` / `acpx.chat.handoff.set`).
+  switch, and while an agent is bound. **Return** goes back to the last model or agent that actually
+  replied in this chat before the current one: one that failed or was stopped after a switch (a 429,
+  an abort) never wrote a reply, so it is skipped. The chat reads this from its own replies, which
+  carry their author, so it also holds after a reload, in another tab and after a typed `/model`. The
+  cross hides the chip. The record is kept per chat on the Gateway (`acpx.chat.handoff.get` /
+  `acpx.chat.handoff.set`).
 - Under a failed turn (an error, a rate or daily limit), **Retry** sends the same message to the same
   model again; **Choose another model** opens the model picker, and the model or agent chosen there
   answers the failed message. Nothing switches models on its own. OpenRouter's daily free-model quota
   (`429 free-models-per-day`) reads "Daily free-model limit reached for this provider. It resets at
   <time> UTC" when the error names the reset time.
-- Each reply's footer names the model or ACP agent that wrote it, next to its time.
+- Each reply shows who wrote it. A model's reply names the model (as the picker labels it) where the
+  chat agent's name was. An ACP agent's reply is shown like a separate participant: the agent's own
+  name and avatar instead of the chat agent's. Replies by two authors never share one block.
+  Without `acp.seedParentHistory` a bound agent's reply still names its agent (display only, it is
+  not replayed to models).
+- An ACP agent's look is set per agent. An OpenClaw agent whose runtime is that ACP agent
+  (`agents.entries.<id>.runtime: { type: "acp", acp: { agent: "junie" } }`) lends its `identity`;
+  the ACPX plugin setting **Agent identities** (`plugins.entries.acpx.config.agentIdentities`)
+  overrides it:
+
+  ```json5
+  {
+    plugins: {
+      entries: {
+        acpx: {
+          config: {
+            agentIdentities: {
+              junie: { name: "Junie", emoji: "🧩" },
+              codex: { avatar: "data:image/png;base64,..." },
+            },
+          },
+        },
+      },
+    },
+  }
+  ```
+
+  `avatar` takes a `data:image/...` URL or a Gateway path (`/...`), as agent avatars do; `emoji` is a
+  short text avatar. An agent with neither gets its own generated face, never the chat agent's. No
+  vendor logos ship with OpenClaw.
+
 - While an ACP agent is bound, the model picker also lists **<agent> models**: the models the agent
   advertised for its session (ACP `models` or a model config option), with the current one marked, and
   the picker button reads **<agent> · <model>**. Choosing one is `/acp model <id>`
