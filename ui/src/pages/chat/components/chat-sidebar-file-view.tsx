@@ -6,6 +6,7 @@ import { PanelLoadingSkeleton } from "../../../components/solid/panel-loading-sk
 import "../../../components/tooltip.ts";
 import { registerCodeBlocksEnglish } from "../../../i18n/locales/en-code-blocks.ts";
 import { registerFilePreviewEnglish } from "../../../i18n/locales/en-file-preview.ts";
+import { downloadTextFile } from "../../../lib/download.ts";
 import type { EditorId } from "../../../lib/editor-links.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
 import { LitContent } from "../../../lit/solid-content.tsx";
@@ -78,6 +79,8 @@ export type FileViewControls = {
   onPreviousMatch: () => void;
   onReload: () => void;
   onReveal?: (path: string) => void;
+  /** Fork: opens the file's folder in the Gateway host's file manager. */
+  onRevealInFileManager?: (path: string) => void;
   onSave: () => void;
   onSearchInput: (query: string) => void;
   onSearchKeydown: (event: KeyboardEvent) => void;
@@ -128,6 +131,14 @@ function FileCopyButton(props: { action: FileCopyAction; controls?: FileViewCont
       class={feedback() === "copied" ? "copied" : ""}
     />
   );
+}
+
+/** Fork: saves the text the file view shows, unsaved edits excluded, under the file's own name. */
+export function downloadSidebarFile(
+  content: Pick<FileSidebarContent, "name" | "path" | "content" | "mimeType">,
+) {
+  const name = content.name || content.path.split(/[\\/]/).pop() || "file.txt";
+  downloadTextFile(name, content.content, content.mimeType || "text/plain");
 }
 
 function FileTextAction(props: { label: string; onClick: () => void; disabled?: boolean }) {
@@ -223,6 +234,18 @@ export function SidebarFile(props: {
                         onClick={() => controls().onReveal?.(props.content.path)}
                       />
                     </Show>
+                    <Show when={controls().onRevealInFileManager}>
+                      <FileAction
+                        label={t("chat.detailPanel.openInFileManager")}
+                        icon="arrowUpRight"
+                        onClick={() => controls().onRevealInFileManager?.(props.content.path)}
+                      />
+                    </Show>
+                    <FileAction
+                      label={t("chat.detailPanel.downloadFile")}
+                      icon="download"
+                      onClick={() => downloadSidebarFile(props.content)}
+                    />
                     <ChatSidebarEditorMenu
                       absolutePath={localEditorFilePath(props.content, controls().execNode)}
                       open={controls().editorMenuOpen}

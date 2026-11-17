@@ -327,6 +327,8 @@ export const SessionsFilesSetResultSchema = closedObject(SessionsFilesGetResultS
 export const SessionsFilesRevealParamsSchema = closedObject({
   key: NonEmptyString,
   agentId: Type.Optional(NonEmptyString),
+  /** Fork: a workspace-relative file or folder; the folder that holds it opens. Never absolute. */
+  path: Type.Optional(NonEmptyString),
 });
 
 export const SessionsFilesRevealResultSchema = closedObject({

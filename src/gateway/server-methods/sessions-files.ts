@@ -40,7 +40,6 @@ import { resolveSessionWorkspaceRoots } from "../session-workspace-roots.js";
 import { readSessionWorkerPlacementAsync } from "../worker-environments/session-placement-lifecycle.js";
 import { WORKSPACE_PREVIEW_MAX_BYTES } from "../workspace-file-limits.js";
 import {
-  execOpenPath,
   formatOpenPathError,
   isHeadlessOpenPathError,
   resolveOpenPathCommand,
@@ -57,6 +56,7 @@ import { resolveRepositoryWorkspaceAccess } from "./session-repository-workspace
 import { retainSessionScopedRead } from "./session-scoped-read.js";
 import { loadSessionTouchedFiles } from "./session-touched-files.js";
 import { getSessionWorkspaceAssets } from "./sessions-file-assets.js";
+import { openRevealFolder } from "./sessions-files-reveal-target.js";
 import type {
   GatewayRequestContext,
   GatewayRequestHandlerOptions,
@@ -699,10 +699,9 @@ export const sessionsFilesHandlers: GatewayRequestHandlers = {
           }
           const command = resolveOpenPathCommand(workspaceRoot);
           try {
+            const folder = await openRevealFolder(workspaceRoot, params.path, assertCurrent);
             assertCurrent();
-            await execOpenPath(command);
-            assertCurrent();
-            respond(true, { ok: true, path: workspaceRoot });
+            respond(true, { ok: true, path: folder });
           } catch (error) {
             const errorMessage = formatOpenPathError(error);
             const detailedError = isHeadlessOpenPathError(error, command)

@@ -191,5 +191,7 @@ export type ChatDetailPanelProps = {
   onOpenWorkspaceFile: ((target: MarkdownFileLinkTarget) => void) | null;
   onOpenSessionLink: ((target: SessionLinkTarget) => void) | null;
   onRevealInWorkspace: ((path: string) => void) | null;
+  /** Fork: opens the file's folder in the Gateway host's file manager. */
+  onRevealInFileManager: ((path: string) => void) | null;
   onOpenImage: ((item: ImageLightboxItem) => void) | null;
 };

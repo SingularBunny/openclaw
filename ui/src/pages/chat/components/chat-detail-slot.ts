@@ -8,6 +8,7 @@ import { selectedChatSessionRow } from "../chat-state-route.ts";
 import type { ChatProps } from "../chat-view.tsx";
 import { openSlot } from "../sidebar-layout.ts";
 import "./chat-tool-output.ts";
+import { fileManagerRevealer } from "./chat-file-manager-reveal.ts";
 import { assistantMediaPolicyKey } from "./chat-message-media.ts";
 import { selectSessionWorkspacePreview } from "./chat-session-workspace-state.ts";
 import {
@@ -67,6 +68,7 @@ export function renderChatDetailSlot(params: {
             host.updateSidebarLayout(openSlot(host.sidebarLayout, "workspace"));
           }
     }
+    .onRevealInFileManager=${fileManagerRevealer(host, content)}
     .onOpenImage=${(item: Parameters<typeof host.handleOpenImage>[0]) =>
       host.handleOpenImage(item, host.beginImageOpen())}
     .embedded=${true}

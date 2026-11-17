@@ -10,6 +10,8 @@ const catalog = {
       editFile: "Edit file",
       searchInFile: "Search in file",
       showInFiles: "Show in Files",
+      downloadFile: "Download file",
+      openInFileManager: "Open folder in file manager",
       unavailable: "Unable to open",
       outsideSessionBoundary: "This file is outside {session}'s workspace, and you can't open it.",
       assetsUnavailable: "Some assets couldn't be loaded ({count})",

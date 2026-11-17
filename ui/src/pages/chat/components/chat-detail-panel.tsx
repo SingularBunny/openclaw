@@ -658,6 +658,7 @@ function DetailPanel(props: ChatDetailPanelProps, host: SolidBridgeElement<ChatD
         onPreviousMatch: () => moveFileSearch(-1),
         onReload: reloadFile,
         onReveal: props.onRevealInWorkspace ?? undefined,
+        onRevealInFileManager: props.onRevealInFileManager ?? undefined,
         onSave: saveFile,
         onSearchInput: updateFileSearch,
         onSearchKeydown: handleFileSearchKeydown,
@@ -736,6 +737,7 @@ export const ChatDetailPanel = defineSolidBridge("openclaw-chat-detail-panel", D
     onOpenWorkspaceFile: { default: null, attribute: false },
     onOpenSessionLink: { default: null, attribute: false },
     onRevealInWorkspace: { default: null, attribute: false },
+    onRevealInFileManager: { default: null, attribute: false },
     onOpenImage: { default: null, attribute: false },
   },
 });
