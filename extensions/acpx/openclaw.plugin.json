@@ -36,7 +36,15 @@
       "id": "agent-runtime",
       "title": "Agent runtime",
       "order": 10,
-      "properties": ["cwd", "stateDir", "probeAgent", "agents", "timeoutSeconds", "nativeAgents"]
+      "properties": [
+        "cwd",
+        "stateDir",
+        "probeAgent",
+        "agents",
+        "agentIdentities",
+        "timeoutSeconds",
+        "nativeAgents"
+      ]
     },
     {
       "id": "permissions",
@@ -99,6 +107,18 @@
           "enabled": {
             "type": "boolean",
             "default": true
+          }
+        }
+      },
+      "agentIdentities": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string", "minLength": 1, "maxLength": 64 },
+            "emoji": { "type": "string", "minLength": 1, "maxLength": 8 },
+            "avatar": { "type": "string", "minLength": 1 }
           }
         }
       },
@@ -206,6 +226,10 @@
     "nativeAgents": {
       "label": "Native agents",
       "help": "Choose which installed agents can be used for new chat turns. Missing flags are enabled. Running turns and classic ACP sessions are unchanged."
+    },
+    "agentIdentities": {
+      "label": "Agent identities",
+      "help": "How each ACP agent appears in chat, keyed by agent id: name, emoji (a short text avatar) and avatar (a data:image URL or a Gateway path such as /avatar/...). An agent without one gets its own generated face."
     },
     "agents": {
       "label": "Agent Commands",

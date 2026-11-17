@@ -96,6 +96,17 @@ export const AcpxPluginConfigSchema = z.strictObject({
     })
     .optional(),
   mcpServers: z.record(z.string(), McpServerConfigSchema).optional(),
+  /** Fork: how each ACP agent appears in chat (Control UI reply avatar and sender name). */
+  agentIdentities: z
+    .record(
+      z.string(),
+      z.strictObject({
+        name: z.string().trim().min(1).max(64).optional(),
+        emoji: z.string().trim().min(1).max(8).optional(),
+        avatar: z.string().trim().min(1).optional(),
+      }),
+    )
+    .optional(),
   agents: z
     .record(
       z.string(),

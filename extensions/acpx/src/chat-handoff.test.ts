@@ -12,6 +12,7 @@ import {
   buildChatHandoffNote,
   listHandoffAcpAgents,
   parseChatAnswerer,
+  readAcpAgentIdentities,
   registerChatHandoff,
   type ChatHandoffRecord,
 } from "./chat-handoff.js";
@@ -65,6 +66,7 @@ describe("chat handoff gateway methods", () => {
         binding: { agent: "junie", targetSessionKey: "agent:main:acp:1234", boundAt: 5 },
         handoff: null,
         agents: ["junie", "codex"],
+        identities: {},
       },
       undefined,
     ]);
@@ -82,6 +84,7 @@ describe("chat handoff gateway methods", () => {
       binding: null,
       handoff: null,
       agents: ["junie", "codex"],
+      identities: {},
     });
     expect((await call("acpx.chat.handoff.get", { sessionKey: "x", extra: 1 }))[0]).toBe(false);
   });
@@ -146,5 +149,49 @@ describe("chat answerers", () => {
         at: 1,
       }),
     ).toContain("do not claim another model's or agent's replies as your own");
+  });
+});
+
+describe("ACP agent identities (fork)", () => {
+  it("reads name, emoji and a renderable avatar per agent from the ACPX plugin config", () => {
+    const config = {
+      plugins: {
+        entries: {
+          acpx: {
+            config: {
+              agentIdentities: {
+                junie: { name: "Junie", emoji: "🧩" },
+                codex: { avatar: "data:image/png;base64,AAAA" },
+                other: { avatar: "https://example.com/x.png", name: " " },
+                local: { avatar: "/avatar/local" },
+              },
+            },
+          },
+        },
+      },
+    };
+    expect(readAcpAgentIdentities(config)).toEqual({
+      junie: { name: "Junie", emoji: "🧩" },
+      codex: { avatar: "data:image/png;base64,AAAA" },
+      other: {},
+      local: { avatar: "/avatar/local" },
+    });
+    expect(readAcpAgentIdentities({})).toEqual({});
+  });
+
+  it("lends an ACP-runtime agent's identity, which the ACPX entry overrides", () => {
+    const config = {
+      agents: {
+        entries: {
+          helper: {
+            runtime: { type: "acp", acp: { agent: "junie" } },
+            identity: { name: "Junie helper", emoji: "🧩" },
+          },
+          plain: { identity: { name: "Plain" } },
+        },
+      },
+      plugins: { entries: { acpx: { config: { agentIdentities: { junie: { name: "Junie" } } } } } },
+    };
+    expect(readAcpAgentIdentities(config)).toEqual({ junie: { name: "Junie", emoji: "🧩" } });
   });
 });
