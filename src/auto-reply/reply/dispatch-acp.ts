@@ -25,6 +25,7 @@ import {
   resolveAgentWorkspaceDir,
   resolveSessionAgentId,
 } from "../../agents/agent-scope.js";
+import { runAcpTurnAgentEndHook } from "../../agents/harness/acp-agent-end.js";
 import {
   PreparedQuestionAnswerRefusedError,
   QuestionAnswerUnconfirmedError,
@@ -508,6 +509,14 @@ export async function tryDispatchAcpReplyCore(
       assistantTranscript = { ...assistantTranscript, refusal: true };
     }
   };
+  const acpTurnHookTarget = () => ({
+    runId: auditRunId,
+    agentId: acpAgentId,
+    sessionKey: canonicalSessionKey,
+    sessionId: transcriptSessionId,
+    acpAgent: resolvedAcpAgent,
+    promptText: transcriptPromptText,
+  });
   let admittedRunContext: AdmittedRunContext | undefined;
   let nativeActionEvidenceRecorded = false;
   const recordUnsupportedNativeActionEvidence = () => {
@@ -790,6 +799,12 @@ export async function tryDispatchAcpReplyCore(
     }
 
     await persistTranscript(delivery.getAccumulatedTranscriptText());
+    // Fork: plugins hear that the bound ACP agent replied, as after an embedded or CLI turn.
+    runAcpTurnAgentEndHook({
+      ...acpTurnHookTarget(),
+      finalText: delivery.getAccumulatedTranscriptText(),
+      success: true,
+    });
 
     const result = finishAttempt(queuedFinal);
     emitAuditTerminal();
@@ -823,6 +838,12 @@ export async function tryDispatchAcpReplyCore(
     // dispatch have no user turn to attach the error to.
     if (turnDispatched) {
       await persistTranscript(partialText ? `${partialText}\n\n${errorText}` : errorText);
+      runAcpTurnAgentEndHook({
+        ...acpTurnHookTarget(),
+        finalText: partialText,
+        success: false,
+        error: acpError.message,
+      });
     }
     queuedFinal = queuedFinal || delivered;
     return finishAttempt(queuedFinal, acpError);
