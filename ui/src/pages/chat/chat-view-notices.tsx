@@ -7,6 +7,7 @@ import type { GuestWelcomeHandle } from "../../app/guest-welcome-handle.ts";
 import type { ApplicationPlacementStartupStatus } from "../../app/session-placement-startup.ts";
 import type { ChatProviderReviewOwner } from "./chat-provider-review-controller.tsx";
 import { renderGuestWelcomeStatus } from "./components/chat-guest-welcome-status.tsx";
+import { ChatGroupStrip } from "./components/chat-group-view.tsx";
 import { ChatHandoffChip } from "./components/chat-handoff-view.tsx";
 import { ChatLazyBoundary } from "./components/chat-lazy-boundary.tsx";
 import type { ChatRunError } from "./run-lifecycle.ts";
@@ -78,6 +79,7 @@ export function renderChatComposerNotices(props: ChatComposerNoticesProps) {
   return (
     <>
       <ChatHandoffChip sessionKey={props.sessionKey} />
+      <ChatGroupStrip sessionKey={props.sessionKey} />
       <Show when={props.readProviderReview?.()}>
         {(owner) => (
           <Loading>

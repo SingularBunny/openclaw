@@ -7,6 +7,7 @@ import type { RefusalSignal } from "../../../../../src/shared/refusal-signal.js"
 import { Icon } from "../../../components/solid/icon.tsx";
 import { registerModelControlsEnglish } from "../../../i18n/locales/en-model-controls.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
+import { readChatGroupController } from "../chat-group-registry.ts";
 import {
   isRefusalHandedOff,
   readChatHandoffController,
@@ -14,6 +15,7 @@ import {
   type ChatHandoffController,
   type ChatHandoffTarget,
 } from "../chat-handoff-registry.ts";
+import { ChatGroupTargetLists } from "./chat-group-view.tsx";
 
 registerEnglishCatalog(registerModelControlsEnglish);
 
@@ -116,12 +118,25 @@ function HandoffMenu(props: {
   summary: JSX.Element;
 }) {
   const [open, setOpen] = createSignal(false);
+  // Fork: the same menu adds a participant to the chat instead ("Add to group chat").
+  const [mode, setMode] = createSignal<"handoff" | "group">("handoff");
+  const group = createMemo(() => {
+    const controller = readChatGroupController(props.controller.sessionKey);
+    const targets = controller?.targets;
+    return targets && targets.agents.length + targets.acpAgents.length + targets.models.length
+      ? controller
+      : undefined;
+  });
   let details: HTMLDetailsElement | undefined;
-  const pick = (target: ChatHandoffTarget) => {
+  const close = () => {
     setOpen(false);
+    setMode("handoff");
     if (details) {
       details.open = false;
     }
+  };
+  const pick = (target: ChatHandoffTarget) => {
+    close();
     void props.controller.handOff(target.answerer, {
       resendBefore: props.messageKey,
       ...(props.refusal ? { refusal: props.refusal } : {}),
@@ -151,23 +166,50 @@ function HandoffMenu(props: {
       </summary>
       <Show when={open()}>
         <div class="chat-handoff-menu__popover" role="menu">
-          <Show when={props.controller.longContext}>
-            <p class="chat-handoff-menu__warning" data-chat-handoff-long-context>
-              {t("chat.handoff.longContext")}
-            </p>
+          <Show when={group()}>
+            <div class="chat-handoff-menu__modes" role="group">
+              <button
+                type="button"
+                class={["btn btn--sm", { "btn--ghost": mode() !== "handoff" }]}
+                aria-pressed={mode() === "handoff" ? "true" : "false"}
+                data-chat-handoff-mode="handoff"
+                onClick={() => setMode("handoff")}
+              >
+                {t("chat.group.handOffMode")}
+              </button>
+              <button
+                type="button"
+                class={["btn btn--sm", { "btn--ghost": mode() !== "group" }]}
+                aria-pressed={mode() === "group" ? "true" : "false"}
+                data-chat-handoff-mode="group"
+                onClick={() => setMode("group")}
+              >
+                {t("chat.group.add")}
+              </button>
+            </div>
           </Show>
-          <HandoffTargetList
-            label={t("chat.handoff.agents")}
-            targets={props.controller.agents}
-            controller={props.controller}
-            onPick={pick}
-          />
-          <HandoffTargetList
-            label={t("chat.handoff.models")}
-            targets={props.controller.models}
-            controller={props.controller}
-            onPick={pick}
-          />
+          <Show when={mode() === "group" && group()}>
+            {(controller) => <ChatGroupTargetLists controller={controller()} onPicked={close} />}
+          </Show>
+          <Show when={mode() === "handoff" || !group()}>
+            <Show when={props.controller.longContext}>
+              <p class="chat-handoff-menu__warning" data-chat-handoff-long-context>
+                {t("chat.handoff.longContext")}
+              </p>
+            </Show>
+            <HandoffTargetList
+              label={t("chat.handoff.agents")}
+              targets={props.controller.agents}
+              controller={props.controller}
+              onPick={pick}
+            />
+            <HandoffTargetList
+              label={t("chat.handoff.models")}
+              targets={props.controller.models}
+              controller={props.controller}
+              onPick={pick}
+            />
+          </Show>
         </div>
       </Show>
     </details>

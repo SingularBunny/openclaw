@@ -19,6 +19,8 @@ import { buildChatClaudeModePicker } from "./chat-claude-mode-controls.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
 import { getAcceptedChatHistorySession, isChatSessionProvenAbsent } from "./chat-history-state.ts";
+import { publishChatGroupController } from "./chat-group-registry.ts";
+import { createChatGroupController } from "./chat-group.ts";
 import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
 import {
   CHAT_HANDOFF_AGENT_GROUP_ID,
@@ -284,6 +286,8 @@ export function renderChatPaneComposerControls(params: {
   // Fork: model and agent switch buttons share one handoff controller per chat.
   const handoff = createChatHandoffController(state, { models: listChatHandoffModels(state) });
   publishChatHandoffController(handoff);
+  // Fork: group chat members ("Add to group chat", "Ask <name>") share the handoff's model list.
+  publishChatGroupController(createChatGroupController(state, { models: handoff.models }));
   const boundAgent = handoff.info?.binding ? handoff.current : undefined;
   // Fork: while an ACP agent is bound, the picker lists that agent's models (`/acp model` by button).
   if (handoff.info?.binding && canUseChatAcpModels(state)) {
