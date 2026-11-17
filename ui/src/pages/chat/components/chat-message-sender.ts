@@ -4,6 +4,7 @@ import { t } from "../../../i18n/index.ts";
 import type { MessageGroup } from "../../../lib/chat/chat-types.ts";
 import { messageClientSourcesLabel } from "../../../lib/chat/message-client-source.ts";
 import { normalizeRoleForGrouping } from "../../../lib/chat/message-normalizer.ts";
+import { resolveReplyIdentity } from "../chat-reply-identity.ts";
 import { workspaceResultConflictFromTranscript } from "../workspace-conflict.ts";
 
 export function isOwnSenderGroup(
@@ -28,6 +29,7 @@ export function isSourceOnlyUserGroup(
 export function resolveMessageGroupSenderLabel(
   group: Pick<MessageGroup, "role" | "sender" | "senderLabel" | "sourceClients"> & {
     messages: ReadonlyArray<{ message: unknown }>;
+    senderSession?: MessageGroup["senderSession"];
   },
   opts: { assistantName?: string; userId?: string | null; userName?: string | null },
 ): string {
@@ -63,7 +65,11 @@ export function resolveMessageGroupSenderLabel(
       ? resolvedUserName
       : (userLabel ?? t("chat.messages.unattributedSender"))
     : normalizedRole === "assistant"
-      ? (userLabel ?? opts.assistantName ?? "Assistant")
+      ? (userLabel ??
+        // Fork: a reply names the model or ACP agent that wrote it; forwarded rows keep theirs.
+        (group.senderSession ? undefined : resolveReplyIdentity(group.messages)?.name) ??
+        opts.assistantName ??
+        "Assistant")
       : normalizedRole === "tool"
         ? t("chat.messages.toolSender")
         : normalizedRole;

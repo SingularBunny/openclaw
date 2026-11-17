@@ -13,6 +13,7 @@ import {
   assistantMessageCanOwnTurnActions,
   resolveAssistantReplyPhase,
 } from "../chat-assistant-reply.ts";
+import { resolveReplyIdentity } from "../chat-reply-identity.ts";
 import { readPendingSendStatus } from "../chat-thread.ts";
 import { hasForwardedSource } from "../chat-turn-boundary.ts";
 import { workspaceResultConflictFromTranscript } from "../workspace-conflict.ts";
@@ -128,11 +129,16 @@ export function prepareMessageGroupFrame(
   const sourceOnly = isSourceOnlyUserGroup(group);
   const showAvatar =
     normalizedRole !== "user" || Boolean(group.sender || group.senderLabel?.trim());
-  const assistantName = opts.assistantName ?? "Assistant";
+  const forwardedSource = hasForwardedSource(group);
+  // Fork: the model or ACP agent that wrote this reply; an ACP agent shows its own avatar.
+  const authorIdentity =
+    normalizedRole === "assistant" && !forwardedSource
+      ? resolveReplyIdentity(group.messages)
+      : undefined;
+  const assistantName = authorIdentity?.name ?? opts.assistantName ?? "Assistant";
   const isOwnGroup = isOwnSenderGroup(group, opts.userId);
   const isPeerGroup =
     normalizedRole === "user" && Boolean(opts.userId && group.sender) && !isOwnGroup;
-  const forwardedSource = hasForwardedSource(group);
   const isForwarded = normalizedRole === "assistant" && forwardedSource;
   const replyLine = opts.frameContent
     ? (opts.frameReplyLine ?? NO_REPLY_LINE)
@@ -145,7 +151,11 @@ export function prepareMessageGroupFrame(
     (normalizedRole === "assistant"
       ? {
           type: "agent" as const,
-          id: group.senderSession?.agentId ?? opts.agentId ?? DEFAULT_AGENT_ID,
+          id:
+            (authorIdentity?.kind === "agent" ? authorIdentity.avatarId : undefined) ??
+            group.senderSession?.agentId ??
+            opts.agentId ??
+            DEFAULT_AGENT_ID,
         }
       : undefined);
   const replyIdentity = replyLine.sender?.identity;
@@ -220,6 +230,7 @@ export function prepareMessageGroupFrame(
     normalizedRole,
     showAvatar,
     assistantName,
+    authorIdentity,
     isOwnGroup,
     isPeerGroup,
     forwardedSource,

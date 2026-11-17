@@ -199,6 +199,24 @@ export function MessageGroupContent(props: {
   );
 }
 
+/** Fork: an ACP agent's reply shows that agent's avatar; other replies keep the chat agent's. */
+function groupAssistantAvatar(frame: MessageGroupFrame) {
+  const author = frame.authorIdentity;
+  return author?.kind === "agent"
+    ? {
+        agentId: author.avatarId,
+        name: author.name,
+        avatar: author.avatar,
+        textAvatar: author.textAvatar,
+      }
+    : {
+        agentId: frame.options.agentId,
+        name: frame.assistantName,
+        avatar: frame.options.assistantAvatar ?? null,
+        textAvatar: frame.options.assistantTextAvatar,
+      };
+}
+
 function GroupAvatar(props: { frame: MessageGroupFrame }) {
   const frame = () => props.frame;
   const options = () => frame().options;
@@ -210,12 +228,7 @@ function GroupAvatar(props: { frame: MessageGroupFrame }) {
             ? renderForwardedAvatar(frame().group.senderSession?.agentId, options())
             : renderChatAvatar(
                 frame().group.role,
-                {
-                  agentId: options().agentId,
-                  name: frame().assistantName,
-                  avatar: options().assistantAvatar ?? null,
-                  textAvatar: options().assistantTextAvatar,
-                },
+                groupAssistantAvatar(frame()),
                 frame().isOwnGroup
                   ? {
                       name: options().userName ?? null,
@@ -481,7 +494,12 @@ function FramedMessageGroup(props: {
               <SenderIdentity frame={frame()} />
               <ChatSendStatus status={frame().sendStatus} actions={options()} />
               <MessageMeta timestamp={props.group.timestamp} meta={frame().meta} />
-              <Show when={frame().normalizedRole === "assistant"}>
+              <Show
+                when={
+                  frame().normalizedRole === "assistant" &&
+                  !(frame().showSenderName && frame().authorIdentity)
+                }
+              >
                 <ReplyAuthorBadge meta={frame().meta} />
               </Show>
             </div>

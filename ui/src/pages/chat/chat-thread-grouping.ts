@@ -16,6 +16,7 @@ import {
   assistantMessageIsInterrupted,
   resolveAssistantReplyPhase,
 } from "./chat-assistant-reply.ts";
+import { replyAuthorKey } from "./chat-reply-identity.ts";
 import { prepareMessagesForGrouping } from "./chat-thread-duplicates.ts";
 import { userTurnRunId } from "./chat-thread-items.ts";
 import { transcriptRunId } from "./chat-thread-run-identity.ts";
@@ -273,6 +274,13 @@ function groupChatItems(
       item.startsTurn === true ||
       rowsAfterHiddenTurn?.has(item.key) === true ||
       asRecord(asRecord(item.message)?.["__openclaw"])?.turnBoundary === true;
+    // Fork: replies by two models or ACP agents never share one author's group.
+    const authorKey = role === "assistant" ? replyAuthorKey(item.message) : null;
+    const groupAuthorKey =
+      authorKey && currentGroup?.role === "assistant"
+        ? currentGroup.messages.map((entry) => replyAuthorKey(entry.message)).find(Boolean)
+        : undefined;
+    const splitsAuthor = Boolean(groupAuthorKey && groupAuthorKey !== authorKey);
     const splitsAssistantKind =
       role === "assistant" &&
       currentGroup?.role === "assistant" &&
@@ -294,6 +302,7 @@ function groupChatItems(
       currentUserTurnIdentity !== userTurnIdentity ||
       (role === "assistant" && currentReplyTargetKey !== replyTargetKey) ||
       splitsAssistantKind ||
+      splitsAuthor ||
       messageClientSourcesKey(currentGroup.sourceClients ?? []) !==
         messageClientSourcesKey(normalized.sourceClients ?? []) ||
       (shouldSplitBySender &&
