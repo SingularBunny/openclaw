@@ -43,13 +43,16 @@ import {
   isSameOriginGateway,
 } from "./gateway-control-ui-reload.ts";
 import {
+  readGatewayMaintenance,
+  readGatewayMaintenanceEvent,
+} from "./gateway-maintenance-notice.ts";
+import {
   createGatewayEventLog,
   createGatewayMetadataObserver,
   createGatewayEventObserver,
   notifyGatewayObservers,
 } from "./gateway-observers.ts";
 import { readSuspensionPhase } from "./gateway-readiness.ts";
-import { readGatewayMaintenance, readGatewayMaintenanceEvent } from "./gateway-maintenance-notice.ts";
 import { readGatewayRestartNotice } from "./gateway-restart-notice.ts";
 import { createAvailabilityIndicators } from "./gateway-store.availability.ts";
 import { createGatewayCredentials } from "./gateway-store.credentials.ts";

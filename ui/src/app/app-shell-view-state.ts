@@ -1,4 +1,3 @@
-import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { untrack } from "solid-js";
 import { isSettingsNavigationRoute, isSettingsTakeover } from "../app-navigation.ts";
 import { isSessionRouteId } from "../app-route-paths.ts";
@@ -20,6 +19,7 @@ import type { ShellViewCallbacks } from "./app-shell-view-callbacks.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import { canGoBackInNativeEmbed } from "./browser.ts";
 import type { ApplicationNavigationOptions } from "./context.ts";
+import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { gatewayPresentationScope } from "./gateway-presentation-scope.ts";
 import {
   APP_SIDEBAR_ELEMENT,

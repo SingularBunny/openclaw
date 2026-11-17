@@ -1,8 +1,8 @@
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import type { GatewayMaintenance } from "../../../packages/gateway-protocol/src/index.js";
 import { registerGatewayMaintenanceEnglish } from "../i18n/locales/en-gateway-maintenance.ts";
-import type { ApplicationGatewaySnapshot } from "./gateway.ts";
 import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
+import type { ApplicationGatewaySnapshot } from "./gateway.ts";
 export { isGatewayMaintenanceRefusal } from "../lib/gateway-maintenance-control.ts";
 
 registerGatewayMaintenanceEnglish();
@@ -65,7 +65,6 @@ export function resolveGatewayMaintenanceBanner(
         : null,
   };
 }
-
 
 /**
  * The identity-menu control (Pause chats / Resume chats) for an admin on a connected Gateway;

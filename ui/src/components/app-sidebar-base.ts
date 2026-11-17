@@ -1,4 +1,3 @@
-import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import type { ReactiveController } from "lit";
 import { DEFAULT_SIDEBAR_ENTRIES, type NavigationRouteId } from "../app-navigation.ts";
 import type { ApplicationRouter } from "../app-routes.ts";
@@ -8,6 +7,7 @@ import type { CatalogOpenTarget } from "../app/settings.ts";
 import type { ThemeMode } from "../app/theme.ts";
 import type { UpdateProgress } from "../app/update-confirmation.ts";
 import type { SidebarOutboxSummary } from "../lib/chat/outbox-store-projection.ts";
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import type { GatewayStatus } from "../lib/gateway-status.ts";
 import {
   readSessionMethodAccess,

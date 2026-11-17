@@ -1,4 +1,3 @@
-import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import { GatewayProtocolRequestTimeoutError } from "@openclaw/gateway-client/browser";
 import type { ChatWorkContext } from "../../../../packages/gateway-protocol/src/chat-work-context.js";
 import { GatewayPayloadLimitError, GatewayRequestError } from "../../api/gateway.ts";
@@ -17,6 +16,7 @@ import {
   captureChatOutboxAdmission,
   storedChatOutboxScopeKey,
 } from "../../lib/chat/outbox-store.ts";
+import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import { visibleSessionMatches } from "../../lib/sessions/index.ts";
 import { resolveUiConversationIdentity } from "../../lib/sessions/session-key.ts";
 import { generateUUID } from "../../lib/uuid.ts";
