@@ -5,7 +5,7 @@
 // without one gets the generated agent face for its own id, so two agents never look alike.
 import { createSignal } from "solid-js";
 import { formatAgentLabel, type ChatAnswerer } from "./chat-handoff-registry.ts";
-import { messageAuthor } from "./chat-reply-authors.ts";
+import { messageAuthor, messageParticipant } from "./chat-reply-authors.ts";
 
 export type AcpAgentIdentity = { name?: string; emoji?: string; avatar?: string };
 
@@ -89,11 +89,37 @@ export function resolveAnswererIdentity(answerer: ChatAnswerer): ReplyIdentity {
   };
 }
 
+/**
+ * Fork: a group chat member's reply. An OpenClaw agent shows its own avatar and name, a model the
+ * name it was added under; an ACP agent keeps its configured identity.
+ */
+function participantIdentity(message: unknown): ReplyIdentity | undefined {
+  const participant = messageParticipant(message);
+  if (!participant || participant.kind === "acp") {
+    return undefined;
+  }
+  if (participant.kind === "agent") {
+    return {
+      kind: "agent",
+      agent: participant.id,
+      avatarId: participant.id,
+      name: participant.name,
+      avatar: null,
+      textAvatar: null,
+    };
+  }
+  return { kind: "model", model: participant.id, name: participant.name };
+}
+
 /** The identity of the first message in `messages` that names its author. */
 export function resolveReplyIdentity(
   messages: ReadonlyArray<{ message: unknown }>,
 ): ReplyIdentity | undefined {
   for (const { message } of messages) {
+    const member = participantIdentity(message);
+    if (member) {
+      return member;
+    }
     const author = messageAuthor(message);
     if (author) {
       return resolveAnswererIdentity(author);
@@ -104,6 +130,10 @@ export function resolveReplyIdentity(
 
 /** The ACP agent that wrote `message`, for splitting assistant groups by author. */
 export function replyAuthorKey(message: unknown): string | null {
+  const participant = messageParticipant(message);
+  if (participant) {
+    return `participant:${participant.key}`;
+  }
   const author = messageAuthor(message);
   return author ? JSON.stringify(author) : null;
 }

@@ -48,12 +48,42 @@ export function messageAuthor(
   };
 }
 
-/** The answerer of a stored assistant message that is a real reply, else undefined. */
+/** Fork: a group chat member (aiwb-groups) that wrote a reply, from `__openclaw.participant`. */
+export type ChatParticipant = {
+  kind: "agent" | "acp" | "model";
+  id: string;
+  key: string;
+  name: string;
+};
+
+export function messageParticipant(message: unknown): ChatParticipant | undefined {
+  const record = asRecord(message);
+  const participant = asRecord(asRecord(record?.["__openclaw"])?.participant);
+  if (record?.role !== "assistant" || !participant) {
+    return undefined;
+  }
+  const { kind, id, key, name } = participant;
+  return (kind === "agent" || kind === "acp" || kind === "model") &&
+    typeof id === "string" &&
+    id &&
+    typeof name === "string" &&
+    name.trim()
+    ? { kind, id, key: typeof key === "string" && key ? key : `${kind}:${id}`, name: name.trim() }
+    : undefined;
+}
+
+/**
+ * The answerer of a stored assistant message that is a real reply, else undefined. A group chat
+ * member's reply is not the chat's answerer, so Hand off and Return never count it.
+ */
 export function replyAnswerer(
   message: unknown,
   catalog: readonly ModelCatalogEntry[] = [],
 ): ChatAnswerer | undefined {
   const record = asRecord(message);
+  if (messageParticipant(message)) {
+    return undefined;
+  }
   const stopReason = typeof record?.stopReason === "string" ? record.stopReason : "";
   if (FAILED_STOP_REASONS.has(stopReason) || record?.errorMessage) {
     return undefined;
