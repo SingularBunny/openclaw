@@ -15,6 +15,7 @@ const catalog = {
       downloadFailed: "Could not download this file: {error}. Try again.",
       searchInFile: "Search in file",
       showInFiles: "Show in Files",
+      openInFileManager: "Open folder in file manager",
       toggleTree: "Toggle file tree",
       unavailable: "Unable to open",
       outsideSessionBoundary: "This file is outside {session}'s workspace, and you can't open it.",

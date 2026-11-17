@@ -59,6 +59,8 @@ export type FileViewControls = {
   onPreviousMatch: () => void;
   onReload: () => void;
   onReveal?: (path: string) => void;
+  /** Fork: opens the file's folder in the Gateway host's file manager. */
+  onRevealInFileManager?: (path: string) => void;
   onSave: () => void;
   onSearchInput: (query: string) => void;
   onSearchKeydown: (event: KeyboardEvent) => void;
