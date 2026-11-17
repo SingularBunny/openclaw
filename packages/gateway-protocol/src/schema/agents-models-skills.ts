@@ -72,6 +72,8 @@ export const AgentSummarySchema = closedObject({
   ),
   workspace: Type.Optional(NonEmptyString),
   workspaceGit: Type.Optional(Type.Boolean()),
+  /** Fork: the folder the agent's runs start in (`agents.entries.<id>.cwd` or defaults), when set. */
+  cwd: Type.Optional(NonEmptyString),
   model: Type.Optional(
     closedObject({
       primary: Type.Optional(NonEmptyString),

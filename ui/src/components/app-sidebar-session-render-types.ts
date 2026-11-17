@@ -38,6 +38,10 @@ import type {
 } from "./app-sidebar-session-types.ts";
 import type { SessionDataController } from "./session-data-controller.ts";
 import type { SessionOrganizerController } from "./session-organizer-controller.ts";
+import type {
+  CatalogFolderMenuContext,
+  CatalogFolderNewChat,
+} from "./sidebar-catalog-folder-actions.ts";
 import type { SidebarMenusController } from "./sidebar-menus-controller.tsx";
 import type { AgentAvatarProps } from "./solid/agent-avatar.tsx";
 import type { ChannelAvatarProps } from "./solid/channel-avatar.tsx";
@@ -205,9 +209,15 @@ export type SessionCatalogGroupsParams = {
     catalogId: string,
     folderId: string,
     label: string,
+    context: CatalogFolderMenuContext,
     trigger: HTMLElement,
     position: { x: number; y: number },
   ) => void;
+  /** Fork: where the folder's + button opens a new chat; null hides the button. */
+  resolveFolderNewChat?: (
+    context: CatalogFolderMenuContext,
+    label: string,
+  ) => CatalogFolderNewChat | null;
   onLoadMore: (catalogId: string) => void;
   onSetVisibleSessionLimit: (sectionId: string, limit: number) => void;
   onOpenNewSession?: (agentId: string, target?: NewSessionTarget) => void;

@@ -35,6 +35,7 @@ export type GatewayAgentRow = Pick<
   | "identity"
   | "workspace"
   | "workspaceGit"
+  | "cwd"
   | "model"
   | "utilityModel"
   | "agentRuntime"

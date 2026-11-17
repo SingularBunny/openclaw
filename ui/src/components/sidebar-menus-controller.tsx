@@ -27,6 +27,7 @@ import type {
 import { fetchSessionMenuWork } from "./session-menu-work.ts";
 import type { SessionMenuWork } from "./session-menu.ts";
 import { SESSION_MENU_OPEN_EVENT } from "./session-progress-hovercard-target.ts";
+import type { CatalogFolderMenuContext } from "./sidebar-catalog-folder-actions.ts";
 import type { SidebarMenusControllerHost } from "./sidebar-menus-controller-types.ts";
 import { Icon } from "./solid/icon.tsx";
 
@@ -38,7 +39,11 @@ type AgentMenuInteractionState = "closed" | "hover-pending" | "open-hover" | "op
 
 type MenuPosition = { x: number; y: number };
 type CatalogMenuPosition = MenuPosition & { catalogId: string };
-type CatalogFolderMenuPosition = CatalogMenuPosition & { folderId: string; label: string };
+type CatalogFolderMenuPosition = CatalogMenuPosition & {
+  folderId: string;
+  label: string;
+  context: CatalogFolderMenuContext;
+};
 type PositionedMenu =
   | "railPin"
   | "pluginNavigation"
@@ -389,6 +394,7 @@ export class SidebarMenusController {
     catalogId: string,
     folderId: string,
     label: string,
+    context: CatalogFolderMenuContext,
     x: number,
     y: number,
     trigger: HTMLElement | null = null,
@@ -400,7 +406,8 @@ export class SidebarMenusController {
       catalogId,
       folderId,
       label,
-      ...menuPosition(x, y, 200, 48),
+      context,
+      ...menuPosition(x, y, 240, 240),
     });
   }
 

@@ -38,6 +38,7 @@ import { renderSessionSection as SessionSection } from "./app-sidebar-session-se
 import type { SidebarRecentSession } from "./app-sidebar-session-types.ts";
 import { SIDEBAR_SESSION_PAGE_SIZE } from "./app-sidebar-session-types.ts";
 import { areSessionCatalogsSettled } from "./session-data-controller-catalog.ts";
+import { resolveCatalogFolderTargets } from "./sidebar-catalog-folder-actions.ts";
 
 registerEnglishCatalog(registerSessionOrganizationEnglish);
 type SessionCatalogRenderSnapshot = {
@@ -206,11 +207,12 @@ function renderSessionCatalog(params: {
         }
         host().sidebarMenus.toggleCatalogViewMenu(catalogId, trigger);
       }}
-      onOpenFolderMenu={(catalogId, folderId, label, trigger, position) =>
+      onOpenFolderMenu={(catalogId, folderId, label, context, trigger, position) =>
         host().sidebarMenus.openCatalogFolderMenu(
           catalogId,
           folderId,
           label,
+          context,
           position.x,
           position.y,
           trigger,
@@ -221,6 +223,9 @@ function renderSessionCatalog(params: {
         host().setVisibleSessionLimit(sectionId, limit)
       }
       onOpenNewSession={(agentId, target) => host().requestOpenNewSession(agentId, target)}
+      resolveFolderNewChat={(context, label) =>
+        resolveCatalogFolderTargets(host().sessionDataContext, context, label).newChat
+      }
       newSessionDisabledReason={(() => {
         const access = newSessionAccess();
         return access.allowed ? undefined : access.reason;

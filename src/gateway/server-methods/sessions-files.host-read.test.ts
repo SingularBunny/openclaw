@@ -5,6 +5,7 @@ import { useAutoCleanupTempDirTracker } from "../../../test/helpers/temp-dir.js"
 import type { withSessionTranscriptDeltaReader } from "../../config/sessions/session-transcript-delta-read.js";
 import type { InternalSessionEntry } from "../../config/sessions/types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
+import { resolveOpenPathCommand } from "./open-path.js";
 import { sessionsFilesHandlers } from "./sessions-files.js";
 import {
   assistantToolCall,
@@ -32,6 +33,11 @@ vi.mock("../../agents/agent-scope.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("../../agents/agent-scope.js")>()),
   resolveAgentWorkspaceDir: hoisted.resolveAgentWorkspaceDir,
   resolveDefaultAgentId: hoisted.resolveDefaultAgentId,
+}));
+
+vi.mock("./open-path.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./open-path.js")>()),
+  execOpenPath: hoisted.execOpenPath,
 }));
 
 vi.mock("../session-utils.js", async (original) => ({
@@ -442,5 +448,66 @@ describe("sessions.files.list browse roots", () => {
       await invoke("sessions.files.list", { sessionKey }, fixture.context, fixture.options),
     );
     expect(list).not.toHaveProperty("roots");
+  });
+});
+
+// Fork (F34): reveal opens a browse root only when listing would browse it.
+describe("sessions.files.reveal browse roots", () => {
+  const prepareRunCwd = (entry: Partial<InternalSessionEntry> = { permissionMode: "full" }) => {
+    const runCwd = fs.realpathSync(outsideDirs.make("session-files-reveal-cwd-"));
+    fs.mkdirSync(path.join(runCwd, "notes"));
+    const cfg = { agents: { list: [{ id: "main", cwd: runCwd }] } } as OpenClawConfig;
+    return { runCwd, fixture: prepareHostFileRead(entry, cfg) };
+  };
+  const reveal = (
+    params: Record<string, unknown>,
+    fixture: ReturnType<typeof prepareRunCwd>["fixture"],
+  ) =>
+    invoke(
+      "sessions.files.reveal",
+      { key: sessionKey, ...params },
+      { ...fixture.context, logGateway: { warn: vi.fn() } } as unknown as typeof fixture.context,
+      fixture.options,
+    );
+
+  it("opens the agent run cwd and a folder inside it", async () => {
+    const { runCwd, fixture } = prepareRunCwd();
+    expect(expectOkPayload(await reveal({ root: runCwd }, fixture))).toEqual({
+      ok: true,
+      path: runCwd,
+    });
+    expect(hoisted.execOpenPath).toHaveBeenLastCalledWith(resolveOpenPathCommand(runCwd));
+    expect(expectOkPayload(await reveal({ root: runCwd, path: "notes" }, fixture))).toEqual({
+      ok: true,
+      path: path.join(runCwd, "notes"),
+    });
+  });
+
+  it("treats the workspace itself as the default root", async () => {
+    const { fixture } = prepareRunCwd();
+    expect(expectOkPayload(await reveal({ root: workspaceRoot }, fixture))).toEqual({
+      ok: true,
+      path: workspaceRoot,
+    });
+  });
+
+  it("refuses other folders, escapes from the root, and sessions without host reads", async () => {
+    hoisted.execOpenPath.mockClear();
+    const { runCwd, fixture } = prepareRunCwd();
+    const other = fs.realpathSync(outsideDirs.make("session-files-reveal-other-"));
+    for (const params of [
+      { root: other },
+      { root: path.join(runCwd, "notes") },
+      { root: "notes" },
+      { root: runCwd, path: "../" },
+      { root: runCwd, path: other },
+    ]) {
+      expect(expectOkPayload(await reveal(params, fixture))).toMatchObject({ ok: false });
+    }
+    const contained = prepareRunCwd({ permissionMode: "read-only" });
+    expect(
+      expectOkPayload(await reveal({ root: contained.runCwd }, contained.fixture)),
+    ).toMatchObject({ ok: false, error: expect.stringContaining("outside its workspace") });
+    expect(hoisted.execOpenPath).not.toHaveBeenCalled();
   });
 });

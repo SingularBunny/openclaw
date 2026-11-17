@@ -1,0 +1,71 @@
+/* Fork: catalog folder header actions (+ new chat, ⋯ folder menu). Hidden until the row is
+   hovered or keyboard-focused, like the session-group kebab; always shown on touch. */
+.sidebar-session-catalog-project__row {
+  position: relative;
+}
+
+.sidebar-session-catalog-project__actions {
+  position: absolute;
+  top: 1px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: var(--radius-sm);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--duration-fast) ease;
+}
+
+.sidebar-session-catalog-project__row:where(:hover, :has(:focus-visible))
+  .sidebar-session-catalog-project__actions {
+  background: color-mix(in srgb, var(--bg-hover) 78%, var(--bg));
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.sidebar-session-catalog-project__row:where(:hover, :has(:focus-visible))
+  .sidebar-session-catalog-project__count {
+  visibility: hidden;
+}
+
+.sidebar-session-catalog-project__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--muted);
+  cursor: var(--cursor-action);
+}
+
+.sidebar-session-catalog-project__action:is(:hover, :focus-visible) {
+  background: color-mix(in srgb, var(--bg-hover) 78%, transparent);
+  color: var(--text);
+}
+
+.sidebar-session-catalog-project__action[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.sidebar-session-catalog-project__action svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 1.8px;
+}
+
+@media (hover: none), (pointer: coarse) {
+  .sidebar-session-catalog-project__actions {
+    opacity: 0.75;
+    pointer-events: auto;
+  }
+
+  .sidebar-session-catalog-project__count {
+    visibility: hidden;
+  }
+}
