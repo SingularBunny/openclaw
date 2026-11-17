@@ -41,6 +41,11 @@ vi.mock("./isolated-agent/run-delivery-trace.js", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./isolated-agent/run-delivery-trace.js")>()),
   resolveCronDeliveryContext: fixture.delivery,
 }));
+// mock-isolation: Unread bookkeeping writes session storage; its contract has its own tests.
+vi.mock("./session-run-unread-mark.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./session-run-unread-mark.js")>()),
+  markAutomationRunUnread: vi.fn(async () => {}),
+}));
 // mock-isolation: The restoration boundary supplies an independently revocable source lease.
 vi.mock("../gateway/cron-operator-source.js", () => ({
   restoreCronOperatorSource: fixture.restore,

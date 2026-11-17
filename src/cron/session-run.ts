@@ -16,6 +16,10 @@ import {
 } from "./isolated-agent/run-delivery-trace.js";
 import { buildCronCommandBody } from "./run-prompt.js";
 import type { CronServiceDeps } from "./service/state.js";
+import {
+  markAutomationRunUnread,
+  shouldMarkAutomationRunUnread,
+} from "./session-run-unread-mark.js";
 import type { CronResolvedDeliveryState } from "./types.js";
 
 type SessionRun = NonNullable<CronServiceDeps["runSessionEvent"]>;
@@ -158,6 +162,20 @@ export async function runCronSessionTurn(
   });
   // The source lease and Cron receipt remain live until the admitted turn settles.
   const result = await receipt.settled;
+  if (
+    shouldMarkAutomationRunUnread({
+      status: result.status,
+      executionStarted: result.executionStarted,
+      replyDisposition: result.automationResult?.replyDisposition,
+    })
+  ) {
+    await markAutomationRunUnread({
+      agentId: params.agentId,
+      sessionKey: expectedTarget.sessionKey ?? params.sessionKey,
+      storePath: expectedTarget.storePath,
+      sessionId: sessionId ?? (expectedTarget.sessionId || undefined),
+    });
+  }
   return {
     ...result.automationResult,
     status: result.status === "completed" ? "ok" : "error",
