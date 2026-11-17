@@ -94,3 +94,9 @@ export function createGatewayMaintenanceControl(
     },
   };
 }
+
+/** Short names for the Gateway store. */
+export {
+  readGatewayMaintenance as readMaintenance,
+  readGatewayMaintenanceEvent as readMaintenanceEvent,
+};
