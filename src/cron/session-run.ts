@@ -28,6 +28,10 @@ import { isCronScratchEffectivelyEmpty } from "./scratch-contract.js";
 import { readCronScratchSnapshot } from "./scratch-read.js";
 import type { CronServiceDeps } from "./service/state.js";
 import { resolveCronDeliverySessionKey } from "./session-target.js";
+import {
+  markAutomationRunUnread,
+  shouldMarkAutomationRunUnread,
+} from "./session-run-unread-mark.js";
 import { resolveCronJobsStorePathFromConfigAsync } from "./store.js";
 import type { CronResolvedDeliveryState } from "./types.js";
 
@@ -341,6 +345,21 @@ export async function runCronSessionTurn(
     const delivered = result.deliveryAmbiguous
       ? undefined
       : result.delivered || conversationDelivered;
+    // Fork: a silent or failed automation run keeps the chat row unread for the owner.
+    if (
+      shouldMarkAutomationRunUnread({
+        status: result.status,
+        executionStarted: result.executionStarted,
+        replyDisposition: result.automationResult?.replyDisposition,
+      })
+    ) {
+      await markAutomationRunUnread({
+        agentId: params.agentId,
+        sessionKey: expectedTarget.sessionKey ?? params.sessionKey,
+        storePath: expectedTarget.storePath,
+        sessionId: sessionId ?? (expectedTarget.sessionId || undefined),
+      });
+    }
     return {
       ...result.automationResult,
       status: result.admissionDeferred ? "skipped" : result.status === "completed" ? "ok" : "error",

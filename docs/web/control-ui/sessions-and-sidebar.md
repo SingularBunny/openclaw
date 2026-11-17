@@ -586,6 +586,7 @@ The menu works for any model: it uses only the new-chat draft, existing Gateway 
 **Mark as unread** creates a reminder that remains unread while the current chat stays open, including while a run streams or completes. Leave and reopen the session, or choose **Mark as read**, to clear it.
 
 New activity arriving during a pending read is acknowledged after that read succeeds. Automatic reads wait until the chat is visible and its history is ready, including after reconnecting or returning to a hidden tab.
+An automation turn that runs in a chat and finishes without a visible reply (or fails) leaves the same reminder, so the row stays unread even if that chat was open; reopen it or choose **Mark as read** to clear it.
 
 Opening a session as a viewer leaves its unread marker intact, including shared sessions. Draft sessions acknowledge reads automatically only for their owner or an administrator. If the Gateway rejects an automatic read acknowledgement because of invalid session state or missing access, the UI reports the error once for that unread episode and waits for a new episode or for you to reopen the session. Temporary failures can retry on a later session update. Manual unread reminders still remain until you reopen the session or choose **Mark as read**.
 
