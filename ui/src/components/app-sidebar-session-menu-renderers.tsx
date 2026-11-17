@@ -14,6 +14,7 @@ import {
   SIDEBAR_SESSION_SORT_OPTIONS,
   SIDEBAR_SESSION_STATUS_OPTIONS,
 } from "./app-sidebar-session-types.ts";
+import { renderSidebarCatalogFolderMenu } from "./sidebar-catalog-folder-menu.tsx";
 import type { SidebarFilterMenuView, SidebarMenusController } from "./sidebar-menus-controller.tsx";
 import { SidebarSessionFilterPopover } from "./sidebar-session-filter-popover.tsx";
 import { Icon } from "./solid/icon.tsx";
@@ -267,32 +268,7 @@ export function renderSidebarCatalogViewMenuForController(
 export function renderSidebarCatalogFolderMenuForController(
   controller: SidebarMenusController,
 ): JSX.Element {
-  const { host } = controller;
-  const position = controller.catalogFolderMenuPosition;
-  if (!position) {
-    return undefined;
-  }
-  return (
-    <SidebarDropdown
-      position={position}
-      class="sidebar-session-sort-menu sidebar-catalog-folder-menu"
-      label={t("chat.sidebar.catalogFolderMenu", { folder: position.label })}
-      onSelect={(value) => {
-        if (value === "hide-catalog-folder" && controller.catalogFolderMenuPosition === position) {
-          controller.closePositionedMenu("catalogFolder");
-          host.hideSessionCatalogFolder(position.catalogId, position.folderId, position.label);
-        }
-      }}
-      {...controller.positionedMenuHandlers("catalogFolder")}
-      items={[
-        {
-          id: "hide-catalog-folder",
-          label: t("chat.sidebar.hideFromSidebar"),
-          class: "sidebar-session-sort-menu__item",
-        },
-      ]}
-    />
-  );
+  return renderSidebarCatalogFolderMenu(controller);
 }
 
 export function renderSidebarSessionSortMenuForController(

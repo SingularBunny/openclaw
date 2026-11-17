@@ -25,6 +25,7 @@ import {
   type CatalogReorderDragPayload,
 } from "../lib/sessions/drag.ts";
 import { renderHoverMarquee } from "../lib/solid/hover-marquee.tsx";
+import { renderCatalogFolderHead as CatalogFolderHead } from "./app-sidebar-catalog-folder-head.tsx";
 import {
   catalogFolderMoveDragOver,
   catalogFolderMoveDrop,
@@ -474,33 +475,13 @@ function renderCatalogHostGroup(
                     }
                   }}
                 >
-                  <button
-                    type="button"
-                    class="sidebar-session-catalog-project__head"
-                    data-session-catalog-project={group().key}
-                    aria-expanded={collapsed() ? "false" : "true"}
-                    title={group().title}
-                    onClick={() => params.onToggleSection(collapsedSectionId() ?? sectionId)}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      params.onOpenFolderMenu(
-                        identity.catalogId,
-                        group().key,
-                        group().label,
-                        event.currentTarget,
-                        { x: event.clientX, y: event.clientY },
-                      );
-                    }}
-                  >
-                    <span class="sidebar-session-catalog-project__icon" aria-hidden="true">
-                      {collapsed() ? <Icon name="chevronRight" /> : <Icon name="chevronDown" />}
-                    </span>
-                    <span class="sidebar-session-catalog-project__label">{group().label}</span>
-                    <span class="sidebar-session-catalog-project__count" aria-hidden="true">
-                      {group().sessions.length}
-                    </span>
-                  </button>
+                  <CatalogFolderHead
+                    catalogId={identity.catalogId}
+                    group={group}
+                    collapsed={collapsed}
+                    onToggle={() => params.onToggleSection(collapsedSectionId() ?? sectionId)}
+                    params={params}
+                  />
                   {collapsed() ? undefined : (
                     <>
                       <div
