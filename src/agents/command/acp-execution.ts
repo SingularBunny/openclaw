@@ -23,6 +23,7 @@ import {
   buildAgentRunTerminalOutcomeFromLifecycleEvent,
   classifyAgentRunTerminalOutcome,
 } from "../agent-run-terminal-outcome.js";
+import { runAcpTurnAgentEndHook } from "../harness/acp-agent-end.js";
 import { prepareInternalSessionEffectsSession } from "../internal-session-effects.js";
 import { resolveCommandReplyExpectation, resolveReplyCompletion } from "../reply-completion.js";
 import type { AgentRunSessionTarget } from "../run-session-target.types.js";
@@ -102,6 +103,15 @@ export async function runAcpAgentCommand(params: {
   });
 
   const visibleTextAccumulator = attemptExecutionRuntime.createAcpVisibleTextAccumulator();
+  const acpTurnHookTarget = {
+    runId: params.runId,
+    agentId: params.sessionAgentId,
+    sessionKey: params.sessionKey,
+    sessionId: params.sessionId,
+    acpAgent: params.acpResolution.meta.agent,
+    promptText: params.transcriptBody,
+    startedAt,
+  };
   let stopReason: string | undefined;
   let resultStatus: "completed" | "cancelled" | undefined;
   let terminalOutcome: "blocked" | undefined;
@@ -245,6 +255,13 @@ export async function runAcpAgentCommand(params: {
       terminalReply: visibleTextAccumulator.finalizeReplySnapshot(),
       ...(terminalOutcome ? { terminalOutcome } : {}),
     });
+    // Fork: plugins hear that the ACP turn ended, as after an embedded or CLI turn.
+    runAcpTurnAgentEndHook({
+      ...acpTurnHookTarget,
+      finalText: visibleTextAccumulator.finalize(),
+      success: false,
+      error: acpError.message,
+    });
     throw acpError;
   }
 
@@ -365,6 +382,12 @@ export async function runAcpAgentCommand(params: {
     toolTracker: acpToolTracker,
     endFields,
     terminalReply,
+  });
+  runAcpTurnAgentEndHook({
+    ...acpTurnHookTarget,
+    finalText,
+    success: resultStatus !== "cancelled" && params.opts.abortSignal?.aborted !== true,
+    ...(resultStatus === "cancelled" ? { error: "cancelled" } : {}),
   });
 
   const result = attemptExecutionRuntime.buildAcpResult({

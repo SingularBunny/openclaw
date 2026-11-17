@@ -278,6 +278,8 @@ vi.mock("../../logging/diagnostic.js", () => ({
   markDiagnosticSessionProgress: diagnosticMocks.markDiagnosticSessionProgress,
 }));
 
+const agentEndMocks = vi.hoisted(() => ({ runAcpTurnAgentEndHook: vi.fn() }));
+vi.mock("../../agents/harness/acp-agent-end.js", () => agentEndMocks);
 vi.mock("./dispatch-acp-transcript.runtime.js", () => ({
   persistAcpDispatchTranscript: (params: unknown) =>
     transcriptMocks.persistAcpDispatchTranscript(params),
@@ -1037,6 +1039,27 @@ describe("tryDispatchAcpReplyCore", () => {
         terminalOutcome: { reason: "completed", status: "ok" },
       });
     });
+  });
+
+  it("fires agent_end when the bound ACP agent replied or failed (fork)", async () => {
+    agentEndMocks.runAcpTurnAgentEndHook.mockClear();
+    mockVisibleTextTurn("Looks good.");
+    await runDispatch({ bodyForAgent: "review it" });
+    expect(agentEndMocks.runAcpTurnAgentEndHook).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        sessionKey,
+        acpAgent: "codex",
+        promptText: "review it",
+        finalText: expect.stringContaining("Looks good."),
+        success: true,
+      }),
+    );
+    agentEndMocks.runAcpTurnAgentEndHook.mockClear();
+    managerMocks.runTurn.mockRejectedValueOnce(new Error("agent crashed"));
+    await runDispatch({ bodyForAgent: "again" });
+    expect(agentEndMocks.runAcpTurnAgentEndHook).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ sessionKey, promptText: "again", success: false }),
+    );
   });
 
   it("records an ACP error when output finalization fails", async () => {
