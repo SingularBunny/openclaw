@@ -41,6 +41,9 @@ function host() {
     chatMessage: "",
     chatMentions: undefined,
     chatAttachments: [] as unknown[],
+    chatSending: false,
+    chatRunId: null as string | null,
+    chatStream: null as string | null,
     requestUpdate: vi.fn(),
     client: {
       request: vi.fn(async (method: string, params: Record<string, unknown>) => {
@@ -124,6 +127,11 @@ describe("group chat: sending", () => {
     state.chatMessage = "@Junie look";
     state.chatAttachments = [{ id: "a" }];
     expect(routeChatGroupSend(state, undefined, undefined)).toBeUndefined();
+    // While the chat's own turn runs, a message to a member waits and keeps the draft.
+    state.chatAttachments = [];
+    state.chatRunId = "run-1";
+    await routeChatGroupSend(state, undefined, undefined);
+    expect(state.chatMessage).toBe("@Junie look");
   });
 
   it("offers agents, ACP agents and models not yet in the chat, and adds the picked one", async () => {

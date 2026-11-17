@@ -55,6 +55,7 @@ const enModelControls = {
       remove: "Remove {name} from the group chat",
       answering: "{name} is answering…",
       stop: "Stop",
+      busy: "Wait for the current reply before asking a group chat member.",
       askFailed: "Could not ask the group chat member: {reason}",
       addFailed: "Could not add to the group chat: {reason}",
       removeFailed: "Could not remove from the group chat: {reason}",
