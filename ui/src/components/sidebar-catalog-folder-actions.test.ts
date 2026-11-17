@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   catalogFolderMenuContext,
   catalogFolderMenuEntries,
-  catalogFolderRevealPath,
+  catalogFolderRevealTarget,
   isContextMenuKeyEvent,
   resolveCatalogFolderAgent,
   resolveCatalogFolderNewChat,
@@ -43,6 +43,22 @@ describe("catalog folder agent", () => {
     const folder = context({ sessions: [{ sessionKey: "agent:gone:a" }] });
     expect(resolveCatalogFolderAgent(folder, [{ id: "main" }])).toBeNull();
     expect(resolveCatalogFolderAgent(folder, null)).toBe("gone");
+  });
+
+  it("matches the agent whose run folder is the project folder before workspaces", () => {
+    const agents = [
+      { id: "main", workspace: "/work/shop" },
+      { id: "store", workspace: "/data/projects/store", cwd: "/chats/Shop/" },
+    ];
+    expect(resolveCatalogFolderAgent(context({ title: "/chats/Shop" }), agents)).toBe("store");
+    expect(resolveCatalogFolderAgent(context(), agents)).toBe("main");
+    const shared = [
+      { id: "a", cwd: "/chats/Shop" },
+      { id: "b", cwd: "/chats/Shop" },
+    ];
+    expect(resolveCatalogFolderAgent(context({ title: "/chats/Shop" }), shared)).toBeNull();
+    const opened = context({ title: "/chats/Shop", sessions: [{ sessionKey: "agent:main:x" }] });
+    expect(resolveCatalogFolderAgent(opened, agents)).toBe("main");
   });
 
   it("falls back to the agent whose workspace is the project folder", () => {
@@ -186,11 +202,19 @@ describe("catalog folder keyboard and reveal", () => {
     expect(press("Enter")).toBe(false);
   });
 
-  it("opens only folders inside the chat workspace", () => {
-    expect(catalogFolderRevealPath("/work/shop", "/work/shop/")).toBe("");
-    expect(catalogFolderRevealPath("/work", "/work/shop")).toBe("shop");
-    expect(catalogFolderRevealPath("/work/shop", "/work/shopping")).toBeNull();
-    expect(catalogFolderRevealPath("/agents/shop", "/work/shop")).toBeNull();
-    expect(catalogFolderRevealPath(undefined, "/work/shop")).toBeNull();
+  it("opens folders inside the chat workspace or one of its browse roots", () => {
+    const roots = ["/agents/shop", "/work/shop"];
+    expect(catalogFolderRevealTarget(roots, "/agents/shop/")).toEqual({ path: "" });
+    expect(catalogFolderRevealTarget(["/work"], "/work/shop")).toEqual({ path: "shop" });
+    expect(catalogFolderRevealTarget(roots, "/work/shop")).toEqual({
+      root: "/work/shop",
+      path: "",
+    });
+    expect(catalogFolderRevealTarget(roots, "/work/shop/docs")).toEqual({
+      root: "/work/shop",
+      path: "docs",
+    });
+    expect(catalogFolderRevealTarget(roots, "/work/shopping")).toBeNull();
+    expect(catalogFolderRevealTarget([], "/work/shop")).toBeNull();
   });
 });
