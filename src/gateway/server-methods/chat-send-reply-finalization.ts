@@ -132,6 +132,8 @@ export async function finalizeChatSendDispatchedReplies(
     runtimeAuthor?: { provider: string; model: string };
     /** Fork (I14): the bound runtime ended the turn as a refusal. */
     refusal?: true;
+    /** Fork: who wrote a bound runtime's reply that is not replayed (display only). */
+    displayAuthor?: { provider: string; model: string };
     state: "final" | "aborted";
     stopReason?: string;
   },
@@ -330,6 +332,9 @@ export async function finalizeChatSendDispatchedReplies(
           ? { runtimeAuthor: params.runtimeAuthor }
           : {}),
         ...(params.refusal && !contextFreeCommand ? { refusal: true as const } : {}),
+        ...(params.displayAuthor && !contextFreeCommand
+          ? { displayAuthor: params.displayAuthor }
+          : {}),
         config: cfg,
         onMessageCommitted: retainCommittedChatReplyMedia,
       });
