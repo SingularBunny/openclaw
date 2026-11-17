@@ -31,7 +31,7 @@ export type CatalogFolderMenuAction =
 
 export type CatalogFolderNewChat = { agentId: string; target?: NewSessionTarget };
 
-type AgentLike = { id: string; workspace?: string };
+type AgentLike = { id: string; workspace?: string; cwd?: string };
 
 export type FolderAppContext =
   | Pick<ApplicationContext, "agents" | "gateway" | "sessions">
@@ -76,8 +76,9 @@ export function catalogFolderMenuContext(params: {
 
 /**
  * The agent that works in this folder: the agent of most of its opened chats, else (for a project
- * folder) the agent whose workspace is that folder. Unknown agents are skipped once the agent
- * list is loaded, so a deleted agent never preselects.
+ * folder) the one agent whose run folder (`cwd`) is that folder, else the one agent whose workspace
+ * is that folder. Unknown agents are skipped once the agent list is loaded, so a deleted agent
+ * never preselects; several agents sharing the folder leave the choice open.
  */
 export function resolveCatalogFolderAgent(
   context: Pick<CatalogFolderMenuContext, "path" | "sessionAgentIds">,
@@ -94,10 +95,19 @@ export function resolveCatalogFolderAgent(
     return null;
   }
   const folder = trimFolderPath(context.path);
-  const match = agents.find(
-    (agent) => agent.workspace && trimFolderPath(agent.workspace) === folder,
-  );
-  return match ? normalizeAgentId(match.id) : null;
+  for (const field of ["cwd", "workspace"] as const) {
+    const matches = agents.filter((agent) => {
+      const value = agent[field];
+      return value !== undefined && trimFolderPath(value) === folder;
+    });
+    if (matches.length === 1) {
+      return normalizeAgentId(matches[0]!.id);
+    }
+    if (matches.length > 1) {
+      return null;
+    }
+  }
+  return null;
 }
 
 /**
@@ -167,24 +177,28 @@ export function isContextMenuKeyEvent(
   return event.key === "ContextMenu" || (event.key === "F10" && event.shiftKey);
 }
 
+export type CatalogFolderRevealTarget = { root?: string; path: string };
+
 /**
- * The folder the Gateway can open for a chat of this folder: the folder relative to that chat's
- * workspace (`""` for the workspace itself), or null when the folder lies outside it, because
- * `sessions.files.reveal` only opens folders inside the session workspace.
+ * Where `sessions.files.reveal` opens this folder for a chat of the folder, from that chat's
+ * `sessions.files.list` folders (the workspace first, then the browse roots outside it): the
+ * folder relative to the first of them that holds it, naming the browse root when it is not the
+ * workspace. Null when no folder of the chat holds it.
  */
-export function catalogFolderRevealPath(
-  workspaceRoot: string | undefined,
+export function catalogFolderRevealTarget(
+  roots: readonly string[],
   folder: string,
-): string | null {
-  if (!workspaceRoot) {
-    return null;
-  }
-  const root = trimFolderPath(workspaceRoot);
+): CatalogFolderRevealTarget | null {
   const target = trimFolderPath(folder);
-  if (target === root) {
-    return "";
+  for (const [index, rawRoot] of roots.entries()) {
+    const root = trimFolderPath(rawRoot);
+    const path =
+      target === root ? "" : target.startsWith(`${root}/`) ? target.slice(root.length + 1) : null;
+    if (path !== null) {
+      return index === 0 ? { path } : { root: rawRoot, path };
+    }
   }
-  return target.startsWith(`${root}/`) ? target.slice(root.length + 1) : null;
+  return null;
 }
 
 /** Agent and new-chat destination for a folder, from the live agent list and session groups. */
