@@ -15,6 +15,7 @@ const catalog = {
       downloadFailed: "Could not download this file: {error}. Try again.",
       searchInFile: "Search in file",
       showInFiles: "Show in Files",
+      openInFileManager: "Open folder in file manager",
       toggleTree: "Toggle file tree",
       unavailable: "Unable to open",
       attachmentOffline: "You're offline. Reconnect, then open this attachment link again.",

@@ -171,6 +171,14 @@ export function mobileFileTextMenuActions(options: {
         onSelect: () => controls.onReveal?.(path),
       });
     }
+    if (controls.onRevealInFileManager) {
+      actions.push({
+        id: "open-in-file-manager",
+        label: t("chat.detailPanel.openInFileManager"),
+        icon: "arrowUpRight",
+        onSelect: () => controls.onRevealInFileManager?.(path),
+      });
+    }
   }
   if (source) {
     actions.push({

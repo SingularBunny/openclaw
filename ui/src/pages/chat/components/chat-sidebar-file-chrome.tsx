@@ -198,6 +198,16 @@ export function DesktopFileChrome(props: FileReaderChromeProps) {
     ...(props.content.path && props.controls.onReveal
       ? [{ id: "reveal", label: t("chat.detailPanel.showInFiles"), icon: <Icon name="folder" /> }]
       : []),
+    // Fork: the file's folder in the Gateway host's file manager.
+    ...(props.content.path && props.controls.onRevealInFileManager
+      ? [
+          {
+            id: "reveal-file-manager",
+            label: t("chat.detailPanel.openInFileManager"),
+            icon: <Icon name="arrowUpRight" />,
+          },
+        ]
+      : []),
     ...(localEditorFilePath(props.content, props.controls.execNode)
       ? [
           {
@@ -233,6 +243,8 @@ export function DesktopFileChrome(props: FileReaderChromeProps) {
       props.controls.onCopy("path");
     } else if (value === "reveal") {
       props.controls.onReveal?.(props.content.path);
+    } else if (value === "reveal-file-manager") {
+      props.controls.onRevealInFileManager?.(props.content.path);
     } else {
       const editor = EDITOR_IDS.find((candidate) => value === `editor:${candidate}`);
       if (editor) {

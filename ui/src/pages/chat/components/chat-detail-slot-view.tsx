@@ -4,6 +4,7 @@ import { t } from "../../../lib/reactive/i18n.ts";
 import type { ChatDetailSlotProps } from "../chat-pane-embedded-types.ts";
 import { selectedChatSessionRow } from "../chat-state-route.ts";
 import { openSlot } from "../sidebar-layout.ts";
+import { fileManagerRevealer } from "./chat-file-manager-reveal.ts";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { assistantMediaPolicyKey } from "./chat-message-media.ts";
 import { getSessionWorkspace } from "./chat-session-workspace-state.ts";
@@ -147,6 +148,7 @@ export function ChatDetailSlot(props: ChatDetailSlotProps) {
                     props.onWorkspaceIntent?.();
                   }
             }
+            onRevealInFileManager={fileManagerRevealer(props.host, props.content)}
             onOpenImage={(item: Parameters<typeof props.host.handleOpenImage>[0]) =>
               props.host.handleOpenImage(item, props.host.beginImageOpen())
             }
