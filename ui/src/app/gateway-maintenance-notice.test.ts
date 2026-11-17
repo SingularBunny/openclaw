@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
 import { resolveGatewayStatus } from "../lib/gateway-status.ts";
-import type { ApplicationGatewaySnapshot } from "./gateway.ts";
 import {
   createGatewayMaintenanceControl,
   isGatewayMaintenanceRefusal,
   readGatewayMaintenance,
   readGatewayMaintenanceEvent,
 } from "./gateway-maintenance-notice.ts";
+import type { ApplicationGatewaySnapshot } from "./gateway.ts";
 
 const state = { since: 1_000, source: "installer", reason: "OpenClaw update", untilMs: null };
 
@@ -25,7 +25,12 @@ describe("gateway maintenance (fork)", () => {
     );
     expect(resolveGatewayStatus({ ...base, phase: "connected", maintenance: null })).toBeNull();
     expect(
-      resolveGatewayStatus({ ...base, phase: "connected", restartPending: true, maintenance: state }),
+      resolveGatewayStatus({
+        ...base,
+        phase: "connected",
+        restartPending: true,
+        maintenance: state,
+      }),
     ).toBe("restarting");
   });
 

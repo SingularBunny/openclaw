@@ -14,7 +14,12 @@ it("shows the maintenance banner while chats are paused and resumes them by butt
   const [snapshot, setSnapshot] = createSignal<BannerSnapshot>({
     phase: "connected",
     client,
-    maintenance: { since: Date.now(), source: "installer", reason: "OpenClaw update", untilMs: null },
+    maintenance: {
+      since: Date.now(),
+      source: "installer",
+      reason: "OpenClaw update",
+      untilMs: null,
+    },
   });
   const view = mountSolid(() => <GatewayMaintenanceBanner snapshot={snapshot} />);
   const banner = () => view.container.querySelector(".shell-maintenance-notice");
@@ -23,7 +28,9 @@ it("shows the maintenance banner while chats are paused and resumes them by butt
   expect(banner()?.textContent).toContain("Messages you send wait");
   expect(banner()?.textContent).toContain("An install or update is running");
 
-  const button = view.container.querySelector<HTMLButtonElement>(".shell-maintenance-notice__resume");
+  const button = view.container.querySelector<HTMLButtonElement>(
+    ".shell-maintenance-notice__resume",
+  );
   expect(button?.textContent).toContain("Resume chats");
   button?.click();
   await Promise.resolve();

@@ -56,7 +56,9 @@ export function GatewayMaintenanceBanner(props: {
             disabled={busy()}
             onClick={() => void resume()}
           >
-            {busy() ? t("common.gatewayMaintenance.resuming") : t("common.gatewayMaintenance.resume")}
+            {busy()
+              ? t("common.gatewayMaintenance.resuming")
+              : t("common.gatewayMaintenance.resume")}
           </button>
         </div>
       )}
