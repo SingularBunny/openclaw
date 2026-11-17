@@ -2,6 +2,7 @@
 import { randomUUID } from "node:crypto";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { createSubsystemLogger } from "../../logging/subsystem.js";
+import { isGatewayMaintenanceActive } from "../../process/gateway-maintenance-mode.js";
 import {
   getGatewayRestartDrainSignal,
   getGatewaySuspendAdmissionPhase,
@@ -491,6 +492,8 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
             recoverStaleClaims,
             shouldStop: () =>
               shouldStopDispatch() ||
+              // Fork: maintenance mode leaves admitted channel rows queued until it ends.
+              isGatewayMaintenanceActive() ||
               activeDeliveries.size + activeInspections.size - deferredStartCapacity >= startLimit,
           });
         });
@@ -569,7 +572,8 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
       publishActivity();
       return;
     }
-    if (getGatewaySuspendAdmissionPhase() !== "accepting") {
+    // Fork: maintenance mode keeps durable rows queued too; the poll timer resumes after it.
+    if (getGatewaySuspendAdmissionPhase() !== "accepting" || isGatewayMaintenanceActive()) {
       // Keep durable rows queued without reporting active ingress while suspension drains.
       suspensionDrainPending = true;
       requested = false;

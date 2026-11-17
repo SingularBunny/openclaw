@@ -1,3 +1,4 @@
+import { isGatewayMaintenanceActive } from "../../process/gateway-maintenance-mode.js";
 import { runInDetachedAsyncContext } from "../../shared/detached-async-context.js";
 import { subscribeCronJobsStoreMutations } from "../store.js";
 import { locked } from "./locked.js";
@@ -136,7 +137,8 @@ export function pauseScheduling(state: CronServiceState) {
 }
 
 export function resumeScheduling(state: CronServiceState) {
-  if (!state.schedulingPaused) {
+  // Fork: a suspension that ends during maintenance mode must not restart scheduling.
+  if (!state.schedulingPaused || isGatewayMaintenanceActive()) {
     return;
   }
   state.schedulingPaused = false;

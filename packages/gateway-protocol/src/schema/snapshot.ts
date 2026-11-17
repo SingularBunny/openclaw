@@ -3,6 +3,7 @@ import { Type } from "typebox";
 import { AgentOwnershipSchema } from "./agents-models-skills.js";
 import { closedObject } from "./closed-object.js";
 import { UpdateAvailableSchema, UpdateScheduleStateSchema } from "./config.js";
+import { GatewayMaintenanceSchema } from "./gateway-maintenance.js";
 import { GatewayRestartNoticeSchema } from "./gateway-restart.js";
 import { GatewaySuspensionSchema } from "./gateway-suspend.js";
 import { NonEmptyString } from "./primitives.js";
@@ -249,6 +250,8 @@ export const SnapshotSchema = closedObject({
   updateSchedule: Type.Optional(UpdateScheduleStateSchema),
   /** Fork: a restart waiting for running work (operator.read callers only). */
   gatewayRestart: Type.Optional(GatewayRestartNoticeSchema),
+  /** Fork: maintenance mode is on and new chat turns wait. */
+  gatewayMaintenance: Type.Optional(GatewayMaintenanceSchema),
 });
 
 // Wire types derive directly from local schema consts so public d.ts graphs never

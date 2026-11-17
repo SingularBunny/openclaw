@@ -47,6 +47,8 @@ export const GATEWAY_EVENTS = [
   "talk.voice.change",
   "shutdown",
   "gateway.suspension",
+  // Fork: maintenance mode on/off.
+  "gateway.maintenance",
   "health",
   "heartbeat",
   "cron",

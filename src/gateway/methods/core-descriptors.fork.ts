@@ -10,4 +10,9 @@ export const FORK_GATEWAY_METHOD_SPECS = [
   ["commands.claude", "commands", "operator.read", "2026.10"],
   // Fork (I14): hand a refused reply off; logs and leaves the refused turn out of model context.
   ["chat.refusal.handoff", "chat-refusal", "operator.write", "2026.10"],
+  // Fork: maintenance mode pauses new chat turns while admin work (config, plugins) stays open.
+  ["gateway.maintenance.status", "maintenance-mode", "operator.read", "2026.11"],
+  ["gateway.maintenance.enter", "maintenance-mode", "operator.admin", "2026.11"],
+  // Exit is the escape hatch and must not sit behind write-rate limiting.
+  ["gateway.maintenance.exit", "maintenance-mode", "operator.admin", "2026.11"],
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];
