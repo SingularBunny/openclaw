@@ -344,6 +344,9 @@ export const SessionsFilesRevealParamsSchema = closedObject({
   agentId: Type.Optional(NonEmptyString),
   /** Fork: a workspace-relative file or folder; the folder that holds it opens. Never absolute. */
   path: Type.Optional(NonEmptyString),
+  /** Fork (F34): open from one of the session's browse roots (sessions.files.list `roots`) instead
+   *  of the workspace; `path` is then relative to it. Needs host-read authority, as browsing it. */
+  root: Type.Optional(NonEmptyString),
 });
 
 export const SessionsFilesRevealResultSchema = closedObject({
