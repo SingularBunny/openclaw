@@ -63,6 +63,10 @@ export type AgentRunContext = {
       assertCurrent?: () => void;
       closed?: boolean;
       result?: AutomationResult;
+      /** Fork: follow-up chain facts of a one-shot continuation (`cron.followUpChainLimit`). */
+      followUp?: { depth: number; ownerOrigin: boolean };
+      /** Fork: chain depth the accepted next_check proposal carries to the rearmed job. */
+      nextCheckFollowUpDepth?: number;
     }
   >;
   /** Timestamp when this context was first registered (for TTL-based cleanup). */

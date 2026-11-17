@@ -35,6 +35,8 @@ export type SessionEventOutcome = {
   delivered: boolean;
   summary?: string;
   nextCheckMs?: number;
+  /** Fork: follow-up chain depth the accepted next_check carries (`cron.followUpChainLimit`). */
+  nextCheckFollowUpDepth?: number;
   sourceDeliveryOutcome?: SourceDeliveryOutcome;
   automationResult?: CronRunTelemetry &
     Pick<CronRunOutcome, "replyDisposition" | "diagnostics" | "result">;

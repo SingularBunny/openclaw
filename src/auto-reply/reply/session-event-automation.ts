@@ -1,5 +1,6 @@
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { hasPendingAutomationContinuation } from "../../cron/automation-result.js";
+import { readCronRunNextCheckFollowUpDepth } from "../../cron/follow-up-chain-run.js";
 import {
   createCronRunDiagnosticsFromAgentResult,
   mergeCronRunDiagnostics,
@@ -139,7 +140,7 @@ export async function settleSessionEventTurn(params: {
 }): Promise<
   Pick<
     SessionEventOutcome,
-    "summary" | "nextCheckMs" | "sourceDeliveryOutcome" | "automationResult"
+    "summary" | "nextCheckMs" | "nextCheckFollowUpDepth" | "sourceDeliveryOutcome" | "automationResult"
   >
 > {
   const { automation, runId, deliveryEvidence } = params;
@@ -175,8 +176,12 @@ export async function settleSessionEventTurn(params: {
     : invocation?.result;
   const summary =
     params.outcome === "completed" && result?.outcome !== "no_change" ? result?.summary : undefined;
+  // Fork: follow-up chain depth the accepted next_check carries (`cron.followUpChainLimit`).
+  const nextCheckFollowUpDepth =
+    params.outcome === "completed" ? readCronRunNextCheckFollowUpDepth(runId, jobId) : undefined;
   const settled = {
     summary,
+    ...(nextCheckFollowUpDepth !== undefined ? { nextCheckFollowUpDepth } : {}),
     nextCheckMs:
       params.outcome === "completed"
         ? consumeCronNextCheckProposal(runId, automation.job.id)

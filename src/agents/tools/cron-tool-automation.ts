@@ -1,12 +1,13 @@
 /** Model actions bound to one admitted automation invocation. */
 import { parseDurationMs } from "../../cli/parse-duration.js";
+import { getRuntimeConfig } from "../../config/config.js";
 import {
   createAutomationResultRecorder,
   createAutomationRunGuard,
-  recordCronNextCheckProposal,
 } from "../../infra/agent-run-registry.automation.js";
 import { getAgentRunContext } from "../../infra/agent-run-registry.js";
 import { jsonResult, readNonNegativeIntegerParam, readToolStringParam } from "./common.js";
+import { proposeCronNextCheck } from "./cron-tool-follow-up.js";
 import type { CronToolOptions } from "./cron-tool.types.js";
 import type { callGatewayTool, GatewayCallOptions } from "./gateway.js";
 
@@ -94,7 +95,8 @@ export function createCronAutomationActions(opts?: CronToolOptions) {
           if (delayMs <= 0) {
             throw new Error("cron next_check in must be a positive duration");
           }
-          recordCronNextCheckProposal(runId, jobId, delayMs);
+          // Fork: cron.followUpChainLimit caps one-shot continuation chains.
+          proposeCronNextCheck(opts?.config ?? getRuntimeConfig(), runId, jobId, delayMs);
           return jsonResult({ ok: true, delayMs });
         }
         default:

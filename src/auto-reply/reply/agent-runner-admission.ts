@@ -5,6 +5,7 @@ import { selectLiveRuntimeConfig } from "../../config/runtime-snapshot.js";
 import { composeSessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { captureOwnedTranscriptWriteAssertion } from "../../config/sessions/transcript-write-context.js";
 import { resolveCronJobConfigRevision } from "../../cron/config-revision.js";
+import { withCronFollowUpLink } from "../../cron/follow-up-chain.js";
 import { prepareCronRunAdmission } from "../../cron/run-admission.js";
 import { isCronOneShotContinuationJob } from "../../cron/service/one-shot-schedule.js";
 import { resolveCronAuthenticatedChannelRequester } from "../../cron/tools-allow-provenance.js";
@@ -187,6 +188,7 @@ export function prepareReplyTurnRunSource(params: AgentTurnParams, runId: string
                       throw new Error("Automation reply owner has closed");
                     }
                   },
+                  ...withCronFollowUpLink(automation.job),
                 },
               ],
             ]),
