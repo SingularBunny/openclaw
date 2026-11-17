@@ -45,7 +45,9 @@ export function readGatewayMaintenanceStatus(
   >,
 ): GatewayMaintenanceStatus {
   const maintenance = getGatewayMaintenance();
-  const snapshot = createGatewayActiveWorkSnapshot(createGatewayServerActiveWorkInspectors(context));
+  const snapshot = createGatewayActiveWorkSnapshot(
+    createGatewayServerActiveWorkInspectors(context),
+  );
   const { counts } = snapshot;
   const activeTurns = countRunningAgentTurns(counts) + counts.cronRuns + counts.mediaRuns;
   const activeWork = activeTurns + counts.queuedTurns + counts.pendingReplies;

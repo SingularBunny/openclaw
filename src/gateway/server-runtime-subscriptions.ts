@@ -1,5 +1,3 @@
-// Gateway event subscription wiring for agent, heartbeat, transcript, and lifecycle broadcasts.
-import { onGatewayMaintenanceChange } from "../process/gateway-maintenance-mode.js";
 import { resolveAgentRunLifecycleTerminalFacts } from "@openclaw/normalization-core/agent-run-terminal-outcome";
 import { isAgentLifecycleYieldedWaiting } from "../agents/agent-lifecycle-parent-state.js";
 import { isDefinitiveRunLifecycle } from "../agents/agent-run-terminal-outcome.js";
@@ -33,6 +31,8 @@ import { onTrustedToolExecutionEvent } from "../infra/diagnostic-events.js";
 import { notifyGatewayWorkMetricsChanged } from "../infra/gateway-work-metrics-events.js";
 import { onHeartbeatEvent } from "../infra/heartbeat-events.js";
 import { clearPromptSuggestion, onPromptSuggestion } from "../infra/prompt-suggestion-events.js";
+// Gateway event subscription wiring for agent, heartbeat, transcript, and lifecycle broadcasts.
+import { onGatewayMaintenanceChange } from "../process/gateway-maintenance-mode.js";
 import {
   onGatewaySuspendAdmissionChange,
   runWithRetainedGatewayRootWork,

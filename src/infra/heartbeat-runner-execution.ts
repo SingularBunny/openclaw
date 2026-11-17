@@ -1,4 +1,3 @@
-import { isGatewayMaintenanceActive } from "../process/gateway-maintenance-mode.js";
 import { normalizeOptionalString } from "@openclaw/normalization-core/string-coerce";
 import { clearBootstrapSnapshotOnSessionRollover } from "../agents/bootstrap-cache.js";
 import {
@@ -30,6 +29,7 @@ import {
 } from "../cron/active-jobs.js";
 import { resolveCronSession } from "../cron/isolated-agent/session.js";
 import { getQueueSize } from "../process/command-queue.js";
+import { isGatewayMaintenanceActive } from "../process/gateway-maintenance-mode.js";
 import { CommandLane } from "../process/lanes.js";
 import { normalizeAgentId, parseAgentSessionKey } from "../routing/session-key.js";
 import type { RuntimeEnv } from "../runtime.js";

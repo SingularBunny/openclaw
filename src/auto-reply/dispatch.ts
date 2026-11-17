@@ -19,8 +19,8 @@ import {
   getGatewayMaintenance,
 } from "../process/gateway-maintenance-mode.js";
 import { createKeyedFifoLeaseRegistry, type KeyedFifoLease } from "../shared/keyed-fifo-lease.js";
-import { isInternalMessageChannel } from "../utils/message-channel.js";
 import type { SilentReplyConversationType } from "../shared/silent-reply-policy.js";
+import { isInternalMessageChannel } from "../utils/message-channel.js";
 import { observeAgentRunStart } from "./agent-run-start.js";
 import {
   resolveCommandTurnContext,

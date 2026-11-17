@@ -25,6 +25,7 @@ import {
 } from "./control-plane-rate-limit.js";
 import { errorShapeFromError } from "./error-shape.js";
 import { createExpectedProfileBinding } from "./expected-profile.js";
+import { gatewayMaintenanceRefusal } from "./maintenance-mode-gate.js";
 import { ADMIN_SCOPE } from "./method-scopes.js";
 import type { GatewayMethodRegistryView } from "./methods/descriptor.js";
 import {
@@ -57,7 +58,6 @@ import type {
   GatewayRequestHandlers,
   GatewayRequestOptions,
 } from "./server-methods/types.js";
-import { gatewayMaintenanceRefusal } from "./maintenance-mode-gate.js";
 import type { GatewayRequestEntry } from "./server-request-entry.js";
 import {
   isGatewayRootlessRequestAllowed,

@@ -24,10 +24,7 @@ export const GATEWAY_MAINTENANCE_PAUSED_METHODS: ReadonlySet<string> = new Set([
 /** Clients retry a refused message on this cadence; the Control UI keeps it in its outbox. */
 export const GATEWAY_MAINTENANCE_RETRY_AFTER_MS = 15_000;
 
-export function gatewayMaintenanceUnavailableError(
-  method: string,
-  state: GatewayMaintenanceState,
-) {
+export function gatewayMaintenanceUnavailableError(method: string, state: GatewayMaintenanceState) {
   return errorShape(
     ErrorCodes.UNAVAILABLE,
     `${method} paused: OpenClaw is under maintenance (${state.reason}); retry when it ends`,

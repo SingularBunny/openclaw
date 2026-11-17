@@ -1,7 +1,3 @@
-import {
-  isGatewayMaintenanceActive,
-  onGatewayMaintenanceChange,
-} from "../process/gateway-maintenance-mode.js";
 import { finiteSecondsToTimerSafeMilliseconds } from "@openclaw/normalization-core/number-coercion";
 import { retireSessionMcpRuntime } from "../agents/agent-bundle-mcp-tools.js";
 import {
@@ -66,6 +62,10 @@ import type {
 } from "../plugins/hook-gateway.types.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import type { PluginRegistry } from "../plugins/registry-types.js";
+import {
+  isGatewayMaintenanceActive,
+  onGatewayMaintenanceChange,
+} from "../process/gateway-maintenance-mode.js";
 import {
   getGatewaySuspendAdmissionPhase,
   runWithGatewayIndependentRootWorkAdmission,
