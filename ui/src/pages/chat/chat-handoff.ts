@@ -18,6 +18,7 @@ import {
   type ChatHandoffTarget,
 } from "./chat-handoff-registry.ts";
 import { setChatError } from "./chat-history-state.ts";
+import { lastOtherReplyAnswerer, transcriptNamesAuthors } from "./chat-reply-authors.ts";
 import { switchChatModel } from "./chat-session.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 import { selectedChatSessionRow } from "./chat-state-route.ts";
@@ -246,6 +247,24 @@ export function currentChatAnswerer(
   return model ? { kind: "model", model } : undefined;
 }
 
+/**
+ * Who answered before `target` takes over: the last answerer other than `target` that produced a
+ * reply in the transcript (a model that failed or was stopped never counts). Null when the
+ * transcript names authors and nobody else answered; `fallback` (who answered before the switch)
+ * when it names none, as in a transcript written before replies carried their author.
+ */
+export function previousReplyAnswerer(
+  state: ChatPageHost,
+  target: ChatAnswerer,
+  fallback: ChatAnswerer,
+): ChatAnswerer | null {
+  const messages = state.chatMessages;
+  if (!transcriptNamesAuthors(messages)) {
+    return fallback;
+  }
+  return lastOtherReplyAnswerer(messages, target, state.chatModelCatalog ?? []) ?? null;
+}
+
 export function chatModelLabel(state: ChatPageHost, model: string): string {
   const entry = state.chatModelCatalog?.find(
     (candidate) => `${candidate.provider}/${candidate.id}` === model || candidate.id === model,
@@ -391,11 +410,9 @@ export async function handOffChat(
       }
     }
     if (previous) {
-      await recordHandoff(
-        state,
-        sessionKey,
-        opts.record === "clear" ? null : { previous, current: target },
-      );
+      const before =
+        opts.record === "clear" ? null : previousReplyAnswerer(state, target, previous);
+      await recordHandoff(state, sessionKey, before ? { previous: before, current: target } : null);
     }
   }
   if (opts.resend && state.sessionKey === sessionKey) {
@@ -445,7 +462,8 @@ export async function recordChatPickerSwitch(
 ) {
   const current: ChatAnswerer = { kind: "model", model };
   if (previous && !sameChatAnswerer(previous, current)) {
-    await recordHandoff(state, sessionKey, { previous, current });
+    const before = previousReplyAnswerer(state, current, previous);
+    await recordHandoff(state, sessionKey, before ? { previous: before, current } : null);
   }
 }
 
@@ -493,9 +511,12 @@ export function createChatHandoffController(
   }));
   const current = currentChatAnswerer(state, sessionKey);
   const sessionModel = currentChatModel(state, sessionKey);
+  // A recorded switch shows the chip; the transcript names who really answered before (I13 fix:
+  // a model that failed after the switch is skipped). A bound agent can always unbind.
   const previous =
     info?.handoff && sameChatAnswerer(info.handoff.current, current)
-      ? info.handoff.previous
+      ? (lastOtherReplyAnswerer(state.chatMessages, current, state.chatModelCatalog ?? []) ??
+        info.handoff.previous)
       : info?.binding && sessionModel
         ? ({ kind: "model", model: sessionModel } as const)
         : undefined;
