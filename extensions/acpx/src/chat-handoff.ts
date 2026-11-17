@@ -115,6 +115,58 @@ export function listHandoffAcpAgents(acp: Record<string, unknown> | undefined): 
   return [...new Set(allowed.length > 0 ? allowed : fallback ? [fallback] : [])];
 }
 
+export type AcpAgentIdentity = { name?: string; emoji?: string; avatar?: string };
+
+const AVATAR_RE = /^(?:data:image\/[a-z0-9.+-]+;base64,|\/(?!\/))/iu;
+
+function readIdentity(value: unknown): AcpAgentIdentity {
+  const entry = value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+  const name = readString(entry.name);
+  const emoji = readString(entry.emoji);
+  const avatar = typeof entry.avatar === "string" ? entry.avatar.trim() : "";
+  return {
+    ...(name && name.length <= 64 ? { name } : {}),
+    ...(emoji && emoji.length <= 8 ? { emoji } : {}),
+    ...(avatar && AVATAR_RE.test(avatar) ? { avatar } : {}),
+  };
+}
+
+/**
+ * Fork: how each ACP agent appears in chat. An OpenClaw agent whose runtime is that ACP agent
+ * (`agents.entries.<id>.runtime.acp.agent`) lends its `identity`; the ACPX plugin config
+ * `agentIdentities.<agent>` (name, emoji, avatar) overrides it field by field. An avatar the
+ * Control UI cannot render (not a data:image URL or a Gateway path) is dropped, so the agent
+ * keeps its generated face.
+ */
+export function readAcpAgentIdentities(config: unknown): Record<string, AcpAgentIdentity> {
+  const root = (config ?? {}) as {
+    agents?: { entries?: unknown };
+    plugins?: { entries?: Record<string, unknown> };
+  };
+  const result: Record<string, AcpAgentIdentity> = {};
+  const entries = root.agents?.entries;
+  if (entries && typeof entries === "object" && !Array.isArray(entries)) {
+    for (const value of Object.values(entries as Record<string, unknown>)) {
+      const entry = (value ?? {}) as { runtime?: unknown; identity?: unknown };
+      const runtime = (entry.runtime ?? {}) as { type?: unknown; acp?: { agent?: unknown } };
+      const agent = runtime.type === "acp" ? readString(runtime.acp?.agent) : undefined;
+      if (agent && entry.identity) {
+        result[agent] = { ...result[agent], ...readIdentity(entry.identity) };
+      }
+    }
+  }
+  const acpx = root.plugins?.entries?.acpx as
+    | { config?: { agentIdentities?: unknown } }
+    | undefined;
+  const raw = acpx?.config?.agentIdentities;
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    for (const [agent, value] of Object.entries(raw as Record<string, unknown>)) {
+      result[agent] = { ...result[agent], ...readIdentity(value) };
+    }
+  }
+  return result;
+}
+
 function readParams(params: Record<string, unknown>, allowed: readonly string[]) {
   const unknown = Object.keys(params).filter((key) => !allowed.includes(key));
   const sessionKey = readString(params.sessionKey);
@@ -144,10 +196,14 @@ export function registerChatHandoff(api: OpenClawPluginApi, openStore: () => Han
           resolveChatAcpBinding(parsed.sessionKey, parsed.agentId),
           store().lookup(parsed.sessionKey),
         ]);
-        const agents = listHandoffAcpAgents(
-          api.runtime.config.current().acp as Record<string, unknown> | undefined,
+        const config = api.runtime.config.current();
+        const agents = listHandoffAcpAgents(config.acp as Record<string, unknown> | undefined);
+        const identities = readAcpAgentIdentities(config);
+        respond(
+          true,
+          { binding: binding ?? null, handoff: handoff ?? null, agents, identities },
+          undefined,
         );
-        respond(true, { binding: binding ?? null, handoff: handoff ?? null, agents }, undefined);
       } catch (error) {
         respond(false, undefined, { code: "UNAVAILABLE", message: String(error) });
       }
