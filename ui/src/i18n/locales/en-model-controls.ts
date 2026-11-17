@@ -41,6 +41,25 @@ const enModelControls = {
         "Handed off, but the declined reply stays in the history the next model reads: {reason}",
       refusalUnsupported: "this Gateway has no chat.refusal.handoff method.",
     },
+    // Fork: group chat — members added with "Add to group chat" answer when a message names them.
+    group: {
+      title: "Group chat",
+      members: "Group chat members",
+      add: "Add to group chat",
+      addTitle: "Add an agent, ACP agent or model to this chat as a separate participant",
+      handOffMode: "Hand off",
+      agents: "Agents",
+      acpAgents: "ACP agents",
+      ask: "Ask {name}",
+      askTitle: "Address the next message to {name} (@{name})",
+      remove: "Remove {name} from the group chat",
+      answering: "{name} is answering…",
+      stop: "Stop",
+      askFailed: "Could not ask the group chat member: {reason}",
+      addFailed: "Could not add to the group chat: {reason}",
+      removeFailed: "Could not remove from the group chat: {reason}",
+      stopFailed: "Could not stop the member's turn: {reason}",
+    },
     // Fork: the composer's Plan toggle (workbench plan mode, the same switch as /plan).
     planMode: {
       label: "Plan mode",
