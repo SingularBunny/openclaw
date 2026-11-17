@@ -1,5 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it } from "vitest";
+import { lastOtherReplyAnswerer } from "./chat-reply-authors.ts";
 import {
   publishAcpAgentIdentities,
   publishReplyModelLabeler,
@@ -73,5 +74,57 @@ describe("reply identity", () => {
     expect(groups.map((group) => (group.kind === "group" ? group.messages.length : 0))).toEqual([
       1, 2,
     ]);
+  });
+
+  it("shows a group chat member's reply under the member, apart from the chat's answerer (fork)", () => {
+    const member = (kind: string, id: string, name: string) => ({
+      __openclaw: { participant: { kind, id, key: `${kind}:${id}`, name } },
+    });
+    const agentRow = reply(
+      "Prune in winter",
+      "ollama",
+      "qwen3",
+      member("agent", "garden", "Gardener"),
+    );
+    expect(resolveReplyIdentity([{ message: agentRow }])).toEqual({
+      kind: "agent",
+      agent: "garden",
+      avatarId: "garden",
+      name: "Gardener",
+      avatar: null,
+      textAvatar: null,
+    });
+    const modelRow = reply(
+      "Hi",
+      "openrouter",
+      "google/gemma:free",
+      member("model", "openrouter/google/gemma:free", "Gemma"),
+    );
+    expect(resolveReplyIdentity([{ message: modelRow }])).toMatchObject({
+      kind: "model",
+      name: "Gemma",
+    });
+    const acpRow = reply("Reviewed", "acp", "junie", member("acp", "junie", "Junie"));
+    expect(resolveReplyIdentity([{ message: acpRow }])).toMatchObject({ avatarId: "acp:junie" });
+    const group = { role: "assistant", senderLabel: null, messages: [{ message: agentRow }] };
+    expect(resolveMessageGroupSenderLabel(group, { assistantName: "Claude" })).toBe("Gardener");
+
+    // Members never become the chat's answerer to return to; two members never share a block.
+    const opus = reply("Plan", "anthropic", "claude-opus-4-6");
+    expect(
+      lastOtherReplyAnswerer([opus, acpRow, modelRow], { kind: "model", model: "openrouter/x" }),
+    ).toEqual({
+      kind: "model",
+      model: "anthropic/claude-opus-4-6",
+    });
+    const sameModel = reply("Also", "ollama", "qwen3", member("agent", "orchard", "Orchard"));
+    const groups = groupMessages(
+      [opus, agentRow, sameModel].map((message, index) => ({
+        kind: "message",
+        key: `g${index}`,
+        message,
+      })),
+    );
+    expect(groups.filter((entry) => entry.kind === "group")).toHaveLength(3);
   });
 });
