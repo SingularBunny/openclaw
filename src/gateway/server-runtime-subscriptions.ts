@@ -31,7 +31,6 @@ import { captureAgentRunTerminalPersistence } from "../infra/agent-run-terminal-
 import { onTrustedToolExecutionEvent } from "../infra/diagnostic-events.js";
 import { heartbeatNotifications } from "../infra/heartbeat-events.js";
 import { clearPromptSuggestion, onPromptSuggestion } from "../infra/prompt-suggestion-events.js";
-import { onGatewayMaintenanceChange } from "../process/gateway-maintenance-mode.js";
 import {
   onGatewaySuspendAdmissionChange,
   retainGatewayRootWorkAdmissionContinuation,
@@ -66,6 +65,7 @@ import {
   type ChatAbortTerminalDispatch,
 } from "./chat-abort-lifecycle-internal.js";
 import { bumpGatewayAccessRevision } from "./gateway-access-revision.js";
+import { broadcastGatewayMaintenance } from "./maintenance-mode-gate.js";
 import { resolveVisibleActiveSessionRunState } from "./server-methods/session-active-runs.js";
 import { dispatchEventHandler } from "./server-runtime-event-dispatch.js";
 import type { GatewayEventSubscriptionParams } from "./server-runtime-subscriptions.types.js";
@@ -706,9 +706,7 @@ export function startGatewayEventSubscriptions(params: GatewayEventSubscriptionP
     }
   });
   // Fork: maintenance mode on/off, including its own expiry.
-  const unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
-    params.broadcast("gateway.maintenance", { maintenance });
-  });
+  const unsubscribeMaintenance = broadcastGatewayMaintenance(params.broadcast);
   // Claude Code's next-prompt prediction is composer presentation only; it is never persisted.
   const unsubscribePromptSuggestions = onPromptSuggestion((evt) => {
     params.broadcast(
