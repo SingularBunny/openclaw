@@ -42,6 +42,8 @@ import { isCronWithinActiveHours } from "../active-hours.js";
 import { isCronExecutionIdle } from "../execution-idle.js";
 import { CronOperatorSourceError } from "../operator-source-error.js";
 import { CronSessionLifecycleClaimError } from "../run-authority.js";
+import { readCronRunNextCheckFollowUpDepth } from "../follow-up-chain-run.js";
+import { withCronFollowUpLink } from "../follow-up-chain.js";
 import { removeCronRunContinuationSessionIfIdle } from "../run-continuation-cleanup.js";
 import { createCronRunDiagnosticsFromError, mergeCronRunDiagnostics } from "../run-diagnostics.js";
 import {
@@ -385,6 +387,7 @@ async function runCronIsolatedAgentTurnInTrace(
                           params.job.pacing !== undefined ||
                           isCronOneShotContinuationJob(params.job),
                         assertCurrent: assertInvocationCurrent,
+                        ...withCronFollowUpLink(params.job),
                       },
                     ],
                   ]),
@@ -495,10 +498,18 @@ async function runCronIsolatedAgentTurnInTrace(
                   resolveAgentRunErrorLifecycleFields(undefined, abortSignal).stopReason ===
                   "restart";
               }
+              // Fork: follow-up chain depth for the rearmed job (`cron.followUpChainLimit`).
+              const followUpDepth = readCronRunNextCheckFollowUpDepth(runId, params.job.id);
               const delayMs = consumeCronNextCheckProposal(runId, params.job.id);
               return finalized.status !== "ok" || delayMs === undefined
                 ? finalized
-                : { ...finalized, nextCheck: { delayMs } };
+                : {
+                    ...finalized,
+                    nextCheck: {
+                      delayMs,
+                      ...(followUpDepth !== undefined ? { followUpDepth } : {}),
+                    },
+                  };
             } catch (err) {
               terminalOutcome ??= resolveCronAgentTerminalOutcome({
                 phase: "error",

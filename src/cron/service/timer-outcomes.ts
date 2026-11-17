@@ -363,6 +363,10 @@ export function applyJobResult(
       job.state.pacedNextRunAtMs = scheduleNextRun(
         result.endedAt + Math.max(MIN_REFIRE_GAP_MS, oneShotNextCheck.delayMs),
       );
+      // Fork: a follow-up accepted under cron.followUpChainLimit advances the chain depth.
+      if (oneShotNextCheck.followUpDepth !== undefined) {
+        job.state.followUpDepth = oneShotNextCheck.followUpDepth;
+      }
     } else if (job.schedule.kind === "at" && isJobEnabled(job)) {
       if (result.status === "ok" || result.status === "skipped") {
         // One-shot done or skipped: disable to prevent tight-loop (#11452).

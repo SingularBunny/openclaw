@@ -148,6 +148,7 @@ function enqueueSessionEventAttempt(
   let terminalOutcome: SessionEventOutcome["terminalOutcome"];
   let errorReason: SessionEventOutcome["errorReason"];
   let nextCheckMs: number | undefined;
+  let nextCheckFollowUpDepth: number | undefined;
   let sourceDeliveryOutcome: SourceDeliveryOutcome | undefined;
   let automationResult: SessionEventOutcome["automationResult"];
   let settlement: "settling" | "finished" | undefined;
@@ -389,6 +390,7 @@ function enqueueSessionEventAttempt(
               operation.result.code === "aborted_for_supersession")),
         summary,
         nextCheckMs,
+        ...(nextCheckFollowUpDepth !== undefined ? { nextCheckFollowUpDepth } : {}),
         sourceDeliveryOutcome,
         automationResult,
         ...(failure ? { error: String(failure) } : {}),
@@ -625,6 +627,7 @@ function enqueueSessionEventAttempt(
               });
               summary = terminal.summary ?? summary;
               nextCheckMs = terminal.nextCheckMs;
+              nextCheckFollowUpDepth = terminal.nextCheckFollowUpDepth;
               sourceDeliveryOutcome = terminal.sourceDeliveryOutcome;
               automationResult = terminal.automationResult;
               conversationResultCommitted = terminal.conversationResultCommitted;
