@@ -27,6 +27,7 @@ import {
   setSessionsShowSystem,
   setSessionsStatusFilter,
 } from "./session-organizer-menu.runtime.ts";
+import { renderSidebarCatalogFolderMenu } from "./sidebar-catalog-folder-menu.tsx";
 import type { SidebarMenusOwner } from "./sidebar-menus-types.ts";
 import type { SidebarFilterMenuView, SidebarMenus } from "./sidebar-menus.tsx";
 import { SidebarSessionFilterPopover } from "./sidebar-session-filter-popover.tsx";
@@ -271,27 +272,8 @@ export function renderSidebarCatalogFolderMenuForMenus(
   host: SidebarMenusOwner,
   position: NonNullable<SidebarMenus["catalogFolderMenuPosition"]>,
 ): JSX.Element {
-  return (
-    <SidebarDropdown
-      position={position}
-      class="sidebar-session-sort-menu sidebar-catalog-folder-menu"
-      label={t("chat.sidebar.catalogFolderMenu", { folder: position.label })}
-      onSelect={(value) => {
-        if (value === "hide-catalog-folder" && menus.catalogFolderMenuPosition === position) {
-          host.hideSessionCatalogFolder(position.catalogId, position.folderId, position.label);
-          menus.closePositionedMenu("catalogFolder");
-        }
-      }}
-      {...menus.positionedMenuHandlers("catalogFolder")}
-      items={[
-        {
-          id: "hide-catalog-folder",
-          label: t("chat.sidebar.hideFromSidebar"),
-          class: "sidebar-session-sort-menu__item",
-        },
-      ]}
-    />
-  );
+  // Fork: the folder menu (new chat, reveal, copy path, agent settings, collapse, hide).
+  return renderSidebarCatalogFolderMenu(menus, host, position);
 }
 
 export function renderSidebarSessionSortMenuForMenus(
