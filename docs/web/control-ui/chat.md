@@ -394,6 +394,29 @@ the Claude CLI history replay, a resumed Claude session's unseen turns, the hist
 when it is bound, and models that read the chat transcript directly. **Hand off to…** under a reply
 does not do this; use the hint's button.
 
+## Group chat
+
+Besides handing a chat off (one answerer, switched by button), a chat can have **several participants**. With the
+`aiwb-groups` plugin of ai-workbench (0.2.0 or later):
+
+- **Add to group chat**, in the chat header and as a switch at the top of the **Hand off…** menu, lists OpenClaw
+  agents, ACP agents (`acp.allowedAgents`) and models. The one you pick joins the chat as a separate participant; the
+  chat's own model or bound agent keeps answering as before, and **Hand off** still switches that one.
+- A strip by the composer lists the members. **Ask <name>** puts `@<name>` at the start of your message; the cross
+  removes a member; **Stop** ends a member's turn that is still running.
+- A message that names members (`@Junie review this`, by name, first word or id) goes to them one by one instead of
+  the chat's answerer. A message naming nobody, a command or a message with attachments goes to the chat's answerer.
+- Each member answers with a full turn of its own: an OpenClaw agent in its own session for this chat, a model as the
+  chat's agent on that model, an ACP agent in its own persistent ACP session. It is told who is in the chat and gets
+  what was said since its last turn, each line with its speaker.
+- Its reply is a row of this chat under the member's name and avatar, so **Retry** under a failed turn, the refusal
+  hint and the history work as for any reply. The chat's own model reads it as shared history, with a one-line note
+  naming who answered. A member's reply never counts as the chat's answerer, so **Return to** is unaffected.
+
+An ACP member's reply is read when its turn ends: the fork fires the `agent_end` plugin hook for ACP turns as well.
+A model member is a model override, which OpenClaw allows to an operator with admin scope or with
+`plugins.entries.aiwb-groups.subagent.allowModelOverride`. Without the plugin the buttons are hidden.
+
 ## Chat commands as buttons
 
 Commands you would type to turn something on or run it in a chat also have a button; the command stays
