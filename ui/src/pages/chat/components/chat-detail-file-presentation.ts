@@ -506,6 +506,7 @@ export function renderFilePanelPresentation(context: {
       onPreviousMatch: () => context.actions.moveFileSearch(-1),
       onReload: context.actions.reloadFile,
       onReveal: context.props.onRevealInWorkspace ?? undefined,
+      onRevealInFileManager: context.props.onRevealInFileManager ?? undefined,
       onSave: () => void context.actions.saveFile(),
       onSearchInput: context.actions.updateFileSearch,
       onSearchKeydown: context.actions.handleFileSearchKeydown,
@@ -557,5 +558,6 @@ export const chatDetailPanelProperties = {
   onBrowseFiles: { default: null, attribute: false },
   onOpenSessionLink: { default: null, attribute: false },
   onRevealInWorkspace: { default: null, attribute: false },
+  onRevealInFileManager: { default: null, attribute: false },
   onOpenImage: { default: null, attribute: false },
 } as const;
