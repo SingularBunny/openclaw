@@ -270,6 +270,8 @@ export type CronJobExecutionResult = CronRunOutcome &
 /** One run's requested delay before the same paced job or one-shot continuation runs again. */
 export type CronNextCheckProposal = {
   delayMs: number;
+  /** Fork: follow-up chain depth stored on the rearmed one-shot job. */
+  followUpDepth?: number;
 };
 
 /** Embedded-agent execution phase names surfaced to cron watchdog progress. */
@@ -344,6 +346,8 @@ export type CronJobState = Omit<
   pluginCommandRuns?: number;
   /** Store-private restart continuity for a plugin command schedule; see its type. */
   pluginCommandBinding?: PluginCommandScheduleBinding;
+  /** Fork: follow-ups taken in this one-shot continuation chain (`cron.followUpChainLimit`). */
+  followUpDepth?: number;
   /** Durable pre-admission reservation. Cleared on restart without recording a run. */
   queuedAtMs?: number;
   /** Exact receipt awaiting scheduler reconciliation, even after execution authority closes. */

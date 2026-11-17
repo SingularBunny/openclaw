@@ -325,7 +325,17 @@ export async function runCronSessionTurn(
             }),
           }
         : {}),
-      ...(result.nextCheckMs !== undefined ? { nextCheck: { delayMs: result.nextCheckMs } } : {}),
+      ...(result.nextCheckMs !== undefined
+        ? {
+            nextCheck: {
+              delayMs: result.nextCheckMs,
+              // Fork: follow-up chain depth for the rearmed job (`cron.followUpChainLimit`).
+              ...(result.nextCheckFollowUpDepth !== undefined
+                ? { followUpDepth: result.nextCheckFollowUpDepth }
+                : {}),
+            },
+          }
+        : {}),
     };
   } catch (error) {
     if (!(error instanceof CronOperatorSourceError)) {

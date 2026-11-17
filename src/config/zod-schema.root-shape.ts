@@ -392,6 +392,11 @@ export const OpenClawSchemaShape = {
       enabled: z.boolean().optional(),
       /** Skip missed recurring slots at startup; one-shot catch-up is unchanged. Default: false. */
       skipMissedJobs: z.boolean().optional(),
+      /**
+       * Fork: follow-ups (next_check) one owner-created one-shot session continuation
+       * may chain from turns the automation starts. Default: 0 (owner-only, as upstream).
+       */
+      followUpChainLimit: z.number().int().min(0).max(50).optional(),
       triggers: z
         .strictObject({
           enabled: z.boolean().optional(),

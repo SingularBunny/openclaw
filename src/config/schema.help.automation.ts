@@ -108,6 +108,8 @@ export const AUTOMATION_FIELD_HELP: Record<string, string> = {
     "Enables automation execution for stored schedules managed by the gateway. Keep enabled for normal reminder/automation flows, and disable only to pause all automation execution without deleting jobs.",
   "cron.skipMissedJobs":
     "Skips missed recurring cron/every slots at Gateway startup and schedules their next future occurrence instead of catching up. Default: false. Enable to avoid stale reminders after downtime; one-shot at jobs still catch up.",
+  "cron.followUpChainLimit":
+    "How many follow-ups a turn started by an automation may schedule for itself: next_check rearms the same one-shot job that continues a chat (at + agentTurn + session:<key>), so a queue of steps can go on in later turns. The chain must start at a job the owner created; it may not create, edit or remove other jobs. When set above 0, the limit also caps next_check of one-shot continuations on embedded runtimes. Default: 0 keeps upstream behaviour. Range 0-50.",
   "cron.webhookToken":
     "Bearer token attached to automation webhook POST deliveries when webhook mode is used. Prefer secret/env substitution and rotate this token regularly if shared webhook endpoints are internet-reachable.",
   "cron.webhookSsrfPolicy":
