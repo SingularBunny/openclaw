@@ -50,6 +50,7 @@ import {
   resolveCronAbortReasonText,
 } from "../service/execution-errors.js";
 import { isCronOneShotContinuationJob } from "../service/one-shot-schedule.js";
+import { markIsolatedCronRunUnread } from "../session-run-unread-mark.js";
 import type { CronAgentExecutionPhaseUpdate } from "../types.js";
 import { resolveCronActiveRuntimeConfig } from "./run-config.js";
 import type { CronRunExecutionParams } from "./run-execution.types.js";
@@ -475,6 +476,16 @@ async function runCronIsolatedAgentTurnInTrace(
                 // Self-deleting sessions must release before their own lifecycle mutation.
                 // Other runs retain admission through delivery and release in finally.
                 beforeSessionDelete: prepared.context.sessionPreparationEffect.release,
+              });
+              // Fork: silent or failed runs keep the cron chat row unread for its owner.
+              await markIsolatedCronRunUnread({
+                agentId: prepared.context.agentId,
+                sessionKey: prepared.context.agentSessionKey,
+                storePath: prepared.context.cronSession.storePath,
+                sessionId: prepared.context.currentRunSessionId(),
+                status: finalized.status,
+                aborted: isAborted() || execution.runResult.meta?.aborted === true,
+                replyDisposition: finalized.replyDisposition,
               });
               if (finalized.status === "error") {
                 outcome = "error";
