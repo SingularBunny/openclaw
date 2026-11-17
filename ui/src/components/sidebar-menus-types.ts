@@ -63,6 +63,11 @@ export interface SidebarMenusOwner extends SidebarRouteView {
   setCatalogProjectGrouping(grouping: CatalogProjectGrouping): void;
   hideSessionCatalog(catalogId: string): void;
   hideSessionCatalogFolder(catalogId: string, folderId: string, label: string): void;
+  readNewSessionAccess(): import("../lib/session-method-access.ts").SessionMethodAccess;
+  requestOpenNewSession(
+    agentId: string,
+    target?: import("../pages/new-session/location.ts").NewSessionTarget,
+  ): void;
   readonly sessionsEmptyGroupsMode: SidebarEmptyGroupsMode;
   setSessionsEmptyGroupsMode(mode: SidebarEmptyGroupsMode): void;
   effectiveSessionSortMode(): SidebarSessionSortMode;

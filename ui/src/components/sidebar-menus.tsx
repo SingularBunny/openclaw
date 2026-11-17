@@ -24,6 +24,7 @@ import type {
 } from "./app-sidebar-session-types.ts";
 import type { SessionMenuWork } from "./session-menu-solid.tsx";
 import { SESSION_MENU_OPEN_EVENT } from "./session-progress-hovercard-target.ts";
+import type { CatalogFolderMenuContext } from "./sidebar-catalog-folder-actions.ts";
 import type { SidebarMenusOwner, SidebarRouteView } from "./sidebar-menus-types.ts";
 import { createSidebarRendererLoader } from "./sidebar-renderer-loader.tsx";
 import { Icon } from "./solid/icon.tsx";
@@ -70,7 +71,13 @@ type SidebarMenusState = {
   peopleFilterMenuPosition: MenuPosition | null;
   catalogViewMenuPosition: (MenuPosition & { catalogId: string }) | null;
   catalogFolderMenuPosition:
-    | (MenuPosition & { catalogId: string; folderId: string; label: string })
+    | (MenuPosition & {
+        catalogId: string;
+        folderId: string;
+        label: string;
+        /** Fork: the folder's path, agents and collapse state for its menu. */
+        context: CatalogFolderMenuContext;
+      })
     | null;
   filterMenuView: SidebarFilterMenuView;
   agentMenuPosition: { x: number; top: number; placement?: "right-start" } | null;
@@ -461,13 +468,14 @@ export function createSidebarMenus(deps: {
       catalogId: string,
       folderId: string,
       label: string,
+      context: CatalogFolderMenuContext,
       x: number,
       y: number,
       trigger: HTMLElement | null = null,
     ) {
       openPositionedMenu(
         "catalogFolder",
-        { catalogId, folderId, label, ...menuPosition(x, y, 200, 48) },
+        { catalogId, folderId, label, context, ...menuPosition(x, y, 240, 240) },
         trigger,
       );
     },
