@@ -219,6 +219,7 @@ export function renderSidebarIdentityMenuForController(
         onNavigate: (routeId, options) => host.onNavigate?.(routeId, options),
         onPairMobile: () => host.onPairMobile?.(),
         onRetryConnect: host.onRetryConnect,
+        maintenanceControl: host.maintenanceControl ?? null,
       }}
     />
   );

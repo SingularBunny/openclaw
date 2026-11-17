@@ -23,7 +23,7 @@ export function renderGatewayStatus(props: GatewayStatusProps) {
   const label = t(`connection.${kind}`);
   const content = html`<span class="gateway-status__state"
     ><span class="gateway-status__icon" aria-hidden="true"
-      >${kind === "suspending" || kind === "suspended" ? icons.pause : kind === "offline" ? icons.alertTriangle : icons.refresh}</span
+      >${kind === "suspending" || kind === "suspended" || kind === "maintenance" ? icons.pause : kind === "offline" ? icons.alertTriangle : icons.refresh}</span
     ><span class="gateway-status__label">${label}</span></span
   >`;
   const className = `gateway-status gateway-status--${kind}`;

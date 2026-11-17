@@ -49,6 +49,7 @@ import {
   notifyGatewayObservers,
 } from "./gateway-observers.ts";
 import { readSuspensionPhase } from "./gateway-readiness.ts";
+import { readGatewayMaintenance, readGatewayMaintenanceEvent } from "./gateway-maintenance-notice.ts";
 import { readGatewayRestartNotice } from "./gateway-restart-notice.ts";
 import { createAvailabilityIndicators } from "./gateway-store.availability.ts";
 import { createGatewayCredentials } from "./gateway-store.credentials.ts";
@@ -268,6 +269,9 @@ export function createApplicationGateway(
       if (suspensionPhase) {
         setSnapshot({ suspensionPhase });
       }
+    } else if (event.event === "gateway.maintenance") {
+      // Fork: maintenance mode on/off (app-shell-maintenance-notice.tsx).
+      setSnapshot({ maintenance: readGatewayMaintenanceEvent(event.payload) });
     } else if (event.event === "gateway.restart") {
       // Fork: restart-pending notice, shown outside the chat (gateway-restart-notice.ts).
       const restartNotice = readGatewayRestartNotice(asOptionalRecord(event.payload)?.notice);
@@ -501,6 +505,7 @@ export function createApplicationGateway(
           phase: "connected",
           restartPending: false,
           restartNotice: readGatewayRestartNotice(asOptionalRecord(hello.snapshot)?.gatewayRestart),
+          maintenance: readGatewayMaintenance(asOptionalRecord(hello.snapshot)?.gatewayMaintenance),
           ...(restarted ? { restartedAt: Date.now() } : {}),
           suspensionPhase: readSuspensionPhase(asOptionalRecord(hello.snapshot)?.suspension),
           hello,

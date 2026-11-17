@@ -16,7 +16,7 @@ export function renderGatewayStatus(params: GatewayStatusProps): JSX.Element {
       <span class="gateway-status__icon" aria-hidden="true">
         <Icon
           name={
-            kind === "suspending" || kind === "suspended"
+            kind === "suspending" || kind === "suspended" || kind === "maintenance"
               ? "pause"
               : kind === "offline"
                 ? "alertTriangle"

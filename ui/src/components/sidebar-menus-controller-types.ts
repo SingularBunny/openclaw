@@ -1,3 +1,4 @@
+import type { GatewayMaintenanceControl } from "../lib/gateway-maintenance-control.ts";
 import type { ControlUiNavigationItem } from "../../../src/plugin-sdk/control-ui.js";
 import type { AgentIdentityResult, GatewayAgentRow } from "../api/types.ts";
 import type { NavigationRouteId } from "../app-navigation.ts";
@@ -37,6 +38,7 @@ export interface SidebarMenusControllerHost extends SessionOrganizerControllerHo
   ) => void;
   readonly onPairMobile?: () => void;
   readonly onRetryConnect?: () => void;
+  readonly maintenanceControl?: GatewayMaintenanceControl | null;
   readonly onPreloadRoute?: (routeId: NavigationRouteId) => Promise<void>;
   sidebarAgentsMode: "chip" | "roster";
   readonly pinnedAgentIds: readonly string[];

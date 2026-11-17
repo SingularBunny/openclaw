@@ -1,3 +1,4 @@
+import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import { GatewayProtocolRequestTimeoutError } from "@openclaw/gateway-client/browser";
 import type { ChatWorkContext } from "../../../../packages/gateway-protocol/src/chat-work-context.js";
 import { GatewayPayloadLimitError, GatewayRequestError } from "../../api/gateway.ts";
@@ -435,7 +436,10 @@ export function settleQueuedChatSendFailure(
         host,
         retryDelayMs === null
           ? "Message will send when the Gateway reconnects."
-          : "The Gateway asked us to retry this message shortly.",
+          : isGatewayMaintenanceRefusal(err)
+            ? // Fork: maintenance mode keeps the message in the outbox until chats resume.
+              "Chats are paused for maintenance. The message waits and sends itself when maintenance ends."
+            : "The Gateway asked us to retry this message shortly.",
       );
     }
     if (retryDelayMs !== null) {
