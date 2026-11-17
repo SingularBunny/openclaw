@@ -49,3 +49,23 @@ export async function markAutomationRunUnread(params: {
     log.warn("Could not mark the automation session unread", { error: String(error) });
   }
 }
+
+/** Isolated runs report ok/error; an abort (Stop or timeout) counts as cancelled. */
+export async function markIsolatedCronRunUnread(params: {
+  agentId: string;
+  sessionKey: string;
+  storePath?: string;
+  sessionId?: string;
+  status: string;
+  aborted: boolean;
+  replyDisposition?: AutomationRunUnreadFacts["replyDisposition"];
+}): Promise<void> {
+  const facts: AutomationRunUnreadFacts = {
+    status: params.aborted ? "cancelled" : params.status === "ok" ? "completed" : "failed",
+    executionStarted: true,
+    replyDisposition: params.replyDisposition,
+  };
+  if (shouldMarkAutomationRunUnread(facts)) {
+    await markAutomationRunUnread(params);
+  }
+}

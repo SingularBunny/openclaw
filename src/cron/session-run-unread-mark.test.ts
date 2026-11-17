@@ -4,6 +4,7 @@ import { makeCronJob } from "./delivery.test-helpers.js";
 import { resolveCronSourceDeliveryPlan } from "./isolated-agent/source-delivery-plan.js";
 import {
   markAutomationRunUnread,
+  markIsolatedCronRunUnread,
   shouldMarkAutomationRunUnread,
 } from "./session-run-unread-mark.js";
 import { runCronSessionTurn } from "./session-run.js";
@@ -113,5 +114,30 @@ describe("automation unread mark", () => {
     await expect(
       markAutomationRunUnread({ agentId: "main", sessionKey: "agent:main:a", now: 5 }),
     ).resolves.toBeUndefined();
+  });
+
+  it.each([
+    [{ status: "ok", aborted: false, replyDisposition: "silent" }, 1],
+    [{ status: "ok", aborted: false, replyDisposition: "empty" }, 1],
+    [{ status: "ok", aborted: false }, 1],
+    [{ status: "error", aborted: false, replyDisposition: "visible" }, 1],
+    [{ status: "ok", aborted: false, replyDisposition: "visible" }, 0],
+    [{ status: "error", aborted: true, replyDisposition: "silent" }, 0],
+  ] as const)("isolated run %j writes %i marks", async (facts, writes) => {
+    await markIsolatedCronRunUnread({
+      agentId: "shop",
+      sessionKey: "agent:shop:cron:job",
+      storePath: "/state/shop",
+      sessionId: "run-session",
+      ...facts,
+    });
+    expect(fixture.apply).toHaveBeenCalledTimes(writes);
+    if (writes) {
+      expect(fixture.apply).toHaveBeenCalledWith(
+        { agentId: "shop", sessionKey: "agent:shop:cron:job", storePath: "/state/shop" },
+        expect.objectContaining({ expected: { sessionId: "run-session" } }),
+        { preserveActivity: true },
+      );
+    }
   });
 });
