@@ -46,7 +46,17 @@ export type AgentRunContext = {
   /** Sticky diagnostic provenance only; never authorization for recovery work. */
   mainSessionRestartRecovery?: true;
   /** Active cadence state by job; admission permits one invocation per job. */
-  cronRunsByJobId?: Map<string, { nextCheckEnabled: boolean; nextCheckMs?: number }>;
+  cronRunsByJobId?: Map<
+    string,
+    {
+      nextCheckEnabled: boolean;
+      nextCheckMs?: number;
+      /** Fork: follow-up chain facts of a one-shot continuation (`cron.followUpChainLimit`). */
+      followUp?: { depth: number; ownerOrigin: boolean };
+      /** Fork: chain depth the accepted next_check proposal carries to the rearmed job. */
+      nextCheckFollowUpDepth?: number;
+    }
+  >;
   /** Timestamp when this context was first registered (for TTL-based cleanup). */
   registeredAt?: number;
   /** Bounded presentation facts from this registration's accepted events; never authority. */

@@ -483,6 +483,7 @@ function* createOpenClawToolsSteps(
             resolveCreatorToolAuthority: options?.resolveCronCreatorToolAuthority,
             creatorAuthorityUnavailableReason: options?.cronCreatorAuthorityUnavailableReason,
             selfRemoveOnlyJobId: options?.cronSelfRemoveOnlyJobId,
+            ...(options?.cronFollowUpOnly ? { followUpOnly: true as const } : {}),
           }),
           createSessionsTool({
             ...options,

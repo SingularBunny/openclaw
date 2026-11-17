@@ -177,6 +177,8 @@ export type OpenClawToolsOptions = {
   conversationReadOrigin?: ConversationReadInvocationOrigin;
   /** Restrict cron operations to the active cron job's self-scoped surface. */
   cronSelfRemoveOnlyJobId?: string;
+  /** Fork: the self-scoped automations tool offers only next_check (`cron.followUpChainLimit`). */
+  cronFollowUpOnly?: true;
   /** Process-local completion authority restricted to the current source conversation. */
   sourceReplyOnly?: boolean;
   /**

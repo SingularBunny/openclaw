@@ -123,6 +123,28 @@ to rearm that same job. It does not create a new job or change its task, target,
 or permissions. Without a next-check proposal, ordinary one-shot completion and
 `deleteAfterRun` behavior are unchanged.
 
+#### Follow-up limit (ai-workbench fork)
+
+`cron.followUpChainLimit` (Settings → Automation → Automations → **Automation
+Follow-Up Limit**, default `0`) sets how many times such a continuation may rearm
+itself. Example: the owner asks the agent to restart four jobs one at a time; the
+agent creates one `at` continuation for this chat, and each turn it starts does
+one step and calls `next_check in: "20m"` for the next. With the limit at `3`,
+the chain runs four turns.
+
+- The chain must start at a job the owner created (a local or owner channel turn;
+  not a non-owner requester grant and not an agent). Each accepted `next_check`
+  stores the next depth on the job; the owner-created job is depth 0.
+- At depth `N` the next call fails with "Follow-up limit N reached for this
+  automation chain; ask the owner." The run still completes normally.
+- On a Claude CLI turn the automation starts (the Gateway tool surface), a limit
+  above 0 gives that turn an `automations` tool with `next_check` only; listing,
+  creating, editing, removing and running jobs, and other sessions stay owner-only.
+  At `0` that turn has no `automations` tool, as upstream.
+- On embedded runtimes the scheduled turn keeps upstream's self-scoped tool; a
+  limit above 0 also caps its one-shot `next_check` the same way. Paced recurring
+  jobs are not affected.
+
 Manual runs use the same scheduled execution context as timer-fired runs after
 the request passes admission. Ending the chat turn or tool call that started a
 run does not expire the job's tool access. The job still uses its stored authority

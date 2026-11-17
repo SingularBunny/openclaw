@@ -34,6 +34,8 @@ import { withPluginRuntimeGenerationScope } from "../../plugins/runtime/generati
 import { isCommandLaneTaskTimeoutError } from "../../process/command-queue.js";
 import { CommandLane } from "../../process/lanes.js";
 import { createLazyImportLoader } from "../../shared/lazy-promise.js";
+import { readCronRunNextCheckFollowUpDepth } from "../follow-up-chain-run.js";
+import { withCronFollowUpLink } from "../follow-up-chain.js";
 import { removeCronRunContinuationSessionIfIdle } from "../run-continuation-cleanup.js";
 import { createCronRunDiagnosticsFromError, mergeCronRunDiagnostics } from "../run-diagnostics.js";
 import { resolveCronRunErrorReason } from "../run-error-reason.js";
@@ -261,6 +263,7 @@ async function runCronIsolatedAgentTurnInTrace(
                     {
                       nextCheckEnabled:
                         params.job.pacing !== undefined || isCronOneShotContinuationJob(params.job),
+                      ...withCronFollowUpLink(params.job),
                     },
                   ],
                 ]),
@@ -347,10 +350,14 @@ async function runCronIsolatedAgentTurnInTrace(
               outcome = "error";
               outcomeError = finalized.error;
             }
+            const followUpDepth = readCronRunNextCheckFollowUpDepth(runId, params.job.id);
             const delayMs = consumeCronNextCheckProposal(runId, params.job.id);
             return finalized.status !== "ok" || delayMs === undefined
               ? finalized
-              : { ...finalized, nextCheck: { delayMs } };
+              : {
+                  ...finalized,
+                  nextCheck: { delayMs, ...(followUpDepth !== undefined ? { followUpDepth } : {}) },
+                };
           } catch (err) {
             lifecycle.emit("error", err);
             await promptAdmission?.finish();

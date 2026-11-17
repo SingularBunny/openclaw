@@ -8,7 +8,6 @@ import type { CronDelivery, CronJob } from "../../cron/types.js";
 import { normalizeHttpWebhookUrl } from "../../cron/webhook-url.js";
 import { GatewayClientRequestError } from "../../gateway/client.js";
 import { CRON_MANAGEMENT_METHODS } from "../../gateway/cron-creator-authority-grant.js";
-import { recordCronNextCheckProposal } from "../../infra/agent-run-registry.js";
 import { normalizeAccountId } from "../../routing/account-id.js";
 import { parseAgentSessionKey } from "../../sessions/session-key-utils.js";
 import { isRecord } from "../../utils.js";
@@ -45,6 +44,7 @@ import {
   cronCreateRequiresCreatorAuthority,
   resolveCronCreatorExecToolTarget,
 } from "./cron-tool-creator-cap.js";
+import * as cronFollowUp from "./cron-tool-follow-up.js";
 import { CronToolOutputSchema } from "./cron-tool-output-schema.js";
 import {
   assertCronPacingInput,
@@ -123,6 +123,7 @@ function assertCronSelfRemoveScope(
   params: Record<string, unknown>,
 ) {
   const selfRemoveOnlyJobId = readCronSelfRemoveOnlyJobId(opts);
+  cronFollowUp.assertCronFollowUpOnlyScope(opts, action);
   if (!selfRemoveOnlyJobId || action === "status" || action === "list") {
     return;
   }
@@ -253,6 +254,7 @@ export function createCronTool(opts?: CronToolOptions, deps?: CronToolDeps): Any
       : managementAuthority?.managementOnly
         ? 'Manage any existing automation on this Gateway with the admitted automation management authority. Actions: list [includeDisabled,limit,offset] (compact summaries with timing; follow nextOffset); get jobId (full schedule, payload, and delivery details); update jobId job (partial patch, null clears); run jobId (runMode:"force" runs now; waits up to timeoutMs, default 60s, and returns the finished run, or its runId if still running); remove jobId (operator removal requests cancellation of an active run; the result reports activeRunCancellationRequested:true). Creator attribution and scheduled execution policy stay intact. Use the Automations page for other actions.'
         : buildCronToolDescription({ triggersEnabled }),
+    ...(opts?.followUpOnly ? { description: cronFollowUp.CRON_FOLLOW_UP_ONLY_DESCRIPTION } : {}),
     outputSchema: CronToolOutputSchema,
     parameters: createCronToolSchema({
       agentSessionKey: opts?.agentSessionKey,
@@ -680,7 +682,7 @@ export function createCronTool(opts?: CronToolOptions, deps?: CronToolDeps): Any
             if (delayMs <= 0) {
               throw new Error("cron next_check in must be a positive duration");
             }
-            recordCronNextCheckProposal(runId, jobId, delayMs);
+            cronFollowUp.proposeCronNextCheck(runtimeConfig, runId, jobId, delayMs);
             return jsonResult({ ok: true, delayMs });
           }
           case "wake": {

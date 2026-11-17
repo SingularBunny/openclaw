@@ -181,6 +181,7 @@ export function enqueueSessionEventForHost(
   let summary: string | undefined;
   let failure: Error | string | undefined;
   let nextCheckMs: number | undefined;
+  let nextCheckFollowUpDepth: number | undefined;
   let sourceDeliveryOutcome: SourceDeliveryOutcome | undefined;
   let automationResult: SessionEventOutcome["automationResult"];
   let settlement: "settling" | "finished" | undefined;
@@ -397,6 +398,7 @@ export function enqueueSessionEventForHost(
           operation.result.code === "aborted_for_supersession",
         summary,
         nextCheckMs,
+        ...(nextCheckFollowUpDepth !== undefined ? { nextCheckFollowUpDepth } : {}),
         sourceDeliveryOutcome,
         automationResult,
         ...(failure ? { error: String(failure) } : {}),
@@ -599,6 +601,7 @@ export function enqueueSessionEventForHost(
                   outcome,
                 });
                 nextCheckMs = automationOutcome.nextCheckMs;
+                nextCheckFollowUpDepth = automationOutcome.nextCheckFollowUpDepth;
                 sourceDeliveryOutcome = automationOutcome.sourceDeliveryOutcome;
                 automationResult = automationOutcome.automationResult;
                 delivered ||= sourceDeliveryOutcome?.satisfiesSourceDelivery === true;

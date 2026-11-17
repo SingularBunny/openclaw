@@ -1,3 +1,4 @@
+import { readCronRunNextCheckFollowUpDepth } from "../../cron/follow-up-chain-run.js";
 import { createCronRunDiagnosticsFromAgentResult } from "../../cron/run-diagnostics.js";
 import { projectCronRunUsage } from "../../cron/run-telemetry.js";
 import { consumeCronNextCheckProposal } from "../../infra/agent-run-registry.js";
@@ -72,7 +73,10 @@ export async function settleSessionAutomationTurn(params: {
   prepareCurrent: () => Promise<void>;
   outcome: "completed" | "failed" | "aborted";
 }): Promise<
-  Pick<SessionEventOutcome, "nextCheckMs" | "sourceDeliveryOutcome" | "automationResult">
+  Pick<
+    SessionEventOutcome,
+    "nextCheckMs" | "nextCheckFollowUpDepth" | "sourceDeliveryOutcome" | "automationResult"
+  >
 > {
   const { automation, runId, deliveryEvidence } = params;
   let sourceDeliveryOutcome: SessionEventOutcome["sourceDeliveryOutcome"];
@@ -85,7 +89,12 @@ export async function settleSessionAutomationTurn(params: {
       messageToolSentTargets: deliveryEvidence?.messagingToolSentTargets,
     });
   }
+  const nextCheckFollowUpDepth =
+    params.outcome === "completed"
+      ? readCronRunNextCheckFollowUpDepth(runId, automation.job.id)
+      : undefined;
   return {
+    ...(nextCheckFollowUpDepth !== undefined ? { nextCheckFollowUpDepth } : {}),
     nextCheckMs:
       params.outcome === "completed"
         ? consumeCronNextCheckProposal(runId, automation.job.id)

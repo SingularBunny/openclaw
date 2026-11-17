@@ -191,6 +191,15 @@ export async function runCronSessionTurn(
       fallbackUsed: false,
       delivered: result.deliveryAmbiguous ? undefined : result.delivered,
     }),
-    ...(result.nextCheckMs !== undefined ? { nextCheck: { delayMs: result.nextCheckMs } } : {}),
+    ...(result.nextCheckMs !== undefined
+      ? {
+          nextCheck: {
+            delayMs: result.nextCheckMs,
+            ...(result.nextCheckFollowUpDepth !== undefined
+              ? { followUpDepth: result.nextCheckFollowUpDepth }
+              : {}),
+          },
+        }
+      : {}),
   };
 }

@@ -73,6 +73,7 @@ import {
   captureGatewayToolResolutionAuthority,
   resolveGatewayRequesterToolPolicies,
 } from "./tool-resolution-authority.js";
+import * as followUp from "./tool-resolution-follow-up.js";
 
 type GatewayScopedToolSurface = "http" | "loopback";
 
@@ -270,10 +271,14 @@ export async function resolveGatewayScopedTools(
     surface === "loopback" &&
     params.admittedRunContext &&
     getAdmittedRunDelegatedAuthority(params.admittedRunContext);
+  const cronFollowUpGrant = followUp.resolveGatewayCronFollowUpGrant({ ...params, surface });
   const ownerOnlyGatewayDeny = [
-    ...resolveGatewayOwnerOnlyToolDenylist(
-      surface === "http" ? params.senderIsOwner === true : params.senderIsOwner,
-    ).filter((name) => name !== "sessions" && (name !== "portal" || !sessionPortalTarget)),
+    ...followUp.liftFollowUpAutomationsDeny(
+      resolveGatewayOwnerOnlyToolDenylist(
+        surface === "http" ? params.senderIsOwner === true : params.senderIsOwner,
+      ).filter((name) => name !== "sessions" && (name !== "portal" || !sessionPortalTarget)),
+      cronFollowUpGrant,
+    ),
     // Attach grants also use loopback; session binding is not run authority.
     ...(params.senderIsOwner !== true &&
     !assignmentAdmitted &&
@@ -380,6 +385,7 @@ export async function resolveGatewayScopedTools(
     ...commonToolOptions(),
     computerExecutionId: params.admittedRunContext?.operationalRunInstance.instanceId,
     sessionPortalTarget,
+    ...cronFollowUpGrant,
     gatewayConfigReadAllowed,
     agentSessionKey: params.sessionKey,
     messageToolTurnCapability:

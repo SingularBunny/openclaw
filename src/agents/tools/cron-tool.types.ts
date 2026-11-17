@@ -71,6 +71,8 @@ export type CronToolOptions = {
   /** Visible fail-closed reason when a queued local turn cannot retain fresh MCP authority. */
   creatorAuthorityUnavailableReason?: "queued-local-operator-configured-mcp";
   selfRemoveOnlyJobId?: string;
+  /** Fork: only next_check of selfRemoveOnlyJobId (`cron.followUpChainLimit` grant). */
+  followUpOnly?: true;
   runId?: string;
 };
 

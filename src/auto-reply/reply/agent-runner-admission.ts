@@ -4,6 +4,7 @@ import { readChannelContextGatewayContextResolver } from "../../channels/message
 import { composeSessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { captureOwnedTranscriptWriteAssertion } from "../../config/sessions/transcript-write-context.js";
 import { resolveCronJobConfigRevision } from "../../cron/config-revision.js";
+import { withCronFollowUpLink } from "../../cron/follow-up-chain.js";
 import { prepareCronRunAdmission } from "../../cron/run-admission.js";
 import { isCronOneShotContinuationJob } from "../../cron/service/one-shot-schedule.js";
 import { resolveCronAuthenticatedChannelRequester } from "../../cron/tools-allow-provenance.js";
@@ -166,6 +167,7 @@ export function prepareReplyTurnRunSource(params: AgentTurnParams, runId: string
                   nextCheckEnabled:
                     automation.job.pacing !== undefined ||
                     isCronOneShotContinuationJob(automation.job),
+                  ...withCronFollowUpLink(automation.job),
                 },
               ],
             ]),
