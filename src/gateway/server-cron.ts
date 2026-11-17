@@ -2,6 +2,10 @@ import { captureSessionMcpRuntimeRetirement } from "../agents/agent-bundle-mcp-m
 import { prepareAgentRunTerminalReply } from "../agents/agent-run-terminal-reply.js";
 import { listAgentIds, tryResolveAmbientOwnerAgentId } from "../agents/agent-scope-config.js";
 import { abortAndDrainEmbeddedAgentRunByRunId } from "../agents/embedded-agent-runner/runs.js";
+import {
+  isGatewayMaintenanceActive,
+  onGatewayMaintenanceChange,
+} from "../process/gateway-maintenance-mode.js";
 import { abortAndDrainEmbeddedAgentRun } from "../agents/embedded-agent.js";
 import { loadPreparedInboundPluginRegistry } from "../agents/prepared-model-runtime.inbound-registry.js";
 import { captureSessionEventTargetForHost } from "../auto-reply/reply/session-event-handoff.js";
@@ -904,8 +908,14 @@ export function buildGatewayCronService(params: {
       unregisterSessionAutomationSource(automationSource);
     }
   };
-  cron.stop = () => stopCronLifecycle();
+  // Fork: maintenance mode subscription, set up once scheduling pause/resume are wrapped below.
+  let unsubscribeMaintenance = () => {};
+  cron.stop = () => {
+    unsubscribeMaintenance();
+    stopCronLifecycle();
+  };
   cron.stopAndDrain = async () => {
+    unsubscribeMaintenance();
     stopCronLifecycle();
     await drainGatewayCron({
       settlements: [
@@ -929,6 +939,17 @@ export function buildGatewayCronService(params: {
     schedulingResume = undefined;
     resumeScheduling();
   };
+  // Fork: maintenance mode keeps scheduling paused; due jobs run once it ends (deferred, not skipped).
+  if (isGatewayMaintenanceActive()) {
+    cron.pauseScheduling();
+  }
+  unsubscribeMaintenance = onGatewayMaintenanceChange((maintenance) => {
+    if (maintenance) {
+      cron.pauseScheduling();
+    } else {
+      cron.resumeScheduling();
+    }
+  });
   const startCron = cron.start.bind(cron);
   const startCronLifecycle = async () => {
     if (exitWatcherHandoffReady?.settled) {

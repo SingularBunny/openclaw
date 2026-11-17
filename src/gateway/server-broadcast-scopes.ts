@@ -52,6 +52,8 @@ const EVENT_SCOPE_GUARDS: Record<string, string[]> = {
   "gateway.suspension": [],
   // Fork: the reason names changed config paths.
   "gateway.restart": [READ_SCOPE],
+  // Fork: maintenance mode on/off; everyone may learn that chats are paused.
+  "gateway.maintenance": [],
   tick: [],
   "talk.event": [READ_SCOPE],
   "talk.mode": [TALK_SCOPE],
