@@ -30,6 +30,19 @@ function assistant(text: string, id: string) {
   return { role: "assistant", content: [{ type: "text", text }], __openclaw: { id } };
 }
 
+/** A reply with its author, as the Gateway stores it; `failed` is a stopped turn (e.g. a 429). */
+function reply(id: string, provider: string, model: string, failed = false) {
+  return {
+    ...assistant(failed ? "" : `reply ${id}`, id),
+    provider,
+    model,
+    ...(failed ? { stopReason: "error", errorMessage: "429 Too Many Requests" } : {}),
+  };
+}
+
+const GEMMA = "openrouter/google/gemma:free";
+const COHERE = "openrouter/cohere/command:free";
+
 /** A chat whose /acp commands bind and unbind like the Gateway does. */
 function createChat(options: { model?: string; agents?: string[]; failSpawn?: boolean } = {}) {
   const info: ChatHandoffInfo = { binding: null, handoff: null, agents: options.agents ?? [] };
@@ -46,6 +59,8 @@ function createChat(options: { model?: string; agents?: string[]; failSpawn?: bo
     chatModelCatalog: [
       { provider: "claude-cli", id: "opus", name: "Claude Opus" },
       { provider: "openrouter", id: "x/y:free", name: "Y Free" },
+      { provider: "openrouter", id: "google/gemma:free", name: "Gemma Free" },
+      { provider: "openrouter", id: "cohere/command:free", name: "Cohere Free" },
     ],
     sessions: { state: { modelOverrides: { [SESSION]: options.model ?? "claude-cli/opus" } } },
     sessionsResult: null,
@@ -217,6 +232,91 @@ describe("chat handoff", () => {
     expect(readChatAcpModels(state)?.current).toBe("m2");
     expect(await setChatAcpModel(state, "bad")).toBe(false);
     expect(readChatAcpModels(state)?.current).toBe("m2");
+  });
+});
+
+describe("Return to the last answerer that replied", () => {
+  it("skips a model that failed after the switch (Opus → Gemma 429 → Cohere)", async () => {
+    const { state, requests } = createChat();
+    state.chatMessages = [user("q1", "u1"), reply("a1", "claude-cli", "opus")];
+    await handOffChat(state, { kind: "model", model: GEMMA });
+    state.chatMessages.push(user("q2", "u2"), reply("a2", "openrouter", "google/gemma:free", true));
+    await handOffChat(state, { kind: "model", model: COHERE });
+    state.chatMessages.push(reply("a3", "openrouter", "cohere/command:free"));
+
+    const controller = createChatHandoffController(state, { models: [] });
+    expect(controller.current).toEqual({ kind: "model", model: COHERE });
+    expect(controller.previous).toEqual({ kind: "model", model: "claude-cli/opus" });
+    expect(controller.labelOf(controller.previous!)).toBe("Claude Opus");
+    // The stored record names Opus too, so another tab or a reload agrees.
+    expect(requests.at(-1)).toEqual([
+      "acpx.chat.handoff.set",
+      {
+        sessionKey: SESSION,
+        previous: { kind: "model", model: "claude-cli/opus" },
+        current: { kind: "model", model: COHERE },
+      },
+    ]);
+    expect(await controller.returnToPrevious()).toBe(true);
+    expect(switchChatModel).toHaveBeenLastCalledWith(state, "claude-cli/opus", SESSION, undefined);
+  });
+
+  it("follows the transcript even when the stored record names a model that never replied", async () => {
+    const { state, info } = createChat({ model: COHERE });
+    state.chatMessages = [
+      user("q1", "u1"),
+      reply("a1", "claude-cli", "opus"),
+      user("q2", "u2"),
+      reply("a2", "openrouter", "google/gemma:free", true),
+      reply("a3", "openrouter", "cohere/command:free"),
+    ];
+    info.handoff = {
+      previous: { kind: "model", model: GEMMA },
+      current: { kind: "model", model: COHERE },
+      at: 1,
+    };
+    await refreshChatHandoffInfo(state);
+    expect(createChatHandoffController(state, { models: [] }).previous).toEqual({
+      kind: "model",
+      model: "claude-cli/opus",
+    });
+  });
+
+  it("returns from a model to the ACP agent that replied before a failed model", async () => {
+    const { state, sent } = createChat({ agents: ["junie"] });
+    state.chatMessages = [user("q1", "u1"), reply("a1", "claude-cli", "opus")];
+    await handOffChat(state, { kind: "agent", agent: "junie" });
+    state.chatMessages.push(user("q2", "u2"), reply("a2", "acp", "junie"));
+    await handOffChat(state, { kind: "model", model: GEMMA });
+    state.chatMessages.push(user("q3", "u3"), reply("a3", "openrouter", "google/gemma:free", true));
+    await handOffChat(state, { kind: "model", model: COHERE });
+
+    const controller = createChatHandoffController(state, { models: [] });
+    expect(controller.previous).toEqual({ kind: "agent", agent: "junie" });
+    expect(await controller.returnToPrevious()).toBe(true);
+    expect(sent.at(-1)).toBe("/acp spawn junie --bind here");
+  });
+
+  it("returns from an agent to the model that replied when the agent before it failed", async () => {
+    const { state } = createChat({ agents: ["junie", "codex"] });
+    state.chatMessages = [user("q1", "u1"), reply("a1", "claude-cli", "opus")];
+    await handOffChat(state, { kind: "agent", agent: "codex" });
+    state.chatMessages.push(user("q2", "u2"), reply("a2", "acp", "codex", true));
+    await handOffChat(state, { kind: "agent", agent: "junie" });
+
+    const controller = createChatHandoffController(state, { models: [] });
+    expect(controller.current).toEqual({ kind: "agent", agent: "junie" });
+    expect(controller.previous).toEqual({ kind: "model", model: "claude-cli/opus" });
+  });
+
+  it("offers no return after switching back to the only model that replied", async () => {
+    const { state, info } = createChat();
+    state.chatMessages = [user("q1", "u1"), reply("a1", "claude-cli", "opus")];
+    await handOffChat(state, { kind: "model", model: GEMMA });
+    state.chatMessages.push(user("q2", "u2"), reply("a2", "openrouter", "google/gemma:free", true));
+    await handOffChat(state, { kind: "model", model: "claude-cli/opus" });
+    expect(info.handoff).toBeNull();
+    expect(createChatHandoffController(state, { models: [] }).previous).toBeUndefined();
   });
 });
 
