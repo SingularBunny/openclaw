@@ -34,6 +34,7 @@ import {
 import { nativeListener } from "../../../lib/solid-native-listener.ts";
 import { presentedContent, type PresentationValue } from "../../../lit/presentation-binding.ts";
 import { LitContent, solidContent, emptyLegacyContent } from "../../../lit/solid-content.tsx";
+import { ChatGroupHeaderButton } from "./chat-group-view.tsx";
 import { ChatPaneLayoutMenu, type ChatPaneLayoutMenuProps } from "./chat-header-panel-actions.tsx";
 import { ChatPaneVersionsMenu } from "./chat-pane-versions-menu.tsx";
 
@@ -429,6 +430,7 @@ function ChatPaneHeader(props: ChatPaneHeaderProps) {
               <RunningSubagents count={props.runningSubagentCount} />
             </Show>
             <LitContent value={props.runAction} />
+            <ChatGroupHeaderButton sessionKey={props.session?.key} />
             <LitContent value={props.sharingControl} />
             <Show when={props.mergedChrome}>
               <LitContent value={props.sessionMenuAction} />

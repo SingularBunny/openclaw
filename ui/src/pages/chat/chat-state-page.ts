@@ -27,6 +27,7 @@ import { requestChatAbort } from "./chat-abort-request.ts";
 import { resolveAgentIdForSession } from "./chat-avatar.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
+import { routeChatGroupSend } from "./chat-group.ts";
 import {
   canUseChatAcpModels,
   refreshChatAcpModels,
@@ -424,6 +425,11 @@ export function createPageState(
       })
     ) {
       autoPromptNotificationsOnSend(context);
+    }
+    // Fork: a message naming group chat members goes to them (aiwb-groups), not to the chat's answerer.
+    const toGroup = isCommand ? undefined : routeChatGroupSend(state, messageOverride, options);
+    if (toGroup) {
+      return toGroup;
     }
     const sent = handleSendChat(state, messageOverride, options, submissionAction);
     // Fork: a typed /acp or /session command can bind or unbind the chat; re-read its binding.

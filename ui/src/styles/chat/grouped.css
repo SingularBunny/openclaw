@@ -2389,3 +2389,46 @@ button.chat-reply-attribution__target:disabled {
   grid-template-columns: 18px minmax(0, 1fr) auto auto;
   min-height: 40px;
 }
+
+/* Fork: group chat — the Hand off / Add to group chat switch, the header menu and the member strip. */
+.chat-handoff-menu__modes {
+  display: flex;
+  gap: 4px;
+  padding: 2px 2px 6px;
+}
+
+.chat-group-menu .chat-handoff-menu__popover {
+  top: calc(100% + 4px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+}
+
+.chat-group-menu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-composer-neighbor-card.chat-group-strip {
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  min-height: 40px;
+}
+
+.chat-group-strip__members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-group-strip__member {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chat-group-strip__running {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}

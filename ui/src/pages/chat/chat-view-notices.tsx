@@ -21,6 +21,7 @@ import {
 } from "./chat-provider-review-controller.tsx";
 import type { SubagentRoster, SubagentRowContext } from "./chat-spawned-subagent.ts";
 import { ChatChildAttention } from "./components/chat-child-attention.tsx";
+import { ChatGroupStrip } from "./components/chat-group-view.tsx";
 import { ChatHandoffChip } from "./components/chat-handoff-view.tsx";
 import { renderWorkspaceConflictNotice } from "./components/chat-workspace-conflict.ts";
 import type { ChatRunError } from "./run-lifecycle.ts";
@@ -233,6 +234,7 @@ export function renderChatComposerNotices(props: ChatComposerNoticesProps) {
   return (
     <>
       <ChatHandoffChip sessionKey={props.sessionKey} />
+      <ChatGroupStrip sessionKey={props.sessionKey} />
       {/* Seeded rows can name children the gateway no longer links; wait for its child read. */}
       <Show when={props.subagentParentKey && props.subagentSessionsRead}>
         <ChatChildAttention
