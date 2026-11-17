@@ -195,6 +195,11 @@ export function routeChatGroupSend(
   if (named.length === 0) {
     return undefined;
   }
+  // A member's rows go into the chat directly; not while the chat's own turn is writing there.
+  if (state.chatSending || state.chatRunId || state.chatStream !== null) {
+    setChatError(state, t("chat.group.busy"), true);
+    return Promise.resolve();
+  }
   if (messageOverride === undefined) {
     handleChatDraftChange(state, "");
     state.requestUpdate?.();
