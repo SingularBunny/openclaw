@@ -18,7 +18,10 @@ describe("bound ACP reply author (F72)", () => {
     expect(resolveBoundAcpReplyAuthor(enabled, "agent:main:main", transcript)).toEqual({
       runtimeAuthor: { provider: "acp", model: "codex" },
     });
-    expect(resolveBoundAcpReplyAuthor({}, "agent:main:main", transcript)).toEqual({});
+    // Without shared history the row is not replayed but still names its agent for display.
+    expect(resolveBoundAcpReplyAuthor({}, "agent:main:main", transcript)).toEqual({
+      displayAuthor: { provider: "acp", model: "codex" },
+    });
     // An unbound ACP session owns its own transcript row.
     expect(resolveBoundAcpReplyAuthor(enabled, transcript.sessionKey, transcript)).toEqual({});
     expect(resolveBoundAcpReplyAuthor(enabled, "agent:main:main", undefined)).toEqual({});
@@ -31,6 +34,9 @@ describe("bound ACP reply author (F72)", () => {
       refusal: true,
     });
     // Without shared history the mirrored row is not replayed, but the hint still shows.
-    expect(resolveBoundAcpReplyAuthor({}, "agent:main:main", refused)).toEqual({ refusal: true });
+    expect(resolveBoundAcpReplyAuthor({}, "agent:main:main", refused)).toEqual({
+      displayAuthor: { provider: "acp", model: "codex" },
+      refusal: true,
+    });
   });
 });

@@ -95,6 +95,11 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
   runtimeAuthor?: { provider: string; model: string };
   /** Fork (I14): the bound runtime declined; the Control UI offers a hand-off under the row. */
   refusal?: true;
+  /**
+   * Fork: who wrote a bound runtime's reply that stays a gateway row (not replayed), for display
+   * only: the Control UI shows that ACP agent's name and avatar on it.
+   */
+  displayAuthor?: { provider: string; model: string };
 }): Promise<GatewayInjectedTranscriptAppendResult> {
   if (!params.sessionKey.trim() || !params.sessionId.trim() || !params.storePath) {
     return { ok: false, error: "transcript identity not resolved" };
@@ -125,6 +130,10 @@ export async function appendInjectedAssistantMessageToTranscript(params: {
     // Fork (I14): a bound runtime's reply the provider stopped as a refusal.
     ...(params.refusal === true && params.contextFreeCommand !== true
       ? { refusal: { signal: "provider" } }
+      : {}),
+    // Fork: a bound ACP agent's reply names its agent for display without a runtime author.
+    ...(params.displayAuthor && !params.runtimeAuthor && params.contextFreeCommand !== true
+      ? { author: params.displayAuthor }
       : {}),
     ...(params.humanMentions?.length
       ? { humanMentions: params.humanMentions.map((mention) => ({ ...mention })) }
