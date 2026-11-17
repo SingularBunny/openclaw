@@ -3,7 +3,6 @@ import { isDeepStrictEqual } from "node:util";
 import {
   ErrorCodes,
   errorShape,
-  isCloudWorkerPlacementState,
   type SessionsFilesGetParams,
   type SessionsFilesListParams,
   type SessionsFilesAssetsParams,
@@ -34,14 +33,7 @@ import {
 import type { SessionTranscriptReadScope } from "../session-transcript-readers.js";
 import { retainGatewaySessionEntryReadOnly } from "../session-utils-read-lifetime.js";
 import type { GatewaySessionEntryRead } from "../session-utils-store.js";
-import { readSessionWorkerPlacementAsync } from "../worker-environments/session-placement-lifecycle.js";
 import { WORKSPACE_PREVIEW_MAX_BYTES } from "../workspace-file-limits.js";
-import {
-  formatOpenPathError,
-  isHeadlessOpenPathError,
-  resolveOpenPathCommand,
-  sanitizePathForLog,
-} from "./open-path.js";
 import { resolveSessionBrowseRoots, selectSessionBrowseRoot } from "./session-file-browse-roots.js";
 import {
   createSessionFileReadAuthority,
@@ -65,7 +57,7 @@ import { retainSessionScopedRead } from "./session-scoped-read.js";
 import { loadSessionTouchedFiles } from "./session-touched-files.js";
 import { getSessionWorkspaceAssets } from "./sessions-file-assets.js";
 import { respondSessionFileDownload } from "./sessions-file-download.js";
-import { openRevealFolder } from "./sessions-files-reveal-target.js";
+import { revealSessionFolder } from "./sessions-files-reveal.js";
 import type {
   GatewayRequestContext,
   GatewayRequestHandlerOptions,
@@ -687,7 +679,8 @@ export const sessionsFilesHandlers: GatewayRequestHandlers = {
   "sessions.files.reveal": defineValidatedGatewayHandler(
     "sessions.files.reveal",
     validateSessionsFilesRevealParams,
-    async ({ params, respond, context }) => {
+    async (options) => {
+      const { params, respond, context } = options;
       const agentId = requireSessionFilesAgentId({
         cfg: context.getRuntimeConfig(),
         sessionKey: params.key,
@@ -704,59 +697,7 @@ export const sessionsFilesHandlers: GatewayRequestHandlers = {
           if (rejectDeviceFolderFiles(loaded.entry, respond)) {
             return;
           }
-          if (loaded.entry?.repositoryWorkspaceId) {
-            respond(true, {
-              ok: false,
-              error:
-                "This repository exists only on the cloud session runner. Use the Files panel to browse it; there is no Gateway checkout to reveal.",
-            });
-            return;
-          }
-          const workspaceRoot = loaded.root;
-          if (!workspaceRoot) {
-            respond(true, {
-              ok: false,
-              error: "No workspace root is available for this session.",
-            });
-            return;
-          }
-          if (loaded.entry?.execNode || getAgentWorkspaceAccess(workspaceRoot)) {
-            respond(true, {
-              ok: false,
-              path: workspaceRoot,
-              error: loaded.entry?.execNode
-                ? "Cannot reveal this workspace because the session runs on an exec node."
-                : "Cannot reveal this workspace because its files live on a remote host.",
-            });
-            return;
-          }
-          const placement = await readSessionWorkerPlacementAsync({
-            context,
-            sessionId: loaded.entry?.sessionId,
-          });
-          if (isCloudWorkerPlacementState(placement?.state)) {
-            respond(true, {
-              ok: false,
-              path: workspaceRoot,
-              error: `Cannot reveal this workspace because the session runs remotely (${placement.state}).`,
-            });
-            return;
-          }
-          const command = resolveOpenPathCommand(workspaceRoot);
-          try {
-            const folder = await openRevealFolder(workspaceRoot, params.path, assertCurrent);
-            assertCurrent();
-            respond(true, { ok: true, path: folder });
-          } catch (error) {
-            const errorMessage = formatOpenPathError(error);
-            const detailedError = isHeadlessOpenPathError(error, command)
-              ? `Cannot open path in headless environment. Path: ${workspaceRoot}. This environment appears to lack a graphical or terminal browser handler.`
-              : `Failed to reveal session workspace: ${errorMessage}`;
-            context.logGateway.warn(
-              `sessions.files.reveal failed path=${sanitizePathForLog(workspaceRoot)}: ${errorMessage}`,
-            );
-            respond(true, { ok: false, path: workspaceRoot, error: detailedError });
-          }
+          await revealSessionFolder({ options, loaded, agentId, assertCurrent });
         },
       );
     },

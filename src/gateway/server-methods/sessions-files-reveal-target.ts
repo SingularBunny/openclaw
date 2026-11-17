@@ -1,6 +1,7 @@
 import { stat, realpath } from "node:fs/promises";
 import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { execOpenPath, resolveOpenPathCommand } from "./open-path.js";
+import { resolveSessionBrowseRoots, selectSessionBrowseRoot } from "./session-file-browse-roots.js";
 
 export type RevealFolderTarget = { ok: true; folder: string } | { ok: false; error: string };
 
@@ -55,4 +56,42 @@ export async function openRevealFolder(
   assertCurrent();
   await execOpenPath(resolveOpenPathCommand(target.folder));
   return target.folder;
+}
+
+export type RevealRootSelection = { ok: true; root: string } | { ok: false; error: string };
+
+/**
+ * Fork (F34): the folder `sessions.files.reveal` opens from. Without `requested` it is the session
+ * workspace. Otherwise `requested` must be exactly one of the session's browse roots (the agent run
+ * cwd or the session cwd outside the workspace, as `sessions.files.list` returns them in `roots`),
+ * and the session must hold host-read authority, as for browsing that root. No other absolute path
+ * is accepted.
+ */
+export async function selectRevealRoot(params: {
+  requested: string | undefined;
+  workspaceRoot: string;
+  runCwd: string | undefined;
+  spawnedCwd: string | undefined;
+  authorize: () => Promise<boolean>;
+}): Promise<RevealRootSelection> {
+  const browse = await selectSessionBrowseRoot({
+    requested: params.requested,
+    root: params.workspaceRoot,
+    browseRoots: resolveSessionBrowseRoots({
+      root: params.workspaceRoot,
+      runCwd: params.runCwd,
+      spawnedCwd: params.spawnedCwd,
+    }),
+    authorize: params.authorize,
+  });
+  if (browse.kind === "ok") {
+    return { ok: true, root: browse.root ?? params.workspaceRoot };
+  }
+  return {
+    ok: false,
+    error:
+      browse.kind === "denied"
+        ? "This session may not open folders outside its workspace."
+        : "This folder is not available for the session.",
+  };
 }
