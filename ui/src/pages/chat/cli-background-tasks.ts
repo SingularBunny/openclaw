@@ -1,4 +1,6 @@
 import { t } from "../../i18n/index.ts";
+import { resolveChatAgentId } from "./chat-agent-id.ts";
+import type { ChatPageHost } from "./chat-state-host.ts";
 import type {
   AgentEventPayload,
   CliBackgroundTaskRow,
@@ -127,4 +129,21 @@ export function formatCliBackgroundTasksLabel(
     : one
       ? t("chat.backgroundTasks.runningTaskOne")
       : t("chat.backgroundTasks.runningTasks", { count });
+}
+
+/** Fork (F47): stops one Claude CLI background task of the selected session. */
+export async function stopCliBackgroundTask(
+  state: ChatPageHost | undefined,
+  taskId: string,
+): Promise<boolean> {
+  if (!state?.client) {
+    return false;
+  }
+  const agentId = resolveChatAgentId(state);
+  const result = await state.client.request<{ requested?: boolean }>("sessions.cliTasks.stop", {
+    sessionKey: state.sessionKey,
+    ...(agentId ? { agentId } : {}),
+    taskId,
+  });
+  return result?.requested === true;
 }
