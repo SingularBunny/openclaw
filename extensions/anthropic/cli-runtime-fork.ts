@@ -166,13 +166,17 @@ export async function startClaudeCliTurnPermissionMode(
   }
 }
 
-/** Live session handle methods the fork adds: stop one background task, rewind files. */
+/**
+ * Live session handle methods the fork adds: stop one background task, rewind files. The session
+ * is read when a method runs, since the handle is built inside the session itself.
+ */
 export function claudeCliForkHandleMethods(
-  session: ForkSession,
+  readSession: () => ForkSession,
 ): Pick<CliBackendLiveSessionHandle, "stopTask" | "rewindFiles"> {
   return {
     // Fork (F47): the CLI answers with task_notification status "stopped".
     stopTask: async (taskId) => {
+      const session = readSession();
       const transport = session.transport;
       if (session.closed || !transport || !session.taskOwners.has(taskId)) {
         return false;
@@ -186,6 +190,7 @@ export function claudeCliForkHandleMethods(
     },
     // Fork (F52): only an idle process may restore files; a running turn could still edit.
     rewindFiles: async (userMessageId, { dryRun }) => {
+      const session = readSession();
       const transport = session.transport;
       if (session.closed || !transport || session.currentTurn) {
         return undefined;
