@@ -11,6 +11,8 @@ import { createReviewFixture } from "../../../test-helpers/chat-pane-embedded-pa
 import { createTestGatewayClient } from "../../../test-helpers/gateway-client.ts";
 import { gatewayHelloForMethods } from "../../../test-helpers/gateway-methods.ts";
 import { sidebarPanelDefinitions } from "../chat-pane-embedded-panels.ts";
+import { nothing } from "lit";
+import { renderChatAutomationHeaderControl } from "./chat-automation-header-control.tsx";
 import "./chat-automation-runs-panel.tsx";
 
 const confirmDialog = vi.hoisted(() => vi.fn(async () => true));
@@ -389,5 +391,44 @@ describe("automation chat Run button", () => {
     await vi.waitFor(() =>
       expect(panel.querySelector(".chat-automation-run__feedback")?.textContent).toBeTruthy(),
     );
+  });
+});
+
+describe("automation chat header", () => {
+  const params = {
+    sessionKey: JOB_KEY,
+    agentId: "main",
+    presented: true,
+    runsAvailable: true,
+    onOpenRuns: () => undefined,
+  };
+
+  it("adds Runs and Run controls only to an automation chat whose runs may be read", () => {
+    expect(renderChatAutomationHeaderControl(params)).not.toBe(nothing);
+    expect(renderChatAutomationHeaderControl({ ...params, runsAvailable: false })).toBe(nothing);
+    expect(renderChatAutomationHeaderControl({ ...params, sessionKey: "agent:main:main" })).toBe(
+      nothing,
+    );
+  });
+
+  it("opens the Runs tab from the header and offers Run now there too", async () => {
+    const { panel } = mountPanel(
+      (method) =>
+        method === "cron.list"
+          ? listJobs(job("job-1"))
+          : { entries: [], total: 0, offset: 0, hasMore: false },
+      ["operator.admin"],
+    );
+    const header = document.createElement("openclaw-chat-automation-header-control");
+    const onOpenRuns = vi.fn();
+    header.sessionKey = JOB_KEY;
+    header.onOpenRuns = onOpenRuns;
+    panel.parentElement!.append(header);
+    await settle(header);
+    await vi.waitFor(() =>
+      expect(header.querySelector('[data-test-id="automation-run-now"]')).not.toBeNull(),
+    );
+    header.querySelector<HTMLButtonElement>('[data-test-id="automation-header-runs"]')!.click();
+    expect(onOpenRuns).toHaveBeenCalledOnce();
   });
 });
