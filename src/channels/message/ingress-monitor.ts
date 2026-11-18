@@ -1,7 +1,5 @@
 /** Shared durable channel-ingress admission, pump, retention, and shutdown lifecycle. */
-import { randomUUID } from "node:crypto";
 import { formatErrorMessage } from "../../infra/errors.js";
-import { createSubsystemLogger } from "../../logging/subsystem.js";
 import { isGatewayMaintenanceActive } from "../../process/gateway-maintenance-mode.js";
 import {
   getGatewayRestartDrainSignal,
@@ -20,6 +18,8 @@ import {
   createChannelIngressAdmission,
   type ChannelIngressAdmissionContext,
 } from "./ingress-monitor-admission.js";
+import { createIngressDiagnostics } from "./ingress-monitor-diagnostics.js";
+import { assertIngressQueueAvailable } from "./ingress-monitor-queue.js";
 import { createAdmissionClaimLock, waitForPending } from "./ingress-monitor-tasks.js";
 import type {
   ChannelIngressMonitorDeliveryResult,
@@ -33,7 +33,6 @@ import {
   DEFAULT_INGRESS_RETRY_DEAD_LETTER_MIN_AGE_MS,
   DEFAULT_INGRESS_RETRY_MAX_ATTEMPTS,
 } from "./ingress-retry-policy.js";
-import { ChannelIngressUnavailableError } from "./ingress-unavailable.js";
 
 export type {
   ChannelIngressMonitorDeliveryResult,
@@ -61,42 +60,15 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
   options: CreateChannelIngressMonitorOptions<TRaw, TBody, TStoredPayload, TMetadata>,
 ) {
   // Bounded debug observations; never record queue keys, payloads, or errors.
-  const diagnosticId = randomUUID();
-  const diagnosticLog = createSubsystemLogger("channels/ingress");
-  let diagnosticCount = 0;
-  const observe = (phase: string, facts: Record<string, string | number | boolean> = {}) => {
-    if (diagnosticCount >= 96) {
-      return;
-    }
-    try {
-      if (!diagnosticLog.isEnabled("debug")) {
-        return;
-      }
-      diagnosticCount += 1;
-      diagnosticLog.debug(
-        "ingress monitor " +
-          JSON.stringify({
-            monitor: diagnosticId,
-            sequence: diagnosticCount,
-            phase,
-            running,
-            stopped,
-            aborted: drainAbortSignal.aborted,
-            restartAborted: getGatewayRestartDrainSignal().aborted,
-            restarting: isGatewayRestartDraining(),
-            suspend: getGatewaySuspendAdmissionPhase(),
-            requested,
-            pumping: pumping !== undefined,
-            inspections: activeInspections.size,
-            deliveries: activeDeliveries.size,
-            ...facts,
-            exhausted: diagnosticCount === 96,
-          }),
-      );
-    } catch {
-      // Observations cannot change admission or delivery.
-    }
-  };
+  const observe = createIngressDiagnostics(() => ({
+    running,
+    stopped,
+    aborted: drainAbortSignal.aborted,
+    requested,
+    pumping: pumping !== undefined,
+    inspections: activeInspections.size,
+    deliveries: activeDeliveries.size,
+  }));
   const now = options.now ?? Date.now;
   const waitForDeliveryIdleBeforeRepump = options.waitForDeliveryIdleBeforeRepump ?? false;
   const retention =
@@ -176,16 +148,7 @@ export function createChannelIngressMonitor<TRaw, TBody, TStoredPayload, TMetada
 
   const getQueue = (): Queue => (queue ??= queueFactory());
 
-  const ensureQueueAvailable = (): void => {
-    try {
-      getQueue();
-    } catch (error) {
-      throw new ChannelIngressUnavailableError(
-        `Channel ingress queue is unavailable: ${formatErrorMessage(error)}`,
-        { cause: error },
-      );
-    }
-  };
+  const ensureQueueAvailable = (): void => assertIngressQueueAvailable(getQueue);
 
   const isAborted = () => drainAbortSignal.aborted;
 
