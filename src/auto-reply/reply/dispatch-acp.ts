@@ -15,7 +15,6 @@ import {
   toAcpRuntimeError,
 } from "../../acp/runtime/errors.js";
 import {
-  closeAdmittedRunDelegatedAuthority,
   getAdmittedRunDelegatedAuthority,
   type AdmittedRunContext,
 } from "../../agents/admitted-run-context.js";
@@ -25,7 +24,6 @@ import {
   resolveAgentWorkspaceDir,
   resolveSessionAgentId,
 } from "../../agents/agent-scope.js";
-import { runAcpTurnAgentEndHook } from "../../agents/harness/acp-agent-end.js";
 import {
   PreparedQuestionAnswerRefusedError,
   QuestionAnswerUnconfirmedError,
@@ -37,7 +35,6 @@ import { readChannelContextAdmissionEvidence } from "../../channels/message-acce
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import { getGatewayLocalUserIngress } from "../../gateway/local-user-ingress.js";
 import { logVerbose } from "../../globals.js";
-import { drainAgentRunTerminalWrites } from "../../infra/agent-run-terminal-writes.js";
 import { isDiagnosticsEnabled } from "../../infra/diagnostic-events.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import { generateSecureUuid } from "../../infra/secure-random.js";
@@ -48,14 +45,12 @@ import { recordAcceptedSessionParticipantInput } from "../../sessions/session-pa
 import { prepareChannelParticipantObservation } from "../../sessions/session-participant-input.js";
 import { classifySessionStateActor } from "../../sessions/session-state-events.js";
 import { bindUserTurnInput } from "../../sessions/user-turn-transcript-runtime-context.js";
-import { createLazyPromise } from "../../shared/lazy-promise.js";
 import { shouldDeferFinalTtsText } from "../../tts/captioned-final.js";
 import { prepareTtsPreferences } from "../../tts/tts-preferences.js";
 import type {
   ReplyDispatchRun,
   ReplyDispatchAssistantTranscript,
 } from "../get-reply-options.types.js";
-import type { FinalizedRuntimeMsgContext } from "../templating.js";
 import { createLazyAcpElicitationHandler } from "./acp-elicitation-handler-lazy.js";
 import { createAcpReplyProjector } from "./acp-projector.js";
 import { resolveAcpProjectionSettings } from "./acp-stream-settings.js";
@@ -72,30 +67,18 @@ import type {
   AcpDispatchAttemptResult,
 } from "./dispatch-acp-delivery.types.js";
 import { finalizeAcpTurnOutput } from "./dispatch-acp-finalize.js";
+import { closeAfterTerminalWrites, endAcpTurn, markAcpRefusal } from "./dispatch-acp-fork.js";
+import {
+  loadDispatchAcpAuditRuntime,
+  loadDispatchAcpManagerRuntime,
+  loadDispatchAcpTranscriptRuntime,
+} from "./dispatch-acp-loaders.js";
 import { resolveAcpSeededTurnText } from "./dispatch-acp-parent-history.js";
+import { resolveAcpRequestId } from "./dispatch-acp-request-id.js";
 import { appendRecentHistoryImageContext } from "./history-media.js";
 import { hasInboundMediaForUnderstanding } from "./inbound-media.js";
 import { resolveInboundConversationToolPolicy } from "./reply-tool-authority-inbound.js";
 import { assertPreparedConversationBindingRouteCurrent } from "./session-conversation-binding.js";
-
-const loadDispatchAcpManagerRuntime = createLazyPromise(
-  () => import("./dispatch-acp-manager.runtime.js"),
-);
-const loadDispatchAcpAuditRuntime = createLazyPromise(
-  () => import("../../agents/command/acp-lifecycle.js"),
-);
-
-const loadDispatchAcpTranscriptRuntime = createLazyPromise(
-  () => import("./dispatch-acp-transcript.runtime.js"),
-);
-
-function resolveAcpRequestId(ctx: FinalizedRuntimeMsgContext): string {
-  const id = ctx.MessageSidFull ?? ctx.MessageSid ?? ctx.MessageSidFirst ?? ctx.MessageSidLast;
-  return (
-    normalizeOptionalString(id) ??
-    (typeof id === "number" || typeof id === "bigint" ? String(id) : generateSecureUuid())
-  );
-}
 
 export async function tryDispatchAcpReplyCore(
   params: AcpDispatchAttemptParams,
@@ -419,10 +402,8 @@ export async function tryDispatchAcpReplyCore(
       prepareAssistantTranscriptMessage: params.prepareAssistantTranscriptMessage,
       assistantIdempotencyKey: existingRunId,
     });
-    // Fork (I14): the agent's own refusal reaches the chat row, so the UI offers a hand-off.
-    if (assistantTranscript && auditStopReason === "refusal") {
-      assistantTranscript = { ...assistantTranscript, refusal: true };
-    }
+    // Fork (I14): a refusal marks the chat row, so the UI offers a hand-off.
+    assistantTranscript = markAcpRefusal(assistantTranscript, auditStopReason);
   };
   const acpTurnHookTarget = () => ({
     runId: auditRunId,
@@ -705,11 +686,7 @@ export async function tryDispatchAcpReplyCore(
 
     await persistTranscript(delivery.getAccumulatedTranscriptText());
     // Fork: plugins hear that the bound ACP agent replied, as after an embedded or CLI turn.
-    runAcpTurnAgentEndHook({
-      ...acpTurnHookTarget(),
-      finalText: delivery.getAccumulatedTranscriptText(),
-      success: true,
-    });
+    endAcpTurn(acpTurnHookTarget(), delivery.getAccumulatedTranscriptText());
 
     const result = finishAttempt(queuedFinal);
     emitAuditTerminal();
@@ -743,26 +720,14 @@ export async function tryDispatchAcpReplyCore(
     // dispatch have no user turn to attach the error to.
     if (turnDispatched) {
       await persistTranscript(partialText ? `${partialText}\n\n${errorText}` : errorText);
-      runAcpTurnAgentEndHook({
-        ...acpTurnHookTarget(),
-        finalText: partialText,
-        success: false,
-        error: acpError.message,
-      });
+      endAcpTurn(acpTurnHookTarget(), partialText, acpError.message);
     }
     queuedFinal = queuedFinal || delivered;
     return finishAttempt(queuedFinal, acpError);
   } finally {
     if (admittedRunContext) {
-      const closingRunContext = admittedRunContext;
-      // The lifecycle end commits asynchronously under this admission, and the chat turn joins
-      // it only after dispatch returns. Closing now refuses that write: a bound chat's row stays
-      // mid-run, and its next send reconciles the finished turn as an interrupted one.
-      void drainAgentRunTerminalWrites(closingRunContext.operationalRunInstance)
-        .finally(() => closeAdmittedRunDelegatedAuthority(closingRunContext))
-        .catch((error: unknown) => {
-          logVerbose(`dispatch-acp: closing turn admission failed: ${formatErrorMessage(error)}`);
-        });
+      // Fork: closes once the lifecycle end has committed under this admission.
+      closeAfterTerminalWrites(admittedRunContext);
     }
   }
 }
