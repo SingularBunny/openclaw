@@ -108,6 +108,7 @@ import {
   sidebarRowsInputs,
   type SidebarProjectionHost,
 } from "./sidebar-projection-memo.ts";
+import { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type { SidebarSnapshotModel } from "./sidebar-snapshot-model.ts";
 import { mountedViewerSessionKeys } from "./solid/viewer-facepile.tsx";
 
@@ -282,6 +283,11 @@ export abstract class AppSidebarSessionNavigationElement extends AppSidebarBase 
   sessionsStatusFilter: SidebarSessionStatusFilter = loadStoredSidebarSessionStatusFilter();
   hiddenSessionCatalogIds: ReadonlySet<string> = loadStoredHiddenSessionCatalogIds();
   hiddenSessionCatalogFolderKeys: ReadonlySet<string> = loadStoredHiddenSessionCatalogFolderKeys();
+  // Fork: catalog folders whose "Show more" is open, kept across refreshes and reloads.
+  readonly catalogExpansion = new CatalogExpandedSections({
+    requestUpdate: () => this.invalidate(),
+    resetMembership: (sectionId) => this.sessionProjection.resetMembership(sectionId),
+  });
 
   // Adopted-key exclusion and rendering share this projection so hidden catalogs
   // never remove their adopted rows from the regular session list.

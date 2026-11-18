@@ -84,6 +84,50 @@ describe("AppSidebar catalog session visibility", () => {
     await verifyExpansion(host!, sidebar);
   });
 
+  it("keeps a project folder expanded across refreshes, list resets and remounts", async () => {
+    const storageKey = "openclaw:sidebar:sessions:expanded-catalog-sections";
+    const folderRows = (root: HTMLElement) =>
+      root
+        .querySelector<HTMLElement>('[data-session-catalog-project="project:/workspace/openclaw"]')
+        ?.closest<HTMLElement>(".sidebar-session-catalog-project")
+        ?.querySelectorAll("[data-session-key]").length;
+    const sidebar = await mountCatalog("project");
+    sidebar
+      .querySelector<HTMLButtonElement>(
+        ".sidebar-session-catalog-project .sidebar-session-pagination__button",
+      )
+      ?.click();
+    await settleLitElement(sidebar);
+    expect(folderRows(sidebar)).toBe(7);
+    expect(JSON.parse(localStorage.getItem(storageKey) ?? "[]")).toHaveLength(1);
+
+    // A catalog refresh replaces every row object; a list reset clears page-size limits.
+    sidebar.sessionData.sessionCatalogs = sidebar.sessionData.sessionCatalogs.map((catalog) => ({
+      ...catalog,
+      hosts: catalog.hosts.map((host) => ({
+        ...host,
+        sessions: host.sessions.map((session) => ({ ...session })),
+      })),
+    }));
+    sidebar.sessionData.resetSessionList();
+    sidebar.sessionData.requestSessionDataUpdate();
+    await settleLitElement(sidebar);
+    expect(folderRows(sidebar)).toBe(7);
+
+    sidebar.remove();
+    const remounted = await mountCatalog("project");
+    expect(folderRows(remounted)).toBe(7);
+    const toggle = remounted.querySelector<HTMLButtonElement>(
+      ".sidebar-session-catalog-project .sidebar-session-pagination__button",
+    );
+    expect(toggle?.getAttribute("aria-label")).toBe("Show less");
+    expect(toggle?.getAttribute("aria-expanded")).toBe("true");
+    toggle?.click();
+    await settleLitElement(remounted);
+    expect(folderRows(remounted)).toBe(5);
+    expect(JSON.parse(localStorage.getItem(storageKey) ?? "[]")).toEqual([]);
+  });
+
   it("omits the control when a group has five sessions", async () => {
     const sidebar = await mountCatalog("none", 5);
     const host = sidebar.querySelector<HTMLElement>(".sidebar-session-catalog-host");
