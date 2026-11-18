@@ -163,3 +163,34 @@ it("keeps ordinary assistant warning text as authored content", () => {
   };
   expect(projectChatSystemNotice(item)).toEqual([item]);
 });
+
+it("turns a Claude CLI login failure into a re-login hint with a copyable command and setup button", async () => {
+  const summary = "Failed to authenticate: OAuth session expired and could not be refreshed";
+  const navigate = vi.fn();
+  const item = {
+    kind: "notice" as const,
+    key: "failure",
+    label: "",
+    text: "",
+    timestamp: 1,
+    runError: { runId: "run-a", summary },
+  };
+  render(
+    renderChatNotice(item, undefined, {
+      applicationContext: { navigate } as never,
+    }),
+    container,
+  );
+  await container.querySelector("openclaw-chat-run-failure-notice")?.updateComplete;
+  expect(container.querySelector(".chat-run-failure__title")?.textContent?.trim()).toBe(
+    "Claude subscription login expired",
+  );
+  expect(container.querySelector(".chat-run-failure__login-command code")?.textContent).toBe(
+    "claude auth login",
+  );
+  container.querySelector<HTMLButtonElement>('button[aria-label="Copy command"]')?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(writeText).toHaveBeenCalledExactlyOnceWith("claude auth login");
+  container.querySelector<HTMLButtonElement>("[data-claude-cli-login-setup]")?.click();
+  expect(navigate).toHaveBeenCalledExactlyOnceWith("model-setup");
+});

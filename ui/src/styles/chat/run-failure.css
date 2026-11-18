@@ -123,3 +123,20 @@
   margin: 8px 0;
   font-family: var(--mono);
 }
+
+/* Fork: Claude CLI re-login hint (copyable command and Model Setup button). */
+.chat-run-failure__login-command {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.chat-run-failure__login-command code {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--bg-muted);
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}

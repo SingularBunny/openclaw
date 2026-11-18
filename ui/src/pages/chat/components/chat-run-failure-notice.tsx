@@ -2,12 +2,21 @@ import { createMemo, Show } from "solid-js";
 import { formatWebUiIconErrorText } from "../../../components/error-presentation.ts";
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
+import { registerClaudeCliLoginEnglish } from "../../../i18n/locales/en-claude-cli-login.ts";
+import {
+  CLAUDE_CLI_LOGIN_COMMAND,
+  isClaudeCliLoginExpiredText,
+} from "../../../lib/chat/claude-cli-login.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../../../lit/solid-bridge.ts";
+
+registerClaudeCliLoginEnglish();
 
 type ChatRunFailureNoticeProps = {
   summary: string;
   onRetry?: () => void;
+  /** Fork: opens Settings → Model Setup; shown with the Claude CLI re-login hint. */
+  onOpenModelSetup?: () => void;
 };
 
 /** One terminal notice, separate from assistant prose and preserved partial output. */
@@ -19,6 +28,7 @@ defineSolidBridge<ChatRunFailureNoticeProps>(
       const firstLine = detail().split(/\r?\n/u)[0] ?? "";
       return firstLine.length <= 240 ? firstLine : t("chat.recovery.failedHelp");
     });
+    const claudeLogin = createMemo(() => isClaudeCliLoginExpiredText(props.summary));
     return (
       <div class="chat-run-failure" role="status">
         <span class="chat-run-failure__icon" aria-hidden="true">
@@ -27,7 +37,9 @@ defineSolidBridge<ChatRunFailureNoticeProps>(
         <div class="chat-run-failure__content">
           <div class="chat-run-failure__header">
             <div class="chat-run-failure__heading">
-              <strong class="chat-run-failure__title">{t("chat.recovery.failedTitle")}</strong>
+              <strong class="chat-run-failure__title">
+                {claudeLogin() ? t("common.claudeCliLogin.title") : t("chat.recovery.failedTitle")}
+              </strong>
               <span class="chat-run-failure__copy">
                 <CopyButton text={props.summary} idleLabel={t("chat.copyError")} bare />
               </span>
@@ -43,7 +55,32 @@ defineSolidBridge<ChatRunFailureNoticeProps>(
               </button>
             </Show>
           </div>
-          <p class="chat-run-failure__summary">{concise()}</p>
+          <Show
+            when={claudeLogin()}
+            fallback={<p class="chat-run-failure__summary">{concise()}</p>}
+          >
+            <div class="chat-run-failure__login" data-claude-cli-login="">
+              <p class="chat-run-failure__summary">{t("common.claudeCliLogin.body")}</p>
+              <div class="chat-run-failure__login-command">
+                <code>{CLAUDE_CLI_LOGIN_COMMAND}</code>
+                <CopyButton
+                  text={CLAUDE_CLI_LOGIN_COMMAND}
+                  idleLabel={t("common.claudeCliLogin.copyCommand")}
+                />
+                <Show when={props.onOpenModelSetup}>
+                  <button
+                    type="button"
+                    class="btn btn--sm"
+                    data-claude-cli-login-setup=""
+                    onClick={() => props.onOpenModelSetup?.()}
+                  >
+                    <Icon name="settings" />
+                    {t("common.claudeCliLogin.openModelSetup")}
+                  </button>
+                </Show>
+              </div>
+            </div>
+          </Show>
           <Show when={detail() !== concise()}>
             <details class="chat-run-failure__details">
               <summary>{t("chat.details")}</summary>
@@ -61,6 +98,7 @@ defineSolidBridge<ChatRunFailureNoticeProps>(
     properties: {
       summary: { default: "" },
       onRetry: { default: undefined, attribute: false },
+      onOpenModelSetup: { default: undefined, attribute: false },
     },
     connected: (host) => (host.style.display = "contents"),
   },
