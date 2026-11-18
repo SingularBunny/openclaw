@@ -1,5 +1,4 @@
 import type { CoreGatewayMethodSpecRow } from "./core-descriptor-types.js";
-import { FORK_GATEWAY_METHOD_SPECS } from "./core-descriptors.fork.js";
 import { cronListShareKey, modelsListShareKey, operatorReadShareKey } from "./read-share-keys.js";
 
 // Canonical append-only method table; derived lookup and dispatch policy lives in core-method-policy.ts.
@@ -757,11 +756,4 @@ export const CORE_GATEWAY_METHOD_SPECS = [
     "2026.10",
     { startup: true, ...OBSERVATION },
   ],
-  ["sessions.catalog.reorder", "session-catalog", "operator.write", "2026.10"],
-  ["sessions.catalog.move", "session-catalog", "operator.write", "2026.10"],
-  ["canvas.storage.get", "canvas", "operator.read", "2026.10"],
-  ["canvas.storage.list", "canvas", "operator.read", "2026.10"],
-  ["canvas.storage.set", "canvas", "operator.write", "2026.10"],
-  ["canvas.storage.delete", "canvas", "operator.write", "2026.10"],
-  ...FORK_GATEWAY_METHOD_SPECS,
 ] as const satisfies readonly CoreGatewayMethodSpecRow[];
