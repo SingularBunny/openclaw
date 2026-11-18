@@ -47,3 +47,15 @@ export function setCatalogSectionExpanded(
   }
   return new Set(stored);
 }
+
+/** Host-owned state: the sidebar re-renders through `requestUpdate` after each change. */
+export class CatalogExpandedSections {
+  sections: ReadonlySet<string> = loadStoredExpandedCatalogSections();
+
+  constructor(private readonly host: { requestUpdate(): void }) {}
+
+  set(sectionId: string, expanded: boolean): void {
+    this.sections = setCatalogSectionExpanded(this.sections, sectionId, expanded);
+    this.host.requestUpdate();
+  }
+}

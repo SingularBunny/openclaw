@@ -38,14 +38,15 @@ import type {
 } from "./app-sidebar-session-types.ts";
 import type { SessionDataController } from "./session-data-controller.ts";
 import type { SessionOrganizerController } from "./session-organizer-controller.ts";
+import type { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type {
   CatalogFolderMenuContext,
   CatalogFolderNewChat,
 } from "./sidebar-catalog-folder-actions.ts";
 import type { SidebarMenusController } from "./sidebar-menus-controller.tsx";
 import type { AgentAvatarProps } from "./solid/agent-avatar.tsx";
-import type { ChannelAvatarProps } from "./solid/channel-avatar.tsx";
 import "./tooltip.ts";
+import type { ChannelAvatarProps } from "./solid/channel-avatar.tsx";
 
 export interface SessionListHost {
   readonly sidebarSnapshot?: import("./sidebar-snapshot-model.ts").SidebarSnapshotModel | null;
@@ -86,7 +87,7 @@ export interface SessionListHost {
   readonly sessionsGrouping: SidebarSessionsGrouping;
   readonly collapsedSessionSections: ReadonlySet<string>;
   readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
-  readonly expandedCatalogSections: ReadonlySet<string>;
+  readonly catalogExpansion: Pick<CatalogExpandedSections, "sections" | "set">;
   readonly sessionOrganizer: Pick<
     SessionOrganizerController,
     | "draggingSidebarSection"
@@ -160,7 +161,6 @@ export interface SessionListHost {
   readSessionMutationAccess(request: SessionMethodAccessRequest): SessionMethodAccess;
   requestOpenNewSession(agentId: string, target?: NewSessionTarget): void;
   setVisibleSessionLimit(sectionId: string, limit: number): void;
-  setCatalogSectionExpanded(sectionId: string, expanded: boolean): void;
   clearSessionSelection(): void;
 }
 

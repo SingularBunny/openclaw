@@ -171,7 +171,7 @@ function renderSessionCatalog(params: {
       collapsedSections={host().collapsedSessionSections}
       hiddenFolderKeys={host().hiddenSessionCatalogFolderKeys}
       loadingMoreCatalogIds={snapshot().loadingMoreCatalogIds}
-      expandedSections={host().expandedCatalogSections}
+      expandedSections={host().catalogExpansion.sections}
       projectGrouping={snapshot().projectGrouping}
       liveRows={snapshot().liveRows}
       renderLiveRow={(row, display) => (
@@ -220,7 +220,7 @@ function renderSessionCatalog(params: {
       }
       onLoadMore={(catalogId) => void host().sessionData.loadMoreSessionCatalog(catalogId)}
       onSetSectionExpanded={(sectionId, expanded) =>
-        host().setCatalogSectionExpanded(sectionId, expanded)
+        host().catalogExpansion.set(sectionId, expanded)
       }
       onOpenNewSession={(agentId, target) => host().requestOpenNewSession(agentId, target)}
       resolveFolderNewChat={(context, label) =>

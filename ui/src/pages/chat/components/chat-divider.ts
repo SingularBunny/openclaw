@@ -140,9 +140,11 @@ export function renderChatNotice(
       <openclaw-chat-run-failure-notice
         .summary=${item.runError.summary}
         .onRetry=${failureActions?.onRetry}
-        .onOpenModelSetup=${recovery?.applicationContext
-          ? () => recovery.applicationContext?.navigate("model-setup")
-          : undefined}
+        .onOpenModelSetup=${
+          recovery?.applicationContext
+            ? () => recovery.applicationContext?.navigate("model-setup")
+            : undefined
+        }
       ></openclaw-chat-run-failure-notice>
     </div>`;
   }
