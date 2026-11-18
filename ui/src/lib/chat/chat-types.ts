@@ -215,6 +215,14 @@ export type ChatQueueItem = {
   sender?: SenderIdentity;
 };
 
+/** Fork: which scheduler-injected row a compact automation notice stands for. */
+export type AutomationRowMarker = {
+  kind: "prompt" | "reminder" | "repair";
+  /** True when provenance said so; false when only the scheduler text matched. */
+  structured: boolean;
+  jobId?: string;
+};
+
 export type ChatItem =
   | {
       kind: "message";
@@ -239,6 +247,10 @@ export type ChatItem =
       /** Collapse the body behind a disclosure; the label line stays visible. */
       collapsedBody?: true;
       showTimestamp?: true;
+      /** Secondary text after the label, such as the time an automation fired. */
+      metric?: string;
+      /** Fork: a scheduler-injected row (job prompt, reminder, repair request). */
+      automation?: AutomationRowMarker;
       /** Structural only: separates a handed-off run from its resumption. Never rendered. */
       handoffBoundary?: true;
       /** A background skill review's changes; rendered as a native row instead of `text`. */
