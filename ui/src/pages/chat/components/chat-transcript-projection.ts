@@ -50,6 +50,7 @@ import {
   trackTranscriptRenderDependencies,
   transcriptContextDependencies,
 } from "./chat-transcript-render-guard.ts";
+import { chatRewindOptions } from "./chat-transcript-rewind.ts";
 import type { NativeTranscriptView } from "./chat-transcript-rows.ts";
 import type { ChatTranscriptSession, TranscriptHeader } from "./chat-transcript-session.ts";
 import { createTranscriptStreamSource } from "./chat-transcript-stream-source.ts";
@@ -380,22 +381,7 @@ export function projectChatTranscript(
       personActivity: props.personActivity,
       avatarPlacement,
       contextWindow: threadContextWindow,
-      rewindFiles:
-        rewindEntryId && props.onRewindMessage && props.onPreviewRewindFiles
-          ? () => props.onPreviewRewindFiles!(rewindEntryId)
-          : undefined,
-      onRewind:
-        rewindEntryId && props.onRewindMessage
-          ? (choice) => {
-              void Promise.resolve(props.onRewindMessage?.(rewindEntryId, choice)).then(
-                (rewound) => {
-                  if (rewound) {
-                    props.onFocusComposer?.();
-                  }
-                },
-              );
-            }
-          : undefined,
+      ...chatRewindOptions(props, rewindEntryId),
       rewindDisabled: Boolean(props.runActive || props.runWorking),
       activeContinuation: continuation
         ? { parts: continuation, options: streamGroupOptions }
