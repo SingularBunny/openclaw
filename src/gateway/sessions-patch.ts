@@ -73,10 +73,6 @@ import {
   sessionAgentStatusExpiresAt,
   SESSION_AGENT_STATUS_MAX_TTL_MINUTES,
 } from "../sessions/session-agent-status.js";
-import {
-  CLAUDE_PERMISSION_MODES,
-  normalizeClaudePermissionMode,
-} from "../shared/claude-permission-mode.js";
 import { isUserModelAuthProfileId } from "../state/user-model-account-id.js";
 import type { UserModelAccountSelection } from "./model-account-authority.js";
 import { isSessionUnreadAckOnlyPatch } from "./server-methods/session-unread-ack.js";
@@ -93,6 +89,7 @@ import {
 } from "./session-model-patch-origin.js";
 import { invalidSessionRequest as invalid } from "./session-request-error.js";
 import { validateSessionPatchAdmission } from "./sessions-patch-admission.js";
+import { applySessionsPatchClaudePermissionMode } from "./sessions-patch-claude-permission-mode.js";
 import { applySessionContextWindowPatch } from "./sessions-patch-context-window.js";
 import {
   applySessionsPatchDisplayMetadata,
@@ -100,6 +97,10 @@ import {
 } from "./sessions-patch-display-metadata.js";
 import { applySessionPatchLifecycleFlags } from "./sessions-patch-lifecycle-flags.js";
 import { applySessionsPatchSubagentPolicy } from "./sessions-patch-subagent-policy.js";
+import type {
+  SessionPatchPreparation,
+  SessionPatchProjectionResult,
+} from "./sessions-patch.types.js";
 
 type SessionPatchProjectionParams = {
   cfg: OpenClawConfig;
@@ -121,17 +122,6 @@ type SessionPatchProjectionParams = {
   /** Resolved spawn identity supplied only by the trusted creation owner. */
   preparedModelSelection?: ModelRef;
 };
-
-type SessionPatchProjectionResult =
-  | { ok: true; entry: SessionEntry; validateModelSelection?: () => ErrorShape | undefined }
-  | { ok: false; error: ErrorShape };
-
-type SessionPatchPreparation =
-  | { kind: "complete"; result: SessionPatchProjectionResult }
-  | {
-      kind: "model-catalog";
-      finish: (catalog: ModelCatalogSnapshot | undefined) => SessionPatchProjectionResult;
-    };
 
 /** Stop at the first actual catalog use without committing or acquiring runtime effects. */
 export async function prepareSessionsPatchEntry(
@@ -426,11 +416,7 @@ function* projectSessionPatchSteps(
   }
 
   // Fork (F49): Claude CLI permission mode; the CLI runtime applies it on the next turn.
-  const claudePermissionModeError = applyNormalizedPreference(
-    "claudePermissionMode",
-    normalizeClaudePermissionMode,
-    `invalid claudePermissionMode (use ${CLAUDE_PERMISSION_MODES.join("|")})`,
-  );
+  const claudePermissionModeError = applySessionsPatchClaudePermissionMode({ next, patch });
   if (claudePermissionModeError) {
     return invalid(claudePermissionModeError);
   }
