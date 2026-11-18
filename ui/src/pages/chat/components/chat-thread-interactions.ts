@@ -145,6 +145,7 @@ export type ChatThreadProps = Omit<
     chatBubbleMode?: boolean;
     showThinking: boolean;
     showToolCalls: boolean;
+    showAutomationDetails?: boolean;
     persistCommentary?: boolean;
     runWorking?: boolean;
     runFinalizing?: boolean;
