@@ -717,11 +717,16 @@ export const sessionsFilesHandlers: GatewayRequestHandlers = {
       return withSessionFileRoot(
         { sessionKey: params.key, agentId, getRuntimeConfig: context.getRuntimeConfig },
         context.getRuntimeConfig(),
-        async (loaded, assertCurrent) => {
+        async (loaded, assertCurrent, readEntry) => {
           if (rejectDeviceFolderFiles(loaded.entry, respond)) {
             return;
           }
-          await revealSessionFolder({ options, loaded, agentId, assertCurrent });
+          await revealSessionFolder({
+            options,
+            loaded: { ...loaded, readEntry, assertSourceCurrent: assertCurrent },
+            agentId,
+            assertCurrent,
+          });
         },
       );
     },
