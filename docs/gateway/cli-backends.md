@@ -535,6 +535,8 @@ claude auth status --text
 openclaw models auth login --provider anthropic --method cli --set-default
 ```
 
+When the Claude Code subscription login expires, the chat shows **Claude subscription login expired** instead of a generic provider error, with the `claude auth login` command to copy and an **Open Model Setup** button; a model whose Claude Code login is missing shows the same advice above the composer. Run the command on the Gateway host and send the message again. Other channels get the same text without a `/login` button, because OpenClaw's `/login` cannot renew Claude Code's own login.
+
 Normal agent turns can also use a saved subscription token without a native login:
 
 ```bash
