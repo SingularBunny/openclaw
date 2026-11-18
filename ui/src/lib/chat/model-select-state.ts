@@ -217,6 +217,24 @@ export function resolveChatModelUnavailableReason(
   return reason;
 }
 
+/** Fork: the selection resolves only to Claude CLI routes (Claude Code's own login). */
+export function isClaudeCliChatModelSelection(
+  model: string | null | undefined,
+  provider: string | null | undefined,
+  catalog: ModelCatalogEntry[],
+): boolean {
+  const key = normalizeChatModelAvailabilityKey(
+    resolvePreferredServerChatModelValue(model, provider, catalog),
+  );
+  const matches = catalog.filter((entry) => catalogModelAvailabilityKey(entry) === key);
+  return (
+    matches.length > 0 &&
+    matches.every(
+      (entry) => entry.provider === "claude-cli" || entry.agentRuntime?.id === "claude-cli",
+    )
+  );
+}
+
 export function hasChatModelCatalogSelection(
   model: string | null | undefined,
   provider: string | null | undefined,
