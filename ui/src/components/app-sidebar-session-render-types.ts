@@ -32,6 +32,7 @@ import type {
   SidebarSessionStatusFilter,
 } from "./app-sidebar-session-types.ts";
 import type { SessionDataOwner } from "./session-data.ts";
+import type { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type { SessionOrganizer } from "./session-organizer.ts";
 import type { SidebarMenus } from "./sidebar-menus.tsx";
 import type { AgentAvatarProps } from "./solid/agent-avatar.tsx";
@@ -83,6 +84,9 @@ export interface SessionListHost {
   readonly collapsedSessionSections: ReadonlySet<string>;
   /** `sessionCatalogFolderKey(catalogId, folderKey)` of folders hidden from the sidebar. */
   readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
+  /** Fork: catalog folders whose "Show more" is open (persisted). */
+  readonly catalogExpansion: Pick<CatalogExpandedSections, "sections" | "set">;
+  readonly expandedCatalogSections: ReadonlySet<string>;
   readonly sessionOrganizer: Pick<
     SessionOrganizer,
     | "draggingSidebarSection"
