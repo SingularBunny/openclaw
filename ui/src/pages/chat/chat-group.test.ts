@@ -125,7 +125,9 @@ describe("group chat: sending", () => {
     expect(routeChatGroupSend(state, "/status @Junie", undefined)).toBeUndefined();
     expect(routeChatGroupSend(state, "@Junie hi", { intent: "goal" })).toBeUndefined();
     state.chatMessage = "@Junie look";
-    state.chatAttachments = [{ id: "a" }];
+    state.chatAttachments = [
+      { id: "a", mimeType: "text/plain" } as (typeof state.chatAttachments)[number],
+    ];
     expect(routeChatGroupSend(state, undefined, undefined)).toBeUndefined();
     // While the chat's own turn runs, a message to a member waits and keeps the draft.
     state.chatAttachments = [];
