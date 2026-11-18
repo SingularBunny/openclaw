@@ -108,7 +108,7 @@ export function renderCatalogFolderHead(props: {
               get target() {
                 return newChat()?.target;
               },
-              className: "sidebar-session-catalog-project__action",
+              class: "sidebar-session-catalog-project__action",
               get label() {
                 return `${t("chat.sidebar.folderNewChat")} — ${props.group().label}`;
               },

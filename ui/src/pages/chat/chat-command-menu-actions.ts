@@ -3,7 +3,6 @@
 // confirmation, and "Learn a skill from this chat" is `/learn`. The commands stay as a fallback;
 // each item runs exactly what its command runs, for any model.
 import { showConfirmDialog } from "../../components/confirm-dialog.ts";
-import { icons } from "../../components/icons.ts";
 import { i18n, t } from "../../i18n/index.ts";
 import { registerModelControlsEnglish } from "../../i18n/locales/en-model-controls.ts";
 import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
@@ -111,7 +110,7 @@ export class ChatCommandMenuActions {
           id: "command-new",
           label: t("chat.commandMenu.new"),
           description: reasons.new,
-          icon: icons.messageSquarePlus,
+          icon: "messageSquarePlus",
           disabled: Boolean(reasons.new),
           onActivate: () => void runChatMenuCommand(host, "new", deps),
         },
@@ -119,7 +118,7 @@ export class ChatCommandMenuActions {
           id: "command-learn",
           label: t("chat.commandMenu.learn"),
           description: reasons.learn ?? t("chat.commandMenu.learnDescription"),
-          icon: icons.pencilSparkles,
+          icon: "pencilSparkles",
           disabled: Boolean(reasons.learn),
           onActivate: () => void runChatMenuCommand(host, "learn", deps),
         },
@@ -127,7 +126,7 @@ export class ChatCommandMenuActions {
           id: "command-reset",
           label: t("chat.commandMenu.reset"),
           description: reasons.reset,
-          icon: icons.repeat,
+          icon: "repeat",
           variant: "danger" as const,
           disabled: Boolean(reasons.reset),
           onActivate: () => void runChatMenuCommand(host, "reset", deps),

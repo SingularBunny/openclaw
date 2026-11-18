@@ -143,6 +143,7 @@ export function createPageState(
   const presentedFields = {
     settings,
     accessPreferenceRevision: 0,
+    forkUiRevision: 0,
     assistantName: assistantIdentity.name,
     assistantAvatar: assistantIdentity.avatar,
     assistantAvatarStatus: assistantIdentity.avatarStatus ?? null,
@@ -402,6 +403,10 @@ export function createPageState(
       });
     }
     return sent;
+  };
+  // Fork: handoff, group chat and plan mode keep their state outside the projected fields.
+  state.requestUpdate = () => {
+    state.forkUiRevision += 1;
   };
   state.handleAbortChat = (options) => handleAbortChat(state, options);
   state.removeQueuedMessage = (id) => {
