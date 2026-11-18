@@ -2,7 +2,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GatewayEventFrame } from "../../api/gateway.ts";
 import { waitForSolid } from "../../test-helpers/solid-settle.ts";
-import { renderComposerFixture, resetComposerFixture } from "./chat-composer.test-support.ts";
+import {
+  createComposerContainer,
+  createComposerProps,
+  renderComposerFixture,
+  renderComposerInto,
+  resetComposerFixture,
+} from "./chat-composer.test-support.ts";
 import {
   activeChatPromptSuggestion,
   adoptChatPromptSuggestion,
@@ -167,5 +173,76 @@ describe("chat composer prompt suggestion", () => {
     expect(ghostText(drafted.container)).toBeNull();
     const event = keydown(getTextarea(drafted.container), "Tab");
     expect(event.defaultPrevented).toBe(false);
+  });
+});
+
+describe("chat composer prompt suggestion lifetime", () => {
+  // Wires the composer to the host state the way the chat pane does, repainting on every change.
+  function hostedComposer() {
+    const host = createHost("main");
+    let draft = "";
+    const props = createComposerProps({
+      getDraft: () => draft,
+      onDraftChange: (next) => {
+        draft = next;
+      },
+    });
+    const container = document.body.appendChild(createComposerContainer());
+    const paint = () => {
+      props.promptSuggestion = activeChatPromptSuggestion(host);
+      props.onDismissPromptSuggestion = () => dismissChatPromptSuggestion(host);
+      renderComposerInto(container, props);
+    };
+    host.requestUpdate = paint;
+    paint();
+    const textarea = getTextarea(container);
+    const edit = (text: string) => {
+      textarea.value = text;
+      textarea.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText" }));
+      paint();
+    };
+    const suggest = (text: string) =>
+      handleChatPromptSuggestionEvent(
+        host,
+        frame("chat.prompt_suggestion", { sessionKey: "main", text }),
+        sameSession(host),
+      );
+    return { host, props, container, textarea, edit, suggest, paint };
+  }
+
+  it("hides while typing and comes back when the draft is erased", async () => {
+    const c = hostedComposer();
+    c.suggest("run the tests");
+    await waitForSolid(() => expect(ghostText(c.container)).toBe("run the tests"));
+    c.edit("h");
+    await waitForSolid(() => expect(ghostText(c.container)).toBeNull());
+    c.edit("");
+    await waitForSolid(() => expect(ghostText(c.container)).toBe("run the tests"));
+  });
+
+  it("stays gone after Escape, even when the draft is erased", async () => {
+    const c = hostedComposer();
+    c.suggest("run the tests");
+    await waitForSolid(() => expect(ghostText(c.container)).toBe("run the tests"));
+    keydown(c.textarea, "Escape");
+    await waitForSolid(() => expect(ghostText(c.container)).toBeNull());
+    c.edit("h");
+    c.edit("");
+    await waitForSolid(() => expect(ghostText(c.container)).toBeNull());
+  });
+
+  it("is retired by sending and replaced by a new suggestion", async () => {
+    const c = hostedComposer();
+    c.suggest("run the tests");
+    c.edit("ship it");
+    keydown(c.textarea, "Enter");
+    expect(c.props.onSend).toHaveBeenCalled();
+    c.edit("");
+    await waitForSolid(() => expect(ghostText(c.container)).toBeNull());
+
+    c.suggest("open a PR");
+    await waitForSolid(() => expect(ghostText(c.container)).toBe("open a PR"));
+    c.suggest("write the changelog");
+    await waitForSolid(() => expect(ghostText(c.container)).toBe("write the changelog"));
   });
 });
