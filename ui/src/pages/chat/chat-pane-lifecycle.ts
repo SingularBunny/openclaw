@@ -18,7 +18,7 @@ import { modelAuthEventInvalidates } from "../../lib/model-auth-request-state.ts
 import { isSessionReactionEvent } from "../../lib/protocol-validators.generated/activity.js";
 import { listen } from "../../lib/reactive/listener.ts";
 import { parseCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
-import { resolveSessionKey, visibleSessionMatches } from "../../lib/sessions/navigation.ts";
+import { resolveSessionKey } from "../../lib/sessions/navigation.ts";
 import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import { takeCreatedComposer } from "../new-session/creation-composer-registry.ts";
 import * as chatAvatars from "./chat-avatar.ts";
@@ -49,7 +49,7 @@ import { focusChatComposerFromKeydown } from "./chat-pane-shared.ts";
 import { resolveSidebarLayoutForBoard } from "./chat-pane-sidebar-layout.ts";
 import { subscribeChatPaneSnapshotInvalidation } from "./chat-pane-startup-subscriptions.ts";
 import type { ChatPaneInputChanges } from "./chat-pane-state-owner.ts";
-import { handleChatPromptSuggestionEvent } from "./chat-prompt-suggestion.ts";
+import { handlePanePromptSuggestionEvent } from "./chat-prompt-suggestion.ts";
 import { resumeStoredChatOutboxes } from "./chat-send-actions.ts";
 import { cancelChatModelRecovery } from "./chat-session.ts";
 import { handlePageGatewayEvent } from "./chat-state-events.ts";
@@ -466,12 +466,8 @@ export abstract class ChatPaneLifecycle extends ChatPaneSessionObservation {
             this.invalidateSessionSharing(event.payload);
           }
         }
-        if (state) {
-          // Imported (catalog) chats run on the same Claude CLI backend, so no key exclusion here.
-          handleChatPromptSuggestionEvent(state, event, (sessionKey, agentId) =>
-            visibleSessionMatches(state, sessionKey, agentId),
-          );
-        }
+        // Fork: Claude Code's next-prompt prediction.
+        handlePanePromptSuggestionEvent(state, event);
         if (event.event === "sessions.changed" || event.event === "session.message") {
           return;
         }
