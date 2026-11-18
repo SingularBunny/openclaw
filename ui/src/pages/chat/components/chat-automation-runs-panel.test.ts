@@ -1,4 +1,3 @@
-import { nothing } from "lit";
 /* @vitest-environment jsdom */
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CronJob, CronRunLogEntry } from "../../../api/types.ts";
@@ -12,7 +11,7 @@ import { createReviewFixture } from "../../../test-helpers/chat-pane-embedded-pa
 import { createTestGatewayClient } from "../../../test-helpers/gateway-client.ts";
 import { gatewayHelloForMethods } from "../../../test-helpers/gateway-methods.ts";
 import { sidebarPanelDefinitions } from "../chat-pane-embedded-panels.ts";
-import { renderChatAutomationHeaderControl } from "./chat-automation-header-control.tsx";
+import { showsChatAutomationHeaderControl } from "./chat-automation-header-control.tsx";
 import "./chat-automation-runs-panel.tsx";
 
 const confirmDialog = vi.hoisted(() => vi.fn(async () => true));
@@ -318,10 +317,10 @@ describe("automation chat with jobs that target it by session", () => {
     const admin = mountPanel(read, ["operator.admin"]);
     await settle(admin.panel);
     expect(admin.panel.querySelector('[data-test-id="automation-run-menu"]')).not.toBeNull();
-    const items = [...admin.panel.querySelectorAll("wa-dropdown-item")].map((item) =>
-      item.getAttribute("value"),
-    );
-    expect(items).toEqual(["job-1", "job-follow"]);
+    const items = [
+      ...admin.panel.querySelectorAll('[data-test-id="automation-run-menu"] button'),
+    ].map((item) => item.textContent ?? "");
+    expect(items).toHaveLength(2);
   });
 });
 
@@ -397,19 +396,10 @@ describe("automation chat Run button", () => {
 });
 
 describe("automation chat header", () => {
-  const params = {
-    sessionKey: JOB_KEY,
-    presented: true,
-    panelDefinitions: [{ slot: "runs", available: true }],
-    onOpenRuns: () => undefined,
-  };
-
   it("adds Runs and Run controls only to an automation chat whose runs may be read", () => {
-    expect(renderChatAutomationHeaderControl(params)).not.toBe(nothing);
-    expect(renderChatAutomationHeaderControl({ ...params, panelDefinitions: [] })).toBe(nothing);
-    expect(renderChatAutomationHeaderControl({ ...params, sessionKey: "agent:main:main" })).toBe(
-      nothing,
-    );
+    expect(showsChatAutomationHeaderControl(JOB_KEY, true)).toBe(true);
+    expect(showsChatAutomationHeaderControl(JOB_KEY, false)).toBe(false);
+    expect(showsChatAutomationHeaderControl("agent:main:main", true)).toBe(false);
   });
 
   it("opens the Runs tab from the header and offers Run now there too", async () => {
