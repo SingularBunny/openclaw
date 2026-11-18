@@ -66,6 +66,10 @@ describe("cron in maintenance mode", () => {
       await wake(state);
       await waitForCronRunQueue(state);
       expect(enqueueSystemEvent).not.toHaveBeenCalled();
+      expect(
+        (await cron.list({ includeDisabled: true })).find((entry) => entry.id === job.id)?.state
+          .lastRunAtMs,
+      ).toBeUndefined();
 
       const finishedRun = finished.waitForOk(job.id);
       exitGatewayMaintenance();
@@ -74,9 +78,11 @@ describe("cron in maintenance mode", () => {
       await wake(state);
       await finishedRun;
       await waitForCronRunQueue(state);
-      expect(enqueueSystemEvent.mock.calls.some(([text]) => text === "maintenance-tick")).toBe(
-        true,
+      // The deferred occurrence ran once maintenance ended.
+      const after = (await cron.list({ includeDisabled: true })).find(
+        (entry) => entry.id === job.id,
       );
+      expect(after?.state.lastRunAtMs).toBeGreaterThan(0);
     } finally {
       cron.stop();
       await store.cleanup();
