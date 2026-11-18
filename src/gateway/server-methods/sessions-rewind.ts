@@ -16,7 +16,6 @@ import {
   runWithSessionActorStorage,
 } from "../../config/sessions/session-actor-storage-binding.js";
 import type { SessionMessageCutResult as MessageCutMutationResult } from "../../config/sessions/session-message-cut.types.js";
-import { loadSessionTranscriptEvents } from "../../config/sessions/session-transcript-events.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { SqliteJsonlReadBudgetExceededError } from "../../infra/sqlite-jsonl-budget-error.js";
 import { isIncognitoSessionKey } from "../../routing/session-key.js";
@@ -51,7 +50,6 @@ import { getSessionRowProjection } from "../session-row-projection-access.js";
 import { SessionMutationAuthorizationChangedError } from "../session-sharing.js";
 import { withGatewaySessionEntryReadOnly } from "../session-utils-read-lifetime.js";
 import type { GatewaySessionEntryRead } from "../session-utils-store.js";
-import { copyForkedWidgetStorage } from "../widget-storage-fork.js";
 import { getWorkerInferenceSessionControl } from "../worker-environments/inference-control-internal.js";
 import { LocalWorkspaceConflictError } from "../worker-environments/local-workspace-conflict-error.js";
 import {
@@ -64,8 +62,6 @@ import { emitSessionsChanged } from "./session-change-event.js";
 import { prepareSessionForkFilesystemRoot } from "./session-create-root.js";
 import { readGatewayRequestMutationAuthority } from "./session-mutation-guards.js";
 import { resolveEditorMediaAttachments } from "./session-rewind-editor-media.js";
-import { filesRestoredResult, restoreFilesForRewind } from "./session-rewind-files.js";
-import { resolveCliForkProviders, resolveNativeMessageCut } from "./session-rewind-native-cut.js";
 import { prepareRewindRepositoryEntries } from "./session-rewind-repository-entries.js";
 import { waitForTerminalSessionRunSettlement } from "./session-run-settlement.js";
 import { listSessionBranchesForGateway } from "./sessions-branches-list.js";
@@ -76,6 +72,7 @@ import {
   resolveUpstreamForkHarness,
 } from "./sessions-fork-runtime-guard.js";
 import { sessionRewindFilesHandlers } from "./sessions-rewind-files.js";
+import { copyRewindForkWidgets, prepareForkMessageCut } from "./sessions-rewind-fork.js";
 import { sessionLog } from "./sessions-shared.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { defineValidatedGatewayHandler } from "./validation.js";
@@ -496,21 +493,14 @@ async function mutatePreparedSessionAtMessage({
         action === "fork" && current.entry.repositoryWorkspaceId
           ? await prepareRewindRepositoryEntries(current, targetKey, assertMutationCurrent)
           : undefined;
-      const cliForkProviders = resolveCliForkProviders(current.entry, cfg);
-      const native = await resolveNativeMessageCut(params, current.entry, cliForkProviders);
-      if ("error" in native) {
-        return reject(native.error);
-      }
-      // Fork (F52): files first; a failed restore leaves history untouched so the operator can
-      // retry or rewind the conversation alone. The commit guard below still fences the cut.
-      const files = await restoreFilesForRewind(action, params, current, sessionKey);
-      if (files && "error" in files) {
-        return reject(files.error, ErrorCodes.UNAVAILABLE);
+      // Fork (F52): Claude CLI cut and file restore, before history changes.
+      const forkCut = await prepareForkMessageCut(action, params, current, cfg, sessionKey);
+      if ("error" in forkCut) {
+        return reject(forkCut.error, forkCut.code);
       }
       const mutationParams = {
         agentId: current.agentId,
-        cliForkProviders,
-        ...native,
+        ...forkCut.cut,
         commitGuard: assertMutationCurrent,
         sessionKey: current.canonicalKey,
         sessionStoreKey: current.canonicalKey,
@@ -671,18 +661,7 @@ async function mutatePreparedSessionAtMessage({
             agentId: current.agentId,
             entry: committedResult.entry,
           });
-          // Before the response, so the child's widgets never load an empty state first.
-          await copyForkedWidgetStorage({
-            source: { sessionKey: current.canonicalKey, agentId: current.agentId },
-            target: { sessionKey: committedResult.key, agentId: current.agentId },
-            loadHistory: () =>
-              loadSessionTranscriptEvents({
-                agentId: current.agentId,
-                sessionKey: committedResult.key,
-                sessionId: committedResult.entry.sessionId,
-                storePath: current.storePath,
-              }),
-          });
+          await copyRewindForkWidgets(current, committedResult);
         }
         respond(
           true,
@@ -694,7 +673,7 @@ async function mutatePreparedSessionAtMessage({
                   ? { editorText: committedResult.editorText }
                   : {}),
                 ...(editorAttachments.length > 0 ? { editorAttachments } : {}),
-                ...filesRestoredResult(files),
+                ...forkCut.filesRestored,
               },
           undefined,
         );
