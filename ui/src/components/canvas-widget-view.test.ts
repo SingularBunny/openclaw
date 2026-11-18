@@ -591,12 +591,12 @@ describe("Canvas widget view", () => {
   });
 
   it("serves storage on the adopted prompt port for its own session and document", async () => {
-    const client = {
+    const storageClient = {
       request: vi.fn<(...args: unknown[]) => Promise<unknown>>(async (method) =>
         method === "canvas.document.view" ? documentView : { value: "5" },
       ),
     };
-    const view = mount(client, "cv_storage");
+    const view = mount(storageClient, "cv_storage");
     const frame = await frameFor(view);
     message(frame, {
       method: "ui/notifications/sandbox-proxy-ready",
@@ -636,7 +636,7 @@ describe("Canvas widget view", () => {
         ok: true,
         result: { value: "5" },
       });
-    expect(client.request).toHaveBeenLastCalledWith("canvas.storage.get", {
+    expect(storageClient.request).toHaveBeenLastCalledWith("canvas.storage.get", {
       sessionKey: "agent:main:widget-test",
       docId: "cv_storage",
       key: "count",
@@ -649,12 +649,12 @@ describe("Canvas widget view", () => {
       params: { key: "count" },
     });
     expect(
-      client.request.mock.calls.filter(([method]) => method === "canvas.storage.get"),
+      storageClient.request.mock.calls.filter(([method]) => method === "canvas.storage.get"),
     ).toHaveLength(1);
   });
 
   it("shows one dismissible notice when widget storage fails", async () => {
-    const client = {
+    const storageClient = {
       request: vi.fn<(...args: unknown[]) => Promise<unknown>>(async (method) => {
         if (method === "canvas.document.view") {
           return documentView;
@@ -662,7 +662,7 @@ describe("Canvas widget view", () => {
         throw new Error("widget storage is limited to 1000 keys");
       }),
     };
-    const view = mount(client, "cv_storage_failure");
+    const view = mount(storageClient, "cv_storage_failure");
     const frame = await frameFor(view);
     message(frame, {
       method: "ui/notifications/sandbox-proxy-ready",

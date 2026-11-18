@@ -149,7 +149,7 @@ describe("session catalog schemas", () => {
     });
 
     it("rejects unknown kinds, empty or duplicate orders and unknown fields", () => {
-      for (const target of [
+      for (const reorderTarget of [
         { kind: "rows", order: ["Work"] },
         { kind: "groups", order: [] },
         { kind: "groups", order: ["Work", "Work"] },
@@ -157,7 +157,9 @@ describe("session catalog schemas", () => {
         { kind: "sessions", threadIds: ["thread-1"] },
         { kind: "sessions", group: "Work", threadIds: ["thread-1", "thread-1"] },
       ]) {
-        expect(validateSessionsCatalogReorderParams({ ...base, target })).toBe(false);
+        expect(
+          validateSessionsCatalogReorderParams({ ...base, target: reorderTarget }),
+        ).toBe(false);
       }
       expect(
         validateSessionsCatalogReorderParams({

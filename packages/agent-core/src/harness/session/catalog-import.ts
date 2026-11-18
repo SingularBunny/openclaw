@@ -46,7 +46,9 @@ export function projectOwnerCatalogImport<T>(message: T): T | undefined {
       typeof block === "object" &&
       (block as { type?: unknown }).type === "text" &&
       typeof (block as { text?: unknown }).text === "string"
-        ? { ...block, text: unwrapCatalogImportText((block as { text: string }).text) }
+        ? Object.assign({}, block, {
+            text: unwrapCatalogImportText((block as { text: string }).text),
+          })
         : block,
     ),
   };
