@@ -21,16 +21,16 @@ import { hasVisibleChatActivityPills } from "./chat-activity-pills-visibility.ts
 import { createChatAttachmentInputHandle } from "./chat-attachment-inputs.ts";
 import { ChatAttachmentInputs } from "./chat-attachment-inputs.tsx";
 import { AttachmentPreview, AttachmentReadStatus } from "./chat-attachments.tsx";
-import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ComposerContent } from "./chat-composer-content.tsx";
 import { ContextNotice } from "./chat-composer-context.tsx";
-import "../../../styles/chat/emoji-menu.css";
-import "../../../styles/chat/mention-menu.css";
 import {
   renderChatAbortActionSolid,
   renderChatPrimaryActionsSolid as ChatPrimaryActions,
 } from "./chat-composer-controls.tsx";
+import "../../../styles/chat/emoji-menu.css";
+import "../../../styles/chat/mention-menu.css";
 import { focusComposerFromChrome, paneDomId } from "./chat-composer-dom.ts";
+import { ComposerForkStatusLine, ComposerLeadControls } from "./chat-composer-fork-controls.tsx";
 import type { createChatComposerContext } from "./chat-composer-frame.ts";
 import { createComposerMobileInteraction } from "./chat-composer-mobile-interaction.tsx";
 import { ChatComposerPlusMenu } from "./chat-composer-plus-menu.tsx";
@@ -38,13 +38,10 @@ import { ComposerQuestionDock } from "./chat-composer-question.tsx";
 import { ComposerQueue, ComposerInputScope, ComposerProgress } from "./chat-composer-regions.tsx";
 import { SelectedHumanMentions } from "./chat-composer-selected-mentions.tsx";
 import { commitComposerDraft } from "./chat-composer-state.ts";
-import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import { renderFallbackIndicatorSolid } from "./chat-composer-status.tsx";
 import { renderComposerTextarea, type ComposerTextareaProps } from "./chat-composer-textarea.tsx";
 import type { ChatComposerProps, ChatComposerState } from "./chat-composer-types.ts";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
-import { ChatPermissionPicker } from "./chat-permission-picker.tsx";
-import { ChatPlanModeToggle } from "./chat-plan-mode-toggle.tsx";
 import { ChatVoiceStatus, ComposerDictationStatus } from "./chat-voice-activity.tsx";
 
 type ChatComposerViewContext = ReturnType<typeof createChatComposerContext>;
@@ -103,17 +100,7 @@ export function renderChatComposerView(
       ? recovery
       : undefined;
   });
-  const composerLeadControl = (
-    <>
-      <Show when={props.permissionPicker}>
-        {(picker) => <ChatPermissionPicker {...picker()} />}
-      </Show>
-      <Show when={props.claudeModePicker}>
-        {(picker) => <ChatClaudeModePicker {...picker()} />}
-      </Show>
-      <Show when={props.planModeToggle}>{(toggle) => <ChatPlanModeToggle {...toggle()} />}</Show>
-    </>
-  );
+  const composerLeadControl = <ComposerLeadControls composer={props} />;
   const placeholder = createMemo(() =>
     context().goalComposer.active
       ? t("chat.goals.objectivePlaceholder")
@@ -712,19 +699,7 @@ export function renderChatComposerView(
       ) : props.disabledBanner?.kind === "composer-replacement" ? (
         disabledBanner
       ) : undefined}
-      {showComposerInput() ? (
-        <ComposerStatusLine
-          session={props.selectedSession}
-          runActive={props.runActive}
-          providerUsage={props.providerUsage}
-          permissionMode={
-            props.permissionPicker?.mode ??
-            props.permissionPicker?.defaultMode ??
-            props.selectedSession?.permissionMode
-          }
-          claudeMode={props.claudeModePicker?.mode}
-        />
-      ) : undefined}
+      {showComposerInput() ? <ComposerForkStatusLine composer={props} /> : undefined}
     </div>
   );
 }
