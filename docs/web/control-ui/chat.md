@@ -456,7 +456,8 @@ predictions.
 
 Press **Tab** or select **Use suggestion** to copy the suggestion into your draft.
 This never sends it: you can edit or undo it before sending normally. **Escape**,
-**Dismiss suggestion**, or typing your own message dismisses it. Suggestions are
+**Dismiss suggestion**, or sending a message dismisses it. Typing your own message
+only hides it: clearing the draft brings it back, as in Claude Code. Suggestions are
 not saved as messages or collaborator drafts until you accept them. Switching
 conversations, hiding the page, or starting another turn discards pending results.
 

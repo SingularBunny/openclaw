@@ -141,6 +141,45 @@ it.each(["Escape", "typing", "new run"])("dismisses with %s without accepting", 
   f.expectDraft(action === "typing" ? "My own question" : "");
 });
 
+it("hides while a draft exists and shows again once it is erased", async () => {
+  const f = fixture();
+  await f.show();
+  f.edit("My own question");
+  flush();
+  expect(f.prediction()).toBeNull();
+  f.key("Tab");
+  f.expectDraft("My own question");
+  f.edit("");
+  await waitForSolid(() => expect(f.prediction()?.textContent).toBe(suggestion));
+  expect(f.predictions()).toHaveLength(1);
+});
+
+it.each(["Escape", "send"])("stays retired after %s when the draft is erased", async (action) => {
+  const f = fixture();
+  await f.show();
+  if (action === "Escape") {
+    f.key("Escape");
+  } else {
+    f.edit("My own question");
+    f.key("Enter");
+    expect(f.props.onSend).toHaveBeenCalled();
+  }
+  f.edit("x");
+  f.edit("");
+  flush();
+  expect(f.prediction()).toBeNull();
+});
+
+it("replaces a hidden prediction with the next turn's prediction", async () => {
+  const f = fixture();
+  await f.show();
+  f.edit("My own question");
+  f.finish("run-b");
+  f.edit("");
+  await waitForSolid(() => expect(f.prediction()?.textContent).toBe(suggestion));
+  expect(f.predictions()).toHaveLength(2);
+});
+
 it.each(["disabled", "hidden", "read-only", "draft", "attachment"] as const)(
   "does not predict in a %s composer",
   async (kind) => {

@@ -12,11 +12,16 @@ export type ComposerPredictionSource = {
   enabled: boolean;
   eligible: boolean;
   idle: boolean;
+  /** A non-empty draft hides the prediction without retiring it; erasing the draft shows it again. */
+  drafting?: boolean;
 };
 
 /** An unaccepted prediction is presentation only, never a draft or queued message. */
 export function createComposerPrediction(read: () => ComposerPredictionSource | null) {
-  const [state, setState] = createStore<{ text: string | null }>({ text: null });
+  const [state, setState] = createStore<{ text: string | null; hidden: boolean }>({
+    text: null,
+    hidden: false,
+  });
   let source: ComposerPredictionSource | null = null;
   let unsubscribe: (() => void) | null = null;
   let request: AbortController | null = null;
@@ -35,6 +40,12 @@ export function createComposerPrediction(read: () => ComposerPredictionSource | 
       dismiss();
     }
     source = next;
+    const drafting = Boolean(next?.drafting);
+    if (state.hidden !== drafting) {
+      setState((draft) => {
+        draft.hidden = drafting;
+      });
+    }
     if (!enabled) {
       return;
     }
@@ -50,7 +61,7 @@ export function createComposerPrediction(read: () => ComposerPredictionSource | 
       });
       return;
     }
-    if (pendingRunId) {
+    if (pendingRunId && !drafting) {
       const runId = pendingRunId;
       pendingRunId = null;
       void predict(next, runId);
@@ -77,7 +88,11 @@ export function createComposerPrediction(read: () => ComposerPredictionSource | 
   function take(): string | null {
     const current = read();
     const text = dismiss();
-    return current?.enabled && current.eligible && current.idle && sameScope(current, source)
+    return current?.enabled &&
+      current.eligible &&
+      current.idle &&
+      !current.drafting &&
+      sameScope(current, source)
       ? text
       : null;
   }
@@ -192,9 +207,11 @@ export function createComposerPrediction(read: () => ComposerPredictionSource | 
 
   return {
     get text() {
-      return state.text;
+      return state.hidden ? null : state.text;
     },
     sync,
+    /** Re-reads the source after an edit so the draft hides or reveals the prediction at once. */
+    refresh: () => sync(read()),
     dismiss,
     acceptInto,
   };

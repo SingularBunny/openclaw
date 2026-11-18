@@ -289,6 +289,7 @@ export function createChatComposerContext(
     }
     state.composerComposing = false;
     interaction.setComposition(null);
+    prediction?.dismiss();
     dismissPromptSuggestion();
     commitComposerDraft(props, draft);
     props.onTypingChange?.(false);
@@ -371,7 +372,6 @@ export function createChatComposerContext(
       !state.composerComposing && !commandsOpen && !state.mentionMenu.open,
     );
   const syncComposerValue = (target: HTMLTextAreaElement, typedAtSign = false) => {
-    prediction?.dismiss();
     adjustTextareaHeight(target, { nativeInput: true });
     target.dir = detectTextDirection(target.value);
     const mentions = getMentions();
@@ -388,6 +388,8 @@ export function createChatComposerContext(
         : undefined,
     );
     state.mentionInput = undefined;
+    // Fork: an edit only hides the prediction; erasing the draft shows it again, as in Claude Code.
+    prediction?.refresh();
     const activatedGoal = goalComposer.activateDraft(target.value);
     if (!activatedGoal && !goalComposer.active) {
       const slashOpen = state.slashMenu.update(target.value, slashMenuHost);
@@ -401,7 +403,6 @@ export function createChatComposerContext(
     shareTypingSelection(target);
   };
   const handleBeforeInput = (event: InputEvent) => {
-    prediction?.dismiss();
     const target = event.target;
     if (!(target instanceof HTMLTextAreaElement) || target !== state.composerTextarea) {
       return;

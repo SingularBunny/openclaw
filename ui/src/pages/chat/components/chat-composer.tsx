@@ -100,12 +100,14 @@ export function ChatComposer(props: ChatComposerProps & { questions: ComposerQue
         !state.dictation?.active &&
         !currentProps.goalDraftMode &&
         !currentProps.replyTarget &&
-        !(currentProps.getDraft?.() ?? currentProps.draft) &&
-        !state.composerTextarea?.value &&
         !(currentProps.getAttachments?.() ?? currentProps.attachments)?.length &&
         !(currentProps.getPendingAttachmentReads?.() ?? currentProps.pendingAttachmentReads) &&
         document.visibilityState !== "hidden",
       idle: !isChatRunWorking(currentProps) && !currentProps.sending && !currentProps.queue.length,
+      // Fork: a draft hides the prediction instead of retiring it, as in Claude Code.
+      drafting: Boolean(
+        (currentProps.getDraft?.() ?? currentProps.draft) || state.composerTextarea?.value,
+      ),
     };
   };
   const prediction = createComposerPrediction(readPredictionSource);
