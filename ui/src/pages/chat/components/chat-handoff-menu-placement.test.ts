@@ -23,10 +23,14 @@ describe("hand off menu placement (F76)", () => {
   });
 
   it("clamps the height to the roomier side and keeps the menu inside the window", () => {
-    const placement = resolveHandoffMenuPlacement(button(300, 900), { width: 1000, height: 500 }, {
-      width: 240,
-      height: 600,
-    });
+    const placement = resolveHandoffMenuPlacement(
+      button(300, 900),
+      { width: 1000, height: 500 },
+      {
+        width: 240,
+        height: 600,
+      },
+    );
     expect(placement.side).toBe("above");
     expect(placement.maxHeight).toBe(288);
     expect(placement.top).toBe(8);
