@@ -9,7 +9,7 @@ import {
   setupCronServiceSuite,
 } from "./service.test-harness.js";
 import type { CronServiceDeps } from "./service/state.js";
-import { MIN_REFIRE_GAP_MS } from "./service/timer-execution-timeout.js";
+import { MIN_REFIRE_GAP_MS } from "./service/timer-constants.js";
 import { loadCronStore } from "./store.js";
 
 const { logger, makeStorePath } = setupCronServiceSuite({
@@ -46,7 +46,6 @@ describe("cron follow-up chain depth", () => {
       cronEnabled: true,
       log: logger,
       enqueueSystemEvent: vi.fn(),
-      requestHeartbeat: vi.fn(),
       runIsolatedAgentJob: vi.fn(async () => ({ status: "ok" as const })),
       runSessionEvent,
     });
