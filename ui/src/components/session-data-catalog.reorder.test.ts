@@ -5,7 +5,7 @@ import type {
   SessionsCatalogReorderParams,
 } from "../../../packages/gateway-protocol/src/index.ts";
 import type { SidebarCatalogSessionMutationScope } from "./app-sidebar-session-types.ts";
-import { moveSessionCatalog, reorderSessionCatalog } from "./session-data-catalog.ts";
+import { moveSessionCatalog, reorderSessionCatalog } from "./session-data-catalog-reorder.ts";
 
 function catalogs(): SessionCatalog[] {
   const row = (threadId: string, customGroup: string) => ({
