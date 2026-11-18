@@ -2644,6 +2644,13 @@ button.chat-reply-attribution__target:disabled {
   gap: 4px;
 }
 
+/* A narrow chat header keeps only the icon; the name stays in the tooltip and aria-label. */
+@container (max-width: 760px) {
+  .chat-group-menu__button > span {
+    display: none;
+  }
+}
+
 .chat-composer-neighbor-card.chat-group-strip {
   grid-template-columns: 18px minmax(0, 1fr) auto auto;
   min-height: 40px;
