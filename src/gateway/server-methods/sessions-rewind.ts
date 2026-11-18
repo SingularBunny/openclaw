@@ -9,10 +9,6 @@ import {
   type SessionsRewindParams,
 } from "../../../packages/gateway-protocol/src/index.js";
 import type { ErrorCode } from "../../../packages/gateway-protocol/src/schema/error-codes.js";
-import type {
-  SessionBranchSwitchMutationResult,
-  SessionMessageCutMutationResult,
-} from "../../config/sessions/session-accessor.js";
 import { mutateSqliteSessionAtMessage } from "../../config/sessions/session-accessor.sqlite-message-cut.js";
 import { withSessionActorStorage } from "../../config/sessions/session-actor-storage-acquisition.js";
 import {
@@ -74,15 +70,10 @@ import {
 } from "./sessions-fork-runtime-guard.js";
 import { sessionRewindFilesHandlers } from "./sessions-rewind-files.js";
 import { copyRewindForkWidgets, prepareForkMessageCut } from "./sessions-rewind-fork.js";
+import type { MessageCutAction, MessageCutMutationResult } from "./sessions-rewind.types.js";
 import { sessionLog } from "./sessions-shared.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { defineValidatedGatewayHandler } from "./validation.js";
-
-type MessageCutAction = "fork" | "rewind" | "switch";
-type MessageCutMutationResult =
-  | SessionMessageCutMutationResult
-  | SessionBranchSwitchMutationResult
-  | { status: "conflict" };
 
 export const sessionRewindHandlers: GatewayRequestHandlers = {
   "sessions.branches.list": defineValidatedGatewayHandler(
