@@ -9,7 +9,6 @@ import {
 } from "../../process/gateway-maintenance-mode.js";
 import { countRunningAgentTurns } from "../restart-agent-run-wait.js";
 import { createGatewayServerActiveWorkInspectors } from "../server-active-work.js";
-import type { GatewayRequestContext } from "./shared-types.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 /**
@@ -39,10 +38,7 @@ export type GatewayMaintenanceStatus = {
 };
 
 export function readGatewayMaintenanceStatus(
-  context: Pick<
-    GatewayRequestContext,
-    "chatAbortControllers" | "chatQueuedTurns" | "terminalSessions" | "cron"
-  >,
+  context: Parameters<typeof createGatewayServerActiveWorkInspectors>[0],
 ): GatewayMaintenanceStatus {
   const maintenance = getGatewayMaintenance();
   const snapshot = createGatewayActiveWorkSnapshot(
