@@ -7,6 +7,7 @@ import { isCronSessionDisplayKey } from "../../../src/shared/session-list-visibi
 import type { GatewaySessionRow } from "../api/types.ts";
 import { t } from "../i18n/index.ts";
 import { pathDisplayName } from "./path-display.ts";
+import { catalogAdoptedSessionFallbackName } from "./session-display-catalog-adopt.ts";
 
 const CHANNEL_LABELS = new Map<string, string>([
   ["imessage", "iMessage"],
@@ -252,6 +253,12 @@ function parseSessionKey(key: string): {
   // must not flash in the sidebar while that title is pending.
   if (/^agent:[^:]+:dashboard:/.test(key)) {
     return { prefix: "", fallbackName: "New session" };
+  }
+
+  // Fork: a continued session-catalog chat without a title is named after its source tool.
+  const adoptedName = catalogAdoptedSessionFallbackName(key);
+  if (adoptedName) {
+    return { prefix: "", fallbackName: adoptedName };
   }
 
   // Remaining agent keys are named subsessions (CLI --session-id and friends):
