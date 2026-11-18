@@ -1257,6 +1257,22 @@ The automation run viewer displays the supplied transcript. Core session transcr
 are currently capped at 8,000 characters per text block; loading earlier messages
 does not recover a capped reply's missing text.
 
+### Automation rows in chats
+
+Text the scheduler injects into a chat (an automation's prompt, a scheduled
+reminder, an automation repair request) is not shown as a long message from you.
+Rows are recognised by their recorded origin first (internal system rows from the
+scheduler), and by the scheduler's fixed wording only on copies without that
+record, such as a Claude CLI transcript; messages you sent are never folded.
+
+By default each run keeps one line, for example **Automation · nightly-report ·
+09:00**, and the agent's replies stay as they are. Turn on **Show automation
+details** in **Settings → Appearance → Chat** for all chats, or **View → Automation details**
+in a chat's **⋯** menu for that chat only, to show these lines with a disclosure
+that opens the full text. A prompt recorded both by the scheduler and in the CLI
+transcript appears once. Chat search still finds the full text. Nothing is
+removed from the transcript; this only changes how the chat shows it.
+
 ## Conversations stopped for review
 
 When a provider stops a conversation as a misalignment precaution, chat holds
