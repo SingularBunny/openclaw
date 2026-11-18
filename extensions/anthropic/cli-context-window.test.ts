@@ -28,6 +28,7 @@ describe("Claude CLI context-window selection", () => {
           CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
           CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
           CLAUDE_CODE_ENABLE_TODO_TOOLS: "true",
+          CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "1",
         },
       });
       expect(resolveModelId?.({ modelId, contextWindow: "1m" })).toBe(`${modelId}[1m]`);
@@ -45,6 +46,7 @@ describe("Claude CLI context-window selection", () => {
           CLAUDE_CODE_DISABLE_GIT_INSTRUCTIONS: "1",
           CLAUDE_CODE_ENABLE_SDK_FILE_CHECKPOINTING: "true",
           CLAUDE_CODE_ENABLE_TODO_TOOLS: "true",
+          CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "1",
         },
       });
       expect(backend.config.clearEnv).toContain("CLAUDE_CODE_DISABLE_1M_CONTEXT");
