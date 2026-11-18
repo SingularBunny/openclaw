@@ -21,6 +21,7 @@ import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { HoverMarquee } from "../../../lib/solid/hover-marquee.tsx";
 import { PaneHeaderPresence, PaneSubagentStop } from "../chat-pane-header-view.tsx";
 import { usePanePresentation } from "../chat-pane-presentation.ts";
+import { ChatAutomationHeaderControl } from "./chat-automation-header-control.tsx";
 import { ChatDetails } from "./chat-details.tsx";
 import { ChatGroupHeaderButton } from "./chat-group-view.tsx";
 import {
@@ -463,6 +464,16 @@ function ChatPaneHeaderChrome(
               <RunningSubagents count={props.runningSubagentCount} />
             </Show>
             <Show when={props.runAction}>{(action) => <PaneSubagentStop {...action()} />}</Show>
+            <Show when={props.automationControl}>
+              {(control) => (
+                <ChatAutomationHeaderControl
+                  sessionKey={control().sessionKey}
+                  agentId={control().agentId}
+                  presented={presented()}
+                  onOpenRuns={control().onOpenRuns}
+                />
+              )}
+            </Show>
             <ChatGroupHeaderButton sessionKey={props.session?.key} />
             <Show when={!props.mergedChrome}>
               <Show when={props.presence}>
