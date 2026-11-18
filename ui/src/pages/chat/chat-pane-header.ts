@@ -13,6 +13,7 @@ import { i18n, t } from "../../i18n/index.ts";
 import { registerChatSessionEnglish } from "../../i18n/locales/en-chat-session.ts";
 import { isGatewayMethodAdvertised } from "../../lib/gateway-methods.ts";
 import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
+import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import { resolveChatAgentIdentity } from "./chat-agent-id.ts";
 import { ChatCommandMenuActions } from "./chat-command-menu-actions.ts";
 import {
@@ -39,6 +40,7 @@ import "./components/chat-header-session-menu.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { countRunningSubagents } from "./chat-subagent-wait.ts";
 import type { ChatDetails, ChatDetailsViewProps } from "./components/chat-details.tsx";
+import { showsChatAutomationHeaderControl } from "./components/chat-automation-header-control.tsx";
 import type { HeaderPanelAction } from "./components/chat-header-panel-actions.tsx";
 import type {
   ChatPaneHeaderPresentation,
@@ -545,6 +547,22 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
           ? () => this.toggleConversationPanel(currentLayout)
           : undefined,
       runAction: subagentStop,
+      // Fork: Runs and Run now for an automation chat (the jobs that land in it).
+      automationControl: showsChatAutomationHeaderControl(
+        row?.key,
+        Boolean(
+          panelControls &&
+          panelDefinitions.some(
+            (definition) => definition.slot === "runs" && definition.available,
+          ),
+        ),
+      )
+        ? {
+            sessionKey: row!.key,
+            agentId: parseAgentSessionKey(row!.key)?.agentId ?? "main",
+            onOpenRuns: () => panelControls?.openPanelSlot("runs"),
+          }
+        : undefined,
       mobilePeopleMentions: { ...this.headerPeopleMentions },
       mobilePeople,
       mobileSharing: sharing,
