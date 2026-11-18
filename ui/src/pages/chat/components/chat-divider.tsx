@@ -231,7 +231,10 @@ function OrdinaryNotice(props: ChatNoticeProps) {
         <SystemLine
           icon={props.item.modelChange ? undefined : props.item.icon}
           label={props.item.label!}
-          metric={props.item.showTimestamp ? formatTimeMs(props.item.timestamp) : undefined}
+          metric={
+            props.item.metric ??
+            (props.item.showTimestamp ? formatTimeMs(props.item.timestamp) : undefined)
+          }
         >
           <Show when={props.item.modelChange} fallback={props.item.label}>
             {(change) => <ModelChangeLabel change={change()} catalog={props.modelCatalog} />}
