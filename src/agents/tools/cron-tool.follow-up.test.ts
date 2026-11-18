@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { clearRuntimeConfigSnapshot, setRuntimeConfigSnapshot } from "../../config/config.js";
 import { readCronRunNextCheckFollowUpDepth } from "../../cron/follow-up-chain-run.js";
 import { consumeCronNextCheckProposal } from "../../infra/agent-run-registry.automation.js";
@@ -29,8 +29,8 @@ function registerRun(followUp?: { depth: number; ownerOrigin: boolean }) {
   );
 }
 
-function scopedTool(callGatewayTool = vi.fn()) {
-  return createCronTool({ selfRemoveOnlyJobId: JOB_ID, runId: RUN_ID }, { callGatewayTool });
+function scopedTool() {
+  return createCronTool({ selfRemoveOnlyJobId: JOB_ID, runId: RUN_ID });
 }
 
 function nextCheck(tool = scopedTool()) {
