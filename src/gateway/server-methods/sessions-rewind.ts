@@ -15,7 +15,6 @@ import {
   getSessionActorStorageBinding,
   runWithSessionActorStorage,
 } from "../../config/sessions/session-actor-storage-binding.js";
-import type { SessionMessageCutResult as MessageCutMutationResult } from "../../config/sessions/session-message-cut.types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { SqliteJsonlReadBudgetExceededError } from "../../infra/sqlite-jsonl-budget-error.js";
 import { isIncognitoSessionKey } from "../../routing/session-key.js";
@@ -73,11 +72,10 @@ import {
 } from "./sessions-fork-runtime-guard.js";
 import { sessionRewindFilesHandlers } from "./sessions-rewind-files.js";
 import { copyRewindForkWidgets, prepareForkMessageCut } from "./sessions-rewind-fork.js";
+import type { MessageCutAction, MessageCutMutationResult } from "./sessions-rewind.types.js";
 import { sessionLog } from "./sessions-shared.js";
 import type { GatewayRequestHandlerOptions, GatewayRequestHandlers } from "./types.js";
 import { defineValidatedGatewayHandler } from "./validation.js";
-
-type MessageCutAction = "fork" | "rewind" | "switch";
 
 export const sessionRewindHandlers: GatewayRequestHandlers = {
   "sessions.branches.list": defineValidatedGatewayHandler(
