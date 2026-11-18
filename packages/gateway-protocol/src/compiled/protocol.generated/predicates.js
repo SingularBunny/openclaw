@@ -1178,7 +1178,7 @@ var External = [
     /(^jobId$|^expectedConfigRevision$)/u,
     /(^id$|^mode$|^expectedProcessInstanceId$|^waitTimeoutMs$)/u,
     /(^jobId$|^mode$|^expectedProcessInstanceId$|^waitTimeoutMs$)/u,
-    /(^agentId$|^view$|^scope$|^id$|^jobId$|^runId$|^limit$|^offset$|^statuses$|^status$|^deliveryStatuses$|^deliveryStatus$|^query$|^sortDir$)/u,
+    /(^agentId$|^view$|^scope$|^id$|^jobId$|^runId$|^sessionKey$|^limit$|^offset$|^statuses$|^status$|^deliveryStatuses$|^deliveryStatus$|^query$|^sortDir$)/u,
     /^[^/\\]+$/u,
     /(^id$|^runId$|^runAtMs$|^cursor$|^limit$)/u,
     /(^id$|^content$|^expectedRevision$)/u,
@@ -1364,7 +1364,7 @@ var External = [
     /(^sessionKey$|^path$|^agentId$|^messageEntryId$|^refs$)/u,
     /(^sessionKey$|^path$|^agentId$|^expectedSource$|^content$|^expectedHash$)/u,
     /(^workspaceId$|^root$|^fileRoot$)/u,
-    /(^key$|^agentId$)/u,
+    /(^key$|^agentId$|^path$|^root$)/u,
     /(^sessionKey$|^agentId$|^scope$|^commit$|^summaryOnly$|^poll$)/u,
     /(^sessionKey$|^agentId$|^question$|^selectionContext$|^attachments$|^model$|^thinkingLevel$|^fastMode$)/u,
     /(^sessions$)/u,
@@ -11472,6 +11472,7 @@ var External = [
     (value.id === void 0 || !("id" in value) || check_1733(value.id)) &&
     (value.jobId === void 0 || !("jobId" in value) || check_1733(value.jobId)) &&
     (value.runId === void 0 || !("runId" in value) || check_63(value.runId)) &&
+    (value.sessionKey === void 0 || !("sessionKey" in value) || check_63(value.sessionKey)) &&
     (value.limit === void 0 || !("limit" in value) || check_1561(value.limit)) &&
     (value.offset === void 0 || !("offset" in value) || check_426(value.offset)) &&
     (value.statuses === void 0 || !("statuses" in value) || check_1734(value.statuses)) &&
@@ -15010,7 +15011,9 @@ var External = [
       (unique_1481, unique_1482) => External[749].test(unique_1481) || check_2(value[unique_1481]),
     ) &&
     check_6(value.key) &&
-    (value.agentId === void 0 || !("agentId" in value) || check_63(value.agentId)),
+    (value.agentId === void 0 || !("agentId" in value) || check_63(value.agentId)) &&
+    (value.path === void 0 || !("path" in value) || check_63(value.path)) &&
+    (value.root === void 0 || !("root" in value) || check_63(value.root)),
   check_2244 = (value) => check_2245(value),
   check_2245 = (value) =>
     typeof value == "object" &&
