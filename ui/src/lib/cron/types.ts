@@ -140,6 +140,8 @@ export type CronState<Row = CronJob> = CronJobsState<Row> & {
   cronRunsError: string | null;
   cronRunsJobId: string | null;
   cronRunsRunId?: string | null;
+  /** With scope "all": only runs that land in this chat (`cron.runs` `sessionKey`). */
+  cronRunsSessionKey?: string | null;
   cronRunsLoadingMore: boolean;
   cronRuns: CronRunLogEntry[];
   cronRunsTotal: number;

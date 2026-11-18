@@ -1,0 +1,29 @@
+.chat-automation-header,
+.chat-automation-run {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.chat-automation-run__button svg,
+.chat-automation-header__runs svg {
+  width: 14px;
+  height: 14px;
+}
+
+.chat-automation-run__reason {
+  margin-inline-start: 6px;
+  color: var(--muted);
+  font-size: var(--control-ui-text-xs);
+}
+
+.chat-automation-run__feedback {
+  max-width: 220px;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--control-ui-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

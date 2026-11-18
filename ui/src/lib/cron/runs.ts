@@ -40,6 +40,7 @@ type CronRunsRequestIdentity = {
   scope: CronRunScope;
   jobId: string | null;
   runId: string | null;
+  sessionKey: string | null;
   limit: number;
   offset: number;
   statuses: CronRunsStatusValue[];
@@ -64,6 +65,7 @@ function matchesCronRunsView(state: CronState, request: CronRunsRequestIdentity)
     state.cronAgentId === request.agentId &&
     state.cronRunsScope === request.scope &&
     (state.cronRunsRunId ?? null) === request.runId &&
+    (request.scope !== "all" || (state.cronRunsSessionKey ?? null) === request.sessionKey) &&
     (request.scope !== "job" || state.cronRunsJobId === request.jobId) &&
     state.cronRunsLimit === request.limit &&
     state.cronRunsStatusFilter === request.status &&
@@ -140,6 +142,7 @@ export async function loadCronRuns(
     scope,
     jobId: scope === "job" ? activeJobId : null,
     runId: state.cronRunsRunId ?? null,
+    sessionKey: scope === "all" ? (state.cronRunsSessionKey ?? null) : null,
     limit: state.cronRunsLimit,
     offset: append ? Math.max(0, state.cronRunsNextOffset ?? state.cronRuns.length) : 0,
     statuses: [...state.cronRunsStatuses],
@@ -163,6 +166,7 @@ export async function loadCronRuns(
       scope: request.scope,
       id: request.jobId ?? undefined,
       runId: request.runId ?? undefined,
+      sessionKey: request.sessionKey ?? undefined,
       limit: request.limit,
       offset: request.offset,
       statuses: request.statuses.length > 0 ? request.statuses : undefined,
@@ -228,6 +232,14 @@ export function loadCronRunsForJob(
     });
   }
   state.cronRunsJobId = jobId;
+  return loadCronRuns(state);
+}
+
+/** Every run that lands in one chat, whichever job made it (newest first, paged). */
+export function loadCronRunsForChat(state: CronState, sessionKey: string) {
+  updateCronRunsFilter(state, { cronRunsScope: "all", cronRunsRunId: null });
+  state.cronRunsSessionKey = sessionKey;
+  state.cronRunsJobId = null;
   return loadCronRuns(state);
 }
 

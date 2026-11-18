@@ -12,6 +12,7 @@ import { defineSolidBridge, type SolidBridgeElement } from "../../../lit/solid-b
 import { CronRunTranscript, CronRunTranscriptView } from "../../cron/run-transcript.tsx";
 import { runStatusLabel } from "../../cron/view-runs.tsx";
 import { AutomationRunsPanelData } from "../automation-runs-panel-data.ts";
+import { AutomationRunControl } from "./chat-automation-run-control.tsx";
 import { useSessionPanel, type SessionPanelProps } from "./chat-session-panel.tsx";
 import "./chat-session-panels.css";
 import "./chat-automation-runs-panel.css";
@@ -57,7 +58,8 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
       createMsFormatter({ dateStyle: "medium", timeStyle: "short" }, t("common.na")),
     );
     const automationsHref = createMemo(() => {
-      const jobId = data().jobId;
+      // The open run's own job: a chat also collects runs of jobs that target it by session.
+      const jobId = viewing()?.jobId ?? data().jobId;
       if (!jobId) {
         return null;
       }
@@ -80,6 +82,12 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
       const job = data().job;
       return job ? job.name.trim() || job.id : null;
     };
+    const runJobName = (entry: CronRunLogEntry) =>
+      data()
+        .jobs.find((job) => job.id === entry.jobId)
+        ?.name.trim() ||
+      entry.jobName?.trim() ||
+      entry.jobId;
     const duration = (entry: CronRunLogEntry) =>
       typeof entry.durationMs === "number" && Number.isFinite(entry.durationMs)
         ? (formatDurationCompact(entry.durationMs) ?? null)
@@ -105,6 +113,9 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
                 <Icon name="externalLink" />
               </a>
             )}
+          </Show>
+          <Show when={!data().deleted}>
+            <AutomationRunControl data={data} />
           </Show>
         </header>
         <Show
@@ -159,6 +170,13 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
                         title={t("chat.automationRuns.viewRun")}
                         onClick={(event) => void viewer.open(entry(), event.currentTarget)}
                       >
+                        <Show when={data().showJobNames && runJobName(entry())}>
+                          {(name) => (
+                            <span class="chat-automation-runs__job" data-test-id="automation-run-job">
+                              {name()}
+                            </span>
+                          )}
+                        </Show>
                         <span class="chat-automation-runs__run-line">
                           <span class="chat-automation-runs__time">
                             {formatTimestamp()(entry().runAtMs ?? entry().ts)}

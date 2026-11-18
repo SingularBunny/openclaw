@@ -137,3 +137,11 @@ openclaw-chat-automation-runs-panel,
 .chat-automation-runs__more {
   margin: 0 8px 12px;
 }
+
+.chat-automation-runs__job {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: var(--control-ui-text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

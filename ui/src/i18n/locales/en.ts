@@ -2930,6 +2930,17 @@ export const en: TranslationMap & {
       viewRun: "View this run's transcript",
       empty: "This automation has not run yet.",
       deleted: "This automation was deleted. Its run history is no longer available here.",
+      runs: "Runs",
+      openRunsTitle: "Show this automation's runs",
+      runNow: "Run now",
+      runAgain: "Run again",
+      runMenu: "Run…",
+      runTitle: "Run {name} now, like Automations → Run",
+      runConfirm: "Run {name} now?",
+      runConfirmDetails:
+        "It runs exactly as on schedule and may send messages to people (for example in Slack or Telegram).",
+      runStarting: "Starting…",
+      runInProgress: "Running…",
     },
     subagentsPanel: {
       title: "Subagents",

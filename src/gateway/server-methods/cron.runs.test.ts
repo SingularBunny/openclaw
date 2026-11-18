@@ -758,4 +758,21 @@ describe("cron.runs session visibility", () => {
       );
     });
   });
+
+  it("lists only the runs that land in one chat when given its sessionKey", async () => {
+    await withCronHistory(async ({ query, viewer }) => {
+      const respond = await query({ scope: "all", sessionKey: "agent:main:history-own" }, viewer);
+      const page = respond.mock.calls[0]?.[1] as { entries: CronRunLogEntry[] } | undefined;
+      expect(respond.mock.calls[0]?.[0]).toBe(true);
+      const summaries = page?.entries.map((entry) => entry.summary) ?? [];
+      expect(summaries).toEqual(expect.arrayContaining(["needle first", "other third"]));
+      expect(summaries).not.toContain("needle hidden");
+      expect(summaries).not.toContain("needle second");
+      expect(await query({ scope: "job", id: "x", sessionKey: "agent:main:a" })).toHaveBeenCalledWith(
+        false,
+        undefined,
+        expect.objectContaining({ message: expect.stringContaining("sessionKey requires scope all") }),
+      );
+    });
+  });
 });
