@@ -7,6 +7,12 @@
   min-width: 0;
 }
 
+.chat-automation-run__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .chat-automation-run__button svg,
 .chat-automation-header__runs svg {
   width: 14px;
@@ -26,4 +32,20 @@
   font-size: var(--control-ui-text-xs);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Fork: a narrow chat header (side panel open) folds Runs and Run into one icon menu. */
+.chat-automation-header__compact-slot {
+  display: none;
+}
+
+@container (max-width: 760px) {
+  .chat-automation-header__compact-slot {
+    display: inline-flex;
+  }
+
+  .chat-automation-header > .chat-automation-header__runs,
+  .chat-automation-header > .chat-automation-run {
+    display: none;
+  }
 }

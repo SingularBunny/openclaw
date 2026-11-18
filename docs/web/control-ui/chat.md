@@ -1167,7 +1167,7 @@ Run-error banners offer **Refresh** to reload the conversation without resending
     - **Processes** is a separate side-panel tab for the conversation's background exec commands. Open it through **Panels → Processes** or the side-panel **+** menu. On desktop, a narrow pane shows it in place of the conversation, as it does **Subagents**. On mobile, it uses the shared sheet, whose docked state keeps the conversation and composer visible. Its **Running** and **Finished** lists show derived command names, status, elapsed time, and available exit codes. Select a row to inspect the retained output tail without consuming the agent's pending output. **Stop** requests termination of that exact process; **Stopping…** remains until the process owner reports completion. Finished records expire under the normal process retention limits. An unavailable worker or failed read is shown as an error, not an empty process list. The panel refreshes only while visible and preserves the parent draft.
     - Switching to another conversation retires the previous conversation’s file previews. Returning to **Files** shows its catalog with the saved folder, search, and filter; saved files and unsaved drafts remain intact.
     - **Runs** is a side-panel tab offered only in an isolated automation's chat (`agent:<agentId>:cron:<jobId>`). Open it with the **Runs** button in the chat header, through **Panels → Runs**, or the side-panel **+** menu; a narrow pane shows it in place of the conversation. It lists every run that lands in this chat newest first — the automation's own runs and runs of other jobs that deliver into it (`sessionTarget: session:<this chat>`, for example a follow-up one-shot), each labelled with its job when there is more than one — with start time, status (ok, error, skipped), duration, and error text, 20 at a time with **Load more**. Select a run to read that run's transcript, the same viewer as **View transcript** in **Automations → Run history**; **Close** returns to the list. **Open in Automations** opens the run's job, or the selected run, on the Automations page. The list refreshes when a run finishes.
-    - **Run now** (or **Run again** after a failed run), in the chat header and the Runs tab, starts the job that owns this chat exactly like **Automations → Run**, after a short confirmation, because an automation may message people. When several jobs deliver into the chat, a **Run…** menu lists them. The button is disabled with a reason while that job is running, and a run that does not start says why. It needs `operator.admin`, like the Automations page. If the automation was deleted, the tab shows a short note instead of history. Reading runs needs `operator.read` and a Gateway that offers `cron.runs`; otherwise the tab is not offered.
+    - **Run now** (or **Run again** after a failed run), in the chat header and the Runs tab, starts the job that owns this chat exactly like **Automations → Run**, after a short confirmation, because an automation may message people. When several jobs deliver into the chat, one **Run…** menu lists them. When the chat header is narrow (for example with the side panel open), Runs and Run fold into one icon menu and **Add to group chat** shows only its icon. The button is disabled with a reason while that job is running, and a run that does not start says why. It needs `operator.admin`, like the Automations page. If the automation was deleted, the tab shows a short note instead of history. Reading runs needs `operator.read` and a Gateway that offers `cron.runs`; otherwise the tab is not offered.
     - **Review** and file tabs retain their own content. A pending file or artifact updates only its own open tab: it cannot select itself over a newer tab, reopen a closed preview, or return after you leave the chat page. Switching tabs or hiding the whole side panel preserves the pending preview without changing your chosen layout when it finishes. Text attachments retain their Preview or View Raw Text mode while switching between open files. Background download-link refreshes keep an unchanged attachment's reader in place, including keyboard focus and code-block controls.
     - Each chat pane has a main view and a unified side panel. When Chat and Desktop are both present, the panel’s **Panel position** menu offers a **Swap** action that exchanges them; Dashboard keeps its own view controls. Expanding or restoring a panel preserves live content and drafts. The header’s **Panels** control hides or reopens the side panel without clearing its tabs, and the browser remembers each session’s arrangement.
     - On desktop, the **Panel position** menu in the panel header places it left, right, or below the main area. Use the adjacent expand/restore control to change how much of the pane it occupies. On mobile, **Panels** opens the shared sheet; its expand/restore control changes the sheet height without changing the saved desktop docking arrangement.
@@ -1735,22 +1735,6 @@ run viewer; refreshing the same panel keeps it open.
 The automation run viewer displays the supplied transcript. Core session transcripts
 are currently capped at 8,000 characters per text block; loading earlier messages
 does not recover a capped reply's missing text.
-
-### Automation rows in chats
-
-Text the scheduler injects into a chat (an automation's prompt, a scheduled
-reminder, an automation repair request) is not shown as a long message from you.
-Rows are recognised by their recorded origin first (internal system rows from the
-scheduler), and by the scheduler's fixed wording only on copies without that
-record, such as a Claude CLI transcript; messages you sent are never folded.
-
-By default each run keeps one line, for example **Automation · nightly-report ·
-09:00**, and the agent's replies stay as they are. Turn on **Show automation
-details** in **Settings → Appearance → Chat** for all chats, or **View → Automation details**
-in a chat's **⋯** menu for that chat only, to show these lines with a disclosure
-that opens the full text. A prompt recorded both by the scheduler and in the CLI
-transcript appears once. Chat search still finds the full text. Nothing is
-removed from the transcript; this only changes how the chat shows it.
 
 ## Conversations stopped for review
 

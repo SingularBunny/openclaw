@@ -115,7 +115,6 @@ export function projectChatTranscript(
         ? activeSession.activeRunIds
         : undefined,
     showToolCalls: props.showToolCalls,
-    showAutomationDetails: props.showAutomationDetails,
     persistCommentary: props.persistCommentary,
     runWorking: Boolean(props.runWorking),
     runFinalizing: props.runFinalizing,

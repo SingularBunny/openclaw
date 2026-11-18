@@ -30,7 +30,10 @@ export type ChatNoticeProps = {
     | "onDismissPendingInput"
     // Fork: the Claude CLI re-login hint opens Model Setup.
     | "applicationContext"
-  >;
+  > & {
+    // Fork: Retry / Choose another model on the run-failure notice read the chat's handoff controller.
+    sessionKey?: string;
+  };
 };
 
 // Text-only notices paint with their transcript row; only interactive cards load later.
@@ -231,10 +234,7 @@ function OrdinaryNotice(props: ChatNoticeProps) {
         <SystemLine
           icon={props.item.modelChange ? undefined : props.item.icon}
           label={props.item.label!}
-          metric={
-            props.item.metric ??
-            (props.item.showTimestamp ? formatTimeMs(props.item.timestamp) : undefined)
-          }
+          metric={props.item.showTimestamp ? formatTimeMs(props.item.timestamp) : undefined}
         >
           <Show when={props.item.modelChange} fallback={props.item.label}>
             {(change) => <ModelChangeLabel change={change()} catalog={props.modelCatalog} />}

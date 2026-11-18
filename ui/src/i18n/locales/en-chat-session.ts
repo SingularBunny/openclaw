@@ -227,7 +227,6 @@ const enChatSession = {
       reasoning: "Reasoning",
       toolCalls: "Tool calls",
       commentary: "Keep commentary",
-      automationDetails: "Automation details",
     },
     workspaceConflict: {
       morePaths: "+{count} more paths",

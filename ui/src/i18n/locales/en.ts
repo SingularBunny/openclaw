@@ -1646,6 +1646,8 @@ const startupEnglish = {
       runNow: "Run now",
       runAgain: "Run again",
       runMenu: "Run…",
+      runMenuTitle: "Run one of the automations that deliver into this chat",
+      actions: "Automation: runs and Run now",
       runTitle: "Run {name} now, like Automations → Run",
       runConfirm: "Run {name} now?",
       runConfirmDetails:
@@ -1774,14 +1776,6 @@ const startupEnglish = {
     systemNotice: {
       guardian: {},
       automationRecovery: {},
-      // Fork: compact rows for scheduler-injected automation turns.
-      automationRun: {
-        label: "Automation run",
-        named: "Automation · {name}",
-      },
-      scheduledReminder: {
-        label: "Scheduled reminder",
-      },
       gatewayRestarted: {},
       cliHarnessContext: {},
       claudeCliTaskNotification: {},

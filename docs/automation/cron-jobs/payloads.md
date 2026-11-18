@@ -168,8 +168,8 @@ or permissions. Without a next-check proposal, ordinary one-shot completion and
 
 #### Follow-up limit (ai-workbench fork)
 
-`cron.followUpChainLimit` (Settings → Automation → Automations → **Automation
-Follow-Up Limit**, default `0`) sets how many times such a continuation may rearm
+`cron.followUpChainLimit` (Settings → Automation → Automations → **Advanced
+settings** → **Automation Follow-Up Limit**, default `0`) sets how many times such a continuation may rearm
 itself. Example: the owner asks the agent to restart four jobs one at a time; the
 agent creates one `at` continuation for this chat, and each turn it starts does
 one step and calls `next_check in: "20m"` for the next. With the limit at `3`,

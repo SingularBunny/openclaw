@@ -10,6 +10,7 @@ import {
   type ChatGroupController,
   type ChatGroupTarget,
 } from "../chat-group-registry.ts";
+import { focusComposerAfterMention } from "./chat-group-ask-focus.ts";
 
 registerEnglishCatalog(registerModelControlsEnglish);
 
@@ -146,7 +147,10 @@ export function ChatGroupStrip(props: { sessionKey?: string }) {
                   title={t("chat.group.askTitle", { name: member().name })}
                   data-chat-group-ask={member().key}
                   disabled={controller()?.busy}
-                  onClick={() => controller()?.ask(member())}
+                  onClick={(event) => {
+                    controller()?.ask(member());
+                    focusComposerAfterMention(event.currentTarget, `@${member().name} `);
+                  }}
                 >
                   {t("chat.group.ask", { name: member().name })}
                 </button>

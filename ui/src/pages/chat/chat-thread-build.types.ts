@@ -21,8 +21,6 @@ export type BuildChatItemsProps = ChatInputPlacementProps & {
   stream: string | null;
   streamStartedAt: number | null;
   showToolCalls: boolean;
-  /** Fork: expandable automation rows; false keeps only a bare line per run. Default true. */
-  showAutomationDetails?: boolean;
   persistCommentary?: boolean;
   /** True while the agent is visibly working (isChatRunWorking). */
   runWorking?: boolean;
