@@ -23,7 +23,13 @@ export type ChatNoticeProps = {
   modelCatalog?: ModelCatalogEntry[];
   recovery?: Pick<
     ChatThreadProps,
-    "failureActionsRunId" | "runActive" | "runWorking" | "onRetryRun" | "onDismissPendingInput"
+    | "failureActionsRunId"
+    | "runActive"
+    | "runWorking"
+    | "onRetryRun"
+    | "onDismissPendingInput"
+    // Fork: the Claude CLI re-login hint opens Model Setup.
+    | "applicationContext"
   >;
 };
 

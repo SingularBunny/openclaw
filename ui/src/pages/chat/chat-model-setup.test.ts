@@ -1,4 +1,4 @@
-import { expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { createActiveSessionPlacement } from "../../test-helpers/session-placement.ts";
 import { resolveChatModelSetup, requiresChatModelSetup } from "./chat-model-setup.ts";
 
@@ -85,3 +85,46 @@ it.each(["missing-auth", "auth-failed"] as const)(
     expect(banner(proxied)).toBeDefined();
   },
 );
+
+describe("Claude CLI login banner", () => {
+  const setup = (provider: string, unavailableReason: "missing-auth" | "auth-failed") => {
+    const onSetup = () => undefined;
+    const result = resolveChatModelSetup({
+      catalog: false,
+      connected: true,
+      agentsLoaded: true,
+      selectedAgentFound: true,
+      agentModel: `${provider}/claude-opus-5-5`,
+      chatModelCatalog: [
+        { id: "claude-opus-5-5", name: "Opus", provider, available: false, unavailableReason },
+      ],
+      modelOverrides: {},
+      sessionKey: "agent:main:main",
+      sessionsResult: null,
+      catalogError: null,
+      onSetup,
+      activeSession: {
+        key: "agent:main:main",
+        kind: "direct",
+        updatedAt: 1,
+        model: "claude-opus-5-5",
+        modelProvider: provider,
+      },
+    });
+    return { banner: result.modelUnavailableBanner, onSetup };
+  };
+
+  it("names the expired Claude subscription login and opens Model Setup", () => {
+    const { banner, onSetup } = setup("claude-cli", "missing-auth");
+    expect(banner?.text).toContain("not signed in to your Claude account");
+    expect(banner?.text).toContain("claude auth login");
+    expect(banner?.text).not.toContain("No provider credential");
+    expect(banner?.actionLabel).toBe("Open Model Setup");
+    expect(banner?.onAction).toBe(onSetup);
+  });
+
+  it("keeps the generic credential copy for other providers and other reasons", () => {
+    expect(setup("anthropic", "missing-auth").banner?.text).toContain("No provider credential");
+    expect(setup("claude-cli", "auth-failed").banner?.text).not.toContain("claude auth login");
+  });
+});
