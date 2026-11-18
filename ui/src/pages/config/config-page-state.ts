@@ -570,7 +570,6 @@ export function createConfigPage(
       openLinksExternally: settings().openLinksExternally === true,
       openLinksInControlUiBrowser: settings().openLinksInControlUiBrowser === true,
       chatCollapseTaskProgress: settings().chatCollapseTaskProgress === true,
-      chatShowAutomationDetails: settings().chatShowAutomationDetails === true,
       showAdvancedSettings: settings().showAdvancedSettings === true,
       forceShowAdvanced: renderPageId === "advanced",
       forceAdvancedSection: renderRouteData?.advanced
