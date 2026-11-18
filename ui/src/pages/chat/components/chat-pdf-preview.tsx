@@ -208,7 +208,7 @@ export function ChatPdfPreview(props: {
           fallback={<AttachmentPreviewSkeleton />}
         >
           <Show when={bytes()}>{renderFrame}</Show>
-          <Errored fallback={(error) => unavailable(error())}>{error()}</Errored>
+          <Errored fallback={(failure) => unavailable(failure())}>{error()}</Errored>
         </Show>
       </Loading>
     );

@@ -48,7 +48,10 @@ await import("../../infra/gateway-active-work.js");
 await import("../../sessions/session-controller.queries.js");
 await import("../../gateway/restart-notice.js");
 
-const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
 
 async function waitForWarning(text: string) {
   const deadline = Date.now() + 10_000;
