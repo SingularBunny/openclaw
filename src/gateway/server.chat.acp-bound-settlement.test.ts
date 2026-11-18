@@ -7,7 +7,7 @@ import { createAcpSessionMeta } from "../auto-reply/reply/test-fixtures/acp-runt
 import type { InternalSessionEntry } from "../config/sessions.js";
 import { loadSessionEntryReadOnly } from "../config/sessions/session-accessor.js";
 import { tryDispatchAcpReplyHook } from "../plugin-sdk/acpx.js";
-import { getSessionWorkAdmissionRelease } from "../sessions/session-lifecycle-admission.js";
+import { getTerminalSessionWorkAdmissionRelease } from "../sessions/session-controller.lifecycle.js";
 import { useSessionStoreTempDirs } from "../test-utils/session-state-cleanup.js";
 import {
   dispatchInboundMessageMock,
@@ -100,7 +100,7 @@ async function runBoundTurn(outcome: "completed" | "cancelled") {
     const { ctx, cfg, dispatcher, replyOptions } = input as Parameters<
       typeof dispatchInboundMessage
     >[0];
-    const release = getSessionWorkAdmissionRelease({
+    const release = getTerminalSessionWorkAdmissionRelease({
       scope: storePath,
       identities: [ctx.SessionKey],
     });
