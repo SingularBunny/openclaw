@@ -283,3 +283,15 @@ export async function refreshChatAvatar(host: ChatAvatarHost) {
     clearChatAvatarState(host);
   }
 }
+
+/** Config and agent identity changes refresh the chat's own and its sender agents' avatars. */
+export function refreshChatAvatarsOnEvent(
+  host: ChatAvatarHost & { chatMessages: unknown[] },
+  event: { event: string },
+): void {
+  if (event.event === "config.changed" || event.event === "agent.identity.changed") {
+    invalidateChatAvatarCache(host);
+    void refreshChatAvatar(host);
+    void refreshSenderAgentAvatars(host);
+  }
+}
