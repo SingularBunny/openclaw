@@ -130,7 +130,7 @@ async function change(
     storeInfo(state, sessionKey, await request(state, method, { sessionKey, ...params }));
     return true;
   } catch (error) {
-    setChatError(state, t(failure, { reason: String(error) }), true);
+    setChatError(state, t(failure, { reason: String(error) }));
     return false;
   }
 }
@@ -197,7 +197,7 @@ export function routeChatGroupSend(
   }
   // A member's rows go into the chat directly; not while the chat's own turn is writing there.
   if (state.chatSending || state.chatRunId || state.chatStream !== null) {
-    setChatError(state, t("chat.group.busy"), true);
+    setChatError(state, t("chat.group.busy"));
     return Promise.resolve();
   }
   if (messageOverride === undefined) {
@@ -276,7 +276,7 @@ export function createChatGroupController(
       try {
         await request(state, CHAT_GROUP_METHODS.stop, { sessionKey });
       } catch (error) {
-        setChatError(state, t("chat.group.stopFailed", { reason: String(error) }), true);
+        setChatError(state, t("chat.group.stopFailed", { reason: String(error) }));
       }
       await refreshChatGroup(state, sessionKey);
     },

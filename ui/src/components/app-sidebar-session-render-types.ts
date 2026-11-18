@@ -86,7 +86,6 @@ export interface SessionListHost {
   readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
   /** Fork: catalog folders whose "Show more" is open (persisted). */
   readonly catalogExpansion: Pick<CatalogExpandedSections, "sections" | "set">;
-  readonly expandedCatalogSections: ReadonlySet<string>;
   readonly sessionOrganizer: Pick<
     SessionOrganizer,
     | "draggingSidebarSection"

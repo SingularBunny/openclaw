@@ -69,41 +69,23 @@ export function AutomationRunControl(props: { data: () => AutomationChatJobsData
             </Show>
           }
         >
-          <wa-dropdown
-            class="chat-automation-run__menu"
-            placement="bottom-end"
-            onWa-select={(event) => {
-              const job = jobs().find((candidate) => candidate.id === event.detail.item.value);
-              if (job && reason(job) === null) {
-                run(job);
-              }
-            }}
-          >
-            <button
-              slot="trigger"
-              class="btn btn--sm chat-automation-run__button"
-              type="button"
-              data-test-id="automation-run-menu"
-            >
-              <Icon name="play" />
-              {t("chat.automationRuns.runMenu")}
-            </button>
+          {/* Several jobs land here: one Run button per job (upstream retired wa-dropdown). */}
+          <span class="chat-automation-run__menu" data-test-id="automation-run-menu">
             <For each={jobs()} keyed={(job) => job.id}>
               {(job) => (
-                <wa-dropdown-item
-                  class="session-menu__item"
-                  value={job().id}
-                  prop:disabled={reason(job()) !== null}
-                  title={reason(job()) ?? undefined}
+                <button
+                  class="btn btn--sm chat-automation-run__button"
+                  type="button"
+                  disabled={reason(job()) !== null}
+                  title={reason(job()) ?? t("chat.automationRuns.runTitle", { name: jobLabel(job()) })}
+                  onClick={() => run(job())}
                 >
+                  <Icon name={automationLastRunFailed(job()) ? "rotateCcw" : "play"} />
                   {`${runLabel(job())}: ${jobLabel(job())}`}
-                  <Show when={reason(job())}>
-                    {(text) => <span class="chat-automation-run__reason">{text()}</span>}
-                  </Show>
-                </wa-dropdown-item>
+                </button>
               )}
             </For>
-          </wa-dropdown>
+          </span>
         </Show>
         <Show when={props.data().runFeedback}>
           {(text) => (
