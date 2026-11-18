@@ -1,7 +1,6 @@
 /* @vitest-environment jsdom */
 import { describe, expect, it, onTestFinished, vi } from "vitest";
-import { GatewayRequestError } from "../../../api/gateway.ts";
-import type { CronRunLogEntry } from "../../../api/types.ts";
+import type { CronJob, CronRunLogEntry } from "../../../api/types.ts";
 import type { ApplicationContext } from "../../../app/context.ts";
 import { automationSessionJobId } from "../../../lib/cron/automation-session.ts";
 import { createTestSessionCapability } from "../../../lib/sessions/session-capability.test-support.ts";
@@ -14,7 +13,10 @@ import { gatewayHelloForMethods } from "../../../test-helpers/gateway-methods.ts
 import { sidebarPanelDefinitions } from "../chat-pane-embedded-panels.ts";
 import "./chat-automation-runs-panel.tsx";
 
-const CRON_METHODS = ["cron.get", "cron.runs", "cron.history"];
+const confirmDialog = vi.hoisted(() => vi.fn(async () => true));
+vi.mock("../../../components/confirm-dialog.ts", () => ({ showConfirmDialog: confirmDialog }));
+
+const CRON_METHODS = ["cron.list", "cron.runs", "cron.history", "cron.run"];
 const JOB_KEY = "agent:main:cron:job-1";
 
 function run(index: number, patch: Partial<CronRunLogEntry> = {}): CronRunLogEntry {
@@ -31,12 +33,19 @@ function run(index: number, patch: Partial<CronRunLogEntry> = {}): CronRunLogEnt
   } as CronRunLogEntry;
 }
 
-function notFound() {
-  return new GatewayRequestError({
-    code: "INVALID_REQUEST",
-    message: "Automation not found: job-1.",
-    details: { code: "CRON_JOB_NOT_FOUND", jobId: "job-1" },
-  });
+function job(id: string, patch: Partial<CronJob> = {}): CronJob {
+  return {
+    id,
+    name: id === "job-1" ? "Morning digest" : id,
+    sessionTarget: "isolated",
+    state: {},
+    ...patch,
+  } as CronJob;
+}
+
+/** `cron.list` page with the chat's own job, plus whatever else the test adds. */
+function listJobs(...jobs: CronJob[]) {
+  return { jobs, total: jobs.length, offset: 0, hasMore: false, nextOffset: null };
 }
 
 async function settle(panel: HTMLElement & { updateComplete: Promise<unknown> }) {
@@ -46,13 +55,20 @@ async function settle(panel: HTMLElement & { updateComplete: Promise<unknown> })
   }
 }
 
-function mountPanel(read: (method: string, params: Record<string, unknown>) => unknown) {
+function mountPanel(
+  read: (method: string, params: Record<string, unknown>) => unknown,
+  scopes = ["operator.read"],
+) {
   const request = vi.fn(async (method: string, params?: unknown) =>
     read(method, (params ?? {}) as Record<string, unknown>),
   );
   const client = createTestGatewayClient(request as never);
   const connection = createGatewayHarness(client);
-  connection.publish({ hello: gatewayHelloForMethods(CRON_METHODS, ["operator.read"]) });
+  // The sidebar harness answers cron.list itself; this panel's job list comes from the test.
+  const harnessRequest = client.request.bind(client);
+  client.request = (async (method: string, params?: unknown) =>
+    method === "cron.list" ? request(method, params) : harnessRequest(method, params)) as never;
+  connection.publish({ hello: gatewayHelloForMethods(CRON_METHODS, scopes) });
   const sessions = createTestSessionCapability(connection.gateway);
   const navigate = vi.fn();
   const context = {
@@ -113,8 +129,8 @@ describe("automation session detection", () => {
 describe("automation runs panel", () => {
   it("lists runs newest first with status, duration and error, and loads more", async () => {
     const { panel, request } = mountPanel((method, params) => {
-      if (method === "cron.get") {
-        return { id: "job-1", name: "Morning digest" };
+      if (method === "cron.list") {
+        return listJobs(job("job-1"));
       }
       if (method === "cron.runs") {
         return params.offset === 0
@@ -136,7 +152,13 @@ describe("automation runs panel", () => {
     await settle(panel);
     expect(request).toHaveBeenCalledWith(
       "cron.runs",
-      expect.objectContaining({ scope: "job", id: "job-1", limit: 20, offset: 0, sortDir: "desc" }),
+      expect.objectContaining({
+        scope: "all",
+        sessionKey: JOB_KEY,
+        limit: 20,
+        offset: 0,
+        sortDir: "desc",
+      }),
     );
     expect(panel.querySelector(".chat-automation-runs__name")?.textContent).toBe("Morning digest");
     const rows = () => [...panel.querySelectorAll<HTMLButtonElement>(".chat-automation-runs__run")];
@@ -148,7 +170,7 @@ describe("automation runs panel", () => {
     await settle(panel);
     expect(request).toHaveBeenLastCalledWith(
       "cron.runs",
-      expect.objectContaining({ id: "job-1", offset: 2 }),
+      expect.objectContaining({ scope: "all", sessionKey: JOB_KEY, offset: 2 }),
     );
     expect(rows().map((row) => row.dataset.runStatus)).toEqual(["ok", "error", "skipped"]);
     expect(panel.querySelector(".chat-automation-runs__more")).toBeNull();
@@ -156,8 +178,8 @@ describe("automation runs panel", () => {
 
   it("opens the selected run's transcript through cron.history and links to Automations", async () => {
     const { panel, request, navigate } = mountPanel((method) => {
-      if (method === "cron.get") {
-        return { id: "job-1", name: "Morning digest" };
+      if (method === "cron.list") {
+        return listJobs(job("job-1"));
       }
       if (method === "cron.runs") {
         return { entries: [run(0), run(1)], total: 2, offset: 0, hasMore: false };
@@ -197,8 +219,11 @@ describe("automation runs panel", () => {
 
   it("shows a short note without errors when the automation was deleted", async () => {
     const { panel, request } = mountPanel((method) => {
-      if (method === "cron.get" || method === "cron.runs") {
-        throw notFound();
+      if (method === "cron.list") {
+        return listJobs(job("job-other"));
+      }
+      if (method === "cron.runs") {
+        return { entries: [], total: 0, offset: 0, hasMore: false };
       }
       throw new Error(`unexpected ${method}`);
     });
@@ -209,23 +234,162 @@ describe("automation runs panel", () => {
     expect(panel.querySelector('[role="alert"]')).toBeNull();
     expect(panel.querySelector('[data-test-id="automation-runs-open-in-automations"]')).toBeNull();
     expect(request.mock.calls.map(([method]) => method).toSorted()).toEqual([
-      "cron.get",
+      "cron.list",
       "cron.runs",
     ]);
   });
 
   it("switches to the note when the automation is removed while open", async () => {
+    let removed = false;
     const { panel, connection } = mountPanel((method) => {
-      if (method === "cron.get") {
-        return { id: "job-1", name: "Morning digest" };
+      if (method === "cron.list") {
+        return removed ? listJobs() : listJobs(job("job-1"));
       }
       return { entries: [run(0)], total: 1, offset: 0, hasMore: false };
     });
     await settle(panel);
     expect(panel.querySelectorAll(".chat-automation-runs__run")).toHaveLength(1);
+    removed = true;
     connection.publishEvent("cron", { jobId: "job-1", action: "removed" });
     await settle(panel);
     expect(panel.querySelector('[data-test-id="automation-runs-deleted"]')).not.toBeNull();
     expect(panel.querySelector(".chat-automation-runs__run")).toBeNull();
+  });
+});
+
+describe("automation chat with jobs that target it by session", () => {
+  const followUp = job("job-follow", {
+    name: "Night follow-up",
+    sessionTarget: `session:${JOB_KEY}`,
+  } as Partial<CronJob>);
+
+  it("lists their runs with the job name and opens them under their own job", async () => {
+    const { panel, request } = mountPanel((method) => {
+      if (method === "cron.list") {
+        return listJobs(followUp, job("job-1"), job("job-unrelated"));
+      }
+      if (method === "cron.runs") {
+        return {
+          entries: [
+            run(0, { jobId: "job-follow", sessionKey: JOB_KEY, runId: "follow-0" }),
+            run(1),
+            run(2, { jobId: "job-gone", jobName: "Removed one-shot", sessionKey: JOB_KEY }),
+          ],
+          total: 3,
+          offset: 0,
+          hasMore: false,
+        };
+      }
+      if (method === "cron.history") {
+        return { messages: [{ role: "assistant", content: "Follow-up output" }] };
+      }
+      throw new Error(`unexpected ${method}`);
+    });
+    await settle(panel);
+    const names = [...panel.querySelectorAll('[data-test-id="automation-run-job"]')].map(
+      (node) => node.textContent,
+    );
+    expect(names).toEqual(["Night follow-up", "Morning digest", "Removed one-shot"]);
+    panel.querySelectorAll<HTMLButtonElement>(".chat-automation-runs__run")[0]!.click();
+    await vi.waitFor(() => expect(panel.textContent).toContain("Follow-up output"));
+    expect(request).toHaveBeenCalledWith(
+      "cron.history",
+      expect.objectContaining({ id: "job-follow", runId: "follow-0" }),
+    );
+    expect(
+      panel
+        .querySelector('[data-test-id="automation-runs-open-in-automations"]')
+        ?.getAttribute("href"),
+    ).toBe("/ui/automations?job=job-follow&run=follow-0");
+  });
+
+  it("offers a menu of every job that delivers here, for admins only", async () => {
+    const read = (method: string) =>
+      method === "cron.list"
+        ? listJobs(followUp, job("job-1"))
+        : { entries: [], total: 0, offset: 0, hasMore: false };
+    const viewer = mountPanel(read);
+    await settle(viewer.panel);
+    expect(viewer.panel.querySelector('[data-test-id="automation-run-menu"]')).toBeNull();
+    viewer.panel.remove();
+
+    const admin = mountPanel(read, ["operator.admin"]);
+    await settle(admin.panel);
+    expect(admin.panel.querySelector('[data-test-id="automation-run-menu"]')).not.toBeNull();
+    const items = [...admin.panel.querySelectorAll("wa-dropdown-item")].map((item) =>
+      item.getAttribute("value"),
+    );
+    expect(items).toEqual(["job-1", "job-follow"]);
+  });
+});
+
+describe("automation chat Run button", () => {
+  function mountWithJob(owner: CronJob, runResult: unknown = { ok: true, ran: true }) {
+    return mountPanel(
+      (method) => {
+        if (method === "cron.list") {
+          return listJobs(owner);
+        }
+        if (method === "cron.run") {
+          return runResult;
+        }
+        return { entries: [], total: 0, offset: 0, hasMore: false };
+      },
+      ["operator.admin"],
+    );
+  }
+
+  it("asks first, then starts the automation like Automations → Run", async () => {
+    confirmDialog.mockClear();
+    const { panel, request } = mountWithJob(job("job-1"));
+    await settle(panel);
+    const button = panel.querySelector<HTMLButtonElement>('[data-test-id="automation-run-now"]')!;
+    expect(button.textContent).toContain("Run now");
+    button.click();
+    await vi.waitFor(() =>
+      expect(request).toHaveBeenCalledWith("cron.run", { id: "job-1", mode: "force" }),
+    );
+    expect(confirmDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Run Morning digest now?" }),
+    );
+  });
+
+  it("does not run when the confirmation is declined", async () => {
+    confirmDialog.mockResolvedValueOnce(false);
+    const { panel, request } = mountWithJob(job("job-1"));
+    await settle(panel);
+    panel.querySelector<HTMLButtonElement>('[data-test-id="automation-run-now"]')!.click();
+    await settle(panel);
+    expect(request.mock.calls.some(([method]) => method === "cron.run")).toBe(false);
+  });
+
+  it("reads Run again after a failed run and is disabled with a reason while running", async () => {
+    const failed = mountWithJob(job("job-1", { state: { lastRunStatus: "error" } } as never));
+    await settle(failed.panel);
+    expect(
+      failed.panel.querySelector('[data-test-id="automation-run-now"]')?.textContent,
+    ).toContain("Run again");
+    failed.panel.remove();
+
+    const running = mountWithJob(job("job-1", { state: { runningAtMs: 1 } } as never));
+    await settle(running.panel);
+    const button = running.panel.querySelector<HTMLButtonElement>(
+      '[data-test-id="automation-run-now"]',
+    )!;
+    expect(button.disabled).toBe(true);
+    expect(button.textContent).toContain("Running…");
+  });
+
+  it("explains why a run did not start", async () => {
+    const { panel } = mountWithJob(job("job-1"), {
+      ok: true,
+      ran: false,
+      reason: "already-running",
+    });
+    await settle(panel);
+    panel.querySelector<HTMLButtonElement>('[data-test-id="automation-run-now"]')!.click();
+    await vi.waitFor(() =>
+      expect(panel.querySelector(".chat-automation-run__feedback")?.textContent).toBeTruthy(),
+    );
   });
 });

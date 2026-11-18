@@ -1,5 +1,4 @@
 import type { CronRunLogEntry } from "./run-log-types.js";
-import type { CronJob } from "./types.js";
 
 const AUTOMATION_CHAT_KEY = /^agent:[^:]+:cron:([^:]+)$/i;
 const RUN_SUFFIX = /:run:[^:]+$/i;
@@ -12,7 +11,7 @@ export function cronChatSessionKey(sessionKey: string): string {
 /** Jobs whose runs land in this chat: the automation that owns it and jobs targeting it by session. */
 export function cronJobsDeliveringToChat(
   sessionKey: string,
-  jobs: readonly Pick<CronJob, "id" | "sessionTarget">[],
+  jobs: readonly { id: string; sessionTarget?: string }[],
 ): Set<string> {
   const chatKey = cronChatSessionKey(sessionKey);
   const ownerJobId = AUTOMATION_CHAT_KEY.exec(chatKey)?.[1];
