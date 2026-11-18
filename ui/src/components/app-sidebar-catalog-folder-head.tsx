@@ -44,8 +44,11 @@ export function renderCatalogFolderHead(props: {
     });
   const newChat = createMemo(
     () =>
-      resolveCatalogFolderTargets(props.params.host.sessionDataContext, context(), props.group().label)
-        .newChat,
+      resolveCatalogFolderTargets(
+        props.params.host.sessionDataContext,
+        context(),
+        props.group().label,
+      ).newChat,
   );
   const newSessionAccess = createMemo(() => props.params.host.readNewSessionAccess());
   let head: HTMLButtonElement | undefined;
@@ -116,8 +119,10 @@ export function renderCatalogFolderHead(props: {
                 const access = newSessionAccess();
                 return access.allowed ? undefined : access.reason;
               },
-              onOpen: (agentId: string, target?: Parameters<typeof props.params.host.requestOpenNewSession>[1]) =>
-                props.params.host.requestOpenNewSession(agentId, target),
+              onOpen: (
+                agentId: string,
+                target?: Parameters<typeof props.params.host.requestOpenNewSession>[1],
+              ) => props.params.host.requestOpenNewSession(agentId, target),
             })
           : undefined}
         <button

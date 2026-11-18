@@ -14,8 +14,8 @@ import { hasForwardedSource, isSessionActivityGroup } from "../chat-turn-boundar
 import { ChatAuthorAvatar } from "./chat-author-avatar.ts";
 import { BrowserTabPreviews } from "./chat-browser-tab-previews.tsx";
 import { ForwardedAttribution } from "./chat-forwarded-attribution.tsx";
-import { ChatRefusalHint } from "./chat-handoff-view.tsx";
 import { ChatHandoffResume } from "./chat-handoff-sessions.tsx";
+import { ChatRefusalHint } from "./chat-handoff-view.tsx";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { ActivityGroupContent } from "./chat-message-activity-view.tsx";
 import type { GroupedMessageOptions } from "./chat-message-bubble-options.ts";

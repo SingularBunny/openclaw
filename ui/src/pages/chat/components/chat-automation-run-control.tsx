@@ -77,7 +77,9 @@ export function AutomationRunControl(props: { data: () => AutomationChatJobsData
                   class="btn btn--sm chat-automation-run__button"
                   type="button"
                   disabled={reason(job()) !== null}
-                  title={reason(job()) ?? t("chat.automationRuns.runTitle", { name: jobLabel(job()) })}
+                  title={
+                    reason(job()) ?? t("chat.automationRuns.runTitle", { name: jobLabel(job()) })
+                  }
                   onClick={() => run(job())}
                 >
                   <Icon name={automationLastRunFailed(job()) ? "rotateCcw" : "play"} />
