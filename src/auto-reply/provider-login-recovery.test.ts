@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildProviderLoginRecovery, CLAUDE_CLI_LOGIN_EXPIRED_HINT } from "./provider-login-recovery.js";
+import {
+  buildProviderLoginRecovery,
+  CLAUDE_CLI_LOGIN_EXPIRED_HINT,
+} from "./provider-login-recovery.js";
 
 describe("buildProviderLoginRecovery", () => {
   it("tells Claude CLI users to renew the Claude Code login, without a /login button", () => {
