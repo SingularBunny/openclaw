@@ -576,7 +576,7 @@ function createSession(capability?: CliBackendLiveSessionCapability): ClaudeCliS
         const transport = session.transport ?? (await session.transportStartup);
         await transport?.waitForExit();
       },
-      ...claudeCliForkHandleMethods(session),
+      ...claudeCliForkHandleMethods(() => session),
     },
   };
   sessions.set(session.handle, session);
