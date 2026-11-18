@@ -67,7 +67,10 @@ describe("reorderSessionCatalog", () => {
   it("shows the new order before the Gateway answers and then refreshes catalogs", async () => {
     let resolve: (value: unknown) => void = () => {};
     const { owner, scope, params, run, order } = setup(
-      () => new Promise((settle) => (resolve = settle)),
+      () =>
+        new Promise((settle) => {
+          resolve = settle;
+        }),
     );
 
     const pending = run();
