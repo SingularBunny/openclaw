@@ -2,7 +2,7 @@
 // "Choose another model" under a failed turn, and the "<new> is answering · Return to <previous>"
 // chip by the composer. State and actions come from the chat's published handoff controller.
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, onSettled, Show } from "solid-js";
 import type { RefusalSignal } from "../../../../../src/shared/refusal-signal.js";
 import { Icon } from "../../../components/solid/icon.tsx";
 import { registerModelControlsEnglish } from "../../../i18n/locales/en-model-controls.ts";
@@ -16,6 +16,7 @@ import {
   type ChatHandoffTarget,
 } from "../chat-handoff-registry.ts";
 import { ChatGroupTargetLists } from "./chat-group-view.tsx";
+import { followHandoffMenu } from "./chat-handoff-menu-placement.ts";
 
 registerEnglishCatalog(registerModelControlsEnglish);
 
@@ -128,6 +129,7 @@ function HandoffMenu(props: {
       : undefined;
   });
   let details: HTMLDetailsElement | undefined;
+  let summary: HTMLElement | undefined;
   const close = () => {
     setOpen(false);
     setMode("handoff");
@@ -152,6 +154,9 @@ function HandoffMenu(props: {
       onToggle={(event: Event) => setOpen((event.currentTarget as HTMLDetailsElement).open)}
     >
       <summary
+        ref={(element) => {
+          summary = element;
+        }}
         class={props.summaryClass}
         aria-label={props.summaryLabel}
         title={props.summaryTitle}
@@ -165,7 +170,7 @@ function HandoffMenu(props: {
         {props.summary}
       </summary>
       <Show when={open()}>
-        <div class="chat-handoff-menu__popover" role="menu">
+        <HandoffPopover anchor={() => summary}>
           <Show when={group()}>
             <div class="chat-handoff-menu__modes" role="group">
               <button
@@ -210,9 +215,29 @@ function HandoffMenu(props: {
               onPick={pick}
             />
           </Show>
-        </div>
+        </HandoffPopover>
       </Show>
     </details>
+  );
+}
+
+/** The open menu, placed in the top layer next to its button (F76). */
+function HandoffPopover(props: { anchor: () => HTMLElement | undefined; children: JSX.Element }) {
+  let menu: HTMLDivElement | undefined;
+  onSettled(() => {
+    const anchor = props.anchor();
+    return anchor && menu ? followHandoffMenu(anchor, menu) : undefined;
+  });
+  return (
+    <div
+      ref={(element) => {
+        menu = element;
+      }}
+      class="chat-handoff-menu__popover"
+      role="menu"
+    >
+      {props.children}
+    </div>
   );
 }
 
