@@ -29,7 +29,7 @@ describe("runCronIsolatedAgentTurn - unread mark for silent runs", () => {
 
   it("reports a silent isolated run against the cron chat row", async () => {
     mark.mockClear();
-    mockAgentRun({ finalAssistantRawText: "NO_REPLY", finalAssistantVisibleText: "" });
+    mockAgentRun({ terminalReply: { disposition: "silent", text: "NO_REPLY" } });
     const params = makeIsolatedAgentParamsFixture();
     await runCronIsolatedAgentTurn(params);
     expect(mark).toHaveBeenCalledTimes(1);
@@ -42,7 +42,9 @@ describe("runCronIsolatedAgentTurn - unread mark for silent runs", () => {
 
   it("reports a visible isolated run as visible", async () => {
     mark.mockClear();
-    mockAgentRun({ finalAssistantVisibleText: "Daily report" }, [{ text: "Daily report" }]);
+    mockAgentRun({ terminalReply: { disposition: "visible", text: "Daily report" } }, [
+      { text: "Daily report" },
+    ]);
     await runCronIsolatedAgentTurn(makeIsolatedAgentParamsFixture());
     expect(mark).toHaveBeenCalledWith(
       expect.objectContaining({ status: "ok", replyDisposition: "visible" }),
