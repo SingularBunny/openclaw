@@ -180,7 +180,10 @@ export const ChatAutomationRunsPanel = defineSolidBridge<SessionPanelProps, Meth
                       >
                         <Show when={data().showJobNames && runJobName(entry())}>
                           {(name) => (
-                            <span class="chat-automation-runs__job" data-test-id="automation-run-job">
+                            <span
+                              class="chat-automation-runs__job"
+                              data-test-id="automation-run-job"
+                            >
                               {name()}
                             </span>
                           )}
