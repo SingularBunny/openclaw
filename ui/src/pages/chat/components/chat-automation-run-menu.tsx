@@ -61,7 +61,7 @@ export function automationRunMenuEntries(
         label: `${automationRunLabel(job)}: ${automationJobLabel(job)}`,
         icon: <Icon name={automationLastRunFailed(job) ? "rotateCcw" : "play"} />,
         disabled: reason !== null,
-        ...(reason ? { details: <span class="chat-automation-run__reason">{reason}</span> } : {}),
+        details: reason ? <span class="chat-automation-run__reason">{reason}</span> : undefined,
         attributes: {
           title: reason ?? t("chat.automationRuns.runTitle", { name: automationJobLabel(job) }),
           "data-automation-run-job": job.id,

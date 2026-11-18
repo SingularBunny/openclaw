@@ -30,8 +30,11 @@ it("waits for the draft to show the mention before placing the caret", async () 
   const { chip, textarea } = mountComposer("");
   focusComposerAfterMention(chip, "@Junie ");
   textarea.value = "@Junie ";
-  await new Promise((resolve) => requestAnimationFrame(resolve));
-  await new Promise((resolve) => requestAnimationFrame(resolve));
+  for (let frame = 0; frame < 2; frame += 1) {
+    await new Promise((resolve) => {
+      requestAnimationFrame(resolve);
+    });
+  }
   expect(document.activeElement).toBe(textarea);
   expect(textarea.selectionStart).toBe("@Junie ".length);
 });
