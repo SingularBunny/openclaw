@@ -10,6 +10,7 @@ export * from "./public-schema-push.js";
 export * from "./public-schema-users.js";
 export * from "./public-schema-plugins.js";
 export * from "./public-schema-environments.js";
+export * from "./public-schema-fork.js";
 export {
   isCloudWorkerPlacementState,
   ConnectParamsSchema,
@@ -167,10 +168,6 @@ export {
   SessionsCatalogImportResultSchema,
   SessionsCatalogArchiveParamsSchema,
   SessionsCatalogArchiveResultSchema,
-  SessionsCatalogReorderParamsSchema,
-  SessionsCatalogReorderResultSchema,
-  SessionsCatalogMoveParamsSchema,
-  SessionsCatalogMoveResultSchema,
   SessionsCatalogStartTerminalParamsSchema,
   SessionsCatalogStartTerminalResultSchema,
   SessionsSearchHitSchema,
@@ -701,9 +698,5 @@ export {
 } from "./schema/sessions-activity-summary.js";
 
 export * from "./schema/sessions-involvement.js";
-
-// Fork: restart-pending notice (gateway.restart, snapshot.gatewayRestart).
-export * from "./schema/gateway-restart.js";
-export * from "./schema/gateway-maintenance.js";
 
 export * from "./schema/catalog.js";
