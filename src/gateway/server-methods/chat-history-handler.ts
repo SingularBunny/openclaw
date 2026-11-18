@@ -23,7 +23,6 @@ import {
   measureDiagnosticsTimelineSpanSync,
 } from "../../infra/diagnostics-timeline.js";
 import { formatErrorMessage } from "../../infra/errors.js";
-import { getPromptSuggestion } from "../../infra/prompt-suggestion-events.js";
 import { resolveEffectiveChatHistoryMaxChars } from "../chat-display-projection.js";
 import {
   boundInFlightRunSnapshotForChatHistory,
@@ -55,6 +54,7 @@ import { getSessionDefaults, resolveSessionModelRef } from "../session-utils.js"
 import { withPreparedSessionResolve } from "../sessions-resolve.js";
 import { readChatHistoryDelta } from "./chat-history-delta.js";
 import { readChatHistoryPage } from "./chat-history-pages.js";
+import { readPromptSuggestionReplay } from "./chat-history-prompt-suggestion.js";
 import {
   resolveEmbeddedAgentRunRecoverySnapshot,
   respondChatHistoryUnavailable,
@@ -515,17 +515,8 @@ export async function handleChatHistoryRequest({
           agentId: sessionAgentId,
           defaultAgentId: compatibilityOwnerAgentId,
         }) ?? embeddedRecovery;
-      // Idle sessions replay the latest next-prompt prediction to a (re)loading client.
-      const storedPromptSuggestion = inFlightRun
-        ? undefined
-        : (getPromptSuggestion(canonicalKey) ?? getPromptSuggestion(sessionKey));
-      const promptSuggestion = storedPromptSuggestion
-        ? {
-            sessionKey: storedPromptSuggestion.sessionKey,
-            ...(storedPromptSuggestion.runId ? { runId: storedPromptSuggestion.runId } : {}),
-            text: storedPromptSuggestion.text,
-          }
-        : undefined;
+      // Fork: idle sessions replay the latest next-prompt prediction.
+      const promptSuggestion = readPromptSuggestionReplay(inFlightRun, canonicalKey, sessionKey);
       if (deltaCursor !== undefined) {
         return async () => {
           if (!sessionInfo || !sessionId || !storePath || resolveClaudeCliBindingSessionId(entry)) {
@@ -602,7 +593,7 @@ export async function handleChatHistoryRequest({
               ...(inputReceipts ? { inputReceipts, inputConsumptions } : {}),
               sessionInfo,
               ...(boundedInFlightRun ? { inFlightRun: boundedInFlightRun } : {}),
-              ...(promptSuggestion ? { promptSuggestion } : {}),
+              ...promptSuggestion,
               ...(startupMetadata ? { metadata: startupMetadata } : {}),
             };
             respond(true, presentHistory(payload));
@@ -634,7 +625,7 @@ export async function handleChatHistoryRequest({
         toolOverrides: entry?.toolOverrides && structuredClone(entry.toolOverrides),
         verboseLevel,
         ...(boundedInFlightRun ? { inFlightRun: boundedInFlightRun } : {}),
-        ...(promptSuggestion ? { promptSuggestion } : {}),
+        ...promptSuggestion,
         ...(startupMetadata ? { metadata: startupMetadata } : {}),
       };
       if (retainedTranscript) {
