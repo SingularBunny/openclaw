@@ -1,3 +1,4 @@
+import { nothing } from "lit";
 /* @vitest-environment jsdom */
 import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { CronJob, CronRunLogEntry } from "../../../api/types.ts";
@@ -11,7 +12,6 @@ import { createReviewFixture } from "../../../test-helpers/chat-pane-embedded-pa
 import { createTestGatewayClient } from "../../../test-helpers/gateway-client.ts";
 import { gatewayHelloForMethods } from "../../../test-helpers/gateway-methods.ts";
 import { sidebarPanelDefinitions } from "../chat-pane-embedded-panels.ts";
-import { nothing } from "lit";
 import { renderChatAutomationHeaderControl } from "./chat-automation-header-control.tsx";
 import "./chat-automation-runs-panel.tsx";
 
@@ -399,15 +399,14 @@ describe("automation chat Run button", () => {
 describe("automation chat header", () => {
   const params = {
     sessionKey: JOB_KEY,
-    agentId: "main",
     presented: true,
-    runsAvailable: true,
+    panelDefinitions: [{ slot: "runs", available: true }],
     onOpenRuns: () => undefined,
   };
 
   it("adds Runs and Run controls only to an automation chat whose runs may be read", () => {
     expect(renderChatAutomationHeaderControl(params)).not.toBe(nothing);
-    expect(renderChatAutomationHeaderControl({ ...params, runsAvailable: false })).toBe(nothing);
+    expect(renderChatAutomationHeaderControl({ ...params, panelDefinitions: [] })).toBe(nothing);
     expect(renderChatAutomationHeaderControl({ ...params, sessionKey: "agent:main:main" })).toBe(
       nothing,
     );

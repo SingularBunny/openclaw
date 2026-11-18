@@ -15,7 +15,9 @@ function jobLabel(job: CronJob): string {
 }
 
 function runLabel(job: CronJob): string {
-  return t(automationLastRunFailed(job) ? "chat.automationRuns.runAgain" : "chat.automationRuns.runNow");
+  return t(
+    automationLastRunFailed(job) ? "chat.automationRuns.runAgain" : "chat.automationRuns.runNow",
+  );
 }
 
 /** Asks first: an automation may message people (chat channels, email) when it runs. */
@@ -55,7 +57,9 @@ export function AutomationRunControl(props: { data: () => AutomationChatJobsData
                   type="button"
                   data-test-id="automation-run-now"
                   disabled={reason(job()) !== null}
-                  title={reason(job()) ?? t("chat.automationRuns.runTitle", { name: jobLabel(job()) })}
+                  title={
+                    reason(job()) ?? t("chat.automationRuns.runTitle", { name: jobLabel(job()) })
+                  }
                   onClick={() => run(job())}
                 >
                   <Icon name={automationLastRunFailed(job()) ? "rotateCcw" : "play"} />
