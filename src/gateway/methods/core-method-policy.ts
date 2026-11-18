@@ -1,6 +1,7 @@
 import type { OperatorScope } from "../operator-scopes.js";
 import type { CoreGatewayMethodSpec } from "./core-descriptor-types.js";
-import { CORE_GATEWAY_METHOD_SPECS } from "./core-descriptors.js";
+// Fork: the upstream table plus the fork rows (core-descriptors.fork.ts).
+import { CORE_GATEWAY_METHOD_SPECS } from "./core-descriptors.fork.js";
 import { isCoreGatewayMethodFamilyProfileDependent } from "./core-profile-access.js";
 import {
   DYNAMIC_GATEWAY_METHOD_SCOPE,
