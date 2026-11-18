@@ -30,7 +30,6 @@ import {
   createGatewayControlUiReloadOptions,
   isSameOriginGateway,
 } from "./gateway-control-ui-reload.ts";
-import { readMaintenance, readMaintenanceEvent } from "./gateway-maintenance-notice.ts";
 import { createGatewayMessageBodyInterest } from "./gateway-message-bodies.ts";
 import {
   createGatewayEventLog,
@@ -39,14 +38,15 @@ import {
   notifyGatewayObservers,
 } from "./gateway-observers.ts";
 import { readSuspensionPhase } from "./gateway-readiness.ts";
-import { readGatewayRestartNotice } from "./gateway-restart-notice.ts";
 import { createAvailabilityIndicators } from "./gateway-store.availability.ts";
 import { updateGatewayAvatarContext } from "./gateway-store.avatar-context.ts";
 import { createGatewayCredentials } from "./gateway-store.credentials.ts";
 import { createGatewayDeferredIntents } from "./gateway-store.deferred-intents.ts";
 import { createDeviceCredentialMethods } from "./gateway-store.device-credential.ts";
+import { createGatewayForkNotices } from "./gateway-store.fork-notices.ts";
 import { createGatewayPresenceObserver } from "./gateway-store.presence.ts";
 import { createGatewaySelfProfile } from "./gateway-store.self-profile.ts";
+import { readUsagePublicationPatch } from "./gateway-store.usage-publications.ts";
 import type {
   ApplicationGateway,
   ApplicationGatewayConnectOptions,
@@ -116,8 +116,8 @@ export function createApplicationGateway(
   // transport drops render as "reconnecting" (shell + banner) instead of
   // kicking the operator back to the login gate.
   let everConnected = false;
-  // Fork: a restart this page was told about (shutdown with restart, restarting notice).
-  let restartAwaited = false;
+  // Fork: maintenance and restart notices.
+  const forkNotices = createGatewayForkNotices();
   let stopped = true;
   // Snapshot observers can synchronously stop or replace their publishing client.
   const isCurrentClient = (expected: GatewayBrowserClient | null) =>
@@ -228,6 +228,7 @@ export function createApplicationGateway(
   };
   const recordGatewayEvent = (event: Parameters<GatewayEventListener>[0]) => {
     const eventClient = client;
+    forkNotices.applyEvent(event, setSnapshot);
     if (
       (event.event === "plugins.changed" || event.event === "plugins.controlUi.changed") &&
       eventClient
@@ -247,49 +248,21 @@ export function createApplicationGateway(
           }
         });
     } else if (event.event === "chat.metadata.changed") {
-      const publication = asOptionalRecord(event.payload);
-      const agentId = publication?.agentId;
-      const usageUpdatedAt = publication?.usageUpdatedAt;
-      if (
-        typeof agentId === "string" &&
-        typeof usageUpdatedAt === "number" &&
-        usageUpdatedAt > (snapshot.usagePublications?.[agentId]?.usageUpdatedAt ?? 0)
-      ) {
-        setSnapshot({
-          usagePublications: {
-            ...snapshot.usagePublications,
-            [agentId]: {
-              usageUpdatedAt,
-              committedAt:
-                publication?.usageRefreshFailed === true
-                  ? (snapshot.usagePublications?.[agentId]?.committedAt ?? 0)
-                  : usageUpdatedAt,
-              usageRefreshFailed: publication?.usageRefreshFailed === true || undefined,
-            },
-          },
-        });
+      const usagePatch = readUsagePublicationPatch(snapshot, event.payload);
+      if (usagePatch) {
+        setSnapshot(usagePatch);
       }
     } else if (event.event === "gateway.suspension") {
       const suspensionPhase = readSuspensionPhase(event.payload);
       if (suspensionPhase) {
         setSnapshot({ suspensionPhase });
       }
-    } else if (event.event === "gateway.maintenance") {
-      // Fork: maintenance mode on/off (app-shell-maintenance-notice.tsx).
-      setSnapshot({ maintenance: readMaintenanceEvent(event.payload) });
-    } else if (event.event === "gateway.restart") {
-      // Fork: restart-pending notice, shown outside the chat (gateway-restart-notice.ts).
-      const restartNotice = readGatewayRestartNotice(asOptionalRecord(event.payload)?.notice);
-      restartAwaited ||=
-        restartNotice?.phase === "restarting" || restartNotice?.phase === "draining";
-      setSnapshot({ restartNotice });
     } else if (event.event === "shutdown") {
       // Only a restart-bearing shutdown arms the amber state; an ordinary stop
       // (restartExpectedMs absent) flows through the normal offline pill so the
       // retry action stays reachable. Hostile values fall to the timer clamp.
       const expected = asOptionalRecord(event.payload)?.restartExpectedMs;
       if (typeof expected === "number") {
-        restartAwaited = true;
         setUnavailableDeadline("restartPending", expected);
         setSnapshot({ restartPending: true });
       }
@@ -495,16 +468,11 @@ export function createApplicationGateway(
         const canvasPluginSurfaceUrl = hello.pluginSurfaceUrls?.canvas?.trim() || null;
         const canvasLeaseGeneration = canvasSurface.begin(nextClient, hello.auth);
         setUnavailableDeadline("restartPending");
-        // Fork: a reconnect after a restart this page was told about shows "Gateway restarted".
-        const restarted = restartAwaited;
-        restartAwaited = false;
         setConnectionSnapshot({
           client: nextClient,
           phase: "connected",
           restartPending: false,
-          restartNotice: readGatewayRestartNotice(asOptionalRecord(hello.snapshot)?.gatewayRestart),
-          maintenance: readMaintenance(asOptionalRecord(hello.snapshot)?.gatewayMaintenance),
-          ...(restarted ? { restartedAt: Date.now() } : {}),
+          ...forkNotices.connected(hello),
           suspensionPhase: readSuspensionPhase(asOptionalRecord(hello.snapshot)?.suspension),
           hello,
           pluginCapabilities: readHelloPluginCapabilities(hello),
