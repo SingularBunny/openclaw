@@ -21,6 +21,7 @@ import { useOptionalApplication } from "../../../lib/reactive/context.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
 import type { SessionCreatedActor } from "../../../lib/session-owner.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../../../lit/solid-bridge.ts";
+import { isAutomationDetailsShown, setAutomationDetailsShown } from "../chat-automation-details.ts";
 import { isChatBubbleMode, setChatBubbleMode } from "../chat-bubble-mode.ts";
 import { ChatQuickActionItem, type HeaderMenuSessionAction } from "./chat-quick-action.tsx";
 import {
@@ -56,6 +57,9 @@ type HeaderMenuProps = {
     | "chatPersistCommentary"
     | "chatBubbleSessionKeys"
     | "chatBubbleDisabledSessionKeys"
+    | "chatShowAutomationDetails"
+    | "chatAutomationDetailsSessionKeys"
+    | "chatAutomationDetailsHiddenSessionKeys"
   >;
   sessionActions: HeaderMenuSessionAction[];
   boardWidgetMenu?: BoardWidgetPageMenu;
@@ -170,8 +174,17 @@ function ChatHeaderSessionMenuContent(
       }
       const setting = value.slice("view:".length);
       const option = VIEW_SETTINGS.find(([id]) => id === setting);
+      const menuSessionKey = props.session.target?.key ?? "";
       if (option) {
         props.onSettingsChange({ [option[1]]: props.settings[option[1]] === false });
+      } else if (setting === "automation-details" && menuSessionKey) {
+        props.onSettingsChange(
+          setAutomationDetailsShown(
+            props.settings,
+            menuSessionKey,
+            !isAutomationDetailsShown(props.settings, menuSessionKey),
+          ),
+        );
       } else if (
         setting === "speech-bubbles" &&
         props.bubbleModeEnabled &&
@@ -246,6 +259,12 @@ function ChatHeaderSessionMenuContent(
           />
         )}
       </For>
+      <ViewOption
+        inline={input.inline}
+        value="automation-details"
+        label={t("chat.view.automationDetails")}
+        checked={isAutomationDetailsShown(props.settings, props.session.target?.key ?? "")}
+      />
       {props.bubbleModeEnabled ? (
         <ViewOption
           inline={input.inline}

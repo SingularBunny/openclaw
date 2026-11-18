@@ -25,6 +25,7 @@ import { GitHubPublicationController } from "../../lib/sessions/github-publicati
 import { scopedAgentParamsForSession } from "../../lib/sessions/index.ts";
 import { resolveUiConfiguredMainKey } from "../../lib/sessions/session-key.ts";
 import { navigateToModelProvider } from "../model-providers/navigation.ts";
+import { isAutomationDetailsShown } from "./chat-automation-details.ts";
 import { isChatBubbleMode } from "./chat-bubble-mode.ts";
 import { chatGoalRecovery, mutateChatGoal, submitChatGoalDraft } from "./chat-goals.ts";
 import { isInitialChatHistoryUnavailable } from "./chat-history-state.ts";
@@ -396,6 +397,7 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       autoExpandToolCalls: state.chatVerboseLevel === "full",
       showThinking: state.settings.chatShowThinking,
       showToolCalls: state.settings.chatShowToolCalls,
+      showAutomationDetails: isAutomationDetailsShown(state.settings, state.sessionKey),
       persistCommentary: state.settings.chatPersistCommentary !== false,
       // Recovery can temporarily withhold the first turn after history loaded empty.
       // Keep its pane loading until startup can display the retained message again.

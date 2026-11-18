@@ -65,6 +65,7 @@ type AppearancePreferences = Required<
     | "openLinksExternally"
     | "chatShowTaskProgress"
     | "chatCollapseTaskProgress"
+    | "chatShowAutomationDetails"
     | "showAdvancedSettings"
     | "lobsterPetVisits"
     | "sessionDeleteConfirm"

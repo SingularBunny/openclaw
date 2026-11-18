@@ -10,6 +10,7 @@ import type { ConfigProps } from "./view-types.ts";
 type LocalToggle =
   | "chatShowTaskProgress"
   | "chatCollapseTaskProgress"
+  | "chatShowAutomationDetails"
   | "composerHoldToRecord"
   | "sidebarLiveActivity"
   | "sessionDeleteConfirm"

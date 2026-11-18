@@ -14,6 +14,7 @@ export function localPresentationProps(
       settings.chatShowTaskProgress ?? UI_APPEARANCE_DEFAULTS.chatShowTaskProgress,
     openLinksExternally: settings.openLinksExternally === true,
     chatCollapseTaskProgress: settings.chatCollapseTaskProgress === true,
+    chatShowAutomationDetails: settings.chatShowAutomationDetails === true,
     showAdvancedSettings: settings.showAdvancedSettings === true,
   };
 }

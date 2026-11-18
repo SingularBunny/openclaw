@@ -264,6 +264,12 @@ export function ChatPreferencesSection(props: ConfigProps) {
           hint={t("configView.chatPrefs.collapseTaskProgressHint")}
           disabled={!props.chatShowTaskProgress}
         />
+        <LocalToggleRow
+          config={props}
+          setting="chatShowAutomationDetails"
+          title={t("configView.chatPrefs.showAutomationDetails")}
+          hint={t("configView.chatPrefs.showAutomationDetailsHint")}
+        />
         <SettingsSelectRow
           title={t("chat.sendShortcut")}
           value={props.chatSendShortcut}

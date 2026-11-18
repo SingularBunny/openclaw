@@ -393,9 +393,16 @@ describe("chat header session menu", () => {
       "Reasoning",
       "Tool calls",
       "Keep commentary",
+      "Automation details",
       "Speech bubbles",
     ]);
-    expect(viewItems.map((entry) => entry.checked)).toEqual([!onboarding, true, true, false]);
+    expect(viewItems.map((entry) => entry.checked)).toEqual([
+      !onboarding,
+      true,
+      true,
+      false,
+      false,
+    ]);
     if (onboarding) {
       expect(viewItems.every((entry) => entry.disabled)).toBe(true);
       expect(
@@ -409,6 +416,7 @@ describe("chat header session menu", () => {
     select(menu, "view:reasoning");
     select(menu, "view:tool-calls");
     select(menu, "view:commentary");
+    select(menu, "view:automation-details");
     select(menu, "view:speech-bubbles");
     expect(onSettingsChange.mock.calls).toEqual(
       onboarding
@@ -417,6 +425,12 @@ describe("chat header session menu", () => {
             [{ chatShowThinking: false }],
             [{ chatShowToolCalls: false }],
             [{ chatPersistCommentary: false }],
+            [
+              {
+                chatAutomationDetailsSessionKeys: ["agent:main:test"],
+                chatAutomationDetailsHiddenSessionKeys: undefined,
+              },
+            ],
             [
               {
                 chatBubbleSessionKeys: ["agent:main:test"],
@@ -557,7 +571,13 @@ describe("chat header session menu", () => {
       ]);
       await navigate("back");
       await navigate("open-view");
-      expect(rootLabels(menu)).toEqual(["Back", "Reasoning", "Tool calls", "Keep commentary"]);
+      expect(rootLabels(menu)).toEqual([
+        "Back",
+        "Reasoning",
+        "Tool calls",
+        "Keep commentary",
+        "Automation details",
+      ]);
       expect(menu.querySelector("[slot='submenu']")).toBeNull();
       select(menu, "view:reasoning");
       expect(onSettingsChange).toHaveBeenCalledWith({ chatShowThinking: false });
@@ -577,7 +597,7 @@ describe("chat header session menu", () => {
         Array.from(
           item(menu, "View").querySelectorAll<MenuItemElement>("wa-dropdown-item[slot='submenu']"),
         ).map(itemLabel),
-      ).toEqual(["Reasoning", "Tool calls", "Keep commentary"]);
+      ).toEqual(["Reasoning", "Tool calls", "Keep commentary", "Automation details"]);
     }
   });
 

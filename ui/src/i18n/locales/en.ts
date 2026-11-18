@@ -3253,6 +3253,7 @@ export const en: TranslationMap & {
       reasoning: "Reasoning",
       toolCalls: "Tool calls",
       commentary: "Keep commentary",
+      automationDetails: "Automation details",
     },
     sendShortcut: "Send shortcut",
     sendShortcutEnter: "Enter",
