@@ -18,7 +18,6 @@ import { clearCompositionEnd, recordCompositionEnd } from "../../../lib/ime.ts";
 import { isSessionRunVisuallyActive } from "../../../lib/session-run-state.ts";
 import { detectTextDirection } from "../../../lib/text-direction.ts";
 import { chatGoalCreationObjective } from "../chat-goals.ts";
-import { insertChatPromptSuggestion } from "../chat-prompt-suggestion.ts";
 import {
   hasTerminalRunStatus,
   isChatRunWorking,
@@ -42,6 +41,7 @@ import { createComposerKeyDownHandler } from "./chat-composer-keydown.ts";
 import type { HumanMentionMenuHost } from "./chat-composer-mention-menu-state.ts";
 import { resolveChatSlashCommandArgOptions, resolveComposerMenus } from "./chat-composer-menus.ts";
 import type { ComposerPrediction } from "./chat-composer-prediction.ts";
+import { createComposerPromptSuggestion } from "./chat-composer-prompt-suggestion.ts";
 import { isSkillMenuVisible, type SkillMenuHost } from "./chat-composer-skill-menu-state.ts";
 import type { SlashMenuHost } from "./chat-composer-slash-menu-state.ts";
 import {
@@ -289,8 +289,7 @@ export function createChatComposerContext(
     }
     state.composerComposing = false;
     interaction.setComposition(null);
-    prediction?.dismiss();
-    dismissPromptSuggestion();
+    promptSuggestion.dismissAll();
     commitComposerDraft(props, draft);
     props.onTypingChange?.(false);
     if (goalComposer.activateDraft(draft, true)) {
@@ -309,41 +308,16 @@ export function createChatComposerContext(
     }
   };
 
-  // Claude Code's predicted next prompt (fork): shown through the composer prediction surface
-  // while the idle composer is empty and no Labs prediction is showing.
-  const promptSuggestion =
-    !prediction?.text &&
-    props.promptSuggestion &&
-    canCompose &&
-    !visibleDraft &&
-    !isBusy &&
-    !runWorking &&
-    props.queue.length === 0 &&
-    !props.replyTarget &&
-    !props.suggestionComposer &&
-    !goalComposer.active &&
-    !state.dictation?.active &&
-    (props.getAttachments?.() ?? props.attachments ?? []).length === 0
-      ? props.promptSuggestion
-      : null;
-  const dismissPromptSuggestion = () => {
-    if (props.promptSuggestion) {
-      props.onDismissPromptSuggestion?.();
-    }
-  };
+  // Claude Code's predicted next prompt (fork), shown through the composer prediction surface.
+  const promptSuggestion = createComposerPromptSuggestion(props, prediction, {
+    idle: () => canCompose && !visibleDraft && !isBusy && !runWorking,
+    quiet: () => !goalComposer.active && !state.dictation?.active,
+  });
   const acceptPrediction = () => {
     if (state.composerComposing || !canCompose) {
       return;
     }
-    if (prediction?.text) {
-      prediction.acceptInto(state.composerTextarea);
-      return;
-    }
-    const target = state.composerTextarea;
-    if (promptSuggestion && target && !target.value) {
-      insertChatPromptSuggestion(target, promptSuggestion);
-      dismissPromptSuggestion();
-    }
+    promptSuggestion.accept(state.composerTextarea);
   };
   const handleKeyDown = createComposerKeyDownHandler({
     prediction,
@@ -359,8 +333,8 @@ export function createChatComposerContext(
     showAbortableUi,
     alternateFollowUpMode,
     goalComposer,
-    promptSuggestion,
-    dismissPromptSuggestion,
+    promptSuggestion: promptSuggestion.text,
+    dismissPromptSuggestion: promptSuggestion.dismiss,
   });
 
   const updateEmojiMenu = (
@@ -662,12 +636,9 @@ export function createChatComposerContext(
     canCompose,
     showAbortableUi,
     visibleDraft,
-    predictionText: prediction?.text ?? promptSuggestion ?? null,
+    predictionText: prediction?.text ?? promptSuggestion.text ?? null,
     acceptPrediction,
-    dismissPrediction: () => {
-      prediction?.dismiss();
-      dismissPromptSuggestion();
-    },
+    dismissPrediction: promptSuggestion.dismissAll,
     runStatusAnnouncement,
     cancellationCaveat,
     sendShortcut,
