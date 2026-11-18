@@ -13,9 +13,7 @@ import {
   UI_APPEARANCE_DEFAULTS,
 } from "../../app/settings.ts";
 import {
-  loadStoredHiddenSessionCatalogFolders,
   loadStoredHiddenSessionCatalogIds,
-  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
   setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
@@ -38,6 +36,7 @@ import { projectOwner, projectSource } from "../../lib/reactive/projection.ts";
 import { useVisiblePoll } from "../../lib/reactive/visible-poll.ts";
 import { resolveScrollBehavior } from "../../lib/scroll-behavior.ts";
 import { createAppearanceCatalogs } from "./appearance-catalogs.ts";
+import { createConfigPageHiddenCatalogFolders } from "./config-page-hidden-catalog-folders.ts";
 import { createConfigPageModels } from "./config-page-models.ts";
 import { createConfigPagePreferences } from "./config-page-preferences.ts";
 import { isAppearanceDataTarget, loadConfigPageReads } from "./config-page-reads.ts";
@@ -113,7 +112,7 @@ export function createConfigPage(
   const settings = () => context.theme.settings;
   const preferences = createConfigPagePreferences(context, invalidate);
   let hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
-  let hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
+  const hiddenCatalogFolders = createConfigPageHiddenCatalogFolders(invalidate);
   const observerModels = createConfigPageModels({
     invalidate,
     gateway: () => context.gateway,
@@ -261,10 +260,6 @@ export function createConfigPage(
   const hiddenSessionCatalogsChanged = () => {
     hiddenSessionCatalogIds = loadStoredHiddenSessionCatalogIds();
     synchronize();
-    invalidate();
-  };
-  const hiddenSessionCatalogFoldersChanged = () => {
-    hiddenSessionCatalogFolders = loadStoredHiddenSessionCatalogFolders();
     invalidate();
   };
 
@@ -559,7 +554,7 @@ export function createConfigPage(
       hiddenSessionCatalogIds,
       hiddenSessionCatalogLabels: { read: sessionCatalogLabels, scope: labelsRead().value },
       setSessionCatalogHidden: setStoredSessionCatalogHidden,
-      hiddenSessionCatalogFolders,
+      hiddenSessionCatalogFolders: hiddenCatalogFolders.folders,
       setSessionCatalogFolderHidden: setStoredSessionCatalogFolderHidden,
       terminalFontFamily: settings().terminalFontFamily,
       setTerminalFontFamily: (value: string | undefined) =>
@@ -688,14 +683,10 @@ export function createConfigPage(
     );
     connected = true;
     hiddenSessionCatalogsChanged();
-    hiddenSessionCatalogFoldersChanged();
+    hiddenCatalogFolders.changed();
     subscriptions.push(
       listen(window, SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT, hiddenSessionCatalogsChanged),
-      listen(
-        window,
-        SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
-        hiddenSessionCatalogFoldersChanged,
-      ),
+      hiddenCatalogFolders.listen(),
       listen(document, "visibilitychange", synchronize),
       listen(window, "focus", synchronize),
     );
