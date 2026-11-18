@@ -21,6 +21,7 @@ import { projectChatFields } from "./chat-field-projection.ts";
 import { getAcceptedChatHistorySession, isChatSessionProvenAbsent } from "./chat-history-state.ts";
 import { publishChatGroupController } from "./chat-group-registry.ts";
 import { createChatGroupController } from "./chat-group.ts";
+import { pickerHandoffModel } from "./chat-handoff-resend-target.ts";
 import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
 import {
   CHAT_HANDOFF_AGENT_GROUP_ID,
@@ -509,10 +510,15 @@ export function renderChatPaneComposerControls(params: {
           }
           const resend = takePendingResend(state, sessionKey);
           // Fork: bound to an agent, or re-sending a failed turn: unbind first, then switch and send.
-          if (next && (handoff.info?.binding || resend)) {
+          const handoffModel = pickerHandoffModel(next, {
+            bound: Boolean(handoff.info?.binding),
+            resend,
+            defaultModel: agentDefaultModel,
+          });
+          if (handoffModel) {
             return handOffChat(
               state,
-              { kind: "model", model: next, ...(agentRuntime ? { agentRuntime } : {}) },
+              { kind: "model", model: handoffModel, ...(agentRuntime ? { agentRuntime } : {}) },
               { resend },
             );
           }
