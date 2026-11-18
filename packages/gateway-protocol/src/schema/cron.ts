@@ -690,6 +690,8 @@ export const CronRunsParamsSchema = closedObject({
   id: Type.Optional(CronRunLogJobIdSchema),
   jobId: Type.Optional(CronRunLogJobIdSchema),
   runId: Type.Optional(NonEmptyString),
+  /** With scope "all": only runs recorded in this chat or made by jobs that deliver into it. */
+  sessionKey: Type.Optional(NonEmptyString),
   limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 200 })),
   offset: Type.Optional(Type.Integer({ minimum: 0 })),
   statuses: Type.Optional(Type.Array(CronRunStatusSchema, { minItems: 1, maxItems: 3 })),
