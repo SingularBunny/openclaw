@@ -27,10 +27,12 @@ import {
 import type { SidebarSessionMutationScope } from "./app-sidebar-session-types.ts";
 import { createPanelRefreshStatus, type PanelRefreshStatus } from "./panel-refresh-status-state.ts";
 import {
-  applySessionCatalogContinuation,
-  archiveSessionCatalog as archiveSessionCatalogData,
   moveSessionCatalog as moveSessionCatalogData,
   reorderSessionCatalog as reorderSessionCatalogData,
+} from "./session-data-catalog-reorder.ts";
+import {
+  applySessionCatalogContinuation,
+  archiveSessionCatalog as archiveSessionCatalogData,
   importSessionCatalog as importSessionCatalogData,
   applySessionCatalogHostEvent as applySessionCatalogHostEventToData,
   applyPluginSessionCatalogChanged as applyPluginSessionCatalogChangedToData,
