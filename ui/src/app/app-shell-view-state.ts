@@ -1,4 +1,3 @@
-import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { isSettingsNavigationRoute, isSettingsTakeover } from "../app-navigation.ts";
 import { isSessionRouteId } from "../app-route-paths.ts";
 import { APP_ROUTE_IDS } from "../app-routes.ts";
@@ -17,6 +16,7 @@ import type { ShellViewCallbacks } from "./app-shell-view-callbacks.ts";
 import type { ApplicationRuntime } from "./bootstrap.ts";
 import { canGoBackInNativeEmbed } from "./browser.ts";
 import type { ControlUiReadinessOutlet } from "./control-ui-readiness.ts";
+import { createGatewayMaintenanceControl } from "./gateway-maintenance-notice.ts";
 import { gatewayPresentationScope } from "./gateway-presentation-scope.ts";
 import { isMobileNavLayout, shouldMergeChatChrome } from "./mobile-nav-layout.ts";
 import type { NativeHistoryState } from "./native-web-chrome.ts";

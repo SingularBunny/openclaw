@@ -41,8 +41,8 @@ import {
 import { chatHistoryRequests, setChatError } from "./chat-history-state.ts";
 import { subscribeChatOutboxQueue } from "./chat-outbox-queue.ts";
 import { ChatPaneComposerHandoff } from "./chat-pane-attachment-handoff.ts";
-import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { chatSessionPresentationKey } from "./chat-pane-session-presentation.ts";
+import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { chatProviderReviewRow } from "./chat-provider-review.ts";
 import { removeQueuedMessage } from "./chat-queue.ts";
 import { attachChatRealtimeActions, createInitialChatRealtimeState } from "./chat-realtime.ts";

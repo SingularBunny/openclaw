@@ -144,7 +144,11 @@ export async function settleSessionEventTurn(params: {
 }): Promise<
   Pick<
     SessionEventOutcome,
-    "summary" | "nextCheckMs" | "nextCheckFollowUpDepth" | "sourceDeliveryOutcome" | "automationResult"
+    | "summary"
+    | "nextCheckMs"
+    | "nextCheckFollowUpDepth"
+    | "sourceDeliveryOutcome"
+    | "automationResult"
   >
 > {
   const { automation, runId, deliveryEvidence } = params;
