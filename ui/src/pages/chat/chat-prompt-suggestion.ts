@@ -2,6 +2,7 @@ import { asNullableRecord } from "@openclaw/normalization-core/record-coerce";
 import { validateChatPromptSuggestion } from "../../../../packages/gateway-protocol/src/index.js";
 import type { ChatPromptSuggestion } from "../../../../packages/gateway-protocol/src/schema/logs-chat.js";
 import type { GatewayEventFrame } from "../../api/gateway.ts";
+import { visibleSessionMatches } from "../../lib/sessions/navigation.ts";
 
 /**
  * Claude Code's predicted next prompt for the visible session (`chat.prompt_suggestion`).
@@ -58,6 +59,21 @@ export function activeChatPromptSuggestion(host: ChatPromptSuggestionHost): stri
 }
 
 /** A prediction arrives after the turn; a new run or another user message retires it. */
+/**
+ * A pane's handling of prompt suggestion events. Imported (catalog) chats run on the same
+ * Claude CLI backend, so no key exclusion here.
+ */
+export function handlePanePromptSuggestionEvent(
+  state: (ChatPromptSuggestionHost & Parameters<typeof visibleSessionMatches>[0]) | undefined,
+  event: GatewayEventFrame,
+): void {
+  if (state) {
+    handleChatPromptSuggestionEvent(state, event, (sessionKey, agentId) =>
+      visibleSessionMatches(state, sessionKey, agentId),
+    );
+  }
+}
+
 export function handleChatPromptSuggestionEvent(
   host: ChatPromptSuggestionHost,
   event: GatewayEventFrame,
