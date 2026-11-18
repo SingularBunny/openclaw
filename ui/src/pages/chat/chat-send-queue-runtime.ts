@@ -135,8 +135,11 @@ export function settleQueuedChatSendFailure(
       }
       return restore ? "failed" : "pending";
     }
+    // Fork: a message held by maintenance mode is waiting, not failed; the banner explains it.
     const awaitingGateway =
-      isGatewayRestartUnavailableError(err) || isGatewaySuspendUnavailableError(err);
+      isGatewayRestartUnavailableError(err) ||
+      isGatewaySuspendUnavailableError(err) ||
+      isGatewayMaintenanceRefusal(err);
     const waiting = updateQueuedMessage(host, id, (item) => ({
       ...item,
       ...rollbackAttempt,
@@ -160,10 +163,7 @@ export function settleQueuedChatSendFailure(
         host,
         retryDelayMs === null
           ? "Message will send when the Gateway reconnects."
-          : isGatewayMaintenanceRefusal(err)
-            ? // Fork: maintenance mode keeps the message in the outbox until chats resume.
-              "Chats are paused for maintenance. The message waits and sends itself when maintenance ends."
-            : "The Gateway asked us to retry this message shortly.",
+          : "The Gateway asked us to retry this message shortly.",
       );
     }
     if (retryDelayMs !== null) {
