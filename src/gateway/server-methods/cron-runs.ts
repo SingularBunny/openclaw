@@ -4,6 +4,7 @@ import {
   projectCronRunHistoryPage,
   type ReadCronRunHistoryPageOptions,
 } from "../../cron/run-history.js";
+import { cronJobsDeliveringToChat, cronRunBelongsToChat } from "../../cron/run-history-chat.js";
 import { cronStoreKey } from "../../cron/store/key.js";
 import { readCronRunRecords } from "../../cron/store/read-only.js";
 import { cronJobMatchesCallerScope, readCronCallerScope } from "./cron-caller-scope.js";
@@ -35,6 +36,10 @@ export const cronRunsHandler: GatewayRequestHandler = async (options) => {
       throw new Error("Cron history store changed; retry the request");
     }
   };
+  if (p.sessionKey !== undefined && scope !== "all") {
+    respondInvalidCronParams(respond, "cron.runs", "sessionKey requires scope all");
+    return;
+  }
   if (scope === "all") {
     if (readCronCallerScope(client)) {
       respondInvalidCronParams(respond, "cron.runs", "scope all is not allowed by caller scope");
@@ -61,6 +66,15 @@ export const cronRunsHandler: GatewayRequestHandler = async (options) => {
       cronJobIsVisible(job, visibility, context.cron.getDefaultAgentId()),
     );
     const visibleIds = new Set(visibleJobs.map((job) => job.id));
+    const inChat = p.sessionKey
+      ? cronRunBelongsToChat(
+          p.sessionKey,
+          cronJobsDeliveringToChat(
+            p.sessionKey,
+            listedJobs.flatMap(({ id }) => context.cron.getJob(id) ?? []),
+          ),
+        )
+      : undefined;
     const pageOptions: ReadCronRunHistoryPageOptions = {
       storeKey,
       ...cronRunLogPageFilters(p),
@@ -70,11 +84,14 @@ export const cronRunsHandler: GatewayRequestHandler = async (options) => {
     };
     const page = projectCronRunHistoryPage(records, {
       ...pageOptions,
-      entryFilter: visibility
-        ? (entry) =>
-            visibleIds.has(entry.jobId) &&
-            (!entry.sessionKey || visibility(entry.sessionKey, p.agentId))
-        : undefined,
+      entryFilter:
+        visibility || inChat
+          ? (entry) =>
+              (!inChat || inChat(entry)) &&
+              (!visibility ||
+                (visibleIds.has(entry.jobId) &&
+                  (!entry.sessionKey || visibility(entry.sessionKey, p.agentId))))
+          : undefined,
     });
     respond(true, page, undefined);
     return;
