@@ -372,7 +372,8 @@ export function findPromptBefore(
     const message = messages[index] as { role?: unknown } | null;
     if (message?.role === "user") {
       const text = extractText(message)?.trim();
-      if (text && !text.startsWith("/")) {
+      // Upstream's Try again sends a "continue" prompt; Retry re-sends the question before it.
+      if (text && !text.startsWith("/") && text !== t("chat.recovery.continuePrompt")) {
         return text;
       }
     }

@@ -134,6 +134,12 @@ describe("chat handoff", () => {
     expect(findPromptBefore([assistant("x", "a")], "a")).toBeUndefined();
   });
 
+  it("retries the question, not upstream's Try again continue prompt", () => {
+    const continuePrompt =
+      "Continue from where you stopped. Check which actions already completed before retrying anything.";
+    expect(findPromptBefore([user("question", "u1"), user(continuePrompt, "u2")])).toBe("question");
+  });
+
   it("hands a model's chat to an ACP agent, records who answered and re-sends the question", async () => {
     const { state, sent, requests } = createChat({ agents: ["junie"] });
     await refreshChatHandoffInfo(state);

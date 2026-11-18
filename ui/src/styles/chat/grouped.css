@@ -2564,6 +2564,11 @@ button.chat-reply-attribution__target:disabled {
   align-items: center;
 }
 
+/* Fork: the same buttons on upstream's run-failure notice, under its summary. */
+.chat-run-failure__fork-actions {
+  margin-top: 8px;
+}
+
 /* Fork (I14): hint under a reply that looks like a refusal; always visible, not hover-revealed. */
 .chat-refusal-hint {
   display: flex;

@@ -1,4 +1,4 @@
-import { createMemo, Show } from "solid-js";
+import { createMemo, type JSX, Show } from "solid-js";
 import { formatWebUiIconErrorText } from "../../../components/error-presentation.ts";
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
@@ -18,6 +18,8 @@ export function ChatRunFailureNotice(props: {
   onRetry?: () => void;
   /** Fork: opens Settings → Model Setup; shown with the Claude CLI re-login hint. */
   onOpenModelSetup?: () => void;
+  /** Fork: Retry the same message / Choose another model, beside upstream's Try again. */
+  actions?: JSX.Element;
 }) {
   const detail = createMemo(() => formatWebUiIconErrorText(props.summary).trim());
   const concise = createMemo(() => {
@@ -82,6 +84,9 @@ export function ChatRunFailureNotice(props: {
                 </Show>
               </div>
             </div>
+          </Show>
+          <Show when={props.actions}>
+            <div class="chat-run-failure__fork-actions">{props.actions}</div>
           </Show>
           <Show when={detail() !== concise()}>
             <details class="chat-run-failure__details">
