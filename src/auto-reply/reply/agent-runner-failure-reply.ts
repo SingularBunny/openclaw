@@ -306,10 +306,14 @@ export function buildExternalRunFailureReply(
       : "re-auth";
     if (oauthRefreshFailure.reason) {
       return {
-        text: providerLoginRecovery
-          ? `⚠️ ${providerLoginRecovery.hint} You can also re-auth with ${loginCommandMarkdown} on the gateway.`
-          : `⚠️ Model login expired on the gateway${providerText}. Re-auth with ${loginCommandMarkdown} in a terminal, then try again.`,
-        ...(providerLoginRecovery ? { presentation: providerLoginRecovery.presentation } : {}),
+        text: !providerLoginRecovery
+          ? `⚠️ Model login expired on the gateway${providerText}. Re-auth with ${loginCommandMarkdown} in a terminal, then try again.`
+          : providerLoginRecovery.presentation
+            ? `⚠️ ${providerLoginRecovery.hint} You can also re-auth with ${loginCommandMarkdown} on the gateway.`
+            : `⚠️ ${providerLoginRecovery.hint}`,
+        ...(providerLoginRecovery?.presentation
+          ? { presentation: providerLoginRecovery.presentation }
+          : {}),
         isGenericRunnerFailure: false,
       };
     }
@@ -324,7 +328,9 @@ export function buildExternalRunFailureReply(
       text: providerLoginRecovery
         ? `${providerLoginRecovery.hint}\n\n${authProfileFailoverFailure}`
         : authProfileFailoverFailure,
-      ...(providerLoginRecovery ? { presentation: providerLoginRecovery.presentation } : {}),
+      ...(providerLoginRecovery?.presentation
+        ? { presentation: providerLoginRecovery.presentation }
+        : {}),
       isGenericRunnerFailure: false,
     };
   }

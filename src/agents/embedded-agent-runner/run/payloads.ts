@@ -286,7 +286,9 @@ export function buildEmbeddedRunPayloads(params: {
       const errorPayload = {
         text: errorText,
         isError: true,
-        ...(providerLoginRecovery ? { presentation: providerLoginRecovery.presentation } : {}),
+        ...(providerLoginRecovery?.presentation
+          ? { presentation: providerLoginRecovery.presentation }
+          : {}),
       };
       replyItems.push(
         setReplyPayloadMetadata(errorPayload, {

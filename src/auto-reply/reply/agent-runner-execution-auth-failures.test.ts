@@ -170,9 +170,10 @@ describe("executeAgentTurn: authentication failures", () => {
     expect(result.kind).toBe("final");
     if (result.kind === "final") {
       expect(result.payload.text).toBe(
-        "⚠️ Your model provider needs a new login. Send `/login` from a private chat or Control UI session. Where shown, you can also select **Sign in**. You can also re-auth with `claude auth login && openclaw models auth login --provider anthropic --method cli` on the gateway.",
+        "⚠️ Claude subscription login expired: Claude Code on the Gateway can no longer use your Claude account. Run `claude auth login` in a terminal on the Gateway host, sign in, then try again.",
       );
-      expect(result.payload.presentation).toEqual(providerLoginPresentation("/login"));
+      // `/login` cannot renew Claude Code's own login; Control UI adds its Model Setup button.
+      expect(result.payload.presentation).toBeUndefined();
     }
   });
 

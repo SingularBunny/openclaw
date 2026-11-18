@@ -285,7 +285,9 @@ function buildFailureAlertPayload(params: {
       : undefined;
   const payload: ReplyPayload = {
     text: providerLoginRecovery ? `${text}\n${providerLoginRecovery.hint}` : text,
-    ...(providerLoginRecovery ? { presentation: providerLoginRecovery.presentation } : {}),
+    ...(providerLoginRecovery?.presentation
+          ? { presentation: providerLoginRecovery.presentation }
+          : {}),
   };
 
   return payload;

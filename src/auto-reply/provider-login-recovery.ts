@@ -1,3 +1,4 @@
+import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
 import {
   buildOAuthRefreshFailureLoginCommand,
   type OAuthRefreshFailureReason,
@@ -52,8 +53,16 @@ export type ProviderLoginRecoveryEvidence = {
 
 export type ProviderLoginRecovery = {
   hint: string;
-  presentation: MessagePresentation;
+  /** Absent when no chat command can fix it (Claude Code signs in only in a terminal). */
+  presentation?: MessagePresentation;
 };
+
+/**
+ * Fork: Claude Code keeps its own subscription login; OpenClaw's `/login` cannot renew it.
+ * Control UI matches the leading phrase to add its Model Setup button and copyable command.
+ */
+export const CLAUDE_CLI_LOGIN_EXPIRED_HINT =
+  "Claude subscription login expired: Claude Code on the Gateway can no longer use your Claude account. Run `claude auth login` in a terminal on the Gateway host, sign in, then try again.";
 
 const AUTH_PROFILE_LOGIN_REASONS = new Set<FailoverReason>([
   "auth",
@@ -72,6 +81,9 @@ export function buildProviderLoginRecovery(
       AUTH_PROFILE_LOGIN_REASONS.has(evidence.failoverReason));
   if (!needsLogin) {
     return undefined;
+  }
+  if (evidence.provider && normalizeProviderId(evidence.provider) === "claude-cli") {
+    return { hint: CLAUDE_CLI_LOGIN_EXPIRED_HINT };
   }
   const command = buildOAuthRefreshFailureLoginCommand(evidence.provider, { surface: "chat" });
   return {
