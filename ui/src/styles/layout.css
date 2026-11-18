@@ -3244,9 +3244,14 @@ openclaw-tooltip.sidebar-hover-tooltip {
   overflow-wrap: anywhere;
 }
 
-/* Fork: maintenance mode banner; sits under a restart notice when both show. */
+/* Fork: maintenance mode banner. It stays for the whole pause, so it sits below the chat header
+   (title, ⋯ menu) instead of over it, and under a restart notice when both show. */
+.shell-maintenance-notice {
+  top: calc(var(--shell-topbar-height, 44px) + var(--rail-header-height, 48px) + 8px);
+}
+
 .shell-restart-notice + .shell-maintenance-notice {
-  top: calc(var(--shell-topbar-height, 44px) + 56px);
+  top: calc(var(--shell-topbar-height, 44px) + var(--rail-header-height, 48px) + 56px);
 }
 
 .shell-maintenance-notice__hint,
