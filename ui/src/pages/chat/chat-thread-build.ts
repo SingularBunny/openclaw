@@ -25,7 +25,6 @@ import {
 } from "../../lib/chat/message-normalizer.ts";
 import { pluginInlineViewItems } from "../../lib/chat/plugin-inline-views.ts";
 import { extractToolCardsCached } from "../../lib/chat/tool-cards.ts";
-import { applyAutomationRowMode } from "./chat-automation-rows.ts";
 import {
   buildCompactionDividerItem,
   buildGuardianNoticeItem,
@@ -306,8 +305,6 @@ export function buildChatItems(
 
     items.push(...projectChatSystemNotice(item, normalized));
   }
-  // Fork: compact automation rows, expandable unless details are off.
-  items = applyAutomationRowMode(items, props.showAutomationDetails !== false);
   const groupDisplayItems = (hidden?: ReadonlySet<string>) => {
     const projectYields = (source: ChatItem[], complete?: ChatItem[]) =>
       projectSessionsYieldItems(source, props.showToolCalls, complete);

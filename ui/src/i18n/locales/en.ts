@@ -1774,14 +1774,6 @@ const startupEnglish = {
     systemNotice: {
       guardian: {},
       automationRecovery: {},
-      // Fork: compact rows for scheduler-injected automation turns.
-      automationRun: {
-        label: "Automation run",
-        named: "Automation · {name}",
-      },
-      scheduledReminder: {
-        label: "Scheduled reminder",
-      },
       gatewayRestarted: {},
       cliHarnessContext: {},
       claudeCliTaskNotification: {},
