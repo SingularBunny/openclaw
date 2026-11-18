@@ -29,6 +29,11 @@ function FailureNotice(props: ChatNoticeProps) {
         summary={failure().summary}
         repeatCount={props.item.repeatCount}
         onRetry={actions()?.onRetry}
+        onOpenModelSetup={
+          props.recovery?.applicationContext
+            ? () => props.recovery?.applicationContext?.navigate("model-setup")
+            : undefined
+        }
       />
     </div>
   );

@@ -4,15 +4,19 @@ import type {
   ModelCatalogResult,
 } from "../../api/types.ts";
 import { t } from "../../i18n/index.ts";
+import { registerClaudeCliLoginEnglish } from "../../i18n/locales/en-claude-cli-login.ts";
 import {
   chatModelUnavailableMessage,
   hasChatModelCatalogSelection,
   hasNoConnectedChatModel,
+  isClaudeCliChatModelSelection,
   resolveChatModelOverrideValue,
   resolveChatModelUnavailableReason,
 } from "../../lib/chat/model-select-state.ts";
 import type { ChatModelCatalogState } from "../../lib/model-catalog-store.ts";
 import type { ChatComposerDisabledBanner } from "./components/chat-composer-types.ts";
+
+registerClaudeCliLoginEnglish();
 
 type ChatModelSetupState = {
   catalog: boolean;
@@ -70,11 +74,20 @@ export function resolveChatModelSetup(
       ),
     };
   } else {
-    const message = chatModelUnavailableMessage(
-      resolveChatModelUnavailableReason(model, provider, catalog, agentRuntime),
-      inference,
-    );
-    modelUnavailableBanner = message ? createChatModelSetupBanner(onSetup, message) : undefined;
+    const reason = resolveChatModelUnavailableReason(model, provider, catalog, agentRuntime);
+    const message = chatModelUnavailableMessage(reason, inference);
+    // Fork: Claude CLI "missing auth" comes from `claude auth status` reporting no login, which
+    // Model Setup credentials cannot fix; name the subscription login and the terminal command.
+    modelUnavailableBanner = !message
+      ? undefined
+      : reason === "missing-auth" && isClaudeCliChatModelSelection(model, provider, catalog)
+        ? {
+            kind: "above-composer",
+            text: t("common.claudeCliLogin.banner"),
+            actionLabel: t("common.claudeCliLogin.openModelSetup"),
+            onAction: onSetup,
+          }
+        : createChatModelSetupBanner(onSetup, message);
   }
   return {
     modelSetupRequired,
