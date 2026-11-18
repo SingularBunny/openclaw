@@ -104,6 +104,10 @@ import {
   SidebarProjectionMemo,
 } from "./sidebar-projection-memo.ts";
 import { restoreSnapshotSections, restoreSnapshotSession } from "./sidebar-snapshot-model.ts";
+import {
+  loadStoredExpandedCatalogSections,
+  setCatalogSectionExpanded,
+} from "./sidebar-catalog-expanded-sections.ts";
 
 export abstract class AppSidebarSessionNavigationElement extends AppSidebarBase {
   rosterCollapsedAgentIds: ReadonlySet<string> | null = null;
@@ -242,6 +246,19 @@ export abstract class AppSidebarSessionNavigationElement extends AppSidebarBase 
   sessionsStatusFilter: SidebarSessionStatusFilter = loadStoredSidebarSessionStatusFilter();
   hiddenSessionCatalogIds: ReadonlySet<string> = loadStoredHiddenSessionCatalogIds();
   hiddenSessionCatalogFolderKeys: ReadonlySet<string> = loadStoredHiddenSessionCatalogFolderKeys();
+  expandedCatalogSections: ReadonlySet<string> = loadStoredExpandedCatalogSections();
+
+  setCatalogSectionExpanded(sectionId: string, expanded: boolean): void {
+    if (!expanded) {
+      this.sessionProjection.resetMembership(sectionId);
+    }
+    this.expandedCatalogSections = setCatalogSectionExpanded(
+      this.expandedCatalogSections,
+      sectionId,
+      expanded,
+    );
+    this.requestUpdate();
+  }
 
   // Adopted-key exclusion and rendering share this projection so hidden catalogs
   // never remove their adopted rows from the regular session list.

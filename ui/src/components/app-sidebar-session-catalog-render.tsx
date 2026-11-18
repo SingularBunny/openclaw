@@ -220,9 +220,7 @@ function renderCatalogHostGroup(
     const rowReorder = reorderGroup
       ? { group: reorderGroup, enabled: canDragRows, onFinish: finishReorderDrag }
       : undefined;
-    const expanded = () =>
-      (params.visibleSessionLimits.get(rowProps.sectionId) ?? CATALOG_SESSION_GROUP_LIMIT) >
-      CATALOG_SESSION_GROUP_LIMIT;
+    const expanded = () => params.expandedSections.has(rowProps.sectionId);
     return (
       <For
         each={
@@ -255,9 +253,7 @@ function renderCatalogHostGroup(
     sessions: readonly SessionCatalogSession[];
     sectionId: string;
   }) {
-    const expanded = () =>
-      (params.visibleSessionLimits.get(pageProps.sectionId) ?? CATALOG_SESSION_GROUP_LIMIT) >
-      CATALOG_SESSION_GROUP_LIMIT;
+    const expanded = () => params.expandedSections.has(pageProps.sectionId);
     const label = () => (expanded() ? t("chat.messages.showLess") : t("chat.messages.showMore"));
     return (
       <Show when={pageProps.sessions.length > CATALOG_SESSION_GROUP_LIMIT}>
@@ -266,12 +262,8 @@ function renderCatalogHostGroup(
             type="button"
             class="sidebar-session-pagination__button"
             aria-label={label()}
-            onClick={() =>
-              params.onSetVisibleSessionLimit(
-                pageProps.sectionId,
-                expanded() ? CATALOG_SESSION_GROUP_LIMIT : pageProps.sessions.length,
-              )
-            }
+            aria-expanded={expanded() ? "true" : "false"}
+            onClick={() => params.onSetSectionExpanded(pageProps.sectionId, !expanded())}
           >
             {label()}
           </button>

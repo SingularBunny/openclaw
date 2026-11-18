@@ -86,6 +86,7 @@ export interface SessionListHost {
   readonly sessionsGrouping: SidebarSessionsGrouping;
   readonly collapsedSessionSections: ReadonlySet<string>;
   readonly hiddenSessionCatalogFolderKeys: ReadonlySet<string>;
+  readonly expandedCatalogSections: ReadonlySet<string>;
   readonly sessionOrganizer: Pick<
     SessionOrganizerController,
     | "draggingSidebarSection"
@@ -159,6 +160,7 @@ export interface SessionListHost {
   readSessionMutationAccess(request: SessionMethodAccessRequest): SessionMethodAccess;
   requestOpenNewSession(agentId: string, target?: NewSessionTarget): void;
   setVisibleSessionLimit(sectionId: string, limit: number): void;
+  setCatalogSectionExpanded(sectionId: string, expanded: boolean): void;
   clearSessionSelection(): void;
 }
 
@@ -172,7 +174,8 @@ export type SessionCatalogGroupsParams = {
   /** `sessionCatalogFolderKey(catalogId, folderKey)` of folders hidden from the sidebar. */
   hiddenFolderKeys: ReadonlySet<string>;
   loadingMoreCatalogIds: ReadonlySet<string>;
-  visibleSessionLimits: ReadonlyMap<string, number>;
+  /** Section ids whose "Show more" is open; persisted, so refreshes never fold them back. */
+  expandedSections: ReadonlySet<string>;
   projectGrouping: CatalogProjectGrouping;
   liveRows: readonly GatewaySessionRow[];
   renderLiveRow: (
@@ -219,7 +222,7 @@ export type SessionCatalogGroupsParams = {
     label: string,
   ) => CatalogFolderNewChat | null;
   onLoadMore: (catalogId: string) => void;
-  onSetVisibleSessionLimit: (sectionId: string, limit: number) => void;
+  onSetSectionExpanded: (sectionId: string, expanded: boolean) => void;
   onOpenNewSession?: (agentId: string, target?: NewSessionTarget) => void;
   newSessionDisabledReason?: string;
   sectionDragDisabledReason?: string;

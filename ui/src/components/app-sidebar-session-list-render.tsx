@@ -171,7 +171,7 @@ function renderSessionCatalog(params: {
       collapsedSections={host().collapsedSessionSections}
       hiddenFolderKeys={host().hiddenSessionCatalogFolderKeys}
       loadingMoreCatalogIds={snapshot().loadingMoreCatalogIds}
-      visibleSessionLimits={host().sessionData.visibleSessionLimits}
+      expandedSections={host().expandedCatalogSections}
       projectGrouping={snapshot().projectGrouping}
       liveRows={snapshot().liveRows}
       renderLiveRow={(row, display) => (
@@ -219,8 +219,8 @@ function renderSessionCatalog(params: {
         )
       }
       onLoadMore={(catalogId) => void host().sessionData.loadMoreSessionCatalog(catalogId)}
-      onSetVisibleSessionLimit={(sectionId, limit) =>
-        host().setVisibleSessionLimit(sectionId, limit)
+      onSetSectionExpanded={(sectionId, expanded) =>
+        host().setCatalogSectionExpanded(sectionId, expanded)
       }
       onOpenNewSession={(agentId, target) => host().requestOpenNewSession(agentId, target)}
       resolveFolderNewChat={(context, label) =>
