@@ -502,6 +502,20 @@ export function appendClaudeCliPromptSuggestionArgs(
     : [...args, CLAUDE_PROMPT_SUGGESTIONS_ARG, "true"];
 }
 
+/**
+ * Fork: Claude Code backs off prompt suggestions after 20 unused ones in a row, and it never learns
+ * that a Control UI user took one (Tab + send arrives as a plain message). This env makes it skip
+ * that back-off; set only when OpenClaw asks the turn for suggestions.
+ */
+export function resolveClaudeCliPromptSuggestionEnv(
+  context: Pick<CliBackendResolveExecutionArgsContext, "executionMode">,
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, string> {
+  return context.executionMode === "side-question" || !isClaudeCliPromptSuggestionsEnabled(env)
+    ? {}
+    : { CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION: "1" };
+}
+
 const CLAUDE_CHROME_ARG = "--chrome";
 
 /**

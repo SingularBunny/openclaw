@@ -25,6 +25,7 @@ import {
   normalizeClaudeBackendConfig,
   resolveClaudeCliAutoCompactEnv,
   resolveClaudeCliExecutionArgs,
+  resolveClaudeCliPromptSuggestionEnv,
   resolveClaudeCliThinkingEnv,
 } from "./cli-shared.js";
 import { CLAUDE_CLI_TODO_TOOL_NAMES, CLAUDE_CLI_TODO_TOOLS_ENV } from "./cli-todo-tools.js";
@@ -331,6 +332,8 @@ export function buildAnthropicCliBackend(
           ...(isolatedCompletion || context.executionMode === "side-question"
             ? {}
             : CLAUDE_CLI_TODO_TOOLS_ENV),
+          // Fork: keep suggestions coming although Claude Code never sees one being used.
+          ...(isolatedCompletion ? {} : resolveClaudeCliPromptSuggestionEnv(context)),
           ...resolveClaudeCliAutoCompactEnv(context.contextTokenBudget),
           ...(context.contextWindow === "200k" ? { CLAUDE_CODE_DISABLE_1M_CONTEXT: "1" } : {}),
           ...resolveClaudeCliThinkingEnv(context.thinkingLevel, context.modelId),

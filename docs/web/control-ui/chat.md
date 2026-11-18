@@ -483,7 +483,9 @@ prediction, when one is showing, takes precedence). Press **Tab** or **Use sugge
 as your draft (one undo step removes it again), or **Escape** to dismiss it. Typing hides it while the composer has text; clearing the draft
 brings it back, as in Claude Code. Sending or a new run in the session dismisses it. The prediction arrives a moment after the reply and may not arrive at all; it is
 never added to the transcript. The Gateway keeps the latest prediction per idle session in memory,
-so reloading the chat shows it again until a new run starts. Set
+so reloading the chat shows it again until a new run starts. Claude Code would show fewer
+predictions after 20 unused ones in a row because it cannot see you taking one with Tab, so
+OpenClaw also sets `CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION=1` for those turns. Set
 `OPENCLAW_CLAUDE_PROMPT_SUGGESTIONS=0` to turn predictions off (see
 [Environment variables](/help/environment#worker-and-catalog-limits)).
 
