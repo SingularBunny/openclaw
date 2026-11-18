@@ -8,7 +8,6 @@ import type { ChatItem, NormalizedMessage } from "../../lib/chat/chat-types.ts";
 import { userTurnRunId } from "../../lib/chat/history-message-identity.ts";
 import { extractTextCached } from "../../lib/chat/message-extract.ts";
 import { normalizeRoleForGrouping } from "../../lib/chat/message-normalizer.ts";
-import { projectAutomationRow, readAutomationRow } from "./chat-automation-rows.ts";
 import { optionalBoundaryIdentity } from "./chat-thread-run-identity.ts";
 import { safeNormalizeMessage } from "./chat-turn-boundary.ts";
 import { resolveSystemNoticeKind, type PendingInputStatus } from "./system-notice-kinds.ts";
@@ -168,19 +167,6 @@ export function projectChatSystemNotice(
         timestamp,
         ...(skillChanges ? { skillChanges } : {}),
       },
-      ...pendingItems,
-    ];
-  }
-  const automation = readAutomationRow(item.message);
-  const automationMessage = automation && (normalized ?? safeNormalizeMessage(item.message));
-  if (automation && automationMessage) {
-    return [
-      projectAutomationRow(
-        item,
-        automation,
-        automationMessage.timestamp,
-        optionalBoundaryIdentity(userTurnRunId(item.message)),
-      ),
       ...pendingItems,
     ];
   }

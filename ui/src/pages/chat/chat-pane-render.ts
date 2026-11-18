@@ -16,7 +16,6 @@ import { hasSessionPresenceViewers } from "../../lib/presence-users.ts";
 import { parseCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
 import { resolveUiConfiguredMainKey } from "../../lib/sessions/session-key.ts";
 import { navigateToModelProvider } from "../model-providers/navigation.ts";
-import { isAutomationDetailsShown } from "./chat-automation-details.ts";
 import { isChatBubbleMode } from "./chat-bubble-mode.ts";
 import { chatGoalRecovery, mutateChatGoal, submitChatGoalDraft } from "./chat-goals.ts";
 import { chatHistoryOlderSelector } from "./chat-history-request.ts";
@@ -378,7 +377,6 @@ export class ChatPaneRuntime extends ChatPaneLayoutRender {
       autoExpandToolCalls: state.chatVerboseLevel === "full",
       showThinking: state.settings.chatShowThinking,
       showToolCalls: state.settings.chatShowToolCalls,
-      showAutomationDetails: isAutomationDetailsShown(state.settings, state.sessionKey),
       persistCommentary: state.settings.chatPersistCommentary !== false,
       // A locally created session can still be preparing its first input.
       loading: catalogKey
