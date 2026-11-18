@@ -20,6 +20,7 @@ import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
 import { publishChatGroupController } from "./chat-group-registry.ts";
 import { createChatGroupController } from "./chat-group.ts";
+import { pickerHandoffModel } from "./chat-handoff-resend-target.ts";
 import {
   CHAT_HANDOFF_AGENT_GROUP_ID,
   CHAT_HANDOFF_AGENT_MODEL_GROUP_ID,
@@ -490,10 +491,15 @@ export function renderChatPaneComposerControls(params: {
           }
           const resend = takePendingResend(state, sessionKey);
           // Fork: bound to an agent, or re-sending a failed turn: unbind first, then switch and send.
-          if (next && (handoff.info?.binding || resend)) {
+          const handoffModel = pickerHandoffModel(next, {
+            bound: Boolean(handoff.info?.binding),
+            resend,
+            defaultModel: agentDefaultModel,
+          });
+          if (handoffModel) {
             return handOffChat(
               state,
-              { kind: "model", model: next, ...(agentRuntime ? { agentRuntime } : {}) },
+              { kind: "model", model: handoffModel, ...(agentRuntime ? { agentRuntime } : {}) },
               { resend },
             );
           }
