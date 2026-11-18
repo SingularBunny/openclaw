@@ -1,6 +1,5 @@
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
-import { readClaudeInitCommands } from "../infra/claude-native-commands.js";
 import { formatErrorMessage } from "../infra/errors.js";
 import type { CliBackendParseJsonlEvent } from "../plugins/cli-backend.types.js";
 import type {
@@ -32,8 +31,6 @@ import {
   parseClaudeCliJsonlResult,
   parseClaudeCliStreamingDelta,
   pickCliResumeCheckpointId,
-  readCliResultInputMessageId,
-  readCliResultRefusal,
   pickCliSessionId,
   preferGeminiCliStreamJsonError,
   readClaudeAttributedSubagentProgressId,
@@ -43,6 +40,11 @@ import {
   supportsCliJsonlToolEvents,
 } from "./cli-output-records.js";
 import { appendCliResultText, recordItemText, withCliRawFinalText } from "./cli-output-results.js";
+import {
+  consumeClaudePromptSuggestion,
+  notifyClaudeNativeCommands,
+  readClaudeResultForkFields,
+} from "./cli-output-stream-fork.js";
 import {
   chargeClaudeStreamJsonLine,
   CLI_STREAM_JSON_OUTPUT_LIMITS,
@@ -321,11 +323,7 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
     if (parseErrorText) {
       return;
     }
-    if (claudeStreamJson && parsed.type === "prompt_suggestion") {
-      // Native forks this prediction after the turn's result; it is not assistant output.
-      if (typeof parsed.suggestion === "string") {
-        params.onPromptSuggestion?.(parsed.suggestion);
-      }
+    if (claudeStreamJson && consumeClaudePromptSuggestion(parsed, params)) {
       return;
     }
     const attributedParentToolUseId = readClaudeAttributedSubagentProgressId(parsed);
@@ -344,14 +342,7 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
         parseErrorText = truncateUtf16Safe(formatErrorMessage(error), 500);
         return;
       }
-      const nativeCommands = params.onNativeCommands ? readClaudeInitCommands(parsed) : undefined;
-      if (nativeCommands) {
-        try {
-          params.onNativeCommands?.(nativeCommands);
-        } catch {
-          // Autocomplete hints only; a failed sink must not fail the turn.
-        }
-      }
+      notifyClaudeNativeCommands(parsed, params);
     }
     if (
       parsed.type === "result" &&
@@ -514,8 +505,7 @@ export function createCliJsonlStreamingParser(params: CliJsonlStreamingParserOpt
         ...(output?.interimNativeReplies
           ? { interimNativeReplies: output.interimNativeReplies }
           : {}),
-        ...(claudeStreamJson ? readCliResultInputMessageId(parsed) : {}),
-        ...(claudeStreamJson ? readCliResultRefusal(parsed) : {}),
+        ...(claudeStreamJson ? readClaudeResultForkFields(parsed) : {}),
         ...(diagnosticUsage ? { diagnosticUsage } : {}),
       };
       // The result envelope carries the final message when present.
