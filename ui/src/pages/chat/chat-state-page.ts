@@ -317,6 +317,8 @@ export function createPageState(
       chatSendShortcut: next.chatSendShortcut,
       chatBubbleSessionKeys: next.chatBubbleSessionKeys,
       chatBubbleDisabledSessionKeys: next.chatBubbleDisabledSessionKeys,
+      chatAutomationDetailsSessionKeys: next.chatAutomationDetailsSessionKeys,
+      chatAutomationDetailsHiddenSessionKeys: next.chatAutomationDetailsHiddenSessionKeys,
     });
   };
   attachChatRealtimeActions(

@@ -15,6 +15,7 @@ import {
   type PersonalSessionGroup,
 } from "../lib/sessions/personal-groups.ts";
 import { getSafeLocalStorage, getSafeSessionStorage } from "../local-storage.ts";
+import { parseAutomationDetailsSettings } from "../pages/chat/chat-automation-details.ts";
 import { normalizeChatBubbleSessionKeys } from "../pages/chat/chat-bubble-mode.ts";
 import {
   normalizeSidebarSessionActivePanels,
@@ -382,6 +383,7 @@ export function loadUiPreferences(
     chatPersistCommentary: true,
     chatShowTaskProgress: UI_APPEARANCE_DEFAULTS.chatShowTaskProgress,
     chatCollapseTaskProgress: UI_APPEARANCE_DEFAULTS.chatCollapseTaskProgress,
+    chatShowAutomationDetails: UI_APPEARANCE_DEFAULTS.chatShowAutomationDetails,
     chatSendShortcut: UI_APPEARANCE_DEFAULTS.chatSendShortcut,
     catalogOpenTarget: UI_APPEARANCE_DEFAULTS.catalogOpenTarget,
     navCollapsed: false,
@@ -445,6 +447,7 @@ export function loadUiPreferences(
       chatPersistCommentary: booleanSetting("chatPersistCommentary"),
       chatShowTaskProgress: booleanSetting("chatShowTaskProgress"),
       chatCollapseTaskProgress: booleanSetting("chatCollapseTaskProgress"),
+      ...parseAutomationDetailsSettings(parsed),
       chatBubbleSessionKeys: normalizeChatBubbleSessionKeys(parsed.chatBubbleSessionKeys),
       chatBubbleDisabledSessionKeys: normalizeChatBubbleSessionKeys(
         parsed.chatBubbleDisabledSessionKeys,
@@ -630,6 +633,7 @@ export function saveSettings(
     chatPersistCommentary: next.chatPersistCommentary ?? true,
     chatShowTaskProgress: next.chatShowTaskProgress === false ? false : undefined,
     chatCollapseTaskProgress: next.chatCollapseTaskProgress === true ? true : undefined,
+    ...parseAutomationDetailsSettings(next),
     chatBubbleSessionKeys: normalizeChatBubbleSessionKeys(next.chatBubbleSessionKeys),
     chatBubbleDisabledSessionKeys: normalizeChatBubbleSessionKeys(
       next.chatBubbleDisabledSessionKeys,

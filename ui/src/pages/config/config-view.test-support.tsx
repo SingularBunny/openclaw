@@ -166,6 +166,7 @@ export const baseProps = () => ({
   chatMessageMaxWidth: undefined,
   chatShowTaskProgress: true,
   chatCollapseTaskProgress: false,
+  chatShowAutomationDetails: false,
   showAdvancedSettings: false,
   chatSendShortcut: "enter" as const,
   chatSendShortcutOverridden: false,

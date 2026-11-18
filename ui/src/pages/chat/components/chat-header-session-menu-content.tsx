@@ -35,6 +35,7 @@ import {
   canCopySessionMarkdown,
   canSplitSessionView,
 } from "../../../lib/sessions/session-menu-navigation.ts";
+import { isAutomationDetailsShown, setAutomationDetailsShown } from "../chat-automation-details.ts";
 import { isChatBubbleMode, setChatBubbleMode } from "../chat-bubble-mode.ts";
 import { ChatPaneHeaderMemo } from "../chat-pane-header-memo.ts";
 import { ChatPaneNativeSessionActions } from "../chat-pane-native-session-actions.ts";
@@ -346,6 +347,17 @@ export function ChatHeaderSessionMenuContent(inputs: HeaderMenuContentProps) {
         attributes: { title: props.onboarding ? t("chat.onboardingDisabled") : undefined },
         closeOnSelect: false,
       })),
+      // Fork: per-chat toggle for scheduler-injected automation rows.
+      {
+        id: "view:automation-details",
+        label: t("chat.view.automationDetails"),
+        class: "session-menu__item",
+        labelClass: "session-menu__text",
+        type: "checkbox" as const,
+        checked: isAutomationDetailsShown(props.settings, props.session.target?.key ?? ""),
+        disabled: props.onboarding,
+        closeOnSelect: false,
+      },
       ...(props.bubbleModeEnabled
         ? [
             {
@@ -568,8 +580,17 @@ export function ChatHeaderSessionMenuContent(inputs: HeaderMenuContentProps) {
       }
       const setting = value.slice("view:".length);
       const option = VIEW_SETTINGS.find(([id]) => id === setting);
+      const menuSessionKey = props.session.target?.key ?? "";
       if (option) {
         props.onSettingsChange({ [option[1]]: props.settings[option[1]] === false });
+      } else if (setting === "automation-details" && menuSessionKey) {
+        props.onSettingsChange(
+          setAutomationDetailsShown(
+            props.settings,
+            menuSessionKey,
+            !isAutomationDetailsShown(props.settings, menuSessionKey),
+          ),
+        );
       } else if (
         setting === "speech-bubbles" &&
         props.bubbleModeEnabled &&
