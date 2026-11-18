@@ -71,6 +71,8 @@ export type ChatPaneHeaderProps = ChatPaneLayoutMenuProps & {
   conversationVisible?: boolean;
   onToggleConversation?: () => void;
   runAction?: Parameters<typeof PaneSubagentStop>[0];
+  /** Fork: an isolated automation chat's Runs and Run now buttons. */
+  automationControl?: { sessionKey: string; agentId: string; onOpenRuns: () => void };
   presence?: Parameters<typeof PaneHeaderPresence>[0];
   sharingControl?: ChatSessionSharingProps;
   sharingPlaceholder?: ChatHeaderSharingSnapshot;
