@@ -22,7 +22,6 @@ import {
   measureDiagnosticsTimelineSpan,
   measureDiagnosticsTimelineSpanSync,
 } from "../../infra/diagnostics-timeline.js";
-import { formatErrorMessage } from "../../infra/errors.js";
 import { resolveEffectiveChatHistoryMaxChars } from "../chat-display-projection.js";
 import {
   boundInFlightRunSnapshotForChatHistory,
@@ -61,6 +60,7 @@ import {
   type ChatHistoryMethod,
 } from "./chat-history-recovery.js";
 import { prepareChatHistorySessionRead } from "./chat-history-session-read.js";
+import { readChatHistoryStartupProjection } from "./chat-history-startup-projection.js";
 import { handleChatMetadataRequest } from "./chat-metadata-handler.js";
 import { captureQueuedChatInputRunIds, readChatPendingInputs } from "./chat-pending-inputs.js";
 import { withChatStartupDiagnostics } from "./chat-server-timing.js";
@@ -153,25 +153,7 @@ export async function handleChatHistoryRequest({
     } = selection;
     const { cfg, agentId: sessionAgentId, storePath, canonicalKey } = selectedSession;
     const readStartupProjection = () =>
-      measureDiagnosticsTimelineSpan(
-        `gateway.${method}.startup_projection`,
-        async () => {
-          try {
-            return await context.readChatStartupProjection?.({
-              agentId: sessionAgentId,
-              sessionKey: canonicalKey,
-              sessionEntry: entry,
-              readPolicy: method === "chat.history" ? "ready" : "current",
-            });
-          } catch (error) {
-            context.logGateway.debug(
-              `${method} continuing without prepared startup projection: ${formatErrorMessage(error)}`,
-            );
-            return undefined;
-          }
-        },
-        { config: cfg, phase: method, attributes: { agentId: sessionAgentId } },
-      );
+      readChatHistoryStartupProjection(context, method, cfg, sessionAgentId, canonicalKey, entry);
     const startupProjectionPromise = entry?.authProfileOverride?.trim()
       ? readStartupProjection()
       : undefined;
