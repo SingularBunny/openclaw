@@ -8,7 +8,7 @@ import { filesRestoredResult, restoreFilesForRewind } from "./session-rewind-fil
 import { resolveCliForkProviders, resolveNativeMessageCut } from "./session-rewind-native-cut.js";
 
 type RewindSession = {
-  entry: SessionEntry;
+  entry?: SessionEntry;
   canonicalKey: string;
   agentId: string;
   storePath: string;
@@ -26,8 +26,13 @@ export async function prepareForkMessageCut(
   cfg: OpenClawConfig,
   sessionKey: string,
 ) {
-  const cliForkProviders = resolveCliForkProviders(current.entry, cfg);
-  const native = await resolveNativeMessageCut(params, current.entry, cliForkProviders);
+  // The caller rejects a message cut without a session entry before it gets here.
+  const { entry } = current;
+  if (!entry) {
+    throw new Error("message cut requires a session entry");
+  }
+  const cliForkProviders = resolveCliForkProviders(entry, cfg);
+  const native = await resolveNativeMessageCut(params, entry, cliForkProviders);
   if ("error" in native) {
     return { error: native.error } as { error: string; code?: ErrorCode };
   }
