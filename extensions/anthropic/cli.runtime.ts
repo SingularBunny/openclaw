@@ -1,4 +1,3 @@
-/* oxlint-disable max-lines -- TODO: split this grandfathered oversized module. */
 import { randomUUID } from "node:crypto";
 import { once } from "node:events";
 import { PassThrough } from "node:stream";
@@ -12,98 +11,32 @@ import { toErrorObject } from "openclaw/plugin-sdk/error-runtime";
 import { createDeferred } from "openclaw/plugin-sdk/extension-shared";
 import { isRecord } from "openclaw/plugin-sdk/string-coerce-runtime";
 import { hasClaudeRawToolInvocation } from "./cli-output.js";
-import {
-  applyPendingPermissionMode,
-  settlePermissionModeAtTurnStart,
-  switchPermissionMode,
-  type ClaudeCliPendingPermissionMode,
-} from "./cli-permission-mode-sync.js";
-import {
-  createClaudeCliPlanApprover,
-  readClaudeCliPermissionMode,
-  resolveClaudeCliModeGate,
-  type ClaudeCliPermissionMode,
-} from "./cli-permission-mode.js";
-import { isClaudeCliPlanFileEdit } from "./cli-plan-file.js";
+import { createClaudeCliPlanApprover, readClaudeCliPermissionMode } from "./cli-permission-mode.js";
 import type { ClaudeCliSecretInput } from "./cli-process.js";
-import { CLAUDE_CLI_INPUT_UUID_FIELD, requestClaudeCliRewindFiles } from "./cli-rewind-files.js";
 import { prepareClaudeCliTransportArgs } from "./cli-runtime-args.js";
 import * as promptHooks from "./cli-runtime-prompt-context.js";
+import {
+  approveClaudeCliPlanExit,
+  claudeCliForkHandleMethods,
+  followClaudeCliEnterPlanMode,
+  openClawToolHookResponse,
+  receiveClaudeCliForkMessage,
+  resolveClaudeCliToolModeGate,
+  startClaudeCliTurnPermissionMode,
+} from "./cli-runtime-fork.js";
 import { createClaudeTurnStatus } from "./cli-runtime-status.js";
 import * as tasks from "./cli-runtime-tasks.js";
+import type {
+  ClaudeCliExecuteContext,
+  ClaudeCliSession,
+  ClaudeCliTurn,
+} from "./cli-runtime.types.js";
 import { createClaudeCliTransport } from "./cli-transport.js";
 import { createClaudeCliUserInputAuthorizer } from "./cli-user-input.js";
 
 const IDLE_TIMEOUT_MS = 10 * 60 * 1_000;
 
-/**
- * Host-internal, like the forwarded auth credential and not part of the plugin SDK: a host
- * whose history owner can change while the run lasts (a native login) passes a check for
- * where saved turn context leaves after startup, the prompt send and the prompt hook answer.
- */
-export type ClaudeCliExecuteContext = CliBackendExecuteContext & {
-  assertPrivateInputCurrent?: () => void;
-};
-type ClaudeCliTurn = {
-  context: ClaudeCliExecuteContext;
-  controller: AbortController;
-  userInput: ReturnType<typeof createClaudeCliUserInputAuthorizer>;
-  /** Fork (F49): explicit session mode, updated when the operator approves a plan. */
-  permissionMode?: ClaudeCliPermissionMode;
-  planApprover: ReturnType<typeof createClaudeCliPlanApprover>;
-  events: PassThrough;
-  inputUuid: string;
-  /** Replayed user text is never a task receipt, even after its input lifecycle ends. */
-  submittedInputUuids: Set<string>;
-  inputStarted: boolean;
-  promptSubmitted: boolean;
-  /** Hook reruns carry no input UUID and may rewrite text; retain their native input owner. */
-  promptInputUuid: string;
-  sawTerminalResult: boolean;
-  interrupted: boolean;
-  foregroundTaskIds: Set<string>;
-  foregroundBashToolUseIds: Set<string>;
-  pendingBackgroundTaskIds: Set<string>;
-  taskNotifications: Map<string, "queued" | "replayed">;
-  /** Same-turn inputs written to native, keyed by UUID until their lifecycle completes. */
-  injectedInputs: Map<
-    string,
-    {
-      text: string;
-      promptContext?: CliBackendExecuteContext["promptContext"];
-      started: ReturnType<typeof createDeferred<void>>;
-    }
-  >;
-  /**
-   * A successful result withheld until every injected input has completed. It is
-   * released as terminal on completion, or as interim when native opens another
-   * turn for the input first.
-   */
-  heldResult?: Record<string, unknown>;
-  error?: Error;
-};
-type ClaudeCliSession = {
-  handle: CliBackendLiveSessionHandle;
-  capability?: CliBackendLiveSessionCapability;
-  transport?: Awaited<ReturnType<typeof createClaudeCliTransport>>;
-  transportStartup?: ReturnType<typeof createClaudeCliTransport>;
-  currentTurn?: ClaudeCliTurn;
-  idleTimer?: ReturnType<typeof setTimeout>;
-  hasInputLifecycle: boolean;
-  /** The latest turn's prediction sink; native sends the prediction after that turn's result. */
-  reportPromptSuggestion?: (text: string) => void;
-  /** Fork (F49): the mode the native process was launched with or last switched to. */
-  permissionMode: ClaudeCliPermissionMode;
-  /** Sent after the approved ExitPlanMode result: the tool itself leaves plan mode. */
-  pendingPermissionMode?: ClaudeCliPendingPermissionMode;
-  closed: boolean;
-  // Tasks outlive inputs; false marks subagent work with no parent-stream query.
-  taskOwners: Map<string, string | false>;
-  // Native notification results identify task runs rather than task IDs.
-  taskRuns: Map<string, string>;
-  // Running Agent/Workflow tasks and subagent-owned work, with their launching task.
-  runningDescendants: Map<string, string | undefined>;
-};
+export type { ClaudeCliExecuteContext };
 const sessions = new WeakMap<CliBackendLiveSessionHandle, ClaudeCliSession>();
 
 function activeTurn(session: ClaudeCliSession): ClaudeCliTurn | undefined {
@@ -163,31 +96,13 @@ async function authorizeTool(
   const abortSignal = AbortSignal.any([signal, turn.controller.signal]);
   try {
     // Fork (F49): plan approval card and the session mode's prompts on top of host policy.
-    if (
-      toolName === "ExitPlanMode" &&
-      (turn.permissionMode === "plan" || turn.planApprover.has(toolUseId))
-    ) {
-      const planned = await turn.planApprover.approve({ input, signal: abortSignal, toolUseId });
-      if (activeTurn(session) !== turn || abortSignal.aborted) {
-        return { behavior: "deny", message: "The OpenClaw run is no longer active." };
-      }
-      if (planned.mode) {
-        // Native validates ExitPlanMode against its own mode after this decision; switching now
-        // fails the tool with "You are not in plan mode". The switch follows the tool result.
-        await switchPermissionMode(session, turn, planned.mode, toolUseId ?? null);
-      }
-      return planned.result;
+    const call = { toolName, input, toolUseId };
+    const isCurrent = () => activeTurn(session) === turn;
+    const planned = await approveClaudeCliPlanExit(session, turn, call, abortSignal, isCurrent);
+    if (planned) {
+      return planned;
     }
-    const gate = resolveClaudeCliModeGate(turn.permissionMode, toolName, {
-      planFileEdit:
-        turn.permissionMode === "plan" &&
-        (await isClaudeCliPlanFileEdit({
-          toolName,
-          input,
-          cwd: typeof request.cwd === "string" ? request.cwd : turn.context.cwd,
-          env: turn.context.env,
-        })),
-    });
+    const gate = await resolveClaudeCliToolModeGate(turn, toolName, input, request.cwd);
     if (gate.kind === "deny") {
       return { behavior: "deny", message: gate.message };
     }
@@ -216,16 +131,7 @@ async function authorizeTool(
       // The authorized input distinguishes it from explicit run_in_background work.
       turn.foregroundBashToolUseIds.add(toolUseId);
     }
-    if (
-      decision.behavior === "allow" &&
-      toolName === "EnterPlanMode" &&
-      turn.permissionMode &&
-      turn.permissionMode !== "plan"
-    ) {
-      // The native tool enters plan mode itself; keep the host gate and the session in step.
-      session.permissionMode = "plan";
-      await switchPermissionMode(session, turn, "plan");
-    }
+    await followClaudeCliEnterPlanMode(session, turn, toolName, decision);
     return decision;
   } catch {
     return { behavior: "deny", message: "OpenClaw could not authorize this tool call." };
@@ -279,17 +185,7 @@ async function handleRequest(
       typeof input.tool_name === "string" &&
       input.tool_name.startsWith("mcp__openclaw__")
     ) {
-      // Fork (C10, F49): plan mode refuses OpenClaw's edit tools as it refuses native edits.
-      const gate = resolveClaudeCliModeGate(turn.permissionMode, input.tool_name);
-      return gate.kind === "deny"
-        ? {
-            hookSpecificOutput: {
-              hookEventName: "PreToolUse",
-              permissionDecision: "deny",
-              permissionDecisionReason: gate.message,
-            },
-          }
-        : { continue: true };
+      return openClawToolHookResponse(turn.permissionMode, input.tool_name);
     }
     // Native settings can grant tools before can_use_tool. This hook preserves host policy.
     const decision = await authorizeTool(
@@ -433,22 +329,9 @@ async function emitHeldInterimResult(turn: ClaudeCliTurn) {
 }
 
 async function acceptMessage(session: ClaudeCliSession, received: Record<string, unknown>) {
-  // Fork (F52): the result names the turn's input uuid, Claude's file checkpoint key.
-  const message =
-    received.type === "result" && session.currentTurn
-      ? { ...received, [CLAUDE_CLI_INPUT_UUID_FIELD]: session.currentTurn.inputUuid }
-      : received;
-  applyPendingPermissionMode(session, message);
-  if (message.type === "prompt_suggestion") {
-    // A forked side request predicts the next prompt after the result. It is never turn
-    // output, and once another turn has started the prediction is stale.
-    if (!session.currentTurn && typeof message.suggestion === "string") {
-      try {
-        session.reportPromptSuggestion?.(message.suggestion);
-      } catch {
-        // Presentation only; a failed sink must not close the warm process.
-      }
-    }
+  // Fork (F49, F52): input uuid on results, pending mode switches, prompt predictions.
+  const message = receiveClaudeCliForkMessage(session, received);
+  if (!message) {
     return;
   }
   if (message.type === "system" && message.subtype === "init") {
@@ -693,27 +576,7 @@ function createSession(capability?: CliBackendLiveSessionCapability): ClaudeCliS
         const transport = session.transport ?? (await session.transportStartup);
         await transport?.waitForExit();
       },
-      // Fork (F47): the CLI answers with task_notification status "stopped".
-      stopTask: async (taskId) => {
-        const transport = session.transport;
-        if (session.closed || !transport || !session.taskOwners.has(taskId)) {
-          return false;
-        }
-        await transport.send({
-          type: "control_request",
-          request_id: `stop_task_${randomUUID()}`,
-          request: { subtype: "stop_task", task_id: taskId },
-        });
-        return true;
-      },
-      // Fork (F52): only an idle process may restore files; a running turn could still edit.
-      rewindFiles: async (userMessageId, { dryRun }) => {
-        const transport = session.transport;
-        if (session.closed || !transport || session.currentTurn) {
-          return undefined;
-        }
-        return await requestClaudeCliRewindFiles(transport, userMessageId, dryRun);
-      },
+      ...claudeCliForkHandleMethods(session),
     },
   };
   sessions.set(session.handle, session);
@@ -776,12 +639,8 @@ export async function* executeClaudeCli(
       // Adopt the process's exact MCP capture before prompt dispatch or native tool callbacks.
       capability?.activate(session.handle);
       let transport = session.transport;
-      if (transport) {
-        // Fork (F49): a warm process follows the session's mode chosen since its last turn.
-        await settlePermissionModeAtTurnStart(session, turn.permissionMode ?? "default");
-      } else {
-        session.permissionMode = turn.permissionMode ?? "default";
-      }
+      // Fork (F49): the turn's permission mode, on a warm process or a new one.
+      await startClaudeCliTurnPermissionMode(session, turn, Boolean(transport));
       if (!transport) {
         const { args, excludeDynamicSections } = prepareClaudeCliTransportArgs(context);
         session.transportStartup = createClaudeCliTransport({
