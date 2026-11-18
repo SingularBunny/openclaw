@@ -29,8 +29,15 @@ import {
 import type { GatewayRequestContext, GatewayRequestHandlerOptions } from "./types.js";
 import * as workspaceFs from "./workspace-fs.js";
 
+const openPath = vi.hoisted(() => ({ execOpenPath: vi.fn() }));
+// mock-isolation: Fork reveal tests must not launch the host file manager.
+vi.mock("./open-path.js", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./open-path.js")>()),
+  execOpenPath: openPath.execOpenPath,
+}));
+
 const { sessionFilesMocks } = await import("./sessions-files.mocks.test-support.js");
-const hoisted = { ...sessionFilesMocks, execOpenPath: vi.fn() };
+const hoisted = { ...sessionFilesMocks, execOpenPath: openPath.execOpenPath };
 
 const sessionKey = "agent:main:main";
 const invoke = createSessionFilesHandlerInvoker(sessionsFilesHandlers);
