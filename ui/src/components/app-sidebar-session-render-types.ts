@@ -32,8 +32,8 @@ import type {
   SidebarSessionStatusFilter,
 } from "./app-sidebar-session-types.ts";
 import type { SessionDataOwner } from "./session-data.ts";
-import type { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type { SessionOrganizer } from "./session-organizer.ts";
+import type { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type { SidebarMenus } from "./sidebar-menus.tsx";
 import type { AgentAvatarProps } from "./solid/agent-avatar.tsx";
 import type { ChannelAvatarProps } from "./solid/channel-avatar.tsx";

@@ -38,6 +38,8 @@ import {
   setPendingResend,
   takePendingResend,
 } from "./chat-handoff.ts";
+import { getAcceptedChatHistorySession } from "./chat-history-state.ts";
+import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
 import { buildChatPlanModeToggle } from "./chat-plan-mode.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { switchChatModel, switchChatSetting } from "./chat-session.ts";
@@ -515,14 +517,18 @@ export function renderChatPaneComposerControls(params: {
             );
           }
           const previous = handoff.current;
-          return switchChatModel(state, next, targetSessionKey, agentRuntime, agentDefaultModel).then(
-            (switched) => {
-              if (switched && next) {
-                void recordChatPickerSwitch(state, sessionKey, previous, next);
-              }
-              return switched;
-            },
-          );
+          return switchChatModel(
+            state,
+            next,
+            targetSessionKey,
+            agentRuntime,
+            agentDefaultModel,
+          ).then((switched) => {
+            if (switched && next) {
+              void recordChatPickerSwitch(state, sessionKey, previous, next);
+            }
+            return switched;
+          });
         },
         onThinkingSelect: (next, targetSessionKey) =>
           effortAccess.allowed && canPatch({ thinkingLevel: next }, targetSessionKey)

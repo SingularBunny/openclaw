@@ -2,10 +2,6 @@ import { captureSessionMcpRuntimeRetirement } from "../agents/agent-bundle-mcp-m
 import { prepareAgentRunTerminalReply } from "../agents/agent-run-terminal-reply.js";
 import { listAgentIds, tryResolveAmbientOwnerAgentId } from "../agents/agent-scope-config.js";
 import { abortAndDrainEmbeddedAgentRunByRunId } from "../agents/embedded-agent-runner/runs.js";
-import {
-  isGatewayMaintenanceActive,
-  onGatewayMaintenanceChange,
-} from "../process/gateway-maintenance-mode.js";
 import { abortAndDrainEmbeddedAgentRun } from "../agents/embedded-agent.js";
 import { loadPreparedInboundPluginRegistry } from "../agents/prepared-model-runtime.inbound-registry.js";
 import { captureSessionEventTargetForHost } from "../auto-reply/reply/session-event-handoff.js";
@@ -41,6 +37,10 @@ import type {
 } from "../plugins/hook-gateway.types.js";
 import { getGlobalHookRunner } from "../plugins/hook-runner-global.js";
 import type { PluginRegistry } from "../plugins/registry-types.js";
+import {
+  isGatewayMaintenanceActive,
+  onGatewayMaintenanceChange,
+} from "../process/gateway-maintenance-mode.js";
 import {
   getGatewaySuspendAdmissionPhase,
   runWithGatewayIndependentRootWorkAdmission,

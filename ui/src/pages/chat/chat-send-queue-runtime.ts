@@ -1,5 +1,4 @@
 import { GatewayProtocolRequestTimeoutError } from "@openclaw/gateway-client/browser";
-import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import {
   isGatewayRestartUnavailableError,
   isGatewaySuspendUnavailableError,
@@ -11,6 +10,7 @@ import type { ChatQueueItem } from "../../lib/chat/chat-types.ts";
 import { sameQueuedDeliveryVersion } from "../../lib/chat/outbox-store-codec.ts";
 import type { StoredChatOutboxScope } from "../../lib/chat/outbox-store-scope.ts";
 import { storedChatOutboxScopeKey } from "../../lib/chat/outbox-store.ts";
+import { isGatewayMaintenanceRefusal } from "../../lib/gateway-maintenance-control.ts";
 import { visibleSessionMatches } from "../../lib/sessions/navigation.ts";
 import { resolveUiConversationIdentity } from "../../lib/sessions/session-key.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";

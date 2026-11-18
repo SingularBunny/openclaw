@@ -39,8 +39,8 @@ import { isChatRunWorking } from "./chat-run-working.ts";
 import "./components/chat-header-session-menu.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { countRunningSubagents } from "./chat-subagent-wait.ts";
-import type { ChatDetails, ChatDetailsViewProps } from "./components/chat-details.tsx";
 import { showsChatAutomationHeaderControl } from "./components/chat-automation-header-control.tsx";
+import type { ChatDetails, ChatDetailsViewProps } from "./components/chat-details.tsx";
 import type { HeaderPanelAction } from "./components/chat-header-panel-actions.tsx";
 import type {
   ChatPaneHeaderPresentation,
@@ -552,9 +552,7 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
         row?.key,
         Boolean(
           panelControls &&
-          panelDefinitions.some(
-            (definition) => definition.slot === "runs" && definition.available,
-          ),
+          panelDefinitions.some((definition) => definition.slot === "runs" && definition.available),
         ),
       )
         ? {

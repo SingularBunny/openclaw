@@ -30,8 +30,8 @@ import {
   createGatewayControlUiReloadOptions,
   isSameOriginGateway,
 } from "./gateway-control-ui-reload.ts";
-import { createGatewayMessageBodyInterest } from "./gateway-message-bodies.ts";
 import { readMaintenance, readMaintenanceEvent } from "./gateway-maintenance-notice.ts";
+import { createGatewayMessageBodyInterest } from "./gateway-message-bodies.ts";
 import {
   createGatewayEventLog,
   createGatewayMetadataObserver,

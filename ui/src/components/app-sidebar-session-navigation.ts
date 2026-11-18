@@ -95,6 +95,7 @@ import type { SessionAttention } from "./session-attention.ts";
 import { SessionDataOwner } from "./session-data.ts";
 import type { SessionOrganizer } from "./session-organizer.ts";
 import { SessionOwnerFilter } from "./session-owner-filter.ts";
+import { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import { SidebarEmptyGroupsPreference } from "./sidebar-empty-groups.ts";
 import type { SidebarMenus } from "./sidebar-menus.tsx";
 import type { SidebarNavigationCatalog } from "./sidebar-navigation-catalog.ts";
@@ -108,7 +109,6 @@ import {
   sidebarRowsInputs,
   type SidebarProjectionHost,
 } from "./sidebar-projection-memo.ts";
-import { CatalogExpandedSections } from "./sidebar-catalog-expanded-sections.ts";
 import type { SidebarSnapshotModel } from "./sidebar-snapshot-model.ts";
 import { mountedViewerSessionKeys } from "./solid/viewer-facepile.tsx";
 
