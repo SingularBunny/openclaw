@@ -30,9 +30,10 @@ export type ChatNoticeProps = {
     | "onDismissPendingInput"
     // Fork: the Claude CLI re-login hint opens Model Setup.
     | "applicationContext"
+  > & {
     // Fork: Retry / Choose another model on the run-failure notice read the chat's handoff controller.
-    | "sessionKey"
-  >;
+    sessionKey?: string;
+  };
 };
 
 // Text-only notices paint with their transcript row; only interactive cards load later.
