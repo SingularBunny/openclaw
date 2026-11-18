@@ -1,4 +1,5 @@
-import { createMemo, type JSX, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { createMemo, Show } from "solid-js";
 import { formatWebUiIconErrorText } from "../../../components/error-presentation.ts";
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
