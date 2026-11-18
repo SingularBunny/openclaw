@@ -1,3 +1,4 @@
+import { parseAgentSessionKeyParts } from "@openclaw/session-url-contract";
 import { html, nothing } from "lit";
 import { Show } from "solid-js";
 import { Icon } from "../../../components/solid/icon.tsx";
@@ -48,18 +49,20 @@ export const ChatAutomationHeaderControl = defineSolidBridge<Props, { refresh():
   },
 );
 
-/** Header content for an isolated automation chat whose history may be read; nothing otherwise. */
+/** Header content for an isolated automation chat whose runs may be read; nothing otherwise. */
 export function renderChatAutomationHeaderControl(params: {
   sessionKey: string | undefined;
-  agentId: string;
   presented: boolean;
-  runsAvailable: boolean;
+  panelDefinitions: readonly { slot: string; available?: boolean }[];
   onOpenRuns: () => void;
 }) {
-  return params.runsAvailable && params.sessionKey && automationSessionJobId(params.sessionKey)
+  const runsAvailable = params.panelDefinitions.some(
+    (definition) => definition.slot === "runs" && definition.available,
+  );
+  return runsAvailable && params.sessionKey && automationSessionJobId(params.sessionKey)
     ? html`<openclaw-chat-automation-header-control
         .sessionKey=${params.sessionKey}
-        .agentId=${params.agentId}
+        .agentId=${parseAgentSessionKeyParts(params.sessionKey)?.agentId ?? "main"}
         .presented=${params.presented}
         .onOpenRuns=${params.onOpenRuns}
       ></openclaw-chat-automation-header-control>`

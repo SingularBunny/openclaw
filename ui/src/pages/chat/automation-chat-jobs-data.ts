@@ -1,4 +1,7 @@
-import { cronChatSessionKey, cronJobsDeliveringToChat } from "../../../../src/cron/run-history-chat.js";
+import {
+  cronChatSessionKey,
+  cronJobsDeliveringToChat,
+} from "../../../../src/cron/run-history-chat.js";
 import type { CronJob, CronJobsListResult, CronRunResult } from "../../api/types.ts";
 import type { ApplicationContext } from "../../app/context.ts";
 import { t } from "../../i18n/index.ts";
@@ -67,7 +70,10 @@ export class AutomationChatJobsData {
       const payload = event.payload as { jobId?: unknown; action?: unknown } | undefined;
       const jobId = typeof payload?.jobId === "string" ? payload.jobId : null;
       // A new or edited job may start (or stop) targeting this chat.
-      if (jobId && (this.ownsJob(jobId) || payload?.action === "added" || payload?.action === "updated")) {
+      if (
+        jobId &&
+        (this.ownsJob(jobId) || payload?.action === "added" || payload?.action === "updated")
+      ) {
         void this.refresh({ coalesce: true, finished: payload?.action === "finished" });
       }
     });
@@ -205,7 +211,10 @@ export class AutomationChatJobsData {
     this.changed();
     let started = false;
     try {
-      const result = await scope.client.request<CronRunResult>("cron.run", { id: jobId, mode: "force" });
+      const result = await scope.client.request<CronRunResult>("cron.run", {
+        id: jobId,
+        mode: "force",
+      });
       started = result.ok && !("ran" in result && !result.ran);
       if (this.current(generation)) {
         this.runFeedback = started ? null : cronRunNotStartedMessage(result);

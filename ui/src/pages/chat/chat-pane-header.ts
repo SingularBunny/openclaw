@@ -1,5 +1,4 @@
 import { html, nothing, type TemplateResult } from "lit";
-import { parseAgentSessionKeyParts } from "@openclaw/session-url-contract";
 import { createRef } from "lit/directives/ref.js";
 import { isIncognitoSessionKey } from "../../../../src/shared/incognito-session-key.js";
 import type { GatewaySessionRow, SessionVisibility } from "../../api/types.ts";
@@ -58,7 +57,6 @@ import {
   resolveChatPaneParentSession,
   resolveChatPaneWorkspaceIcon,
 } from "./components/chat-pane-header.ts";
-import { renderChatAutomationHeaderControl } from "./components/chat-automation-header-control.tsx";
 import { renderChatPanePlacement } from "./components/chat-pane-placement.ts";
 import {
   canManageChatSessionSharing,
@@ -598,13 +596,7 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
         detailsControl === nothing
           ? undefined
           : (source) => this.headerDetailsRef.value?.open(source),
-      runAction: html`${subagentStop}${renderChatAutomationHeaderControl({
-        sessionKey: row?.key,
-        agentId: parseAgentSessionKeyParts(row?.key ?? "")?.agentId ?? "main",
-        presented: this.presented,
-        runsAvailable: Boolean(panelControls && panelDefinitions.some((d) => d.slot === "runs" && d.available)),
-        onOpenRuns: () => panelControls?.openPanelSlot("runs"),
-      })}`,
+      runAction: subagentStop,
       presence: viewers?.length
         ? html`<openclaw-viewer-facepile
             class="chat-pane__presence"

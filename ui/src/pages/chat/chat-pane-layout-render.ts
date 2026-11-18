@@ -2,8 +2,8 @@ import { buildControlUiFocusPath } from "@openclaw/session-url-contract";
 import { html, nothing } from "lit";
 import { ref } from "lit/directives/ref.js";
 import "./chat-outbox-recovery.tsx";
-import "./components/chat-details.tsx";
 import type { SessionObserverDigest } from "../../../../packages/gateway-protocol/src/index.js";
+import "./components/chat-details.tsx";
 import type { GatewaySessionRow } from "../../api/types.ts";
 import { availableLinkReaders } from "../../app/link-reader-routing.ts";
 import { isDesktopPanelAvailable } from "../../app/panel-availability.ts";
@@ -31,6 +31,7 @@ import { ChatToolIconController } from "./chat-tool-icon-controller.ts";
 import { renderChatTopbarNotices } from "./chat-view-notices.tsx";
 import { ChatView, type ChatProps } from "./chat-view.tsx";
 import { publishChatWorkContext } from "./chat-work-context.ts";
+import { renderChatAutomationHeaderControl } from "./components/chat-automation-header-control.tsx";
 import { hasTerminalRunStatus } from "./components/chat-composer-state.ts";
 import { renderChatDetailSlot } from "./components/chat-detail-slot.ts";
 import { renderChatImageLightbox } from "./components/chat-image-lightbox.ts";
@@ -366,7 +367,12 @@ export abstract class ChatPaneLayoutRender extends ChatPaneBrowserAnnotationRend
                 chatProps.placementStartup,
                 savedLayout,
                 panelDefinitions,
-                subagentStop,
+                html`${subagentStop}${renderChatAutomationHeaderControl({
+                  sessionKey: selectedSession?.key,
+                  presented: this.presented,
+                  panelDefinitions,
+                  onOpenRuns: () => callbacks.openSlot("runs"),
+                })}`,
                 headerDetails,
                 { openPanelSlot: callbacks.openSlot, closePanelSlot: callbacks.closeSlot },
               )}

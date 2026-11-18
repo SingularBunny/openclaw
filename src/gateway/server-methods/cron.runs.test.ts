@@ -768,10 +768,14 @@ describe("cron.runs session visibility", () => {
       expect(summaries).toEqual(expect.arrayContaining(["needle first", "other third"]));
       expect(summaries).not.toContain("needle hidden");
       expect(summaries).not.toContain("needle second");
-      expect(await query({ scope: "job", id: "x", sessionKey: "agent:main:a" })).toHaveBeenCalledWith(
+      expect(
+        await query({ scope: "job", id: "x", sessionKey: "agent:main:a" }),
+      ).toHaveBeenCalledWith(
         false,
         undefined,
-        expect.objectContaining({ message: expect.stringContaining("sessionKey requires scope all") }),
+        expect.objectContaining({
+          message: expect.stringContaining("sessionKey requires scope all"),
+        }),
       );
     });
   });
