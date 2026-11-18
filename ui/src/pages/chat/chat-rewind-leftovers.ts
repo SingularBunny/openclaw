@@ -11,6 +11,8 @@ import type { ChatState } from "./chat-state-contract.ts";
 import { persistedMessageEntryId } from "./chat-thread-items.ts";
 import { getTranscriptState, type ChatThreadState } from "./components/chat-thread-interactions.ts";
 
+export type { ChatRewindChoice };
+
 /** When the message a rewind cuts at was sent; null when the row carries no time. */
 export function readChatRewindCutTime(
   messages: readonly unknown[],
