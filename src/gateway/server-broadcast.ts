@@ -26,6 +26,7 @@ import {
   isSessionReadInvalidation,
   modelMetadataInvalidationFragment,
 } from "./server-broadcast-scopes.js";
+import { SESSION_SUBSCRIPTION_EVENTS } from "./server-broadcast-session-events.js";
 import type {
   SessionEventProjection,
   GatewayBroadcastFn,
@@ -47,20 +48,6 @@ import { logWs, summarizeAgentEventForWsLog } from "./ws-log.js";
 // Opt-in scoped clients never receive session-bearing broadcasts without an
 // authoritative registry key, including malformed/sessionless agent events.
 const log = createSubsystemLogger("gateway/broadcast");
-
-const SESSION_SUBSCRIPTION_EVENTS = new Set([
-  "agent",
-  "chat",
-  "chat.side_result",
-  "chat.prompt_suggestion",
-  "session.observer",
-  "session.narration",
-  // Mirrors the raw agent tool event (full args/result snapshots) onto
-  // session subscribers; omitting it here would hand scoped clients the
-  // exact payload the registry gate suppresses on the `agent` event.
-  "session.tool",
-  "socket.drain",
-]);
 
 type EncodedSessionPayload = readonly [Buffer] | readonly [Buffer, Buffer, Buffer];
 type FramePayload = string | Buffer | EncodedSessionPayload;
