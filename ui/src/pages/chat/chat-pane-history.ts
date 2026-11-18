@@ -67,8 +67,7 @@ import {
   preparePaneSessionHandoff,
 } from "./chat-pane-shared.ts";
 import { ChatPaneSnapshotHydration } from "./chat-pane-snapshot-hydration.ts";
-import type { ChatRewindChoice } from "./chat-rewind-files.ts";
-import { rewindPaneChat } from "./chat-rewind-leftovers.ts";
+import { rewindPaneChat, type ChatRewindChoice } from "./chat-rewind-leftovers.ts";
 import { TranscriptHistoryInput } from "./chat-scroll-input.ts";
 import type { ChatState } from "./chat-state-contract.ts";
 import { refreshPageChat } from "./chat-state-refresh.ts";
@@ -697,26 +696,21 @@ export abstract class ChatPaneHistory extends ChatPaneSnapshotHydration {
 
   protected async forkFromMessage(entryId: string): Promise<void> {
     const scope = this.captureConnectionScope();
-    if (!scope) {
+    // Fork: the cut resolves rows from Claude's own history to their native resume point.
+    const cut = scope && readChatMessageCut(scope.state, entryId);
+    if (!scope || !cut) {
       return;
     }
     const state = scope.state;
     const sourceKey = state.sessionKey;
-    const agentParams = scopedAgentParamsForSession(state, sourceKey);
-    const cut = readChatMessageCut(state, entryId);
-    if (!cut) {
-      return;
-    }
+    const agentParams = { ...scopedAgentParamsForSession(state, sourceKey), ...cut.native };
+    const stale = () =>
+      !this.ownsHeaderOutcomeScope(scope) ||
+      !visibleSessionMatches(state, sourceKey, agentParams.agentId);
     try {
-      const result = await state.sessions.forkAtMessage(sourceKey, cut.entryId, {
-        ...agentParams,
-        ...cut.native,
-      });
+      const result = await state.sessions.forkAtMessage(sourceKey, cut.entryId, agentParams);
       const editorText = result.editorText ?? "";
-      if (
-        !this.ownsHeaderOutcomeScope(scope) ||
-        !visibleSessionMatches(state, sourceKey, agentParams.agentId)
-      ) {
+      if (stale()) {
         return;
       }
       if (this.onPaneSessionChange?.(this.paneId, result.sessionKey) === false) {
@@ -733,10 +727,7 @@ export abstract class ChatPaneHistory extends ChatPaneSnapshotHydration {
         draft: editorText,
       });
     } catch (error) {
-      if (
-        !this.ownsHeaderOutcomeScope(scope) ||
-        !visibleSessionMatches(state, sourceKey, agentParams.agentId)
-      ) {
+      if (stale()) {
         return;
       }
       state.lastError = formatUiError(error);
