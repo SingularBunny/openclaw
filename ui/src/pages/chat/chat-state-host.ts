@@ -45,6 +45,10 @@ export type ChatPageHost = ChatHost &
   Omit<SessionWorkspaceHost, "handleOpenSidebar"> & {
     handleOpenSidebar: (content: SidebarSelection | null) => SidebarOpenResult;
     reviewQueuedMessageEdit?: () => void;
+    /** Fork: bumped when fork-owned chat state (handoff, group chat, plan mode) changes. */
+    forkUiRevision: number;
+    /** Fork: re-render after fork-owned state outside the projected fields changed. */
+    requestUpdate?: () => void;
     captureComposerRecoveryReload?: () => () => Promise<boolean>;
     chatMetadataIsPresented?: () => boolean;
     accessPreferences?: DraftPreferenceState;

@@ -59,9 +59,9 @@ export function fileManagerRevealer(
       })
       .then((result) => {
         if (!result.ok) {
-          setChatError(host, result.error ?? "Failed to open the folder.", true);
+          setChatError(host, result.error ?? "Failed to open the folder.");
         }
       })
-      .catch((error: unknown) => setChatError(host, String(error), true));
+      .catch((error: unknown) => setChatError(host, String(error)));
   };
 }

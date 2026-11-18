@@ -2,7 +2,7 @@ import type { JSX } from "@solidjs/web";
 import { createSignal } from "solid-js";
 import { normalizeAgentLabel } from "../lib/agents/display.ts";
 import { t } from "../lib/reactive/i18n.ts";
-import { SidebarDropdown, renderSidebarMenuAction } from "./app-sidebar-nav-menus.tsx";
+import { SidebarDropdown, renderSidebarMenuAction } from "./app-sidebar-dropdown.tsx";
 import type { IconName } from "./icon-data.ts";
 import {
   catalogFolderMenuEntries,

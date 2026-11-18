@@ -26,7 +26,7 @@ import {
 import { switchChatModel } from "./chat-session.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 import { selectedChatSessionRow } from "./chat-state-route.ts";
-import { persistedMessageEntryId } from "./chat-thread.ts";
+import { persistedMessageEntryId } from "./chat-thread-items.ts";
 
 export {
   formatAgentLabel,
@@ -210,7 +210,6 @@ export async function setChatAcpModel(
     setChatError(
       state,
       t("chat.handoff.agentModelFailed", { model, reason: t("chat.handoff.offline") }),
-      true,
     );
     return false;
   }
@@ -219,7 +218,7 @@ export async function setChatAcpModel(
     await refreshChatAcpModels(state, sessionKey);
     return true;
   } catch (error) {
-    setChatError(state, t("chat.handoff.agentModelFailed", { model, reason: String(error) }), true);
+    setChatError(state, t("chat.handoff.agentModelFailed", { model, reason: String(error) }));
     return false;
   }
 }
@@ -394,7 +393,7 @@ export async function handOffChat(
   const sessionKey = state.sessionKey;
   const label = chatAnswererLabel(state, target);
   const fail = (reason: string) => {
-    setChatError(state, t("chat.handoff.failed", { target: label, reason }), true);
+    setChatError(state, t("chat.handoff.failed", { target: label, reason }));
     return false;
   };
   if (!state.client || !state.connected) {
@@ -461,14 +460,14 @@ export async function recordRefusalHandoff(
     !canCallGatewayMethod(gatewaySnapshot(state), CHAT_REFUSAL_HANDOFF_METHOD, "operator.write")
   ) {
     const reason = state.client ? t("chat.handoff.refusalUnsupported") : t("chat.handoff.offline");
-    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason }), true);
+    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason }));
     return false;
   }
   try {
     await state.client.request(CHAT_REFUSAL_HANDOFF_METHOD, { sessionKey, ...params });
     return true;
   } catch (error) {
-    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason: String(error) }), true);
+    setChatError(state, t("chat.handoff.refusalNotExcluded", { reason: String(error) }));
     return false;
   }
 }

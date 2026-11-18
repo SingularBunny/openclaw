@@ -52,12 +52,31 @@ import { selectedChatSessionRow } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
 import type { ChatClaudeModePickerProps } from "./components/chat-claude-mode.ts";
 import { renderChatModelAccountControl } from "./components/chat-model-account-control.ts";
+import type { ChatModelPickerTargetGroup } from "./components/chat-model-picker-options.ts";
 import type { ChatPermissionPickerProps } from "./components/chat-permission-picker.tsx";
 import type { ChatPlanModeToggleProps } from "./components/chat-plan-mode-toggle.types.ts";
 import { activeQueuedMessageEdit } from "./queued-message-edit.ts";
 import { readChatSessionSnapshot } from "./session-message-cache.ts";
 
 registerModelControlsEnglish();
+
+/** Fork: the picker's target groups carry a settled option list (upstream lazy loading). */
+function withCompletion({
+  status,
+  ...group
+}: Omit<ChatModelPickerTargetGroup, "completion"> & {
+  status: "loading" | "error" | "ready";
+}): ChatModelPickerTargetGroup {
+  const promise =
+    status === "ready"
+      ? Promise.resolve(group.options)
+      : status === "error"
+        ? Promise.reject(new Error(group.errorLabel))
+        : new Promise<ChatModelPickerTargetGroup["options"]>(() => {});
+  // The picker owns the rejection; keep it from surfacing as unhandled.
+  promise.catch(() => {});
+  return { ...group, completion: { promise } };
+}
 
 type SessionActionAccess = ReturnType<typeof readChatSessionActionAccess>;
 type SessionAction = keyof SessionActionAccess;
@@ -284,6 +303,8 @@ export function renderChatPaneComposerControls(params: {
   const permissionSnapshot = sessionReady ? undefined : snapshot;
   const snapshotReason = snapshot ? t("chat.modelControls.refreshingSettings") : undefined;
   // Fork: model and agent switch buttons share one handoff controller per chat.
+  // Fork state (handoff, group chat, plan mode) re-renders the controls through this revision.
+  void state.forkUiRevision;
   const handoff = createChatHandoffController(state, { models: listChatHandoffModels(state) });
   publishChatHandoffController(handoff);
   // Fork: group chat members ("Add to group chat", "Ask <name>") share the handoff's model list.
@@ -314,11 +335,11 @@ export function renderChatPaneComposerControls(params: {
           errorLabel: t("chat.handoff.agentModelsUnavailable"),
         }
       : undefined;
-  const pickerTargetGroups = [
-    ...(agentModelsGroup ? [agentModelsGroup] : []),
+  const pickerTargetGroups: ChatModelPickerTargetGroup[] = [
+    ...(agentModelsGroup ? [withCompletion(agentModelsGroup)] : []),
     ...(handoff.agents.length > 0
       ? [
-          {
+          withCompletion({
             id: CHAT_HANDOFF_AGENT_GROUP_ID,
             label: t("chat.handoff.agentsGroup"),
             options: handoff.agents.map((agent) => ({
@@ -327,7 +348,7 @@ export function renderChatPaneComposerControls(params: {
             })),
             status: "ready" as const,
             errorLabel: "",
-          },
+          }),
         ]
       : []),
   ];
