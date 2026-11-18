@@ -113,6 +113,7 @@ export const UI_APPEARANCE_DEFAULTS = {
   chatMessageMaxWidth: "48rem",
   chatShowTaskProgress: true,
   chatCollapseTaskProgress: false,
+  chatShowAutomationDetails: false,
   chatSendShortcut: "enter",
   catalogOpenTarget: "viewer",
   composerHoldToRecord: true,
@@ -146,6 +147,11 @@ export type UiSettings = {
   chatShowTaskProgress?: boolean;
   // Browser-local presentation preference; false preserves active-card auto-expand.
   chatCollapseTaskProgress?: boolean;
+  // Fork: browser-local default for scheduler-injected automation rows in chats.
+  chatShowAutomationDetails?: boolean;
+  // Fork: per-session overrides of chatShowAutomationDetails, scoped to this Gateway.
+  chatAutomationDetailsSessionKeys?: string[];
+  chatAutomationDetailsHiddenSessionKeys?: string[];
   chatSendShortcut?: ChatSendShortcut;
   chatFollowUpMode?: ChatFollowUpMode; // Default handling for messages sent while a run is active
   catalogOpenTarget?: CatalogOpenTarget;

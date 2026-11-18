@@ -1955,6 +1955,9 @@ const enSettings = {
       collapseTaskProgress: "Collapse task progress by default on desktop",
       collapseTaskProgressHint:
         "On desktop, start task progress collapsed. It can expand when the response finishes if you are at the end of the chat. A manual close keeps it collapsed for that session. On mobile, task progress always starts collapsed and only opens when you open it manually.",
+      showAutomationDetails: "Show automation details",
+      showAutomationDetailsHint:
+        "Show the scheduler's prompts, reminders and repair requests in automation chats as collapsed lines you can expand. When off, each run keeps a single line. Each chat can override this from its View menu.",
     },
     sidebarPrefs: {
       title: "Sidebar",

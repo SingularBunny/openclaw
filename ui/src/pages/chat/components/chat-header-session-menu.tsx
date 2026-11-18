@@ -63,6 +63,9 @@ export type HeaderMenuProps = {
     | "chatPersistCommentary"
     | "chatBubbleSessionKeys"
     | "chatBubbleDisabledSessionKeys"
+    | "chatShowAutomationDetails"
+    | "chatAutomationDetailsSessionKeys"
+    | "chatAutomationDetailsHiddenSessionKeys"
   >;
   sessionActions: HeaderMenuSessionAction[];
   composeSessionActions?: (nativeActions: HeaderMenuSessionAction[]) => HeaderMenuSessionAction[];
