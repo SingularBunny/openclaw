@@ -3410,6 +3410,13 @@ export const en: TranslationMap & {
         label: "System · automation recovery",
         summary: "An automation failed — asked the agent to investigate and continue if needed.",
       },
+      automationRun: {
+        label: "Automation run",
+        named: "Automation · {name}",
+      },
+      scheduledReminder: {
+        label: "Scheduled reminder",
+      },
       gatewayRestarted: {
         label: "System · gateway restarted",
       },

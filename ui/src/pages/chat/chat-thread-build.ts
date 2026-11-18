@@ -27,6 +27,7 @@ import {
   normalizeRoleForGrouping,
 } from "../../lib/chat/message-normalizer.ts";
 import { extractToolCardsCached, type CanvasToolPreview } from "../../lib/chat/tool-cards.ts";
+import { applyAutomationRowMode } from "./chat-automation-rows.ts";
 import {
   buildCompactionDividerItem,
   buildGuardianNoticeItem,
@@ -103,6 +104,8 @@ export type BuildChatItemsProps = ChatInputPlacementProps & {
   stream: string | null;
   streamStartedAt: number | null;
   showToolCalls: boolean;
+  /** Fork: expandable automation rows; false keeps only a bare line per run. Default true. */
+  showAutomationDetails?: boolean;
   persistCommentary?: boolean;
   /** True while the agent is visibly working (isChatRunWorking). */
   runWorking?: boolean;
@@ -352,6 +355,7 @@ export function buildChatItems(
 
     items.push(...projectChatSystemNotice(item, normalized));
   }
+  items = applyAutomationRowMode(items, props.showAutomationDetails !== false);
   const currentRunId =
     props.runId ??
     (props.stream !== null || queuedSends.some(shouldRenderQueuedSendInThread)

@@ -318,6 +318,7 @@ function sameChatItemsStructuralInput(
     previous.workspaceSyncPendingRunIds === next.workspaceSyncPendingRunIds &&
     previous.workerSetupPending === next.workerSetupPending &&
     previous.showToolCalls === next.showToolCalls &&
+    previous.showAutomationDetails === next.showAutomationDetails &&
     previous.persistCommentary === next.persistCommentary &&
     previous.runWorking === next.runWorking &&
     previous.runActive === next.runActive &&

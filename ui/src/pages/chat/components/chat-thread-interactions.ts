@@ -155,6 +155,7 @@ export type ChatThreadProps = ChatSendStatusActions &
     chatBubbleMode?: boolean;
     showThinking: boolean;
     showToolCalls: boolean;
+    showAutomationDetails?: boolean;
     persistCommentary?: boolean;
     runActive?: boolean;
     runWorking?: boolean;

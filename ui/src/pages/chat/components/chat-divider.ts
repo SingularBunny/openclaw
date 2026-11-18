@@ -176,7 +176,11 @@ export function renderChatNotice(
       data-ts=${String(item.timestamp)}
       role=${item.tone === "danger" ? "alert" : nothing}
     >
-      ${item.label ? renderSystemLine({ icon: item.icon, label: item.label }) : nothing}
+      ${
+        item.label
+          ? renderSystemLine({ icon: item.icon, label: item.label, metric: item.metric })
+          : nothing
+      }
       ${
         item.collapsedBody && item.text
           ? html`
