@@ -18,7 +18,6 @@ import { currentDisplaySpeechConfig } from "../../lib/config/config-state-model.
 import { hasUnrestrictedModelCatalogSnapshot } from "../../lib/model-catalog-cache.ts";
 import { resolveSafeExternalUrl } from "../../lib/open-external-url.ts";
 import { projectOwner, projectSource } from "../../lib/reactive/projection.ts";
-import { scopedAgentParamsForSession } from "../../lib/sessions/navigation.ts";
 import { canonicalUiSessionKeyForPersistence } from "../../lib/sessions/session-key.ts";
 import { resolveSpeechTextLimit } from "../../lib/speech-playback.ts";
 import { DraftPreferenceState } from "../new-session/draft-preference-state.ts";
@@ -26,13 +25,6 @@ import { loadPageAssistantIdentity } from "./chat-assistant-identity.ts";
 import { cachedChatAssistantIdentity } from "./chat-avatar.ts";
 import { createChatErrorState } from "./chat-error-state.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
-import { routeChatGroupSend } from "./chat-group.ts";
-import {
-  canUseChatAcpModels,
-  refreshChatAcpModels,
-  refreshChatHandoffInfo,
-  waitForChatIdle,
-} from "./chat-handoff.ts";
 import { cancelPendingQueuedChatInput } from "./chat-history-actions.ts";
 import {
   CHAT_TRANSCRIPT_LOADING_CHANGED_EVENT,
@@ -42,7 +34,6 @@ import { chatHistoryRequests, setChatError } from "./chat-history-state.ts";
 import { subscribeChatOutboxQueue } from "./chat-outbox-queue.ts";
 import { ChatPaneComposerHandoff } from "./chat-pane-attachment-handoff.ts";
 import { chatSessionPresentationKey } from "./chat-pane-session-presentation.ts";
-import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { chatProviderReviewRow } from "./chat-provider-review.ts";
 import { removeQueuedMessage } from "./chat-queue.ts";
 import { attachChatRealtimeActions, createInitialChatRealtimeState } from "./chat-realtime.ts";
@@ -54,9 +45,9 @@ import {
   steerQueuedChatMessage,
 } from "./chat-send-actions.ts";
 import { requestChatSend, resolveDisplayedLeafEntryId } from "./chat-send-request.ts";
-import { handleSendChat } from "./chat-send-submit.ts";
 import { OFFLINE_QUEUE_STORAGE_ERROR } from "./chat-send-support.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
+import { installForkUiRevision, sendForkChat } from "./chat-state-page-fork.ts";
 import { selectedChatSessionRow } from "./chat-state-route.ts";
 import { safeMediaAttachmentHref } from "./components/chat-attachment-href.ts";
 import {
@@ -372,42 +363,10 @@ export function createPageState(
     ) {
       autoPromptNotificationsOnSend(context);
     }
-    // Fork: a message naming group chat members goes to them (aiwb-groups), not to the chat's answerer.
-    const toGroup = isCommand ? undefined : routeChatGroupSend(state, messageOverride, options);
-    if (toGroup) {
-      return toGroup;
-    }
-    const sent = handleSendChat(state, messageOverride, options, submissionAction);
-    // Fork: a typed /acp or /session command can bind or unbind the chat; re-read its binding.
-    if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
-      void sent.then(async () => {
-        await waitForChatIdle(state);
-        const info = await refreshChatHandoffInfo(state);
-        // A typed `/acp model` changes the bound agent's model; the picker shows it.
-        if (info?.binding && canUseChatAcpModels(state)) {
-          await refreshChatAcpModels(state);
-        }
-      });
-    }
-    // Fork: `/plan` and an approved plan change the chat's plan mode; the composer toggle follows.
-    const planSessionKey = state.sessionKey;
-    const planAgentId = scopedAgentParamsForSession(state, planSessionKey).agentId;
-    if (
-      canReadChatPlanMode(state) &&
-      (/^\/plan\b/u.test(message.trim()) ||
-        readChatPlanMode(state, planSessionKey, planAgentId)?.on === true)
-    ) {
-      void sent.then(async () => {
-        await waitForChatIdle(state);
-        await refreshChatPlanMode(state, planSessionKey, planAgentId);
-      });
-    }
-    return sent;
+    // Fork: group chat routing, then handoff and plan mode refresh after the send.
+    return sendForkChat(state, { message, isCommand, messageOverride, options, submissionAction });
   };
-  // Fork: handoff, group chat and plan mode keep their state outside the projected fields.
-  state.requestUpdate = () => {
-    state.forkUiRevision += 1;
-  };
+  installForkUiRevision(state);
   state.handleAbortChat = (options) => handleAbortChat(state, options);
   state.removeQueuedMessage = (id) => {
     if (cancelPendingQueuedChatInput(state, id)) {
