@@ -554,9 +554,8 @@ function renderCatalogHostGroup(
     reorderGroup?: string;
   }) {
     const reorderGroup = untrack(() => rowProps.reorderGroup);
-    const expanded = () =>
-      (params.host.sessionData.visibleSessionLimits.get(rowProps.sectionId) ??
-        CATALOG_SESSION_GROUP_LIMIT) > CATALOG_SESSION_GROUP_LIMIT;
+    // Fork: "Show more" stays open across refreshes and reloads.
+    const expanded = () => params.host.catalogExpansion.sections.has(rowProps.sectionId);
     return (
       <For
         each={
@@ -581,9 +580,7 @@ function renderCatalogHostGroup(
     sessions: readonly SessionCatalogSession[];
     sectionId: string;
   }) {
-    const expanded = () =>
-      (params.host.sessionData.visibleSessionLimits.get(pageProps.sectionId) ??
-        CATALOG_SESSION_GROUP_LIMIT) > CATALOG_SESSION_GROUP_LIMIT;
+    const expanded = () => params.host.catalogExpansion.sections.has(pageProps.sectionId);
     const label = () => (expanded() ? t("chat.messages.showLess") : t("chat.messages.showMore"));
     return (
       <Show when={pageProps.sessions.length > CATALOG_SESSION_GROUP_LIMIT}>
@@ -592,12 +589,8 @@ function renderCatalogHostGroup(
             type="button"
             class="sidebar-session-pagination__button"
             aria-label={label()}
-            onClick={() =>
-              params.host.setVisibleSessionLimit(
-                pageProps.sectionId,
-                expanded() ? CATALOG_SESSION_GROUP_LIMIT : pageProps.sessions.length,
-              )
-            }
+            aria-expanded={expanded() ? "true" : "false"}
+            onClick={() => params.host.catalogExpansion.set(pageProps.sectionId, !expanded())}
           >
             {label()}
           </button>
