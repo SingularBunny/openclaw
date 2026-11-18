@@ -1,10 +1,8 @@
-/* oxlint-disable max-lines -- TODO: split this grandfathered oversized module. */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { stripSystemPromptCacheBoundary } from "@openclaw/ai/internal/shared";
 import { clampPositiveTimerTimeoutMs } from "@openclaw/normalization-core/number-coercion";
 import { isRecord } from "@openclaw/normalization-core/record-coerce";
 import { racePromiseWithAbortSignal } from "@openclaw/retry";
-import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
 import { resolveExecutablePath } from "../../infra/executable-path.js";
 import { mergePathPrepend } from "../../infra/path-prepend.js";
 import {
@@ -13,11 +11,9 @@ import {
 } from "../../plugin-sdk/windows-spawn.js";
 import type { CliBackendTurnStatus } from "../../plugins/cli-backend-turn-status.types.js";
 import type {
-  CliBackendExecute,
   CliBackendMessageInjection,
   CliBackendToolPermissionRequest,
   CliBackendToolPermissionResult,
-  CliBackendTurnInterrupt,
   CliBackendUserInputRequest,
   CliBackendUserInputResult,
 } from "../../plugins/cli-backend.types.js";
@@ -30,7 +26,6 @@ import {
   recordAdjustedParamsForToolCall,
   runBeforeToolCallHook,
 } from "../agent-tools.before-tool-call.js";
-import type { CliTerminalInterruption } from "../cli-output-contracts.js";
 import { resolveExecDefaultsAsync } from "../exec-defaults.js";
 import { FailoverError, isSignalTimeoutReason } from "../failover-error.js";
 import { withAgentQuestionAnswerAuthority } from "../harness/host-private-capabilities.js";
@@ -39,16 +34,10 @@ import { compileStructuredInputQuestions } from "../harness/structured-input.js"
 import { resolveExecToolConfig } from "../lazy-exec-tool.js";
 import { resolveToolLoopDetectionConfig } from "../tool-loop-detection-config.js";
 import {
-  createClaudePermissionModeRecorder,
-  resolveRunClaudePermissionMode,
-} from "./claude-permission-mode.js";
-import { createClaudeCliTodoObserver } from "./claude-todos.js";
-import {
   restartCliLiveSession,
   createCliLiveSessionCapability,
   ensureCliLiveSessionMemory,
   getCliLiveSessionApprovalGrants,
-  hasCliLiveSessionTranscriptChanged,
   rememberCliLiveSessionTranscript,
 } from "./cli-live-session-registry.js";
 import {
@@ -56,27 +45,21 @@ import {
   resolveCliNativeToolApprovalPlan,
 } from "./cli-native-tool-approval.js";
 import { createCliAbortError } from "./execute-node-claude.js";
+import {
+  cliForkExecuteContext,
+  createCliForkStreamObservers,
+  restartCliLiveSessionIfTranscriptChanged,
+} from "./execute-plugin-fork.js";
 import { closePluginIterator, waitForIteratorValue } from "./execute-plugin-iterator.js";
 import { bindCliTurnStatus } from "./execute-plugin-status.js";
 import { createCliPluginWatchdog } from "./execute-plugin-watchdog.js";
 import { createSteeredCliMessageInjection } from "./execute-plugin.steered-transcript.js";
+import type { ExecutePluginOwnedProcessParams } from "./execute-plugin.types.js";
 import { attachCliReplyBackend, createCliRunCurrentAssertion } from "./execution-target.js";
 import { createCliFailoverError as failover } from "./exit-error.js";
-import { cliBackendLog } from "./log.js";
-import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./native-wait-state.js";
 import * as noOutputPolicy from "./no-output-timeout-policy.js";
 import { normalizeCliToolName } from "./tool-policy.js";
 import type { PreparedCliRunContext } from "./types.js";
-
-/** Fork (F49): explicit session mode plus the recorder for modes chosen during the run. */
-function claudePermissionModeContext(run: PreparedCliRunContext["params"]) {
-  const permissionMode = resolveRunClaudePermissionMode(run);
-  const onPermissionModeChange = createClaudePermissionModeRecorder(run);
-  return {
-    ...(permissionMode ? { permissionMode } : {}),
-    ...(onPermissionModeChange ? { onPermissionModeChange } : {}),
-  };
-}
 
 function denyTool(message: string): CliBackendToolPermissionResult {
   return { behavior: "deny", message };
@@ -407,44 +390,9 @@ function createPluginUserInputHandler(params: {
 }
 
 /** Runs a prepared plugin transport while keeping cancellation and approvals host-owned. */
-export async function executePluginOwnedProcess(params: {
-  context: PreparedCliRunContext;
-  execute: CliBackendExecute;
-  executionCommand: string;
-  executionArgv0?: string;
-  executionArgs: readonly string[];
-  env: Record<string, string>;
-  prompt: string;
-  promptContext?: PreparedCliRunContext["promptContext"];
-  useResume: boolean;
-  forceNewSession?: boolean;
-  sessionId?: string;
-  noOutputTimeoutMs: number;
-  consumeStdout: (chunk: string) => void;
-  onOutstandingWorkChange?: (active: boolean) => void;
-  activeToolCount?: () => number;
-  compactionActive?: () => boolean;
-  setOnCompactionActiveChange?: (listener: (() => void) | undefined) => void;
-  getActiveLoopbackAskUserDeadline?: () => number | undefined;
-  setOnActiveLoopbackAskUserDeadlineChange?: (listener: (() => void) | undefined) => void;
-  onNoOutputTimeout?: (error: FailoverError) => void;
-  /** Fork (F33): live background tasks of the CLI; `waiting` once the main answer is in. */
-  onBackgroundTasksChange?: (state: CliBackgroundTasksState) => void;
-  /** Fork (F45): Claude's todo list as progress-card steps, whenever it changes. */
-  onTodosChange?: (steps: ProgressCardStep[]) => void;
-  onInterrupted?: (reason: CliTerminalInterruption["reason"]) => boolean;
-  /** Late-arriving next-prompt prediction; outlives the run like the warm process. */
-  onPromptSuggestion?: (text: string) => void;
-  mcpCapture?: {
-    captureKey?: string;
-    beginCapture: (captureKey: string | undefined, assertCurrent: () => void) => void;
-    registerTurnInterrupt?: (interrupt: CliBackendTurnInterrupt | undefined) => void;
-    waitForTurnInterrupt?: () => Promise<void>;
-  };
-  liveSession?: {
-    requiredGeneration?: string;
-  };
-}): Promise<RunExit> {
+export async function executePluginOwnedProcess(
+  params: ExecutePluginOwnedProcessParams,
+): Promise<RunExit> {
   const run = params.context.params;
   const cwd = params.context.cwd ?? params.context.workspaceDir;
   const executable =
@@ -501,14 +449,7 @@ export async function executePluginOwnedProcess(params: {
     reportOutstandingWork();
   };
   // Fork (F33, F36): silent native waits (model request, background tasks).
-  const nativeWait = createCliNativeWaitObserver(params.env, params.onBackgroundTasksChange);
-  const onTodosChange = params.onTodosChange;
-  const todos = onTodosChange
-    ? createClaudeCliTodoObserver({
-        stateKey: JSON.stringify([run.agentId, run.sessionKey, run.sessionId]),
-        onChange: onTodosChange,
-      })
-    : undefined;
+  const nativeWait = createCliForkStreamObservers(params, run);
   let watchdog: ReturnType<typeof createCliPluginWatchdog> | undefined;
 
   let messageInjection: CliBackendMessageInjection | undefined;
@@ -589,16 +530,8 @@ export async function executePluginOwnedProcess(params: {
         throw new Error("The required CLI live session cannot be replaced by a fresh process.");
       }
       await restartCliLiveSession(params.context, signal);
-    } else if (
-      params.liveSession &&
-      !params.liveSession.requiredGeneration &&
-      (await hasCliLiveSessionTranscriptChanged(params.context))
-    ) {
-      // A terminal `claude --resume` appended turns the idle process never saw; resume afresh.
-      cliBackendLog.info(
-        `cli live session restart: provider=${params.context.backendResolved.id} reason=transcript-changed`,
-      );
-      await restartCliLiveSession(params.context, signal);
+    } else if (params.liveSession && !params.liveSession.requiredGeneration) {
+      await restartCliLiveSessionIfTranscriptChanged(params.context, signal);
     }
     assertCurrent();
     if (params.liveSession) {
@@ -683,8 +616,7 @@ export async function executePluginOwnedProcess(params: {
               },
             }
           : {}),
-        ...(params.onPromptSuggestion ? { onPromptSuggestion: params.onPromptSuggestion } : {}),
-        ...claudePermissionModeContext(run),
+        ...cliForkExecuteContext(run, params.onPromptSuggestion),
         // Warm transports retain their first turn's async context across plugin refreshes.
         requestToolPermission: AsyncLocalStorage.bind(requestToolPermission),
         requestUserInput: createPluginUserInputHandler({
@@ -730,7 +662,6 @@ export async function executePluginOwnedProcess(params: {
         reportOutstandingWork();
       }
       nativeWait.observe(next.value);
-      todos?.observe(next.value);
       params.consumeStdout(`${JSON.stringify(next.value)}\n`);
       outstanding.observed = true;
       if (
