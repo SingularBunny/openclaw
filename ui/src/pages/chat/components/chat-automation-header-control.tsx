@@ -5,6 +5,7 @@ import { t } from "../../../lib/reactive/i18n.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../../../lib/solid-bridge.ts";
 import { AutomationChatJobsData } from "../automation-chat-jobs-data.ts";
 import { AutomationRunControl } from "./chat-automation-run-control.tsx";
+import { AutomationRunMenu } from "./chat-automation-run-menu.tsx";
 import { useSessionPanel, type SessionPanelProps } from "./chat-session-panel.tsx";
 
 type Props = SessionPanelProps & { onOpenRuns?: () => void };
@@ -23,6 +24,12 @@ export const ChatAutomationHeaderControl = defineSolidBridge<Props, { refresh():
     host.refresh = () => data().refresh();
     return (
       <span class="chat-automation-header">
+        {/* Fork: a narrow header folds Runs and Run into one menu (CSS container query). */}
+        <Show when={props.onOpenRuns || (data().canRun && data().jobs.length > 0)}>
+          <span class="chat-automation-header__compact-slot">
+            <AutomationRunMenu data={data} compact onOpenRuns={props.onOpenRuns} />
+          </span>
+        </Show>
         <Show when={props.onOpenRuns}>
           {(open) => (
             <button

@@ -316,11 +316,29 @@ describe("automation chat with jobs that target it by session", () => {
 
     const admin = mountPanel(read, ["operator.admin"]);
     await settle(admin.panel);
-    expect(admin.panel.querySelector('[data-test-id="automation-run-menu"]')).not.toBeNull();
-    const items = [
-      ...admin.panel.querySelectorAll('[data-test-id="automation-run-menu"] button'),
-    ].map((item) => item.textContent ?? "");
-    expect(items).toHaveLength(2);
+    // One Run… menu instead of a button per job (F73); the rows run after a confirm.
+    const trigger = admin.panel.querySelector<HTMLButtonElement>(
+      '[data-test-id="automation-run-menu"]',
+    )!;
+    expect(trigger.textContent).toContain("Run…");
+    expect(admin.panel.querySelectorAll(".chat-automation-run__button")).toHaveLength(1);
+    trigger.click();
+    await vi.waitFor(() =>
+      expect(document.querySelectorAll("[data-automation-run-job]")).toHaveLength(2),
+    );
+    const rows = [...document.querySelectorAll<HTMLElement>("[data-automation-run-job]")];
+    expect(rows.map((row) => row.textContent)).toEqual([
+      "Run now: Morning digest",
+      "Run now: Night follow-up",
+    ]);
+    confirmDialog.mockClear();
+    rows[0]!.click();
+    await vi.waitFor(() =>
+      expect(admin.request).toHaveBeenCalledWith("cron.run", { id: "job-1", mode: "force" }),
+    );
+    expect(confirmDialog).toHaveBeenCalledWith(
+      expect.objectContaining({ message: "Run Morning digest now?" }),
+    );
   });
 });
 
@@ -421,5 +439,7 @@ describe("automation chat header", () => {
     );
     header.querySelector<HTMLButtonElement>('[data-test-id="automation-header-runs"]')!.click();
     expect(onOpenRuns).toHaveBeenCalledOnce();
+    // A narrow header shows only the compact menu (container query); it holds Runs and Run.
+    expect(header.querySelector('[data-test-id="automation-header-compact"]')).not.toBeNull();
   });
 });

@@ -1646,6 +1646,8 @@ const startupEnglish = {
       runNow: "Run now",
       runAgain: "Run again",
       runMenu: "Run…",
+      runMenuTitle: "Run one of the automations that deliver into this chat",
+      actions: "Automation: runs and Run now",
       runTitle: "Run {name} now, like Automations → Run",
       runConfirm: "Run {name} now?",
       runConfirmDetails:
