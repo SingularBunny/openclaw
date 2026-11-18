@@ -7,6 +7,12 @@
   min-width: 0;
 }
 
+.chat-automation-run__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .chat-automation-run__button svg,
 .chat-automation-header__runs svg {
   width: 14px;
