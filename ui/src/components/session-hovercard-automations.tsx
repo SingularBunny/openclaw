@@ -3,6 +3,7 @@ import { createMemo, createSignal, Errored, For, isPending, latest, Loading, Sho
 import type { CronJob } from "../api/types.ts";
 import type { ApplicationGateway } from "../app/gateway.ts";
 import { isCronJobRunning, resolveCronJobLastRunStatus } from "../lib/cron-status.ts";
+import { automationSessionJobId } from "../lib/cron/automation-session.ts";
 import { isCronInventoryInvalidation } from "../lib/cron/inventory-connection.ts";
 import { loadCronJobsPage } from "../lib/cron/jobs-full.ts";
 import { createInitialCronState } from "../lib/cron/state.ts";
@@ -152,9 +153,15 @@ export function SessionHovercardAutomations(props: { automation: SessionHovercar
     }
     return null;
   };
-  const selected = createMemo(
-    () => state().cronJobs.find((job) => job.id === selectedId()) ?? state().cronJobs[0],
-  );
+  // Fork: an automation's own chat lists its own job first and opens on it; jobs the agent created
+  // from that chat follow by name (otherwise "nightly-followup" opened instead of "nightly-report").
+  const jobs = createMemo(() => {
+    const all = state().cronJobs;
+    const own = automationSessionJobId(props.automation.sessionKey)?.toLowerCase();
+    const index = own ? all.findIndex((job) => job.id.toLowerCase() === own) : -1;
+    return index > 0 ? [all[index]!, ...all.slice(0, index), ...all.slice(index + 1)] : all;
+  });
+  const selected = createMemo(() => jobs().find((job) => job.id === selectedId()) ?? jobs()[0]);
 
   const rowLabel = () =>
     state().cronJobsTotal === 1 && selected()
@@ -292,7 +299,7 @@ export function SessionHovercardAutomations(props: { automation: SessionHovercar
                 class="session-hovercard__automation-list"
                 aria-label={t("sessionHovercard.selectAutomation")}
               >
-                <For each={state().cronJobs} keyed={(job) => job.id}>
+                <For each={jobs()} keyed={(job) => job.id}>
                   {(job) => (
                     <button
                       ref={createHovercardControlRef()}
