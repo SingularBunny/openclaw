@@ -111,6 +111,11 @@ export class SessionCatalogStatusRows {
 
 const stores = new WeakMap<CatalogStatusRowsOwner, SessionCatalogStatusRows>();
 
+/** Fork: the status-window copy of one session, without starting a window for this owner. */
+export function peekCatalogStatusRow(owner: object, key: string): GatewaySessionRow | undefined {
+  return stores.get(owner as CatalogStatusRowsOwner)?.rows.find((row) => row.key === key);
+}
+
 /** The session data owner's status rows, created on first use. */
 export function catalogStatusRows(owner: CatalogStatusRowsOwner): SessionCatalogStatusRows {
   let store = stores.get(owner);
