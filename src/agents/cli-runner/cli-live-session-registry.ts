@@ -464,6 +464,7 @@ export function createCliLiveSessionCapability(params: {
 
   return Object.freeze({
     fingerprint,
+    idleTimeoutMs: params.context.backendResolved.config.liveSessionIdleMs,
     current: () => {
       assertActive();
       const handle = liveSessions.get(ownerKey)?.handle;
