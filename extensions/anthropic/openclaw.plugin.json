@@ -421,6 +421,11 @@
       "managedTurns": {
         "type": "boolean"
       },
+      "liveSessionIdleMinutes": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 1440
+      },
       "cliHistory": {
         "type": "object",
         "additionalProperties": false,
@@ -466,6 +471,10 @@
     "managedTurns": {
       "label": "Managed Claude CLI Turns",
       "help": "Fork (F62). On by default. Off keeps ordinary claude-cli turns as before 2026.11: Claude Code's own tools, skills, plugins, slash commands and Chrome, under OpenClaw's permission prompts. Restricted senders, delegated runs, explicit tool caps and tools.fs.workspaceOnly stay managed."
+    },
+    "liveSessionIdleMinutes": {
+      "label": "Claude Process Idle Minutes",
+      "help": "Fork. How long a chat's Claude Code process stays alive while idle (default 10). One process keeps one Claude in Chrome tab group for the chat; at most 16 processes run, the idle ones close first."
     },
     "cliHistory": {
       "label": "Claude CLI Chat History",

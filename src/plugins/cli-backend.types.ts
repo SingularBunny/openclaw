@@ -63,6 +63,11 @@ export type CliBackendConfig = {
    */
   historyAllowUnknownAuth?: boolean;
   /**
+   * Fork: how long an idle reusable process stays alive between turns (ms). A chat keeps one
+   * process, and with it one Claude in Chrome tab group, as long as it is not idle longer.
+   */
+  liveSessionIdleMs?: number;
+  /**
    * Fork (F72): how many unseen turns a resumed session receives (default 8). When set,
    * the newest turns are also kept within the reseed history character budget.
    */
@@ -238,6 +243,8 @@ export type CliBackendRewindFilesResult = {
 /** Closure-bound host capability for one admitted reusable-runtime turn. */
 export type CliBackendLiveSessionCapability = {
   fingerprint: string;
+  /** Fork: the backend's configured idle lifetime of the process (`liveSessionIdleMs`). */
+  idleTimeoutMs?: number;
   current(): CliBackendLiveSessionHandle | undefined;
   /** Retires the current process and awaits host-owned cleanup before replacement. */
   restart(): Promise<void>;
