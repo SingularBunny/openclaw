@@ -3,7 +3,9 @@
 Branches `aiwb/<version>`, each based on the `v<version>` upstream release. Package builds and installation are
 handled by [ai-workbench](https://github.com/SingularBunny/ai-workbench) (`WORKBENCH_OPENCLAW_PACKAGE`). The package is built by the
 `aiwb package` workflow (`.github/workflows/aiwb-package.yml`) on GitHub-hosted runners with signed build provenance;
-an `aiwb-*` tag publishes it as a release. Check a downloaded package with
+an `aiwb-*` tag publishes it as a release. On a port to a new upstream release, the generated protocol validators
+(`packages/gateway-protocol/src/compiled/protocol.generated/`, no text merge) are regenerated with
+`pnpm gateway:validators:gen`; CI fails when they are stale. Check a downloaded package with
 `gh attestation verify <file>.tgz -R SingularBunny/openclaw`. A local build: `tools/openclaw-fork-build.sh` in ai-workbench. Without the settings below the fork behaves as upstream. **Models** (in italics after each change): "any model" — the change works whatever model the agent runs on; "Claude CLI only" — it needs the `claude-cli` backend (Claude Code).
 
 - Worker queue and heap limits from the environment (`OPENCLAW_WORKER_*`)\
