@@ -11,6 +11,7 @@ import {
   restartCliLiveSession,
 } from "./cli-live-session-registry.js";
 import { cliBackendLog } from "./log.js";
+import { createCliModelRequestWatchdogBridge } from "./model-request-watchdog-fork.js";
 import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./native-wait-state.js";
 import type { PreparedCliRunContext } from "./types.js";
 
@@ -45,9 +46,18 @@ export function createCliForkStreamObservers(
     onBackgroundTasksChange?: (state: CliBackgroundTasksState) => void;
     onTodosChange?: (steps: ProgressCardStep[]) => void;
   },
-  run: Pick<PreparedCliRunContext["params"], "agentId" | "sessionKey" | "sessionId">,
+  run: Pick<
+    PreparedCliRunContext["params"],
+    "agentId" | "sessionKey" | "sessionId" | "runId" | "diagnosticOwner"
+  >,
 ) {
   const nativeWait = createCliNativeWaitObserver(params.env, params.onBackgroundTasksChange);
+  // 2026.11.5 session watchdog: request waits and retries extend the turn's allowance.
+  const modelRequests = createCliModelRequestWatchdogBridge({
+    attempt: run.diagnosticOwner?.watchdogAttempt,
+    runId: run.runId,
+    env: params.env,
+  });
   const onTodosChange = params.onTodosChange;
   const todos = onTodosChange
     ? createClaudeCliTodoObserver({
@@ -59,9 +69,13 @@ export function createCliForkStreamObservers(
     modelRequestGraceMs: nativeWait.modelRequestGraceMs,
     observe(value: Record<string, unknown>) {
       nativeWait.observe(value);
+      modelRequests.observe(value);
       todos?.observe(value);
     },
-    finish: () => nativeWait.finish(),
+    finish: () => {
+      modelRequests.close();
+      return nativeWait.finish();
+    },
   };
 }
 
