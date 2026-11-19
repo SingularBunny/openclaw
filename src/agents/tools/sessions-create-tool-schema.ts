@@ -17,7 +17,8 @@ export const SessionsCreateToolSchema = Type.Object(
     agentId: Type.Optional(
       Type.String({
         minLength: 1,
-        description: "Destination agent. Default: the requesting agent.",
+        description:
+          "Destination agent: its id or display name (agents_list). Default: the requesting agent.",
       }),
     ),
     cwd: Type.Optional(
