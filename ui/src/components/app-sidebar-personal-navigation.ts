@@ -27,8 +27,10 @@ import {
   type SidebarRecentSession,
   type SidebarPinZone,
 } from "./app-sidebar-session-types.ts";
+import { peekCatalogStatusRow } from "./session-catalog-status-rows.ts";
 import type { SessionDataOwner } from "./session-data.ts";
 import type { SessionOwnerFilter } from "./session-owner-filter.ts";
+import { newerSessionRow } from "./sidebar-freshest-session-row-fork.ts";
 import type { SidebarSnapshotModel } from "./sidebar-snapshot-model.ts";
 
 type PersonalNavigationHost = Parameters<typeof projectSidebarSessionReference>[0]["host"] & {
@@ -350,7 +352,11 @@ function readPersonalSidebarSession(
       navigationState,
       sessionResultsByAgent: host.sessionData.sessionResultsByAgent,
     }) ?? host.navigationCatalog.dashboards?.result?.sessions.find((row) => row.key === key);
-  return live ?? host.pinnedSessions.getRow(key);
+  // Fork: the pin shows the same copy as the Projects tree, the one the Gateway sampled last.
+  return newerSessionRow(
+    newerSessionRow(live, peekCatalogStatusRow(host.sessionData, key)),
+    host.pinnedSessions.getRow(key),
+  );
 }
 
 /** Stable owner rows invalidate group-tree lifecycle without changing roster membership. */
