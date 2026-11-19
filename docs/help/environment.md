@@ -161,6 +161,7 @@ Installed third-party plugins may declare additional credential variables in the
 | `OPENCLAW_SKIP_CHANNELS`             | Start the Gateway without channel transports for troubleshooting.                                      |
 | `OPENCLAW_THEME`                     | Force the TUI palette to `light` or `dark`.                                                            |
 | `OPENCLAW_MEDIA_MODEL_OVERRIDE`      | Fork: `0` ignores the model an agent names in the `image` or `pdf` tool; the configured model answers. |
+| `OPENCLAW_ASSISTANT_MEDIA_ROOTS`     | Fork: extra folders whose files the chat serves ([Extra chat-file folders](/web/control-ui/security-model#extra-chat-file-folders)). |
 
 ### Worker and catalog limits
 
@@ -246,7 +247,7 @@ The Control UI notice then says the Gateway is restarting or stopping and how ma
   recovery after the Gateway is back, as upstream does.
 
 `OPENCLAW_PLUGIN_GATEWAY_METHODS` grants a plugin that is neither bundled nor a trusted official install
-exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#api-runtime-gateway):
+exact Gateway methods for [`api.runtime.gateway.request`](/plugins/sdk-runtime/gateway-and-nodes#gateway-and-node-namespaces):
 `<plugin id>=<method>,<method>;<plugin id>=<method>`, for example
 `aiwb-claude-bridge=sessions.catalog.list,sessions.catalog.import,sessions.patch,session.visibility.set`.
 Wildcards are ignored. Granted requests run with `operator.write` (scopes the plugin requests are
