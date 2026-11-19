@@ -4,18 +4,11 @@ import { captureSessionEventTargetForHost } from "../../auto-reply/reply/session
 import type { SessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { shouldLogVerbose } from "../../globals.js";
 import { getAgentRunContext } from "../../infra/agent-run-registry.js";
-import { recordClaudeNativeCommands } from "../../infra/claude-native-commands.js";
-import type { ClaudeNativeCommand } from "../../infra/claude-native-commands.js";
 import { formatErrorMessage } from "../../infra/errors.js";
 import {
   resolveEventSessionKeyForPolicy,
   resolveEventSessionRoutingPolicy,
 } from "../../infra/event-session-routing.js";
-import {
-  clearPromptSuggestion,
-  emitPromptSuggestion,
-} from "../../infra/prompt-suggestion-events.js";
-import { enqueueSystemEvent } from "../../infra/system-events.js";
 import { createModelCallStreamProgressReporter } from "../../logging/diagnostic-model-stream-progress.js";
 import { beginDiagnosticBackendActivity } from "../../logging/diagnostic-run-activity.js";
 import type { CliBackendConfig } from "../../plugins/cli-backend.types.js";
@@ -37,6 +30,11 @@ import { CLI_PARTIAL_OUTPUT_REJECTED_ERROR_CODE } from "../failover/error.js";
 import type { CliEventHandlers } from "./execute-events.js";
 import { createCliAbortError, executeNodeClaudeRun } from "./execute-node-claude.js";
 import { executePluginOwnedProcess } from "./execute-plugin.js";
+import {
+  cliStallNoticeText,
+  createCliRunForkReporters,
+  enqueueCliStallNotice,
+} from "./execute-process-fork.js";
 import type { CliToolTracking } from "./execute-tool-tracking.js";
 import { attachCliReplyBackend } from "./execution-target.js";
 import {
@@ -56,8 +54,6 @@ import type { NodeClaudePlacement, PreparedCliRunContext } from "./types.js";
 
 const CLI_RUNNER_OUTPUT_PARSE_BYTES = 1024 * 1024;
 const CLI_RUNNER_OUTPUT_TAIL_BYTES = 64 * 1024;
-/** Fork (F38): one pending watchdog notice per session; a newer stall replaces it. */
-const CLI_WATCHDOG_EVENT_CONTEXT_KEY = "cli_watchdog";
 
 type ExecuteCliProcessOptions = {
   onPhase?: (phase: "send" | "resolve" | "cleanup") => void;
@@ -192,43 +188,13 @@ export async function executeCliProcess(params: {
         agentId: runParams.agentId,
       })
     : undefined;
-  // Claude Code predicts the operator's next prompt after each turn (composer ghost text).
-  // This run supersedes any earlier prediction; its own may arrive after the run closes.
-  const promptSuggestionSessionKey =
-    eventSessionKey &&
-    eventDelivery !== false &&
-    runParams.executionMode !== "side-question" &&
-    !runParams.isolatedCompletion &&
-    getAgentRunContext(runParams.runId)?.isControlUiVisible !== false
-      ? eventSessionKey
-      : undefined;
-  if (promptSuggestionSessionKey) {
-    clearPromptSuggestion(promptSuggestionSessionKey, runParams.runId);
-  }
-  const reportPromptSuggestion = promptSuggestionSessionKey
-    ? (text: string) => {
-        emitPromptSuggestion({
-          sessionKey: promptSuggestionSessionKey,
-          ...(eventAgentId ? { agentId: eventAgentId } : {}),
-          runId: runParams.runId,
-          text,
-        });
-      }
-    : undefined;
-  // Fork (F51): Claude's own commands and skills for the composer `/` autocomplete. Side
-  // questions, isolated completions and restricted runs start Claude without the user's setup.
-  const reportNativeCommands =
-    runParams.executionMode !== "side-question" &&
-    !runParams.isolatedCompletion &&
-    !runParams.cliToolAvailability
-      ? (commands: ClaudeNativeCommand[]) => {
-          recordClaudeNativeCommands({
-            sessionId: runParams.sessionId,
-            agentId: eventAgentId ?? runParams.agentId,
-            commands,
-          });
-        }
-      : undefined;
+  // Fork (F51): prompt prediction and Claude's own commands.
+  const { reportPromptSuggestion, reportNativeCommands } = createCliRunForkReporters({
+    run: runParams,
+    eventSessionKey,
+    eventAgentId,
+    eventDelivery,
+  });
   let eventTarget: SessionEventTarget | undefined;
   if (eventSessionKey && eventAgentId && params.events.emitLiveEvents) {
     try {
@@ -649,34 +615,13 @@ export async function executeCliProcess(params: {
         Boolean(runParams.sessionKey) &&
         runParams.timeoutMs - (performance.now() - context.startedMonotonicMs) > 0;
       if (runParams.sessionKey && params.events.emitLiveEvents && !deferNotice) {
-        const stallNotice = [
-          `CLI agent (${runParams.provider}) produced no output for ${timeoutSeconds}s and was terminated.`,
-          ...(awaitingModelResponse
-            ? ["It was waiting for the model API to start responding."]
-            : [
-                "It may have been waiting for interactive input or an approval prompt.",
-                "Check CLI permission settings and OpenClaw approval prompts.",
-              ]),
-        ].join(" ");
-        // Fork (F38): the notice is passive. It used to be queued as an `exec` session event,
-        // which showed as "background command finished" and woke the agent for an extra turn
-        // after the fallback model had already answered. The agent now reads it as a `System:`
-        // line at the start of its next turn.
+        const stallNotice = cliStallNoticeText({
+          provider: runParams.provider,
+          timeoutSeconds,
+          awaitingModelResponse,
+        });
         if (eventSessionKey && eventAgentId && eventTarget) {
-          try {
-            eventTarget.assertCurrent?.();
-            enqueueSystemEvent(stallNotice, {
-              sessionKey: eventSessionKey,
-              contextKey: CLI_WATCHDOG_EVENT_CONTEXT_KEY,
-              replace: true,
-              ...(eventTarget.storePath ? { sessionStorePath: eventTarget.storePath } : {}),
-              ...(eventTarget.deliveryContext
-                ? { deliveryContext: eventTarget.deliveryContext }
-                : {}),
-            });
-          } catch (error) {
-            cliBackendLog.warn(`CLI watchdog notice rejected: ${formatErrorMessage(error)}`);
-          }
+          enqueueCliStallNotice(stallNotice, { sessionKey: eventSessionKey, target: eventTarget });
         }
       }
       throw timeoutDecision.error;
