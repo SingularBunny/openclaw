@@ -52,6 +52,8 @@ jobs:
         run: corepack enable
       - name: Install
         run: pnpm install --frozen-lockfile
+      - name: Generated protocol validators are current
+        run: pnpm gateway:validators:check
       - name: ACPX
         id: acpx
         # Before the core build, as in ai-workbench tools/openclaw-fork-build.sh: the plugin pack builds its own
