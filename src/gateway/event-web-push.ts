@@ -24,6 +24,10 @@ import {
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { isTranscriptOnlyOpenClawAssistantMessage } from "../shared/transcript-only-openclaw-assistant.js";
 import { resolveControlUiWebPushUrl } from "./control-ui-shared.js";
+import {
+  createClaudeLoginExpiredPushGate,
+  resolveClaudeLoginExpiredWebPush,
+} from "./event-web-push-claude-login-fork.js";
 import { QUESTIONS_SCOPE } from "./method-scopes.js";
 import { ADMIN_SCOPE, READ_SCOPE } from "./operator-scopes.js";
 import type { GatewayBroadcastOpts } from "./server-broadcast-types.js";
@@ -335,8 +339,17 @@ export function createEventWebPushDelivery(
     });
   };
 
+  const claudeLoginPushGate = createClaudeLoginExpiredPushGate();
   return {
     handleEvent(event: string, payload: unknown, opts?: GatewayBroadcastOpts): void {
+      // Fork: an expired Claude Code login replaces the generic copy and is rate limited.
+      const claudeLogin = resolveClaudeLoginExpiredWebPush(event, payload);
+      if (claudeLogin) {
+        if (claudeLoginPushGate()) {
+          deliver(claudeLogin, event, payload, opts);
+        }
+        return;
+      }
       const notification = resolveEventWebPushNotification(event, payload);
       if (notification) {
         deliver(notification, event, payload, opts);
