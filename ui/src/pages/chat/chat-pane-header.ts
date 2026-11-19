@@ -14,6 +14,7 @@ import { registerChatSessionEnglish } from "../../i18n/locales/en-chat-session.t
 import { isGatewayMethodAdvertised } from "../../lib/gateway-methods.ts";
 import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
 import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
+import { autoOpenAutomationRuns } from "./automation-runs-auto-open.ts";
 import { resolveChatAgentIdentity } from "./chat-agent-id.ts";
 import { ChatCommandMenuActions } from "./chat-command-menu-actions.ts";
 import {
@@ -661,6 +662,11 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
       onSplitRight: this.onSplitRight,
       onClosePane: this.onClosePane,
     };
+    if (header.automationControl) {
+      // Fork: the automation's run history opens on the right the first time the chat shows.
+      const { sessionKey, onOpenRuns } = header.automationControl;
+      autoOpenAutomationRuns(sessionKey, onOpenRuns);
+    }
     const continueCommand = this.currentContinueInTerminalCommand(row);
     return {
       header,

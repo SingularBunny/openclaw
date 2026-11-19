@@ -154,8 +154,8 @@ describe("automation runs panel", () => {
     expect(request).toHaveBeenCalledWith(
       "cron.runs",
       expect.objectContaining({
-        scope: "all",
-        sessionKey: JOB_KEY,
+        scope: "job",
+        id: "job-1",
         limit: 20,
         offset: 0,
         sortDir: "desc",
@@ -171,7 +171,7 @@ describe("automation runs panel", () => {
     await settle(panel);
     expect(request).toHaveBeenLastCalledWith(
       "cron.runs",
-      expect.objectContaining({ scope: "all", sessionKey: JOB_KEY, offset: 2 }),
+      expect.objectContaining({ scope: "job", id: "job-1", offset: 2 }),
     );
     expect(rows().map((row) => row.dataset.runStatus)).toEqual(["ok", "error", "skipped"]);
     expect(panel.querySelector(".chat-automation-runs__more")).toBeNull();
@@ -264,44 +264,23 @@ describe("automation chat with jobs that target it by session", () => {
     sessionTarget: `session:${JOB_KEY}`,
   } as Partial<CronJob>);
 
-  it("lists their runs with the job name and opens them under their own job", async () => {
+  it("lists only this automation's own runs, without job names", async () => {
     const { panel, request } = mountPanel((method) => {
       if (method === "cron.list") {
-        return listJobs(followUp, job("job-1"), job("job-unrelated"));
+        return listJobs(followUp, job("job-1"));
       }
       if (method === "cron.runs") {
-        return {
-          entries: [
-            run(0, { jobId: "job-follow", sessionKey: JOB_KEY, runId: "follow-0" }),
-            run(1),
-            run(2, { jobId: "job-gone", jobName: "Removed one-shot", sessionKey: JOB_KEY }),
-          ],
-          total: 3,
-          offset: 0,
-          hasMore: false,
-        };
-      }
-      if (method === "cron.history") {
-        return { messages: [{ role: "assistant", content: "Follow-up output" }] };
+        return { entries: [run(0), run(1)], total: 2, offset: 0, hasMore: false };
       }
       throw new Error(`unexpected ${method}`);
     });
     await settle(panel);
-    const names = [...panel.querySelectorAll('[data-test-id="automation-run-job"]')].map(
-      (node) => node.textContent,
-    );
-    expect(names).toEqual(["Night follow-up", "Morning digest", "Removed one-shot"]);
-    panel.querySelectorAll<HTMLButtonElement>(".chat-automation-runs__run")[0]!.click();
-    await vi.waitFor(() => expect(panel.textContent).toContain("Follow-up output"));
     expect(request).toHaveBeenCalledWith(
-      "cron.history",
-      expect.objectContaining({ id: "job-follow", runId: "follow-0" }),
+      "cron.runs",
+      expect.objectContaining({ scope: "job", id: "job-1", sessionKey: undefined }),
     );
-    expect(
-      panel
-        .querySelector('[data-test-id="automation-runs-open-in-automations"]')
-        ?.getAttribute("href"),
-    ).toBe("/ui/automations?job=job-follow&run=follow-0");
+    expect(panel.querySelectorAll(".chat-automation-runs__run")).toHaveLength(2);
+    expect(panel.querySelector('[data-test-id="automation-run-job"]')).toBeNull();
   });
 
   it("offers a menu of every job that delivers here, for admins only", async () => {
