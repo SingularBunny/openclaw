@@ -3,6 +3,18 @@ import { en } from "./en.ts";
 
 const enModelControls = {
   chat: {
+    // Fork (F89): the attempt and reason next to "Retrying…".
+    retryDetail: {
+      attemptOf: "attempt {attempt} of {max}",
+      attempt: "attempt {attempt}",
+      reason: {
+        rate_limit: "rate limit",
+        overloaded: "model overloaded",
+        server_error: "server error",
+        timeout: "no response",
+        output_limit: "output limit",
+      },
+    },
     // Fork: switching who answers a chat by buttons (models and ACP agents).
     handoff: {
       agentsGroup: "Agents",

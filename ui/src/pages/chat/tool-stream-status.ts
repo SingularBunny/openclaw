@@ -6,6 +6,7 @@ import {
 import type { SessionOperationEvent } from "../../../../packages/gateway-protocol/src/schema/sessions.js";
 import { formatUiError, formatUiExternalText } from "../../lib/format-error.ts";
 import { uiSessionEventMatches } from "../../lib/sessions/session-key.ts";
+import { withChatRetryDetail } from "./chat-retry-detail-fork.ts";
 import { reconcileChatRunStartup } from "./chat-run-startup.ts";
 import { applyCliBackgroundTasksEvent } from "./cli-background-tasks.ts";
 import type {
@@ -341,6 +342,7 @@ export function handleStreamStatus(host: ToolStreamHost, payload: AgentEventPayl
         ...(typeof payload.data.retryAt === "number" && Number.isFinite(payload.data.retryAt)
           ? { retryAt: payload.data.retryAt }
           : {}),
+        ...withChatRetryDetail(payload.data),
         seq: payload.seq,
       });
     }

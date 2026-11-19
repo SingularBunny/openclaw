@@ -50,7 +50,11 @@ function sameStartupPresentation(
     (left.phase === "retrying" || left.phase === "fallback") &&
     (right.phase === "retrying" || right.phase === "fallback")
   ) {
-    return left.retryAt === right.retryAt;
+    // Fork (F89): a new attempt or reason is a new status too.
+    return (
+      left.retryAt === right.retryAt &&
+      JSON.stringify(left.detail ?? null) === JSON.stringify(right.detail ?? null)
+    );
   }
   return true;
 }

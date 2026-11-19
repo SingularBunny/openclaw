@@ -12,6 +12,7 @@ import {
 } from "./cli-live-session-registry.js";
 import { cliBackendLog } from "./log.js";
 import { createCliModelRequestWatchdogBridge } from "./model-request-watchdog-fork.js";
+import { createCliModelRetryStatusObserver } from "./model-retry-status-fork.js";
 import { type CliBackgroundTasksState, createCliNativeWaitObserver } from "./native-wait-state.js";
 import type { PreparedCliRunContext } from "./types.js";
 
@@ -37,8 +38,8 @@ export function cliForkExecuteContext(
 }
 
 /**
- * Stream observers of one turn: silent native waits (model request, background tasks; F33, F36)
- * and Claude's todo list as progress-card steps (F45).
+ * Stream observers of one turn: silent native waits (model request, background tasks; F33, F36),
+ * model request retries shown in the chat (F89) and Claude's todo list as progress-card steps (F45).
  */
 export function createCliForkStreamObservers(
   params: {
@@ -48,7 +49,7 @@ export function createCliForkStreamObservers(
   },
   run: Pick<
     PreparedCliRunContext["params"],
-    "agentId" | "sessionKey" | "sessionId" | "runId" | "diagnosticOwner"
+    "agentId" | "sessionKey" | "sessionId" | "runId" | "diagnosticOwner" | "executionMode"
   >,
 ) {
   const nativeWait = createCliNativeWaitObserver(params.env, params.onBackgroundTasksChange);
@@ -58,6 +59,8 @@ export function createCliForkStreamObservers(
     runId: run.runId,
     env: params.env,
   });
+  // F89: Claude CLI's own retries of a model request, shown in the chat.
+  const modelRetries = createCliModelRetryStatusObserver(run);
   const onTodosChange = params.onTodosChange;
   const todos = onTodosChange
     ? createClaudeCliTodoObserver({
@@ -70,6 +73,7 @@ export function createCliForkStreamObservers(
     observe(value: Record<string, unknown>) {
       nativeWait.observe(value);
       modelRequests.observe(value);
+      modelRetries.observe(value);
       todos?.observe(value);
     },
     finish: () => {
