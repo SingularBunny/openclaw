@@ -8,6 +8,7 @@ vi.mock("../../lib/gateway-methods.ts", () => ({ canCallGatewayMethod: () => tru
 import {
   createChatHandoffController,
   findPromptBefore,
+  followChatBindingCommand,
   handOffChat,
   isRefusalHandedOff,
   readChatAcpModels,
@@ -368,5 +369,31 @@ describe("refusal hand-off (I14)", () => {
       { resendBefore: "a1" },
     );
     expect(requests.map(([method]) => method)).not.toContain("chat.refusal.handoff");
+  });
+
+  it("a typed /acp spawn whose agent comes up late is still picked up", async () => {
+    vi.useFakeTimers();
+    const { state, info, requests } = createChat({ agents: ["junie"] });
+    const followed = followChatBindingCommand(state, SESSION, null);
+    // The command's turn has ended; the agent binds the chat a few seconds later.
+    setTimeout(() => {
+      info.binding = { agent: "junie", targetSessionKey: "agent:main:acp:1" };
+    }, 5_000);
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect((await followed)?.binding?.agent).toBe("junie");
+    expect(readChatHandoffInfo(state, SESSION)?.binding?.agent).toBe("junie");
+    const reads = requests.filter(([method]) => method === "acpx.chat.handoff.get").length;
+    expect(reads).toBeGreaterThan(1);
+    expect(reads).toBeLessThan(6);
+  });
+
+  it("stops following a binding command after its time limit", async () => {
+    vi.useFakeTimers();
+    const { state, requests } = createChat();
+    const followed = followChatBindingCommand(state, SESSION, null);
+    await vi.advanceTimersByTimeAsync(11 * 60_000);
+    expect((await followed)?.binding).toBeNull();
+    const reads = requests.filter(([method]) => method === "acpx.chat.handoff.get").length;
+    expect(reads).toBeLessThan(60);
   });
 });

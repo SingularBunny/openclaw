@@ -2,6 +2,8 @@ import { scopedAgentParamsForSession } from "../../lib/sessions/navigation.ts";
 import { routeChatGroupSend } from "./chat-group.ts";
 import {
   canUseChatAcpModels,
+  followChatBindingCommand,
+  readChatHandoffInfo,
   refreshChatAcpModels,
   refreshChatHandoffInfo,
   waitForChatIdle,
@@ -33,12 +35,17 @@ export function sendForkChat(
   const sent = handleSendChat(state, messageOverride, options, send.submissionAction);
   // A typed /acp or /session command can bind or unbind the chat; re-read its binding.
   if (isCommand && /^\/(?:acp|session)\b/u.test(message.trim())) {
+    const sessionKey = state.sessionKey;
+    const binds = /^\/acp\s+(?:(?:bind|close|unbind)\b|spawn\b.*\s--bind\b)/u.test(message.trim());
+    const before = readChatHandoffInfo(state, sessionKey)?.binding;
     void sent.then(async () => {
       await waitForChatIdle(state);
-      const info = await refreshChatHandoffInfo(state);
+      const info = binds
+        ? await followChatBindingCommand(state, sessionKey, before)
+        : await refreshChatHandoffInfo(state, sessionKey);
       // A typed `/acp model` changes the bound agent's model; the picker shows it.
       if (info?.binding && canUseChatAcpModels(state)) {
-        await refreshChatAcpModels(state);
+        await refreshChatAcpModels(state, sessionKey);
       }
     });
   }

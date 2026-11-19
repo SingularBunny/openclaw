@@ -103,6 +103,33 @@ export async function refreshChatHandoffInfo(
   }
 }
 
+/** How long a typed binding command may take: `/acp spawn` waits until the agent is up. */
+const BINDING_FOLLOW_MS = 10 * 60_000;
+const BINDING_FOLLOW_MAX_STEP_MS = 15_000;
+
+/**
+ * Re-reads the chat's binding after a typed `/acp spawn|bind|close|unbind` until it differs from
+ * `before`. The command's turn can end long before the agent is bound (a slow agent start took six
+ * minutes), so one read after the turn missed the binding and the return chip came only on reload.
+ */
+export async function followChatBindingCommand(
+  state: ChatPageHost,
+  sessionKey: string,
+  before: ChatHandoffInfo["binding"] | undefined,
+): Promise<ChatHandoffInfo | undefined> {
+  const was = JSON.stringify(before ?? null);
+  const deadline = Date.now() + BINDING_FOLLOW_MS;
+  let step = 1_000;
+  for (;;) {
+    const info = await refreshChatHandoffInfo(state, sessionKey);
+    if (JSON.stringify(info?.binding ?? null) !== was || Date.now() + step > deadline) {
+      return info;
+    }
+    await sleep(step);
+    step = Math.min(step * 2, BINDING_FOLLOW_MAX_STEP_MS);
+  }
+}
+
 /** Loads the chat's binding once per session; later reads follow the switches made here. */
 export function ensureChatHandoffInfo(state: ChatPageHost, sessionKey = state.sessionKey) {
   const pending = pendingInfo.get(state) ?? new Set<string>();
