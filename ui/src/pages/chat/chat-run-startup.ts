@@ -4,6 +4,7 @@ import type { ApplicationPlacementStartupStatus } from "../../app/session-placem
 import { t } from "../../i18n/index.ts";
 import { registerChatComposerEnglish } from "../../i18n/locales/en-chat-composer.ts";
 import { registerNewSessionRuntimeEnglish } from "../../i18n/locales/en-new-session-runtime.ts";
+import { chatRetryDetailLabel, type ChatRetryDetail } from "./chat-retry-detail-fork.ts";
 
 registerChatComposerEnglish();
 
@@ -25,6 +26,8 @@ export type ChatRunStartupState =
       runId: string;
       phase: "retrying" | "fallback";
       retryAt?: number;
+      /** Fork (F89): the attempt and the reason, when the Gateway reported them. */
+      detail?: ChatRetryDetail;
       seq: number;
     }
   | { state: "activity"; runId: string; seq?: number };
@@ -145,7 +148,8 @@ export function chatStartupStatusLabel(
       return undefined;
     }
     if (run.phase === "retrying") {
-      return t("chat.recovery.retrying");
+      const detail = chatRetryDetailLabel(run.detail);
+      return detail ? `${t("chat.recovery.retrying")} ${detail}` : t("chat.recovery.retrying");
     }
     if (run.phase === "fallback") {
       return t("chat.recovery.tryingFallback");

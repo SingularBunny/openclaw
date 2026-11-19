@@ -39,6 +39,7 @@ type ChatWorkingIndicatorOptions = {
   onOpenSubagents?: () => void;
   startupLabel?: string;
   retryAt?: number;
+  retryDetail?: string;
   outputTokens?: number | null;
   presentation?: "standalone" | "continuation";
 };
@@ -149,7 +150,10 @@ function WorkingStatus(props: WorkingProps & { branding: ThemeBranding }) {
               when={!waitingApproval() && props.options.retryAt !== undefined}
               fallback={statusLabel()}
             >
-              <ChatRetryStatus retryAt={props.options.retryAt ?? null} />
+              <ChatRetryStatus
+                retryAt={props.options.retryAt ?? null}
+                detail={props.options.retryDetail}
+              />
             </Show>
           </span>
           <Show
@@ -252,7 +256,12 @@ export function ChatWorkingIndicator(props: WorkingProps) {
               <span class="chat-activity-group__label chat-activity-group__label--live">
                 <Show
                   when={props.options.waitingApproval}
-                  fallback={<ChatRetryStatus retryAt={props.options.retryAt ?? null} />}
+                  fallback={
+                    <ChatRetryStatus
+                      retryAt={props.options.retryAt ?? null}
+                      detail={props.options.retryDetail}
+                    />
+                  }
                 >
                   {t("chat.waitingForApproval")}
                 </Show>

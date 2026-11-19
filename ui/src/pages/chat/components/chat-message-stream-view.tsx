@@ -48,6 +48,7 @@ export type StreamGroupOptions = MessageRenderOptions & {
   showAssistantAvatar?: boolean;
   startupLabel?: string;
   retryAt?: number;
+  retryDetail?: string;
   waitingApproval?: boolean;
   waitingSubagents?: ChatSubagentWait;
   runningSubagents?: number;
@@ -143,6 +144,7 @@ export function StreamPartView(props: {
               onOpenSubagents: props.options.onOpenSubagents,
               startupLabel: props.options.startupLabel,
               retryAt: props.options.retryAt,
+              retryDetail: props.options.retryDetail,
               outputTokens: props.options.runOutputTokens,
               presentation: props.presentation,
             }}

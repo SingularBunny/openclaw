@@ -959,8 +959,9 @@ describe("handleChatGatewayEvent", () => {
         seq: attempt,
         retry: { attempt, maxAttempts: 10, reason: "rate_limit", retryAt: 10_000 + attempt },
       });
+      // Fork (F89): the attempt and the reason follow "Retrying…".
       expect(chatStartupStatusLabel(activeChatRunStartupStatus(state.chatRunStartup), null)).toBe(
-        "Retrying…",
+        `Retrying… attempt ${attempt} of 10 · rate limit`,
       );
       expect(state.chatRunStartup).toMatchObject({
         phase: "retrying",
