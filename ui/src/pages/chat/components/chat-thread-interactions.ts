@@ -150,6 +150,8 @@ export type ChatThreadProps = Omit<
     runFinalizing?: boolean;
     startupLabel?: string;
     retryAt?: number;
+    /** Fork (F89): "attempt 3 of 10 · model overloaded" next to the retry countdown. */
+    retryDetail?: string;
     onRetryRun?: (runId: string) => void;
     failureActionsRunId?: string;
     onDismissPendingInput?: (inputId: string) => void;

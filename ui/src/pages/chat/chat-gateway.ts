@@ -17,6 +17,7 @@ import { isUiGlobalSessionKey, resolveUiDefaultAgentId } from "../../lib/session
 import { materializeVisibleAssistantStreamMessages } from "./chat-history-stream.ts";
 import type { ChatEventPayload } from "./chat-history.ts";
 import { withChatReasoning } from "./chat-reasoning.ts";
+import { withChatRetryDetail } from "./chat-retry-detail-fork.ts";
 import { isChatRunRecoveryStatus, reconcileChatRunStartup } from "./chat-run-startup.ts";
 import type { ChatState } from "./chat-state-contract.ts";
 import { transcriptRunId } from "./chat-thread-run-identity.ts";
@@ -435,6 +436,7 @@ export function handleChatGatewayEvent(state: ChatState, incoming?: ChatEventPay
           phase: "retrying" as const,
           seq: payload.seq,
           ...(payload.retry.retryAt === undefined ? {} : { retryAt: payload.retry.retryAt }),
+          ...withChatRetryDetail(payload.retry),
         }
       : payload.phase && {
           phase: payload.phase,

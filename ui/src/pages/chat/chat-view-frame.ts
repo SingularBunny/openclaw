@@ -27,6 +27,7 @@ import {
   isPendingInputDismissHidden,
 } from "./chat-pending-inputs.ts";
 import type { ChatProviderReviewOwner } from "./chat-provider-review-controller.tsx";
+import { chatRetryDetailLabel } from "./chat-retry-detail-fork.ts";
 import { chatStartupStatusLabel } from "./chat-run-startup.ts";
 import { isChatRunWorking } from "./chat-run-working.ts";
 import type { ChatState } from "./chat-state-contract.ts";
@@ -57,6 +58,7 @@ export type ChatProps = Omit<
   | "runFinalizing"
   | "startupLabel"
   | "retryAt"
+  | "retryDetail"
   | "failureActionsRunId"
   | "questionPrompts"
   | "agents"
@@ -280,6 +282,9 @@ export function createChatViewFrame(
       return startupLabel();
     },
     retryAt: props.startupStatus?.phase === "retrying" ? props.startupStatus.retryAt : undefined,
+    retryDetail: chatRetryDetailLabel(
+      props.startupStatus?.phase === "retrying" ? props.startupStatus.detail : undefined,
+    ),
     failureActionsRunId: chatFailureRunId(props.runError, props.selectedSession),
     questionPrompts: props.gatewayQuestionPrompts,
     agents: props.agentsList?.agents,

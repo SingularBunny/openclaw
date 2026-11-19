@@ -3,7 +3,7 @@ import { t } from "../../../lib/reactive/i18n.ts";
 import { readVisibleTime } from "../../../lib/reactive/visible-clock.ts";
 
 /** Counts down an owner-reported deadline; never guesses timing from provider text. */
-export function ChatRetryStatus(props: { retryAt: number | null }) {
+export function ChatRetryStatus(props: { retryAt: number | null; detail?: string }) {
   const remaining = createMemo(() => {
     const now = Date.now();
     const deadline = props.retryAt ?? 0;
@@ -17,6 +17,8 @@ export function ChatRetryStatus(props: { retryAt: number | null }) {
       {remaining() > 0
         ? t("chat.recovery.retryingIn", { seconds: String(remaining()) })
         : t("chat.recovery.retrying")}
+      {/* Fork (F89): the attempt and the reason. */}
+      {props.detail ? ` · ${props.detail}` : ""}
     </openclaw-chat-retry-status>
   );
 }
