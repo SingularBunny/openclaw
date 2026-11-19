@@ -277,7 +277,7 @@ describe("automation chat with jobs that target it by session", () => {
     await settle(panel);
     expect(request).toHaveBeenCalledWith(
       "cron.runs",
-      expect.objectContaining({ scope: "job", id: "job-1", sessionKey: undefined }),
+      expect.objectContaining({ scope: "job", id: "job-1" }),
     );
     expect(panel.querySelectorAll(".chat-automation-runs__run")).toHaveLength(2);
     expect(panel.querySelector('[data-test-id="automation-run-job"]')).toBeNull();

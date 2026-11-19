@@ -1,5 +1,4 @@
 import { validateCronRunsParams } from "../../../packages/gateway-protocol/src/index.js";
-import { cronJobsDeliveringToChat, cronRunBelongsToChat } from "../../cron/run-history-chat.js";
 import {
   isInvalidCronRunJobIdError,
   projectCronRunHistoryPage,
@@ -40,10 +39,6 @@ export const cronRunsHandler: GatewayRequestHandler = async (options) => {
       throw new Error("Cron history store changed; retry the request");
     }
   };
-  if (p.sessionKey !== undefined && scope !== "all") {
-    respondInvalidCronParams(respond, "cron.runs", "sessionKey requires scope all");
-    return;
-  }
   if (scope === "all" && readCronCallerScope(client)) {
     respondInvalidCronParams(respond, "cron.runs", "scope all is not allowed by caller scope");
     return;
@@ -76,29 +71,16 @@ export const cronRunsHandler: GatewayRequestHandler = async (options) => {
           defaultAgentId,
         ).filter((job) => cronJobIsVisible(job, visibility, defaultAgentId));
         const visibleIds = new Set(jobs.map((job) => job.id));
-        // Fork: `sessionKey` keeps only runs that land in that chat, from any job.
-        const inChat = p.sessionKey
-          ? cronRunBelongsToChat(
-              p.sessionKey,
-              cronJobsDeliveringToChat(
-                p.sessionKey,
-                loadedJobs.flatMap(({ id }) => context.cron.getJob(id) ?? []),
-              ),
-            )
-          : undefined;
         return {
           storeKey,
           ...cronRunLogPageFilters(p),
           agentId: p.agentId,
           jobNameById: Object.fromEntries(jobs.map((job) => [job.id, job.name])),
-          entryFilter:
-            visibility || inChat
-              ? (entry) =>
-                  (!inChat || inChat(entry)) &&
-                  (!visibility ||
-                    (visibleIds.has(entry.jobId) &&
-                      (!entry.sessionKey || visibility(entry.sessionKey, p.agentId))))
-              : undefined,
+          entryFilter: visibility
+            ? (entry) =>
+                visibleIds.has(entry.jobId) &&
+                (!entry.sessionKey || visibility(entry.sessionKey, p.agentId))
+            : undefined,
         };
       }
       const job = context.cron.getJob(jobId!);

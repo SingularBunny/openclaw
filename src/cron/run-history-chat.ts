@@ -1,5 +1,3 @@
-import type { CronRunLogEntry } from "./run-log-types.js";
-
 const AUTOMATION_CHAT_KEY = /^agent:[^:]+:cron:([^:]+)$/i;
 const RUN_SUFFIX = /:run:[^:]+$/i;
 
@@ -25,18 +23,4 @@ export function cronJobsDeliveringToChat(
       )
       .map((job) => job.id),
   );
-}
-
-/**
- * Runs that belong to a chat: recorded in it (or in one of its isolated run sessions), or made by a
- * job that delivers into it (covers runs recorded without a session, such as interrupted ones).
- */
-export function cronRunBelongsToChat(
-  sessionKey: string,
-  jobIds: ReadonlySet<string>,
-): (entry: Pick<CronRunLogEntry, "jobId" | "sessionKey">) => boolean {
-  const chatKey = cronChatSessionKey(sessionKey);
-  return (entry) =>
-    jobIds.has(entry.jobId) ||
-    (typeof entry.sessionKey === "string" && cronChatSessionKey(entry.sessionKey) === chatKey);
 }
