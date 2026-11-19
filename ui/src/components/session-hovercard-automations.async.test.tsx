@@ -272,3 +272,21 @@ it("names a scheduled plugin command instead of its reserved placeholder", async
   });
   expect(ui.text()).not.toContain(placeholder);
 });
+
+it("opens an automation chat on its own job before jobs created from that chat", async () => {
+  const request = createGatewayRequestMock().mockResolvedValue(
+    cronJobsListResponse(
+      [createCronJob("cascade", "nightly-followup"), createCronJob("morning", "nightly-report")],
+      { limit: 20 },
+    ),
+  );
+  const ui = mount(connect(request));
+  ui.setAutomation((current) => ({ ...current, sessionKey: "agent:main:cron:morning" }));
+  await waitForSolid(() => {
+    expect(ui.name()?.textContent).toBe("nightly-report");
+    const choices = [
+      ...ui.view.container.querySelectorAll(".session-hovercard__automation-choice span"),
+    ];
+    expect(choices.map((node) => node.textContent)).toEqual(["nightly-report", "nightly-followup"]);
+  });
+});
