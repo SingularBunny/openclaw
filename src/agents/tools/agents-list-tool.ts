@@ -11,6 +11,7 @@ import {
   resolveSubagentSpawnTargetConfig,
 } from "../subagents/spawn/subagent-target-policy.js";
 import { describeAgentsListTool } from "../tool-description-presets.js";
+import { agentDisplayName } from "./agent-target-by-name-fork.js";
 import type { AnyAgentTool } from "./common.js";
 import { jsonResult } from "./common.js";
 import { resolveInternalSessionKey, resolveMainSessionAlias } from "./sessions-helpers.js";
@@ -106,7 +107,8 @@ export function createAgentsListTool(opts?: {
         });
         return {
           id,
-          name: configuredNameMap.get(id),
+          // Fork: the identity name the owner sees, when the entry has no plain name.
+          name: configuredNameMap.get(id) ?? agentDisplayName(cfg, id),
           configured: configuredIds.includes(id),
           model,
           agentRuntime,

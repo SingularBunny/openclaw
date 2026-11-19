@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import type { SessionsCreateParams } from "../../../packages/gateway-protocol/src/schema/sessions-create.js";
+import { getRuntimeConfig } from "../../config/config.js";
 import { composeSessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { operatorScopeSatisfied } from "../../shared/operator-scope-compat.js";
 import {
@@ -8,6 +9,7 @@ import {
   type AdmittedRunOperatorAuthority,
 } from "../admitted-run-context.js";
 import { gateAgentToolExecution } from "../agent-tool-availability.js";
+import { resolveAgentTargetId, withAgentListOnUnknownAgent } from "./agent-target-by-name-fork.js";
 import {
   jsonResult,
   readToolStringParam,
@@ -27,6 +29,15 @@ import {
 } from "./in-process-gateway.js";
 import { SessionsCreateToolSchema } from "./sessions-create-tool-schema.js";
 import { hasSessionWriteAuthority } from "./sessions-operator-authority.js";
+
+/** Fork: the agent list for name lookup; none when the runtime config is not prepared. */
+function readAgentConfig() {
+  try {
+    return getRuntimeConfig();
+  } catch {
+    return undefined;
+  }
+}
 
 /** The existing creation owner grants access; model input only selects destination settings. */
 async function createSessionFromTool(
@@ -80,8 +91,9 @@ async function createSessionFromTool(
   ) {
     throw new ToolInputError("Invalid permissionMode");
   }
+  const targetAgent = readOption("agentId");
   const request: SessionsCreateParams = {
-    agentId: readOption("agentId") ?? caller.agentId,
+    agentId: targetAgent ? resolveAgentTargetId(readAgentConfig(), targetAgent) : caller.agentId,
     ...(message !== undefined ? { message } : {}),
     label: readOption("label"),
     cwd: readOption("cwd"),
@@ -125,6 +137,8 @@ async function createSessionFromTool(
         },
       ),
     },
+  }).catch((error: unknown) => {
+    throw withAgentListOnUnknownAgent(readAgentConfig(), error);
   });
   return jsonResult({
     sessionKey: result.key,
