@@ -98,7 +98,6 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
     retireCronRunsRequest(this.cron);
     clearCronRunsPage(this.cron);
     this.cron.cronRunsJobId = null;
-    this.cron.cronRunsSessionKey = null;
     this.cron.cronRunsLoadingMore = false;
     this.cron.client = null;
     this.cron.connected = false;
