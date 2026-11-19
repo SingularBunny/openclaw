@@ -53,6 +53,8 @@ By default, approval request and resolution notifications are enabled, and every
 
 Selecting an attention notification opens its question, conversation, or automation run on the Gateway that produced it. **Agent finished** waits for completion. A parent waiting for child agents does not count as finished. The device currently showing that conversation does not receive its **Agent finished** push; other subscribed devices still do. Hiding the conversation or opening another one restores normal notification delivery for that device. Automation failures use **Scheduled task failures**, without also generating a **Background task failures** alert for the same run.
 
+When a Claude CLI chat or automation fails because Claude Code's own subscription login expired, the push reads **Claude login expired** instead of the generic copy: chats and automations on Claude CLI stop until you run `claude auth login` on the Gateway host. It uses the category of the failure (**Scheduled task failures** for an automation, **Agent finished** for a chat), shares one tag so repeated failures replace the shown notice, and is sent at most once per 30 minutes. A reply that only quotes the message does not trigger it.
+
 The detail levels are:
 
 - **Private** — generic attention text only.
