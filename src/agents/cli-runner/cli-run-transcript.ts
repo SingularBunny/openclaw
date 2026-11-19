@@ -1,11 +1,6 @@
-import { normalizeProviderId } from "@openclaw/model-catalog-core/provider-id";
 import { cloneEnvWithPlatformSemantics } from "../../config/config-env-vars.js";
 import { getCliHistoryWriter } from "../../config/sessions/cli-history-boundary.js";
-import {
-  CLI_SESSION_RESUME_POINT_KEY,
-  hashCliSessionResumeCompat,
-  type CliSessionResumePoint,
-} from "../../config/sessions/cli-session-binding.js";
+import type { CliSessionResumePoint } from "../../config/sessions/cli-session-binding.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import {
   patchSessionEntryCore,
@@ -59,7 +54,13 @@ import { withSessionManagerWrite } from "../sessions/session-manager-write-admis
 import { SessionManager } from "../sessions/session-manager.js";
 import { buildAssistantMessage, buildUsageWithNoCost } from "../stream-message-shared.js";
 import { cliAssistantItemId } from "./assistant-identity.js";
+import {
+  cliTranscriptMetadataEnvelope,
+  resolveCliTranscriptResumePoint,
+} from "./cli-run-transcript-fork.js";
 import type { PreparedCliRunContext, RunCliAgentParams } from "./types.js";
+
+export { resolveCliTranscriptResumePoint };
 
 const log = createSubsystemLogger("agents/cli-runner");
 
@@ -153,53 +154,6 @@ function buildCliAssistantTranscriptUsage(
     counters.cacheWrite1h = usage.cacheWrite1h;
   }
   return usage?.contextUsage ? { ...counters, contextUsage: usage.contextUsage } : counters;
-}
-
-/**
- * The native checkpoint a completed turn leaves behind. Recorded only when the turn's binding
- * will be kept and the backend can fork-resume at a checkpoint.
- */
-export function resolveCliTranscriptResumePoint(params: {
-  context: Pick<
-    PreparedCliRunContext,
-    "authEpoch" | "authEpochVersion" | "cwdHash" | "effectiveAuthProfileId" | "preparedBackend"
-  > & { params: Pick<RunCliAgentParams, "provider"> };
-  output: Pick<
-    CliOutput,
-    "resumeCheckpointId" | "inputMessageId" | "terminalInterruption" | "yielded"
-  >;
-  cliSessionId?: string;
-  bindingKept: boolean;
-}): CliSessionResumePoint | undefined {
-  const { context, output } = params;
-  const backend = context.preparedBackend.backend;
-  const sessionId = params.cliSessionId?.trim();
-  const checkpointId = output.resumeCheckpointId?.trim();
-  const inputMessageId = output.inputMessageId?.trim();
-  if (
-    !params.bindingKept ||
-    !sessionId ||
-    !checkpointId ||
-    output.terminalInterruption ||
-    output.yielded ||
-    backend.sessionMode === "none" ||
-    !backend.forkArg ||
-    !backend.resumeAtArg
-  ) {
-    return undefined;
-  }
-  return {
-    provider: normalizeProviderId(context.params.provider),
-    sessionId,
-    checkpointId,
-    compat: hashCliSessionResumeCompat({
-      authProfileId: context.effectiveAuthProfileId,
-      authEpoch: context.authEpoch,
-      authEpochVersion: context.authEpochVersion,
-      cwdHash: context.cwdHash,
-    }),
-    ...(inputMessageId ? { inputMessageId } : {}),
-  };
 }
 
 export async function persistCliAssistantTranscript(params: {
@@ -309,20 +263,7 @@ export async function persistCliAssistantTranscript(params: {
           stopReason: params.stopReason,
           usage: buildCliAssistantTranscriptUsage(params.usage, params.turnUsage),
         }),
-        // The native identity and the resume checkpoint share one metadata envelope.
-        ...(params.nativeIdentity || params.resumePoint || params.refusal
-          ? {
-              __openclaw: {
-                ...(params.nativeIdentity
-                  ? { importedFrom: "claude-cli", ...params.nativeIdentity }
-                  : {}),
-                ...(params.refusal ? { refusal: { signal: "provider", ...params.refusal } } : {}),
-                ...(params.resumePoint
-                  ? { [CLI_SESSION_RESUME_POINT_KEY]: params.resumePoint }
-                  : {}),
-              },
-            }
-          : {}),
+        ...cliTranscriptMetadataEnvelope(params),
         // A paused turn owns visible progress, not a final answer. Keep the
         // existing keyed-segment contract without hiding narration or media.
         ...(params.yielded && params.stopReason === "stop"
