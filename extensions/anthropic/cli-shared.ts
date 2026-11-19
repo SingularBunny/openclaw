@@ -541,6 +541,23 @@ export function appendClaudeCliChromeArgs(
 }
 
 /**
+ * Fork: `plugins.entries.anthropic.config.liveSessionIdleMinutes` keeps an idle Claude process (and
+ * its Claude in Chrome tab group) alive between a chat's turns longer than upstream's 10 minutes.
+ */
+function resolveClaudeCliLiveSessionIdle(
+  context: CliBackendNormalizeConfigContext | undefined,
+): Pick<CliBackendConfig, "liveSessionIdleMs"> {
+  const pluginConfig = context?.config?.plugins?.entries?.anthropic?.config;
+  const minutes =
+    pluginConfig && typeof pluginConfig === "object"
+      ? (pluginConfig as { liveSessionIdleMinutes?: unknown }).liveSessionIdleMinutes
+      : undefined;
+  return typeof minutes === "number" && Number.isSafeInteger(minutes) && minutes >= 1
+    ? { liveSessionIdleMs: Math.min(minutes, 1440) * 60_000 }
+    : {};
+}
+
+/**
  * Fork (F72): `plugins.entries.anthropic.config.cliHistory` opts a single-owner install
  * into history for a CLI-native login and sets how many unseen turns a resumed session gets.
  */
@@ -579,5 +596,6 @@ export function normalizeClaudeBackendConfig(
       config.liveSession ?? (output === "jsonl" && input === "stdin" ? "claude-stdio" : undefined),
     input,
     ...resolveClaudeCliHistoryConfig(context),
+    ...resolveClaudeCliLiveSessionIdle(context),
   };
 }
