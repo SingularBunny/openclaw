@@ -5,7 +5,7 @@ import {
   clearCronRunsPage,
   getCronRunsViewState,
   loadCronRuns,
-  loadCronRunsForChat,
+  loadCronRunsForJob,
   retireCronRunsRequest,
   type CronRunsViewState,
 } from "../../lib/cron/runs.ts";
@@ -16,8 +16,8 @@ import { AutomationChatJobsData } from "./automation-chat-jobs-data.ts";
 export const AUTOMATION_RUNS_PAGE_SIZE = 20;
 
 /**
- * Run history of the open automation chat: every run that lands in it, from the automation that
- * owns it and from jobs that target it by session, newest first (`cron.runs` with `sessionKey`).
+ * Run history of the open automation chat's own automation, newest first (`cron.runs` for its job).
+ * Follow-up jobs that only post into the chat are left out: the panel is this automation's history.
  */
 export class AutomationRunsPanelData extends AutomationChatJobsData {
   readonly cron: CronState = createInitialCronState();
@@ -25,7 +25,7 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
   constructor(context: ApplicationContext, changed: () => void) {
     super(context, changed);
     this.cron.cronRunsLimit = AUTOMATION_RUNS_PAGE_SIZE;
-    this.cron.cronRunsScope = "all";
+    this.cron.cronRunsScope = "job";
     this.cron.canRefresh = () => this.current(this.generation);
   }
 
@@ -39,7 +39,7 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
 
   /** The job name shown on a run when the chat collects runs of more than one job. */
   get showJobNames(): boolean {
-    return this.jobs.length > 1 || this.runs.some((entry) => entry.jobId !== this.jobId);
+    return this.runs.some((entry) => entry.jobId !== this.jobId);
   }
 
   /** The connection the run viewer reads `cron.history` on, while it still belongs here. */
@@ -53,12 +53,13 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
 
   override async refresh(options?: { coalesce?: boolean; finished?: boolean }): Promise<void> {
     const scope = this.scope;
-    const chatKey = this.chatKey;
+    const jobId = this.jobId;
     const generation = this.generation;
-    if (!scope || !chatKey || !this.current(generation)) {
+    if (!scope || !jobId || !this.current(generation)) {
       return;
     }
-    if (options?.coalesce && !options.finished && this.cron.cronRunsSessionKey === chatKey) {
+    const loaded = this.cron.cronRunsScope === "job" && this.cron.cronRunsJobId === jobId;
+    if (options?.coalesce && !options.finished && loaded) {
       // A started or edited job changes the Run button, not the finished-run history.
       await this.loadJobs();
       return;
@@ -66,9 +67,9 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
     this.cron.client = scope.client;
     this.cron.connected = true;
     const runs =
-      options?.coalesce && this.cron.cronRunsSessionKey === chatKey
+      options?.coalesce && loaded
         ? loadCronRuns(this.cron, { coalesce: true })
-        : loadCronRunsForChat(this.cron, chatKey);
+        : loadCronRunsForJob(this.cron, jobId);
     this.changed();
     await Promise.all([this.loadJobs(), runs]);
     if (!this.current(generation)) {
