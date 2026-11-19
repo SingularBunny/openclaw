@@ -179,3 +179,44 @@ describe("refusal hint (I14)", () => {
     );
   });
 });
+
+describe("hand-off menu dismissal", () => {
+  function open(container: HTMLElement) {
+    const details = container.querySelector<HTMLDetailsElement>("[data-chat-handoff-menu]")!;
+    details.open = true;
+    details.dispatchEvent(new Event("toggle"));
+    flush();
+    return details;
+  }
+  const items = (container: HTMLElement) => container.querySelectorAll("[role=menuitem]").length;
+
+  it("closes on a click outside the menu but not on a click inside", () => {
+    const chat = controller();
+    const container = mount(() => (
+      <ChatHandoffMessageAction sessionKey={chat.sessionKey} messageKey="a-out" />
+    ));
+    const details = open(container);
+    container
+      .querySelector("[role=menuitem]")!
+      .dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flush();
+    expect(items(container)).toBeGreaterThan(0);
+    document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+    flush();
+    expect(details.open).toBe(false);
+    expect(items(container)).toBe(0);
+  });
+
+  it("closes on Escape and gives focus back to its button", () => {
+    const chat = controller();
+    const container = mount(() => (
+      <ChatHandoffMessageAction sessionKey={chat.sessionKey} messageKey="a-esc" />
+    ));
+    const details = open(container);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    flush();
+    expect(details.open).toBe(false);
+    expect(items(container)).toBe(0);
+    expect(document.activeElement).toBe(details.querySelector("summary"));
+  });
+});

@@ -7,6 +7,7 @@ import type { RefusalSignal } from "../../../../../src/shared/refusal-signal.js"
 import { Icon } from "../../../components/solid/icon.tsx";
 import { registerModelControlsEnglish } from "../../../i18n/locales/en-model-controls.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
+import { listen } from "../../../lib/reactive/listener.ts";
 import { readChatGroupController } from "../chat-group-registry.ts";
 import {
   isRefusalHandedOff,
@@ -170,7 +171,16 @@ function HandoffMenu(props: {
         {props.summary}
       </summary>
       <Show when={open()}>
-        <HandoffPopover anchor={() => summary}>
+        <HandoffPopover
+          anchor={() => summary}
+          root={() => details}
+          onDismiss={(refocus) => {
+            close();
+            if (refocus) {
+              summary?.focus();
+            }
+          }}
+        >
           <Show when={group()}>
             <div class="chat-handoff-menu__modes" role="group">
               <button
@@ -221,12 +231,43 @@ function HandoffMenu(props: {
   );
 }
 
-/** The open menu, placed in the top layer next to its button (F76). */
-function HandoffPopover(props: { anchor: () => HTMLElement | undefined; children: JSX.Element }) {
+/**
+ * The open menu, placed in the top layer next to its button (F76). Like any menu button it closes
+ * on a click outside it and on Escape (focus back on the button); a `<details>` alone does neither.
+ */
+function HandoffPopover(props: {
+  anchor: () => HTMLElement | undefined;
+  root: () => HTMLElement | undefined;
+  onDismiss: (refocus: boolean) => void;
+  children: JSX.Element;
+}) {
   let menu: HTMLDivElement | undefined;
   onSettled(() => {
     const anchor = props.anchor();
-    return anchor && menu ? followHandoffMenu(anchor, menu) : undefined;
+    const stopFollowing = anchor && menu ? followHandoffMenu(anchor, menu) : undefined;
+    const doc = (menu ?? anchor)?.ownerDocument ?? document;
+    const stopOutside = listen(
+      doc,
+      "pointerdown",
+      (event: Event) => {
+        const target = event.target as Node | null;
+        if (target && !props.root()?.contains(target)) {
+          props.onDismiss(false);
+        }
+      },
+      true,
+    );
+    const stopEscape = listen(doc, "keydown", (event: Event) => {
+      if ((event as KeyboardEvent).key === "Escape") {
+        event.preventDefault();
+        props.onDismiss(true);
+      }
+    });
+    return () => {
+      stopFollowing?.();
+      stopOutside();
+      stopEscape();
+    };
   });
   return (
     <div
