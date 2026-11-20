@@ -291,5 +291,21 @@ export function createControlUiComponents(options: {
       undefined,
       (context) => [context.gateway],
     ),
+    // Fork: the Automations run viewer for plugin views (control-ui-cron-run-fork.tsx).
+    mountCronRun: component(
+      "openclaw-plugin-cron-run",
+      () => import("./control-ui-cron-run-fork.tsx"),
+      (next, current) => {
+        const snapshot = current().gateway.snapshot;
+        return {
+          "prop:run": next.run,
+          "prop:client": snapshot.client,
+          "prop:connected": snapshot.phase === "connected",
+          "prop:onClose": next.onClose ?? null,
+        };
+      },
+      undefined,
+      (context) => [context.gateway],
+    ),
   };
 }
