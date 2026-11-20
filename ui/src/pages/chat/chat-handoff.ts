@@ -20,7 +20,7 @@ import { setChatError } from "./chat-history-state.ts";
 import { lastOtherReplyAnswerer, transcriptNamesAuthors } from "./chat-reply-authors.ts";
 import {
   publishAcpAgentIdentities,
-  publishReplyModelLabeler,
+  publishReplyModelLabels,
   resolveAnswererIdentity,
 } from "./chat-reply-identity.ts";
 import { switchChatModel } from "./chat-session.ts";
@@ -310,16 +310,16 @@ export function chatAnswererLabel(state: ChatPageHost, answerer: ChatAnswerer): 
     : chatModelLabel(state, answerer.model);
 }
 
-const modelLabelers = new WeakMap<object, (model: string) => string>();
-
 /** Reply sender names use the picker's model labels (fork: who wrote each reply). */
 function publishModelLabels(state: ChatPageHost) {
-  let labeler = modelLabelers.get(state);
-  if (!labeler) {
-    labeler = (model) => chatModelLabel(state, model);
-    modelLabelers.set(state, labeler);
-  }
-  publishReplyModelLabeler(labeler);
+  publishReplyModelLabels(
+    (state.chatModelCatalog ?? []).flatMap((entry) => {
+      const name = entry.name?.trim();
+      return name
+        ? [[`${entry.provider}/${entry.id}`, name] as const, [entry.id, name] as const]
+        : [];
+    }),
+  );
 }
 
 function chatIdle(state: ChatPageHost): boolean {

@@ -24,7 +24,9 @@ export type ReplyIdentity =
 
 // Plain values read the latest write at once; the version signal lets Solid readers re-render.
 let acpIdentities: ReadonlyMap<string, AcpAgentIdentity> = new Map();
-let modelLabeler: ((model: string) => string) | undefined;
+// Model display names from every chat pane's catalog, merged: two panes (split view) publishing their own labeler
+// in turn re-rendered each other without end.
+const modelLabels = new Map<string, string>();
 const [identityVersion, setIdentityVersion] = createSignal(0);
 const bump = () => setIdentityVersion((version) => version + 1);
 
@@ -59,10 +61,19 @@ export function publishAcpAgentIdentities(raw: unknown): void {
   }
 }
 
-/** The chat page publishes how it labels models (catalog names), shared by every reply. */
-export function publishReplyModelLabeler(labeler: (model: string) => string): void {
-  if (modelLabeler !== labeler) {
-    modelLabeler = labeler;
+/**
+ * A chat pane publishes the model names of its catalog ([model ref or id, name]), shared by every reply. Only a name
+ * that is new or changed re-renders the replies, so panes publishing the same catalog stay quiet.
+ */
+export function publishReplyModelLabels(entries: Iterable<readonly [string, string]>): void {
+  let changed = false;
+  for (const [model, name] of entries) {
+    if (name && modelLabels.get(model) !== name) {
+      modelLabels.set(model, name);
+      changed = true;
+    }
+  }
+  if (changed) {
     // Published while the chat pane renders; re-render the replies after it, not inside it.
     queueMicrotask(bump);
   }
@@ -81,7 +92,7 @@ export function resolveAnswererIdentity(answerer: ChatAnswerer): ReplyIdentity {
       textAvatar: configured?.emoji ?? null,
     };
   }
-  const label = modelLabeler?.(answerer.model);
+  const label = modelLabels.get(answerer.model);
   return {
     kind: "model",
     model: answerer.model,
