@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { lastOtherReplyAnswerer } from "./chat-reply-authors.ts";
 import {
   publishAcpAgentIdentities,
-  publishReplyModelLabeler,
+  publishReplyModelLabels,
+  resolveAnswererIdentity,
   resolveReplyIdentity,
 } from "./chat-reply-identity.ts";
 import { groupMessages } from "./chat-thread-grouping.ts";
@@ -45,8 +46,21 @@ describe("reply identity", () => {
     );
   });
 
+  it("merges the model names every pane publishes and re-renders only on a new name", () => {
+    const before = resolveAnswererIdentity({ kind: "model", model: "zz/split-model" }).name;
+    expect(before).toBe("split-model");
+    publishReplyModelLabels([["zz/split-model", "Split Model"]]);
+    publishReplyModelLabels([["other/model", "Other"]]);
+    // A second pane with the same catalog changes nothing.
+    publishReplyModelLabels([["zz/split-model", "Split Model"]]);
+    expect(resolveAnswererIdentity({ kind: "model", model: "zz/split-model" }).name).toBe(
+      "Split Model",
+    );
+    expect(resolveAnswererIdentity({ kind: "model", model: "other/model" }).name).toBe("Other");
+  });
+
   it("names a model reply by the picker label and the sender on hover by its real author", () => {
-    publishReplyModelLabeler((model) => (model === "openrouter/cohere/c:free" ? "Cohere" : ""));
+    publishReplyModelLabels([["openrouter/cohere/c:free", "Cohere"]]);
     const group = {
       role: "assistant",
       senderLabel: null,
