@@ -2,6 +2,7 @@ import { createMemo, createSignal, onCleanup, Show } from "solid-js";
 import { t } from "../lib/reactive/i18n.ts";
 import { resolveGatewayRestartBanner } from "./gateway-restart-notice.ts";
 import type { ApplicationGatewaySnapshot } from "./gateway.ts";
+import "./app-shell-fork-notices.css";
 
 /** Countdown and "restarted" expiry granularity. */
 const TICK_MS = 5_000;

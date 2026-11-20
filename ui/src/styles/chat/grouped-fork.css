@@ -1,0 +1,262 @@
+/* Fork: styles of the fork's chat controls (hand-off menu, refusal hint, group strip and menu, forget a topic,
+   rewind file list). Kept out of grouped.css so a port to a new upstream release does not merge them. */
+.chat-confirm-popover__files {
+  max-width: 320px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.chat-confirm-popover__files[hidden] {
+  display: none;
+}
+
+.chat-confirm-popover__files-note {
+  margin: 0 0 4px;
+}
+
+.chat-confirm-popover__files .chat-confirm-popover__files-option {
+  margin-bottom: 4px;
+  color: var(--text);
+}
+
+.chat-confirm-popover__files-list {
+  margin: 0 0 4px;
+  padding-left: 20px;
+  font-family: var(--font-mono, monospace);
+  overflow-wrap: anywhere;
+}
+
+/* Fork: "Hand off to…" menu, failed-turn buttons and the reply author badge. */
+.chat-handoff-menu {
+  position: relative;
+  display: inline-flex;
+}
+
+.chat-handoff-menu > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.chat-handoff-menu > summary::-webkit-details-marker {
+  display: none;
+}
+
+.chat-handoff-menu[open] > summary {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.chat-handoff-menu__popover {
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 0;
+  z-index: 20;
+  min-width: 200px;
+  max-width: min(320px, calc(100vw - 32px));
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--card, var(--bg));
+  box-shadow: var(--shadow-md, 0 4px 16px rgb(0 0 0 / 16%));
+}
+
+.chat-handoff-menu__warning {
+  margin: 4px 6px 6px;
+  font-size: 12px;
+  color: var(--warn, var(--muted));
+}
+
+.chat-handoff-menu__heading {
+  padding: 4px 6px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.chat-handoff-menu__item {
+  display: block;
+  width: 100%;
+  padding: 5px 6px;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  background: none;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.chat-handoff-menu__item:hover:not(:disabled),
+.chat-handoff-menu__item:focus-visible {
+  background: var(--bg-hover, rgb(127 127 127 / 12%));
+}
+
+.chat-handoff-menu__item:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.chat-turn-failure-actions {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+}
+
+/* Fork: the same buttons on upstream's run-failure notice, under its summary. */
+.chat-run-failure__fork-actions {
+  margin-top: 8px;
+}
+
+/* Fork (I14): hint under a reply that looks like a refusal; always visible, not hover-revealed. */
+.chat-refusal-hint {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-muted, rgb(127 127 127 / 6%));
+  font-size: 13px;
+  color: var(--text);
+}
+
+.chat-refusal-hint > svg {
+  flex: none;
+  width: 14px;
+  height: 14px;
+}
+
+.chat-refusal-hint--weak {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.chat-refusal-hint__text {
+  flex: 1 1 200px;
+  min-width: 0;
+}
+
+.chat-refusal-hint__menu {
+  position: relative;
+}
+
+.chat-refusal-hint__button {
+  list-style: none;
+  cursor: pointer;
+}
+
+.chat-refusal-hint__button::-webkit-details-marker {
+  display: none;
+}
+
+.chat-reply-author {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.chat-composer-neighbor-card.chat-handoff-chip {
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  min-height: 40px;
+}
+
+/* Fork: group chat — the Hand off / Add to group chat switch, the header menu and the member strip. */
+.chat-handoff-menu__modes {
+  display: flex;
+  gap: 4px;
+  padding: 2px 2px 6px;
+}
+
+.chat-group-menu .chat-handoff-menu__popover {
+  top: calc(100% + 4px);
+  right: 0;
+  bottom: auto;
+  left: auto;
+}
+
+.chat-group-menu__button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* A narrow chat header keeps only the icon; the name stays in the tooltip and aria-label. */
+@container (max-width: 760px) {
+  .chat-group-menu__button > span {
+    display: none;
+  }
+}
+
+.chat-composer-neighbor-card.chat-group-strip {
+  grid-template-columns: 18px minmax(0, 1fr) auto auto;
+  min-height: 40px;
+}
+
+.chat-group-strip__members {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-group-strip__member {
+  display: inline-flex;
+  align-items: center;
+}
+
+.chat-group-strip__running {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* Fork (N11): "Forget a topic" turn list. */
+.chat-forget__hint,
+.chat-forget__note {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.chat-forget__note {
+  color: var(--warn, var(--muted));
+}
+.chat-forget__list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+.chat-forget__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.chat-forget__preview {
+  overflow-wrap: anywhere;
+}
+.chat-forget__score {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.chat-forget__heading {
+  margin: 8px 0 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.chat-forget__file {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
