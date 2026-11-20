@@ -417,7 +417,6 @@ export abstract class ChatPaneLayoutRender extends ChatPaneHeaderLayout {
       processesPresented: slotPresentation("processes"),
       contextPresented: slotPresentation("context"),
       contextDetails: ownsSubagentsPanel ? paneChatProps : undefined,
-      runsPresented: slotPresentation("runs"),
       subagentsAvailable: !catalog,
       subagentsShowRequest: this.companionIntents.subagentsShowRequest,
       processesShowRequest: this.companionIntents.processesShowRequest,

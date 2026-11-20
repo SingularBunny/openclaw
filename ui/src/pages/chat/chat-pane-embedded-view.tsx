@@ -63,9 +63,6 @@ const Files = lazy(() => import("./components/chat-files-panel.tsx"), { export: 
 const Subagents = lazy(() => import("./components/chat-subagents-panel.tsx"), {
   export: "ChatSubagentsPanel",
 });
-const AutomationRuns = lazy(() => import("./components/chat-automation-runs-panel.tsx"), {
-  export: "ChatAutomationRunsPanel",
-});
 const Processes = lazy(() => import("./components/chat-processes-panel.tsx"), {
   export: "ChatProcessesPanel",
 });
@@ -332,20 +329,6 @@ function ProcessesPanel(props: Props) {
   );
 }
 
-/** Fork (F56): an automation chat's run history. */
-function RunsPanel(props: Props) {
-  const presented = usePanePresentation(() => props.runsPresented ?? false);
-  return (
-    <AutomationRuns
-      data-sidebar-panel-host
-      ref={[elementRef(props.registerPanelHost)]}
-      sessionKey={props.state.sessionKey}
-      agentId={props.agentId ?? "main"}
-      presented={presented()}
-    />
-  );
-}
-
 function LinkReaderPanel(props: Props) {
   const presented = usePanePresentation(() => props.linkReaderPresented ?? false);
   return (
@@ -393,7 +376,6 @@ const embeddedPanels: Partial<
   portal: PortalPanel,
   subagents: SubagentsPanel,
   processes: ProcessesPanel,
-  runs: RunsPanel,
   context: ContextPanel,
   "link-reader": LinkReaderPanel,
   workspace: WorkspacePanel,

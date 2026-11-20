@@ -11,6 +11,7 @@ export type {
   ControlUiAgentPickerProps,
   ControlUiComponentHandle,
   ControlUiComponents,
+  ControlUiCronRunProps,
   ControlUiDashboardProps,
   ControlUiDialogProps,
 } from "./control-ui-components.js";
@@ -179,6 +180,13 @@ type ControlUiInlineView = {
 export type ControlUiPanel = {
   id: string;
   label: string;
+  /** Fork: a Control UI icon name for the tab (the plug icon without it). */
+  icon?: string;
+  /**
+   * Fork: whether this chat offers the tab, e.g. only automation chats; without it every chat does. Called on each
+   * render of the side panel: keep it cheap and synchronous; `host.ui.invalidate()` re-asks.
+   */
+  available?: (session: BoardGetParams) => boolean;
   mount: ControlUiView<BoardGetParams>;
 };
 

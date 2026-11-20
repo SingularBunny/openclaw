@@ -1,14 +1,14 @@
 import type { ControlUiPanel } from "../../../../src/plugin-sdk/control-ui.js";
+import { iconData } from "../../components/icon-data.ts";
 import type { IconName } from "../../components/solid/icon.tsx";
 import { t } from "../../i18n/index.ts";
 import { registerChatSessionEnglish } from "../../i18n/locales/en-chat-session.ts";
 import { registerFilePreviewEnglish } from "../../i18n/locales/en-file-preview.ts";
-import { automationSessionJobId } from "../../lib/cron/automation-session.ts";
 import { canCallGatewayMethod } from "../../lib/gateway-methods.ts";
+import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import type { ControlUiRegistration } from "../../plugins/control-ui-capability.ts";
 import type { SidebarPanelDefinitionParams, SidebarPanelData } from "./chat-pane-embedded-types.ts";
 import { SIDEBAR_PANEL_SHORTCUTS } from "./chat-pane-panel-shortcuts.ts";
-import type { ChatPageHost } from "./chat-state-host.ts";
 import { getSessionWorkspace } from "./components/chat-session-workspace-state.ts";
 import { resolveSessionDiffSidebarContent } from "./components/chat-session-workspace.ts";
 import type { SidebarPanelDefinition } from "./components/chat-sidebar-region-types.ts";
@@ -21,22 +21,6 @@ registerFilePreviewEnglish();
 
 function panelExternalLink(href: string | null | undefined, label: string) {
   return href ? { href, label } : undefined;
-}
-
-/** Runs is offered only in an isolated automation's chat, on a connection that may read its history. */
-function runsAvailable(state: ChatPageHost): boolean {
-  return (
-    automationSessionJobId(state.sessionKey) !== null &&
-    canCallGatewayMethod(
-      {
-        hello: state.hello,
-        client: state.client,
-        phase: state.connected ? "connected" : "stopped",
-      },
-      "cron.runs",
-      "operator.read",
-    )
-  );
 }
 
 /** One ordered declaration for every chat side-panel slot. */
@@ -76,9 +60,7 @@ export function sidebarPanelDefinitions(
             )
           : slot === "subagents" || slot === "processes"
             ? panelContext.subagentsAvailable
-            : slot === "runs"
-              ? state && runsAvailable(state)
-              : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
+            : SIDEBAR_PANEL_SHORTCUTS[slot]?.available(panelContext)),
       ),
       content: null,
       view: hasContent ? data : undefined,
@@ -86,10 +68,7 @@ export function sidebarPanelDefinitions(
         variant:
           textKey === "conversation" || textKey === "companion"
             ? "chat"
-            : textKey === "subagents" ||
-                textKey === "processes" ||
-                textKey === "context" ||
-                textKey === "runs"
+            : textKey === "subagents" || textKey === "processes" || textKey === "context"
               ? "file-list"
               : textKey === "portal"
                 ? "browser"
@@ -122,7 +101,6 @@ export function sidebarPanelDefinitions(
     definePanel("conversation", "messageSquare", false),
     definePanel("subagents", "bot"),
     definePanel("processes", "terminal"),
-    definePanel("runs", "calendarClock"),
     definePanel("context", "layers"),
     definePanel("detail", "diff", Boolean(data?.detailContent)),
     definePanel("terminal", "terminal", Boolean(state?.terminalAvailable)),
@@ -168,12 +146,41 @@ export function sidebarPanelDefinitions(
     ...[...pluginPanels].map(([slot, entry]): SidebarPanelDefinition => ({
       slot,
       label: entry?.value.label ?? slot.slice("plugin:".length),
-      icon: "plug",
-      available: entry !== undefined,
+      // Fork: a plugin panel may name its icon and say in which chats it is offered.
+      icon: pluginPanelIcon(entry),
+      available: entry !== undefined && pluginPanelAvailable(entry, state?.sessionKey),
       content: null,
       view: entry ? data : undefined,
       loading: { variant: "files", label: t("common.loading") },
       empty: { description: entry?.value.label ?? t("pluginTabs.unavailableSubtitle") },
     })),
   ];
+}
+
+/** Fork: the plugin's own tab icon when it names a known one. */
+function pluginPanelIcon(entry: ControlUiRegistration<ControlUiPanel> | undefined): IconName {
+  const icon = entry?.value.icon;
+  return icon && Object.hasOwn(iconData, icon) ? (icon as IconName) : "plug";
+}
+
+/** Fork: a plugin panel's `available` decides per chat; a failing check hides the tab. */
+function pluginPanelAvailable(
+  entry: ControlUiRegistration<ControlUiPanel>,
+  sessionKey: string | undefined,
+): boolean {
+  const available = entry.value.available;
+  if (!available) {
+    return true;
+  }
+  if (!sessionKey) {
+    return false;
+  }
+  try {
+    return available({
+      sessionKey,
+      agentId: parseAgentSessionKey(sessionKey)?.agentId,
+    });
+  } catch {
+    return false;
+  }
 }

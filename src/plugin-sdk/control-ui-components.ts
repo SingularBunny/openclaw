@@ -54,6 +54,13 @@ export type ControlUiDashboardProps = {
   presented?: boolean;
 };
 
+/** Fork: one automation run to show (`cron.runs` entry): its job and run id, or its run time. */
+export type ControlUiCronRunProps = {
+  run: { jobId: string; runId?: string; runAtMs?: number } | null;
+  /** The viewer's Close was pressed. */
+  onClose?: () => void;
+};
+
 export type ControlUiSelectPickerProps = {
   options: readonly {
     value: string;
@@ -118,4 +125,12 @@ export type ControlUiComponents = {
     container: HTMLElement,
     props: ControlUiDashboardProps,
   ) => ControlUiComponentHandle<ControlUiDashboardProps>;
+  /**
+   * Fork: the Automations run viewer (`cron.history`): one run's transcript in place, with Show earlier and Close.
+   * Optional: hosts without it leave it out.
+   */
+  mountCronRun?: (
+    container: HTMLElement,
+    props: ControlUiCronRunProps,
+  ) => ControlUiComponentHandle<ControlUiCronRunProps>;
 };

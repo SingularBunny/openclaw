@@ -13,8 +13,6 @@ import { i18n, t } from "../../i18n/index.ts";
 import { registerChatSessionEnglish } from "../../i18n/locales/en-chat-session.ts";
 import { isGatewayMethodAdvertised } from "../../lib/gateway-methods.ts";
 import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
-import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
-import { autoOpenAutomationRuns } from "./automation-runs-auto-open.ts";
 import { resolveChatAgentIdentity } from "./chat-agent-id.ts";
 import {
   canLoadChatBranches,
@@ -39,7 +37,6 @@ import { isChatRunWorking } from "./chat-run-working.ts";
 import "./components/chat-header-session-menu.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { countRunningSubagents } from "./chat-subagent-wait.ts";
-import { showsChatAutomationHeaderControl } from "./components/chat-automation-header-control.tsx";
 import type { ChatDetails, ChatDetailsViewProps } from "./components/chat-details.tsx";
 import type { HeaderPanelAction } from "./components/chat-header-panel-actions.tsx";
 import type {
@@ -545,20 +542,6 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
           ? () => this.toggleConversationPanel(currentLayout)
           : undefined,
       runAction: subagentStop,
-      // Fork: Runs and Run now for an automation chat (the jobs that land in it).
-      automationControl: showsChatAutomationHeaderControl(
-        row?.key,
-        Boolean(
-          panelControls &&
-          panelDefinitions.some((definition) => definition.slot === "runs" && definition.available),
-        ),
-      )
-        ? {
-            sessionKey: row!.key,
-            agentId: parseAgentSessionKey(row!.key)?.agentId ?? "main",
-            onOpenRuns: () => panelControls?.openPanelSlot("runs"),
-          }
-        : undefined,
       mobilePeopleMentions: { ...this.headerPeopleMentions },
       mobilePeople,
       mobileSharing: sharing,
@@ -659,11 +642,6 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
       onSplitRight: this.onSplitRight,
       onClosePane: this.onClosePane,
     };
-    if (header.automationControl) {
-      // Fork: the automation's run history opens on the right the first time the chat shows.
-      const { sessionKey, onOpenRuns } = header.automationControl;
-      autoOpenAutomationRuns(sessionKey, onOpenRuns);
-    }
     const continueCommand = this.currentContinueInTerminalCommand(row);
     return {
       header,

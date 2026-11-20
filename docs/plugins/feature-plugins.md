@@ -189,6 +189,11 @@ copies it, and `id` its transcript entry when persisted. Messages still streamin
 model and effort pickers; its label (or `icon`) is the button, so a toggle shows its state in the label, e.g.
 "Plan: on". `host.ui.placements` lists the placements the Control UI renders, so a plugin can leave out an action
 that has nowhere to go on another build.
+A `registerPanel` panel may also set `icon` (a Control UI icon name) and `available(session)`: the tab is offered
+only in the chats it returns `true` for (called on each side-panel render; keep it cheap, `host.ui.invalidate()`
+asks again). `host.components.mountCronRun(container, { run: { jobId, runId?, runAtMs? }, onClose })` shows one
+automation run's transcript (`cron.history`) in place, with **Show earlier** and **Close**, as the Automations page
+does; it is optional, so check for it.
 
 Set a navigation item's `parent` to another navigation ID in the same plugin to
 show it nested while the parent or a child destination is active; children only

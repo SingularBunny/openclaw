@@ -18,6 +18,10 @@ function normalizeSlotId(value: unknown): SidebarSlotId | null {
   if (value === "chat") {
     return "dashboard";
   }
+  // Fork: the automation Runs tab moved to the aiwb-automation-chat plugin; saved tabs follow it.
+  if (value === "runs") {
+    return "plugin:aiwb-automation-chat/runs";
+  }
   return value === "browser" ||
     value === "link-reader" ||
     value === "companion" ||
@@ -29,7 +33,6 @@ function normalizeSlotId(value: unknown): SidebarSlotId | null {
     value === "discussion" ||
     value === "portal" ||
     value === "processes" ||
-    value === "runs" ||
     value === "subagents" ||
     value === "terminal" ||
     value === "workspace" ||
