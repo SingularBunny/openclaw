@@ -9,6 +9,7 @@ import {
   selectResetKeptContextEntryFacts,
   type SessionContextEntryFact,
 } from "../session/session.js";
+import { FORGOTTEN_SUMMARY, isForgottenEntry } from "../session/forgotten-fork.js";
 import { selectResetKeptEntries } from "../session/tool-result-pairing.js";
 import {
   CompactionError,
@@ -203,6 +204,8 @@ type PreparationSource<T, M> = {
   ) => ReturnType<typeof findCutPoint>;
   files: (messages: M[], fileOps: FileOperations) => void;
   observe?: (entry: T, message: M) => void;
+  /** Fork (N11): whether a message was forgotten in this entry. */
+  forgotten?: (entry: T) => boolean;
 };
 
 /** Public arrays retain message aliases, observation timing and opaque estimator call order. */
@@ -231,6 +234,7 @@ export function prepareCompactionEntries(
       findCutPoint(entries, start, end, keepTokens, constraints),
     files: extractFileOpsFromMessages,
     observe: onMessageProjection,
+    forgotten: isForgottenEntry,
   });
   if (!result.ok || !result.value) {
     return result;
@@ -256,6 +260,8 @@ export type CompactionPreparationEntryFact = SessionContextEntryFact &
     contextMessage?: CompactionPreparationMessageFact;
     previousSummary?: string;
     previousSummaryDetails?: CompactionDetails;
+    /** Fork (N11): the entry's message was forgotten. */
+    forgotten?: boolean;
   };
 
 /** Only bounded requests, prior summaries and exact file/pairing facts survive each decoded row. */
@@ -287,6 +293,7 @@ export function collectCompactionPreparationEntryFact(
     cut: collectCompactionCutEntryFact(entry, message),
     message: messageFact,
     contextMessage: contextMessage ? (messageFact ?? collect(contextMessage)) : undefined,
+    ...(isForgottenEntry(entry) ? { forgotten: true } : {}),
     ...(entry.type === "compaction"
       ? {
           fromHook: entry.fromHook,
@@ -324,6 +331,7 @@ export function prepareCompactionEntryFacts<T extends CompactionPreparationEntry
       summary: entry.previousSummary,
       details: entry.previousSummaryDetails,
     }),
+    forgotten: (entry) => entry.forgotten === true,
     latestRequest: (messages) =>
       messages.findLast((message) => message.latestUserRequest)?.latestUserRequest,
     usage: (message) => message.usage,
@@ -395,6 +403,14 @@ function prepareCompactionSource<
     if (prevBoundary?.type === "compaction") {
       const previous = source.previous(prevBoundary);
       previousSummary = previous.summary;
+      // Fork (N11): a summary written before a message was forgotten may repeat it.
+      if (
+        previousSummary !== undefined &&
+        source.forgotten &&
+        pathEntries.slice(0, prevBoundaryIndex).some((entry) => source.forgotten!(entry))
+      ) {
+        previousSummary = FORGOTTEN_SUMMARY;
+      }
       const details = previous.details;
       previousLatestUnresolvedUserRequest = details?.latestUnresolvedUserRequest;
       if (!prevBoundary.fromHook) {

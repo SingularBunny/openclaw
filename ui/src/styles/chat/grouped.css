@@ -2673,3 +2673,48 @@ button.chat-reply-attribution__target:disabled {
   color: var(--muted);
   white-space: nowrap;
 }
+
+/* Fork (N11): "Forget a topic" turn list. */
+.chat-forget__hint,
+.chat-forget__note {
+  margin: 0 0 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+.chat-forget__note {
+  color: var(--warn, var(--muted));
+}
+.chat-forget__list {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  max-height: 50vh;
+  overflow: auto;
+}
+.chat-forget__item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 8px;
+  align-items: start;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.chat-forget__preview {
+  overflow-wrap: anywhere;
+}
+.chat-forget__score {
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+.chat-forget__heading {
+  margin: 8px 0 4px;
+  font-weight: 600;
+  font-size: 13px;
+}
+.chat-forget__file {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+}
