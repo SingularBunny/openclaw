@@ -59,6 +59,20 @@ describe("reply identity", () => {
     expect(resolveAnswererIdentity({ kind: "model", model: "other/model" }).name).toBe("Other");
   });
 
+  it("keeps one name for a bare model id that several providers name differently", () => {
+    const catalog = [
+      ["anthropic/dup-model", "Dup"],
+      ["dup-model", "Dup"],
+      ["openrouter/dup-model", "Dup (OpenRouter)"],
+      ["dup-model", "Dup (OpenRouter)"],
+    ] as const;
+    publishReplyModelLabels(catalog);
+    expect(resolveAnswererIdentity({ kind: "model", model: "dup-model" }).name).toBe("Dup");
+    // The same catalog again changes nothing, so nothing re-renders.
+    publishReplyModelLabels(catalog);
+    expect(resolveAnswererIdentity({ kind: "model", model: "dup-model" }).name).toBe("Dup");
+  });
+
   it("names a model reply by the picker label and the sender on hover by its real author", () => {
     publishReplyModelLabels([["openrouter/cohere/c:free", "Cohere"]]);
     const group = {
