@@ -719,3 +719,5 @@ async function mutatePreparedSessionAtMessage({
     },
   });
 }
+/* oxlint-disable max-lines -- Fork: upstream keeps this handler at 698 of 700 lines; the fork's F52 cut and
+   file-restore hooks (9 lines, the rest in sessions-rewind-fork.ts) push it over. */
