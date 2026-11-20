@@ -1,6 +1,6 @@
-import { isCronSessionDisplayKey } from "../../../src/shared/session-list-visibility.ts";
 import type { SessionsListResult } from "../api/types.ts";
 import type { ApplicationContext } from "../app/context.ts";
+import { sidebarShowsCronRow } from "../lib/sessions/automation-child-fork.ts";
 import { projectSidebarArchiveVisibility } from "./app-sidebar-session-archive-visibility.ts";
 import { excludeSessionCatalogRows } from "./app-sidebar-session-catalog-state.ts";
 import { projectSidebarSessionCatalogs } from "./app-sidebar-session-catalogs.ts";
@@ -56,10 +56,10 @@ export function projectSidebarSnoozeCatalogs(
   });
   // An automation session a catalog files into a folder follows "Show automation sessions" as in
   // the regular list, which also keeps the open session visible.
-  const routeSessionKey = host.sessionsShowCron ? "" : host.getRouteSessionKey();
+  const routeSessionKey = host.getRouteSessionKey();
   const isSessionHidden = (row: Parameters<typeof visibility.isSessionHidden>[0]) =>
     visibility.isSessionHidden(row) ||
-    (!host.sessionsShowCron && row.key !== routeSessionKey && isCronSessionDisplayKey(row.key));
+    (row.key !== routeSessionKey && !sidebarShowsCronRow(row, host.sessionsShowCron));
   return projectSidebarSessionCatalogs(
     visibleSidebarSessionCatalogs(host),
     ownerId,

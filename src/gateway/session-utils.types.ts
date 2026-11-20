@@ -87,6 +87,8 @@ export type GatewaySessionRow = Omit<SessionRow, "archivedBy" | "updatedAt" | "w
   hasActiveRun?: boolean;
   activeRunIds?: string[];
   hasAutomation?: boolean;
+  /** Fork: the chat a job set up from it reports to; such a run session is not a chat of its own. */
+  automationParentKey?: string;
   subagentRunState?: SubagentRunState;
   hasActiveSubagentRun?: boolean;
   startedAt?: number;

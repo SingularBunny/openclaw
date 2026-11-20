@@ -3,12 +3,10 @@ import {
   normalizeOptionalLowercaseString,
   normalizeOptionalString,
 } from "@openclaw/normalization-core/string-coerce";
-import {
-  isCronSessionDisplayKey,
-  isSystemCreatedSessionRow,
-} from "../../../../src/shared/session-list-visibility.ts";
+import { isSystemCreatedSessionRow } from "../../../../src/shared/session-list-visibility.ts";
 import type { GatewayHelloOk } from "../../api/gateway.ts";
 import type { GatewaySessionRow, SessionsListResult } from "../../api/types.ts";
+import { sidebarShowsCronRow } from "./automation-child-fork.ts";
 import { parseCatalogSessionKey } from "./catalog-key.ts";
 import {
   isUiGlobalSessionKey,
@@ -172,7 +170,7 @@ export function sessionMatchesVisibleSessionScope(
     row.kind !== "global" &&
     row.kind !== "unknown" &&
     row.isDock !== true &&
-    (options.showCron === true || !isCronSessionDisplayKey(row.key)) &&
+    sidebarShowsCronRow(row, options.showCron) &&
     (options.showSystem === true || !isSystemCreatedSessionRow(row)) &&
     (!options.filterByAgent ||
       isSessionKeyTiedToAgent(row.key, options.agentId, options.defaultAgentId))

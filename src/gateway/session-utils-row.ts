@@ -52,7 +52,7 @@ import { INTERNAL_MESSAGE_CHANNEL } from "../utils/message-channel-constants.js"
 import { channelAvatarRevision } from "./channel-avatar-reference.js";
 import { buildControlUiChannelAvatarUrl } from "./control-ui-contract.js";
 import { normalizeControlUiBasePath } from "./control-ui-shared.js";
-import { sessionHasAutomation } from "./session-automation-index.js";
+import { sessionAutomationParent, sessionHasAutomation } from "./session-automation-index.js";
 import { sessionClassificationForRow } from "./session-classification.js";
 import {
   projectSessionActor,
@@ -249,6 +249,7 @@ export function readSessionRowInputs(params: {
         sessionEntry: entry,
       }),
       hasAutomation: sessionHasAutomation(key, cfg, agentId) ? true : undefined,
+      automationParentKey: sessionAutomationParent(key),
       rowModelIdentity,
       selectedModel,
       contextTokens: resolveProjectedSessionContextTokens({
@@ -545,6 +546,7 @@ export function materializeSessionRow(input: ReturnType<typeof readSessionRowInp
     providerReview: projectSessionRowProviderReview(key, entry),
     lastRunId: entry?.lastRunId,
     hasAutomation: input.hasAutomation,
+    automationParentKey: input.automationParentKey,
     // Navigation lineage is persisted; runtime control is exposed separately above.
     parentSessionKey: entry?.parentSessionKey,
     parentSessionId: entry?.parentSessionId,
