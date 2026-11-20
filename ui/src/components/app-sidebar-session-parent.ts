@@ -1,9 +1,7 @@
-import {
-  isCronSessionDisplayKey,
-  isSystemCreatedSessionRow,
-} from "../../../src/shared/session-list-visibility.ts";
+import { isSystemCreatedSessionRow } from "../../../src/shared/session-list-visibility.ts";
 import type { GatewaySessionRow } from "../api/types.ts";
 import { activeSessionAgentStatus } from "../lib/session-attention.ts";
+import { sidebarShowsCronRow } from "../lib/sessions/automation-child-fork.ts";
 import {
   sessionMatchesArchivedFilter,
   type SessionArchivedFilter,
@@ -163,7 +161,7 @@ export function collectPromotedMainChildRows(input: {
       !input.scopedRootKeys.has(row.key) &&
       !isSubagentSessionKey(row.key) &&
       sessionMatchesArchivedFilter(row, input.archivedFilter) &&
-      (input.showCron || !isCronSessionDisplayKey(row.key)) &&
+      sidebarShowsCronRow(row, input.showCron) &&
       (input.showSystem || !isSystemCreatedSessionRow(row)),
   );
 }

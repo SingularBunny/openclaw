@@ -6,10 +6,13 @@ export function cronChatSessionKey(sessionKey: string): string {
   return sessionKey.trim().replace(RUN_SUFFIX, "").toLowerCase();
 }
 
-/** Jobs whose runs land in this chat: the automation that owns it and jobs targeting it by session. */
+/**
+ * Jobs whose runs land in this chat: the automation that owns it, jobs targeting it by session, and jobs set up
+ * from it (`sessionTarget: "current"` with this chat's `sessionKey`), which report here.
+ */
 export function cronJobsDeliveringToChat(
   sessionKey: string,
-  jobs: readonly { id: string; sessionTarget?: string }[],
+  jobs: readonly { id: string; sessionTarget?: string; sessionKey?: string }[],
 ): Set<string> {
   const chatKey = cronChatSessionKey(sessionKey);
   const ownerJobId = AUTOMATION_CHAT_KEY.exec(chatKey)?.[1];
@@ -19,7 +22,10 @@ export function cronJobsDeliveringToChat(
       .filter(
         (job) =>
           job.id.toLowerCase() === ownerJobId ||
-          (typeof job.sessionTarget === "string" && job.sessionTarget.toLowerCase() === target),
+          (typeof job.sessionTarget === "string" && job.sessionTarget.toLowerCase() === target) ||
+          (job.sessionTarget === "current" &&
+            typeof job.sessionKey === "string" &&
+            cronChatSessionKey(job.sessionKey) === chatKey),
       )
       .map((job) => job.id),
   );

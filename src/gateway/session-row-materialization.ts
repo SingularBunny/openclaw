@@ -93,6 +93,7 @@ function sessionRowMaterializationMatches(
     row.fastAutoOnSeconds === input.fastModeState.fastAutoOnSeconds &&
     row.permissionModePending === input.permissionModePending &&
     row.hasAutomation === input.hasAutomation &&
+    row.automationParentKey === input.automationParentKey &&
     equal(row.repository, input.repository) &&
     equal(row.swarm, input.includeSwarmSummary ? input.swarm : undefined) &&
     row.displayName === input.displayName &&

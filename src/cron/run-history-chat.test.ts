@@ -18,4 +18,13 @@ describe("cron run history for one chat", () => {
     ]);
     expect([...ids].toSorted()).toEqual(["job-follow-up", "job-owner"]);
   });
+
+  it("finds jobs set up from the chat, which report to it", () => {
+    const ids = cronJobsDeliveringToChat(chat, [
+      { id: "job-owner", sessionTarget: "isolated" },
+      { id: "job-watcher", sessionTarget: "current", sessionKey: "Agent:Ops:Cron:Job-Owner" },
+      { id: "job-other", sessionTarget: "current", sessionKey: "agent:ops:main" },
+    ]);
+    expect([...ids].toSorted()).toEqual(["job-owner", "job-watcher"]);
+  });
 });

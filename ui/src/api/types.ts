@@ -131,6 +131,8 @@ export type GatewaySessionRow = Omit<GatewayWireSessionRow, "archivedBy" | "upda
     room?: string;
     /** UI-local timestamp for the runtimeMs sample; absent on raw Gateway rows. */
     runtimeSampledAt?: number;
+    /** Fork: the chat a job set up from it reports to (Gateway session-automation-parent-fork.ts). */
+    automationParentKey?: string;
   };
 
 export type SessionsListResult = SessionsListResultBase<
