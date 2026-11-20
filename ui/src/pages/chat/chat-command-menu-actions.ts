@@ -6,6 +6,7 @@ import { showConfirmDialog } from "../../components/confirm-dialog.ts";
 import { i18n, t } from "../../i18n/index.ts";
 import { registerModelControlsEnglish } from "../../i18n/locales/en-model-controls.ts";
 import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
+import { CHAT_FORGET_FIND_METHOD, runForgetTopic } from "./chat-forget-fork.tsx";
 import { ChatPaneHeaderMemo } from "./chat-pane-header-memo.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 import type { HeaderMenuSessionAction } from "./components/chat-quick-action.tsx";
@@ -32,6 +33,18 @@ function gatewaySnapshot(host: ChatCommandMenuHost) {
     hello: host.hello ?? null,
     phase: host.connected ? ("connected" as const) : ("offline" as const),
   };
+}
+
+/** Fork (N11): why "Forget a topic…" is unavailable, or undefined when it can run. */
+export function chatForgetDisabledReason(host: ChatCommandMenuHost): string | undefined {
+  if (!host.client || !host.connected) {
+    return t("chat.commandMenu.offline");
+  }
+  const access = readSessionMethodAccess(gatewaySnapshot(host), {
+    method: CHAT_FORGET_FIND_METHOD,
+    requiredScope: "operator.write",
+  });
+  return access.allowed ? undefined : access.reason;
 }
 
 /** Why a command item is unavailable, or undefined when it can run. */
@@ -102,9 +115,19 @@ export class ChatCommandMenuActions {
       new: chatCommandDisabledReason(host, "new"),
       reset: chatCommandDisabledReason(host, "reset"),
       learn: chatCommandDisabledReason(host, "learn"),
+      forget: chatForgetDisabledReason(host),
     };
     return this.memo.read(
-      [host, host.sessionKey, reasons.new, reasons.reset, reasons.learn, i18n.getLocale(), others],
+      [
+        host,
+        host.sessionKey,
+        reasons.new,
+        reasons.reset,
+        reasons.learn,
+        reasons.forget,
+        i18n.getLocale(),
+        others,
+      ],
       () => [
         {
           id: "command-new",
@@ -121,6 +144,21 @@ export class ChatCommandMenuActions {
           icon: "pencilSparkles",
           disabled: Boolean(reasons.learn),
           onActivate: () => void runChatMenuCommand(host, "learn", deps),
+        },
+        {
+          id: "command-forget",
+          label: t("chat.forget.menu"),
+          description: reasons.forget ?? t("chat.forget.menuDescription"),
+          icon: "brain",
+          disabled: Boolean(reasons.forget),
+          onActivate: () =>
+            void runForgetTopic({
+              // Read live: the flow stops if the chat on screen changes meanwhile.
+              get sessionKey() {
+                return host.sessionKey;
+              },
+              client: host.client as Parameters<typeof runForgetTopic>[0]["client"],
+            }),
         },
         {
           id: "command-reset",

@@ -17,6 +17,9 @@ export const FORK_GATEWAY_METHOD_SPECS = [
   ["commands.claude", "commands", "operator.read", "2026.10"],
   // Fork (I14): hand a refused reply off; logs and leaves the refused turn out of model context.
   ["chat.refusal.handoff", "chat-refusal", "operator.write", "2026.10"],
+  // Fork (N11): forget a topic — rank the chat's turns locally, then leave the ticked ones out.
+  ["chat.forget.find", "chat-forget", "operator.read", "2026.11"],
+  ["chat.forget.apply", "chat-forget", "operator.write", "2026.11"],
   // Fork: maintenance mode pauses new chat turns while admin work (config, plugins) stays open.
   ["gateway.maintenance.status", "maintenance-mode", "operator.read", "2026.11"],
   ["gateway.maintenance.enter", "maintenance-mode", "operator.admin", "2026.11"],
