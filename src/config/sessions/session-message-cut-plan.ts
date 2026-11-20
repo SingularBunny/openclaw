@@ -109,6 +109,8 @@ export function planSessionMessageCut(
   events: readonly TranscriptEvent[],
   params: SessionMessageCutIntent,
   sourceRepositoryWorkspaceId?: string,
+  // Fork: navigation reads carry no message bodies; the kept reply's CLI resume point is in its body.
+  hydrate?: (selected: readonly TranscriptEvent[]) => Iterable<TranscriptEvent>,
 ): SessionMessageCutPlan {
   const selected = selectSessionMessageCut(entry, events, params, sourceRepositoryWorkspaceId);
   if (selected.status !== "selected") {
@@ -133,6 +135,7 @@ export function planSessionMessageCut(
       ? undefined
       : readCliResumePointAtLeaf(
           events,
+          hydrate,
           params.mode === "switch" ? params.entryId : (cut?.parentId ?? null),
         ));
   const resumedCliSessionBindings = resumeCliSessionBindingsAt(
@@ -288,7 +291,11 @@ export function planSessionMessageCut(
 }
 
 /** The native checkpoint of the last assistant turn on the branch ending at `leafId`. */
-function readCliResumePointAtLeaf(events: readonly TranscriptEvent[], leafId: string | null) {
+function readCliResumePointAtLeaf(
+  events: readonly TranscriptEvent[],
+  hydrate: ((selected: readonly TranscriptEvent[]) => Iterable<TranscriptEvent>) | undefined,
+  leafId: string | null,
+) {
   if (!leafId) {
     return undefined;
   }
@@ -297,9 +304,15 @@ function readCliResumePointAtLeaf(events: readonly TranscriptEvent[], leafId: st
     const record = asRecord(node.entry);
     return record?.type === "message" && asRecord(record.message)?.role === "assistant";
   });
-  return lastAssistant
-    ? readCliSessionResumePoint(asRecord(lastAssistant.entry)?.message)
-    : undefined;
+  if (!lastAssistant) {
+    return undefined;
+  }
+  const point = readCliSessionResumePoint(asRecord(lastAssistant.entry)?.message);
+  if (point || !hydrate) {
+    return point;
+  }
+  const [full] = hydrate([lastAssistant.entry as TranscriptEvent]);
+  return readCliSessionResumePoint(asRecord(full)?.message);
 }
 
 function validateBranchTip(
