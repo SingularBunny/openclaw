@@ -621,24 +621,23 @@ A model member is a model override, which OpenClaw allows to an operator with ad
 Commands you would type to turn something on or run it in a chat also have a button; the command stays
 as a fallback and does the same thing:
 
-- **Plan** in the composer, next to the permission and Claude Code mode pickers, is the plan mode of
-  the workbench `aiwb-plan` plugin (`/plan`, `/plan off`). Highlighted with the word **Plan** it is on:
-  the agent researches and presents a plan, files stay unchanged until you approve it, and approving
-  the plan turns it off. Click to switch; a typed `/plan` or an approved plan shows on the toggle after
-  the turn. It appears when the Gateway offers `aiwb-plan.status` and `aiwb-plan.set` (`aiwb-plan`
-  0.2.0 or later), for any model.
-- The chat's **⋯** menu starts with **New chat** (`/new`: a new chat; this one stays in the sidebar),
+- **Plan: on** / **Plan: off** next to the composer is the plan mode of the workbench `aiwb-plan` plugin
+  (`/plan`, `/plan off`; the button comes with the plugin, 0.3.0 or later). On, the agent researches and
+  presents a plan, files stay unchanged until you approve it, and approving the plan turns it off. Click
+  to switch; a typed `/plan` or an approved plan shows on the button after the turn. Any model.
+- The chat's **⋯** menu has **New chat** (a new chat; this one stays in the sidebar),
   **Learn a skill from this chat** (`/learn`: the agent saves the reusable workflow as a skill with the
   skill workshop and says how to undo it) and **Reset chat…** (`/reset`, after a confirmation: a fresh
-  session in the same chat; needs operator admin, as the command does).
-- **Forget a topic…** in the same menu: see [Forgetting a topic](#forgetting-a-topic).
+  session in the same chat; needs operator admin, as the command does). These items and **Forget a topic…**
+  come from the `aiwb-chat-tools` plugin of the workbench (aiwb-plugins); see
+  [Forgetting a topic](#forgetting-a-topic).
 - Switching models and ACP agents, and the bound agent's model: see
   [Switching models and agents](#switching-models-and-agents).
 
 ## Forgetting a topic
 
-**Forget a topic…** in the chat's **⋯** menu makes the agent forget part of the conversation without
-deleting it from view (fork, any model):
+**Forget a topic…** in the chat's **⋯** menu (the `aiwb-chat-tools` plugin; the Gateway methods are the
+fork's) makes the agent forget part of the conversation without deleting it from view (any model):
 
 1. Name the topic. The Gateway ranks the chat's turns (a question with everything that answered it)
    and the agent's memory paragraphs against it with the local embedding model memory search uses (`chat.forget.find`); no chat model sees
@@ -1752,6 +1751,10 @@ Messages forwarded by `sessions_send` render as left-aligned speech bubbles with
 Your name is hidden beneath your own messages when no other human participant is known in the session. Shared conversations keep sender names, including while searching the transcript. Web messages do not show a "via Web" label; other recorded client sources remain visible.
 
 ## Run transcripts
+
+A job set up from a chat (an agent scheduling a watcher while you work, `sessionTarget: "current"`) does not get
+a chat of its own in the sidebar (fork): it reports to the chat it was set up from, and that chat's **Run…** menu
+can start it. Its run history is in **Automations**. Automations you set up there keep their own chats.
 
 Open a session to inspect its recorded messages and tool calls.
 
