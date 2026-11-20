@@ -9,6 +9,12 @@ import {
 } from "../messages.js";
 import type { SessionContext, SessionTreeEntry } from "../types.js";
 import { projectOwnerCatalogImport } from "./catalog-import.js";
+import {
+  FORGOTTEN_SUMMARY,
+  isForgottenEntry,
+  isNeutralizedBoundary,
+  markForgottenBoundary,
+} from "./forgotten-fork.js";
 import { selectResetKeptEntries } from "./tool-result-pairing.js";
 import { isTranscriptArtifactProvider } from "./transcript-model.js";
 
@@ -85,6 +91,8 @@ export function* iterateSessionContextEntries<T extends SessionTreeEntry>(
       ? new Set(selectResetKeptEntries(pathEntries.slice(firstKeptIndex, boundaryIndex)))
       : undefined;
   if (boundary) {
+    // Fork (N11): a summary written over forgotten messages is replaced by a neutral note.
+    markForgottenBoundary(pathEntries, boundaryIndex);
     yield { entry: boundary, context: "current" };
   }
   let index = -1;
@@ -107,6 +115,8 @@ export function* iterateSessionContextEntries<T extends SessionTreeEntry>(
     if (
       !hasMessage ||
       (entry.type === "custom_message" && isExcludedCustomMessage(entry)) ||
+      // Fork (N11): a forgotten message stays out even in a reset's retained tail.
+      isForgottenEntry(entry) ||
       (!resetKept?.has(entry) &&
         entry.type === "message" &&
         "excludeFromContext" in entry.message &&
@@ -143,6 +153,13 @@ export function projectSessionContextMessage<T extends SessionTreeEntry>(
   const hydrated = readEntry(entry);
   if (hydrated.type === "branch_summary" && !hydrated.summary) {
     return undefined;
+  }
+  if (hydrated.type === "compaction" && isNeutralizedBoundary(entry)) {
+    return createCompactionSummaryMessage(
+      FORGOTTEN_SUMMARY,
+      hydrated.tokensBefore,
+      hydrated.timestamp,
+    );
   }
   // Explicit reset retention can include otherwise excluded user/assistant messages.
   let message =

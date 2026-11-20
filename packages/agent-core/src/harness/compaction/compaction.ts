@@ -6,6 +6,7 @@ import {
 import { sliceUtf16Safe, truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import type { AgentCoreCompletionRuntimeDeps } from "../../runtime-deps.js";
 import type { AgentMessage, ThinkingLevel } from "../../types.js";
+import { forgottenPreviousSummary } from "../session/forgotten-fork.js";
 import { buildSessionContext } from "../session/session.js";
 import { selectResetKeptEntries } from "../session/tool-result-pairing.js";
 import { CompactionError, err, ok, type Result, type SessionTreeEntry } from "../types.js";
@@ -406,6 +407,7 @@ export function prepareCompaction(
   if (prevBoundaryIndex >= 0) {
     const prevBoundary = pathEntries[prevBoundaryIndex];
     previousSummary = prevBoundary?.type === "compaction" ? prevBoundary.summary : undefined;
+    previousSummary = forgottenPreviousSummary(pathEntries, prevBoundaryIndex, previousSummary);
     if (prevBoundary?.type === "compaction") {
       const details = parseCompactionDetails(prevBoundary.details);
       previousLatestUnresolvedUserRequest = details?.latestUnresolvedUserRequest;

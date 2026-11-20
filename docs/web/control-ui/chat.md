@@ -631,8 +631,39 @@ as a fallback and does the same thing:
   **Learn a skill from this chat** (`/learn`: the agent saves the reusable workflow as a skill with the
   skill workshop and says how to undo it) and **Reset chat…** (`/reset`, after a confirmation: a fresh
   session in the same chat; needs operator admin, as the command does).
+- **Forget a topic…** in the same menu: see [Forgetting a topic](#forgetting-a-topic).
 - Switching models and ACP agents, and the bound agent's model: see
   [Switching models and agents](#switching-models-and-agents).
+
+## Forgetting a topic
+
+**Forget a topic…** in the chat's **⋯** menu makes the agent forget part of the conversation without
+deleting it from view (fork, any model):
+
+1. Name the topic. The Gateway ranks the chat's turns (a question with everything that answered it)
+   and the agent's memory paragraphs against it with the local embedding model memory search uses (`chat.forget.find`); no chat model sees
+   the request or the conversation for it.
+2. Tick the turns to forget. Turns well above this chat's average closeness, or naming the topic, start
+   ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick.
+3. **Forget** (`chat.forget.apply`): the ticked turns stay visible in the chat but never reach a model
+   again — not on the next turn, not after a reset, not in a Claude CLI reseed or an ACP history seed.
+
+What else changes:
+
+- A compaction summary written over a forgotten turn is not sent any more: the model gets a short note
+  that the summary was removed, and loses the rest of what that summary held. Later summaries do not
+  carry it on.
+- A Claude CLI chat starts a fresh native session on its next turn, seeded from the chat without the
+  forgotten turns: a resumed Claude session would still hold them.
+- The agent's memory files are searched too: the workspace `MEMORY.md` and `memory/**/*.md` and the
+  extra memory paths (`memorySearch.extraPaths`, such as a shared memory folder), split into
+  paragraphs and ranked the same way under **In memory files**. Ticked paragraphs are removed from their
+  files; a file left without content is deleted along with the `MEMORY.md` line that links it. The
+  previous files are kept under `~/.openclaw/forget-backups/<time>/`, outside memory search; delete that
+  folder to forget for good. Claude Code's own memory (`~/.claude/projects/*/memory`) is not touched.
+
+Closeness thresholds differ for every embedding model (the BGE and E5 model cards say to calibrate on
+your own data), so the pre-selection is relative to the chat, not a fixed number.
 
 ## Claude CLI todo list and background tasks
 

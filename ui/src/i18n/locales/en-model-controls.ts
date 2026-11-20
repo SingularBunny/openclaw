@@ -3,6 +3,26 @@ import { en } from "./en.ts";
 
 const enModelControls = {
   chat: {
+    // Fork (N11): forget a topic.
+    forget: {
+      title: "Forget a topic",
+      topicLabel:
+        "What should the chat forget? It is found with the local embedding model; no chat model sees this.",
+      find: "Find",
+      nothingFound: "Nothing in this chat to forget.",
+      pickTitle: "Forget “{topic}”",
+      pickHint:
+        "Ticked chat turns stay visible here, but no model will see them again; ticked memory paragraphs are removed from their files. Similarity is not proof: check the list.",
+      mentions: "mentions it",
+      inChat: "In this chat",
+      inMemory: "In memory files",
+      summaryNote:
+        "Some of these were summarized earlier: that summary is dropped too, and the model loses the rest of what it summarized.",
+      apply: "Forget {count}",
+      menu: "Forget a topic…",
+      menuDescription: "Leave chosen turns out of the model context, by topic",
+      done: "Forgotten: {count} messages.",
+    },
     // Fork (F89): the attempt and reason next to "Retrying…".
     retryDetail: {
       attemptOf: "attempt {attempt} of {max}",
