@@ -185,6 +185,10 @@ appears under every user and assistant message, next to **Reply** and **Copy Mar
 sets `icon` (a Control UI icon name) and as its label otherwise. `resolve` and `run` receive the chat's `sessionKey`
 and `agentId` and `message`: `{ role, text, id? }`, where `text` is the message as Markdown, as **Copy Markdown**
 copies it, and `id` its transcript entry when persisted. Messages still streaming have no message actions.
+`placement: "composer-controls"` adds a compact button to the composer's control row, next to the permission,
+model and effort pickers; its label (or `icon`) is the button, so a toggle shows its state in the label, e.g.
+"Plan: on". `host.ui.placements` lists the placements the Control UI renders, so a plugin can leave out an action
+that has nowhere to go on another build.
 
 Set a navigation item's `parent` to another navigation ID in the same plugin to
 show it nested while the parent or a child destination is active; children only

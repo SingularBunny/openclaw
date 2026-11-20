@@ -1,4 +1,5 @@
 import { Show } from "solid-js";
+import { PluginComposerControlActions } from "../../../plugins/control-ui-composer-actions.solid.tsx";
 import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import type { ChatComposerProps } from "./chat-composer-types.ts";
@@ -6,7 +7,7 @@ import { ChatPermissionPicker } from "./chat-permission-picker.tsx";
 
 type ComposerForkProps = { composer: ChatComposerProps };
 
-/** The composer's lead controls: the permission picker, then the fork's Claude mode. */
+/** The composer's lead controls: the permission picker, then the fork's Claude mode and plugin buttons (e.g. Plan). */
 export function ComposerLeadControls(props: ComposerForkProps) {
   return (
     <>
@@ -16,6 +17,10 @@ export function ComposerLeadControls(props: ComposerForkProps) {
       <Show when={props.composer.claudeModePicker}>
         {(picker) => <ChatClaudeModePicker {...picker()} />}
       </Show>
+      <PluginComposerControlActions
+        sessionKey={props.composer.sessionKey}
+        agentId={props.composer.currentAgentId}
+      />
     </>
   );
 }
