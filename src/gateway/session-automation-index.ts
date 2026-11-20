@@ -8,6 +8,7 @@ import type { CronStoredJob } from "../cron/types.js";
 import { getChildLogger } from "../logging/logger.js";
 import { normalizeAgentId, parseAgentSessionKey } from "../routing/session-key.js";
 import { sessionChanges } from "../sessions/session-row-changes.js";
+import { sessionAutomationParentKey } from "./session-automation-parent-fork.js";
 
 type SessionAutomationSource = {
   /** Current in-memory cron jobs; undefined until the cron store is loaded. */
@@ -184,6 +185,14 @@ registerSessionMaintenancePreserveKeysProvider(async () => ({
   isPending: () => awaitingSource && !source,
   dispose() {},
 }));
+
+/** Fork: the chat a run session reports to (session-automation-parent-fork.ts). */
+export function sessionAutomationParent(sessionKey: string): string | undefined {
+  return sessionAutomationParentKey(sessionKey, {
+    jobs: source?.getJobs(),
+    defaultAgentId: source?.getDefaultAgentId(),
+  });
+}
 
 /** True when an enabled cron job is bound to the canonical session key. */
 export function sessionHasAutomation(
