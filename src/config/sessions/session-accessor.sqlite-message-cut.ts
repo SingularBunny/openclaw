@@ -428,6 +428,7 @@ export function mutateSqliteSessionAtMessageInTransaction(
     source?.events ?? [],
     params,
     projection?.sourceRepositoryWorkspaceId,
+    source ? (selected) => source.hydrate(selected) : undefined,
   );
   if (plan.status !== "prepared") {
     return plan;
