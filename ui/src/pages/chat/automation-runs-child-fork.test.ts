@@ -8,7 +8,7 @@ describe("runs of jobs set up from an automation chat", () => {
   it("reads the latest runs of every job but the owner, and skips one that fails", async () => {
     const calls: unknown[] = [];
     const client = {
-      request: async <T,>(_method: string, params: Record<string, unknown>) => {
+      request: async <T>(_method: string, params: Record<string, unknown>) => {
         calls.push(params);
         if (params.id === "broken") {
           throw new Error("gone");

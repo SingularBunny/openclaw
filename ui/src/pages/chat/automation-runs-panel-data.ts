@@ -11,13 +11,14 @@ import {
 } from "../../lib/cron/runs.ts";
 import type { CronState } from "../../lib/cron/types.ts";
 import { AutomationChatJobsData } from "./automation-chat-jobs-data.ts";
+import { loadChildJobRuns, mergeRuns } from "./automation-runs-child-fork.ts";
 
 /** Runs shown per page; the Automations Run history pages the same `cron.runs` log. */
 export const AUTOMATION_RUNS_PAGE_SIZE = 20;
 
 /**
  * Run history of the open automation chat's own automation, newest first (`cron.runs` for its job).
- * Follow-up jobs that only post into the chat are left out: the panel is this automation's history.
+ * Fork: jobs set up from this chat add their latest runs (automation-runs-child-fork.ts).
  */
 export class AutomationRunsPanelData extends AutomationChatJobsData {
   readonly cron: CronState = createInitialCronState();
@@ -29,8 +30,11 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
     this.cron.canRefresh = () => this.current(this.generation);
   }
 
+  /** Fork: latest runs of the jobs set up from this chat. */
+  childRuns: CronRunLogEntry[] = [];
+
   get runs(): readonly CronRunLogEntry[] {
-    return this.cron.cronRuns;
+    return mergeRuns(this.cron.cronRuns, this.childRuns);
   }
 
   get runsState(): CronRunsViewState {
@@ -75,6 +79,11 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
     if (!this.current(generation)) {
       return;
     }
+    const children = await loadChildJobRuns(scope.client, this.jobs, jobId);
+    if (!this.current(generation)) {
+      return;
+    }
+    this.childRuns = children;
     if (this.deleted) {
       // History of a removed automation is not offered: its transcripts and route are gone too.
       retireCronRunsRequest(this.cron);
@@ -95,6 +104,7 @@ export class AutomationRunsPanelData extends AutomationChatJobsData {
 
   protected override retire(): void {
     super.retire();
+    this.childRuns = [];
     retireCronRunsRequest(this.cron);
     clearCronRunsPage(this.cron);
     this.cron.cronRunsJobId = null;

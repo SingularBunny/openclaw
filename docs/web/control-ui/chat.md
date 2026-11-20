@@ -1754,7 +1754,7 @@ Your name is hidden beneath your own messages when no other human participant is
 
 A job set up from a chat (an agent scheduling a watcher while you work, `sessionTarget: "current"`) does not get
 a chat of its own in the sidebar (fork): it reports to the chat it was set up from, and that chat's **Run…** menu
-can start it. Its run history is in **Automations**. Automations you set up there keep their own chats.
+can start it. When that chat is an automation's, its Runs tab lists the job's latest runs too; the full history is in **Automations**. Automations you set up there keep their own chats.
 
 Open a session to inspect its recorded messages and tool calls.
 
