@@ -294,6 +294,14 @@ export function createControlUiPluginHost(
       },
     },
     ui: {
+      // Fork: the action placements this Control UI renders (composer-controls and message are the fork's).
+      placements: Object.freeze([
+        "composer",
+        "header",
+        "session",
+        "message",
+        "composer-controls",
+      ] as const),
       invalidate: () => runtime.invalidate(owner),
       registerPage: (value) => runtime.register(owner, "pages", value),
       registerNavigation: (value) => runtime.register(owner, "navigation", value),

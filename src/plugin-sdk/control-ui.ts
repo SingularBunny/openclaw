@@ -194,8 +194,11 @@ export type ControlUiMessage = {
 export type ControlUiAction = {
   id: string;
   label: string;
-  /** Fork: "message" adds the action to the actions under each chat message, next to Reply and Copy Markdown. */
-  placement: "composer" | "header" | "session" | "message";
+  /**
+   * Fork: "message" adds the action to the actions under each chat message, next to Reply and Copy Markdown;
+   * "composer-controls" adds a compact button to the composer's control row, next to the model and effort pickers.
+   */
+  placement: "composer" | "header" | "session" | "message" | "composer-controls";
   /** Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. */
   icon?: string;
   resolve?: (
@@ -319,6 +322,8 @@ export type ControlUiHost = {
     ) => string;
   };
   ui: {
+    /** Fork: the action placements this host renders, so a plugin can leave out what has nowhere to go. */
+    readonly placements?: readonly ControlUiAction["placement"][];
     /** Refresh contributions whose presentation depends on plugin-owned state. */
     invalidate: () => void;
     registerPage: (page: ControlUiPage) => ControlUiDisposer;
