@@ -16,7 +16,6 @@ import { readSessionMethodAccess } from "../../lib/session-method-access.ts";
 import { parseAgentSessionKey } from "../../lib/sessions/session-key.ts";
 import { autoOpenAutomationRuns } from "./automation-runs-auto-open.ts";
 import { resolveChatAgentIdentity } from "./chat-agent-id.ts";
-import { ChatCommandMenuActions } from "./chat-command-menu-actions.ts";
 import {
   canLoadChatBranches,
   displayedChatSessionBranches,
@@ -76,8 +75,6 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
   private headerPanelControls?: PaneControls;
   private headerBoardMenu?: BoardWidgetPageMenu;
   private readonly headerPanelsMemo = new ChatPaneHeaderMemo<HeaderPanelAction[]>();
-  // Fork: New chat, Learn and Reset chat lead the quick actions (the /new, /learn and /reset commands).
-  private readonly headerCommandActions = new ChatCommandMenuActions();
   private readonly headerMachineNameMemo = new ChatPaneHeaderMemo<
     (() => Promise<string | undefined>) | undefined
   >();
@@ -616,7 +613,7 @@ export abstract class ChatPaneHeader extends ChatPaneDiscussion {
                 this.sessionPresentation === "desktop" && !this.compact && !this.onBackToSubagents
                   ? undefined
                   : boardWidgetMenu,
-              sessionActions: this.headerCommandActions.read(this.state),
+              sessionActions: [],
               actionSource: {
                 readOwner: () => this,
                 readRow: () => this.headerMenuRow,

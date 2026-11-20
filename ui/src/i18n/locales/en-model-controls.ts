@@ -3,26 +3,6 @@ import { en } from "./en.ts";
 
 const enModelControls = {
   chat: {
-    // Fork (N11): forget a topic.
-    forget: {
-      title: "Forget a topic",
-      topicLabel:
-        "What should the chat forget? It is found with the local embedding model; no chat model sees this.",
-      find: "Find",
-      nothingFound: "Nothing in this chat to forget.",
-      pickTitle: "Forget “{topic}”",
-      pickHint:
-        "Ticked chat turns stay visible here, but no model will see them again; ticked memory paragraphs are removed from their files. Similarity is not proof: check the list.",
-      mentions: "mentions it",
-      inChat: "In this chat",
-      inMemory: "In memory files",
-      summaryNote:
-        "Some of these were summarized earlier: that summary is dropped too, and the model loses the rest of what it summarized.",
-      apply: "Forget {count}",
-      menu: "Forget a topic…",
-      menuDescription: "Leave chosen turns out of the model context, by topic",
-      done: "Forgotten: {count} messages.",
-    },
     // Fork (F89): the attempt and reason next to "Retrying…".
     retryDetail: {
       attemptOf: "attempt {attempt} of {max}",
@@ -92,29 +72,6 @@ const enModelControls = {
       addFailed: "Could not add to the group chat: {reason}",
       removeFailed: "Could not remove from the group chat: {reason}",
       stopFailed: "Could not stop the member's turn: {reason}",
-    },
-    // Fork: the composer's Plan toggle (workbench plan mode, the same switch as /plan).
-    planMode: {
-      label: "Plan mode",
-      on: "Plan",
-      turnOn:
-        "Plan mode is off. Turn it on: the agent researches and presents a plan before changing anything.",
-      turnOff: "Plan mode is on: files stay unchanged until you approve the plan. Turn it off.",
-      readOnly: "Changing plan mode needs operator write access.",
-      updateFailed: "Could not change plan mode: {error}",
-    },
-    // Fork: chat commands as items of the chat's menu.
-    commandMenu: {
-      new: "New chat",
-      newUnavailable: "New chat is unavailable here.",
-      reset: "Reset chat…",
-      resetConfirmTitle: "Reset this chat?",
-      resetConfirmMessage:
-        "The agent starts a fresh session in this chat and no longer sees the earlier conversation. This is the same as /reset.",
-      resetConfirm: "Reset chat",
-      learn: "Learn a skill from this chat",
-      learnDescription: "Saves the reusable workflow from this chat as a skill (/learn).",
-      offline: "The Gateway is not connected.",
     },
     modelControls: {
       subscription: "Subscription",
