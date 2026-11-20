@@ -3,11 +3,10 @@ import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import type { ChatComposerProps } from "./chat-composer-types.ts";
 import { ChatPermissionPicker } from "./chat-permission-picker.tsx";
-import { ChatPlanModeToggle } from "./chat-plan-mode-toggle.tsx";
 
 type ComposerForkProps = { composer: ChatComposerProps };
 
-/** The composer's lead controls: the permission picker, then the fork's Claude mode and plan mode. */
+/** The composer's lead controls: the permission picker, then the fork's Claude mode. */
 export function ComposerLeadControls(props: ComposerForkProps) {
   return (
     <>
@@ -16,9 +15,6 @@ export function ComposerLeadControls(props: ComposerForkProps) {
       </Show>
       <Show when={props.composer.claudeModePicker}>
         {(picker) => <ChatClaudeModePicker {...picker()} />}
-      </Show>
-      <Show when={props.composer.planModeToggle}>
-        {(toggle) => <ChatPlanModeToggle {...toggle()} />}
       </Show>
     </>
   );

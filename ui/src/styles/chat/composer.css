@@ -4089,15 +4089,3 @@ html[dir="rtl"] .chat-attachments-preview .chat-attachment-loading__line > span 
 .chat-controls__effort-menu--access {
   max-height: min(400px, var(--auto-size-available-height, calc(100vh - 120px)));
 }
-/* Fork: the Plan toggle (workbench plan mode). Off it is a quiet icon like its neighbors; on it
-   carries a label and the accent so the chat's mode reads at a glance. */
-.chat-controls__plan-mode-toggle {
-  width: auto;
-  flex: none;
-}
-
-.chat-controls__plan-mode-toggle--on,
-.chat-controls__plan-mode-toggle--on:hover {
-  background: color-mix(in srgb, var(--accent) 14%, transparent);
-  color: var(--accent);
-}

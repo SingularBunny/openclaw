@@ -23,7 +23,6 @@ import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
 import { getAcceptedChatHistorySession } from "./chat-history-state.ts";
 import { createChatHandoffPicker } from "./chat-pane-handoff-picker-fork.ts";
 import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
-import { buildChatPlanModeToggle } from "./chat-plan-mode.ts";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";
 import { switchChatModel, switchChatSetting } from "./chat-session.ts";
 import { patchChatSessionSettings } from "./chat-settings-patches.ts";
@@ -35,7 +34,6 @@ import type { ChatProps } from "./chat-view.tsx";
 import type { ChatClaudeModePickerProps } from "./components/chat-claude-mode.ts";
 import { renderChatModelAccountControl } from "./components/chat-model-account-control.ts";
 import type { ChatPermissionPickerProps } from "./components/chat-permission-picker.tsx";
-import type { ChatPlanModeToggleProps } from "./components/chat-plan-mode-toggle.types.ts";
 import { activeQueuedMessageEdit } from "./queued-message-edit.ts";
 import { readChatSessionSnapshot } from "./session-message-cache.ts";
 
@@ -163,7 +161,6 @@ export function renderChatPaneComposerControls(params: {
   };
   permissionPicker: ChatPermissionPickerProps;
   claudeModePicker?: ChatClaudeModePickerProps;
-  planModeToggle?: ChatPlanModeToggleProps;
 } {
   const {
     state,
@@ -411,7 +408,6 @@ export function renderChatPaneComposerControls(params: {
       ownsSelection,
     }),
     // Fork: the workbench plan mode toggle, for any model (aiwb-plan.status / aiwb-plan.set).
-    planModeToggle: buildChatPlanModeToggle(state, sessionKey, agentScope.agentId),
     permissionPicker: {
       canSelectFull,
       defaultMode: permissionSnapshot

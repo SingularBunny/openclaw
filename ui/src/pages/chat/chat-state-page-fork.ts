@@ -1,4 +1,3 @@
-import { scopedAgentParamsForSession } from "../../lib/sessions/navigation.ts";
 import { routeChatGroupSend } from "./chat-group.ts";
 import {
   canUseChatAcpModels,
@@ -8,7 +7,6 @@ import {
   refreshChatHandoffInfo,
   waitForChatIdle,
 } from "./chat-handoff.ts";
-import { canReadChatPlanMode, readChatPlanMode, refreshChatPlanMode } from "./chat-plan-mode.ts";
 import { handleSendChat } from "./chat-send-submit.ts";
 import type { ChatPageHost } from "./chat-state-host.ts";
 
@@ -49,23 +47,10 @@ export function sendForkChat(
       }
     });
   }
-  // `/plan` and an approved plan change the chat's plan mode; the composer toggle follows.
-  const planSessionKey = state.sessionKey;
-  const planAgentId = scopedAgentParamsForSession(state, planSessionKey).agentId;
-  if (
-    canReadChatPlanMode(state) &&
-    (/^\/plan\b/u.test(message.trim()) ||
-      readChatPlanMode(state, planSessionKey, planAgentId)?.on === true)
-  ) {
-    void sent.then(async () => {
-      await waitForChatIdle(state);
-      await refreshChatPlanMode(state, planSessionKey, planAgentId);
-    });
-  }
   return sent;
 }
 
-/** Fork: handoff, group chat and plan mode keep their state outside the projected fields. */
+/** Fork: handoff and group chat keep their state outside the projected fields. */
 export function installForkUiRevision(state: ChatPageHost & { forkUiRevision: number }): void {
   state.requestUpdate = () => {
     state.forkUiRevision += 1;

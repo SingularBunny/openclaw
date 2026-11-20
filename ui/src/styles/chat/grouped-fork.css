@@ -1,4 +1,4 @@
-/* Fork: styles of the fork's chat controls (hand-off menu, refusal hint, group strip and menu, forget a topic,
+/* Fork: styles of the fork's chat controls (hand-off menu, refusal hint, group strip and menu,
    rewind file list). Kept out of grouped.css so a port to a new upstream release does not merge them. */
 .chat-confirm-popover__files {
   max-width: 320px;
@@ -216,52 +216,7 @@
   white-space: nowrap;
 }
 
-/* Fork (N11): "Forget a topic" turn list. */
-.chat-forget__hint,
-.chat-forget__note {
-  margin: 0 0 8px;
-  color: var(--muted);
-  font-size: 13px;
-}
-.chat-forget__note {
-  color: var(--warn, var(--muted));
-}
-.chat-forget__list {
-  list-style: none;
-  margin: 0 0 8px;
-  padding: 0;
-  max-height: 50vh;
-  overflow: auto;
-}
-.chat-forget__item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 8px;
-  align-items: start;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-  cursor: pointer;
-}
-.chat-forget__preview {
-  overflow-wrap: anywhere;
-}
-.chat-forget__score {
-  color: var(--muted);
-  font-size: 12px;
-  white-space: nowrap;
-}
-.chat-forget__heading {
-  margin: 8px 0 4px;
-  font-weight: 600;
-  font-size: 13px;
-}
-.chat-forget__file {
-  display: block;
-  color: var(--muted);
-  font-size: 12px;
-}
-
-/* A menu item with a description ("Learn a skill…", "Forget a topic…") grows to fit it instead of being squeezed
+/* A menu item with a description grows to fit it instead of being squeezed
    to one row height, where the description overlapped the next item. */
 .oc-menu-item.session-menu__item:has(.session-menu__description) {
   flex-shrink: 0;
