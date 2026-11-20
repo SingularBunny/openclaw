@@ -10,11 +10,11 @@ import type {
 import { registerProviderUsageEnglish } from "../../i18n/locales/en-provider-usage.ts";
 import { formatUiExternalText } from "../../lib/format-error.ts";
 import { formatCompactTokenCount } from "../../lib/format.ts";
-import { formatRelativeTimestamp } from "../../lib/reactive/format.ts";
 import { registerEnglishCatalog, t } from "../../lib/reactive/i18n.ts";
 import "../../styles/carapace-control-ui.css";
 import "../../styles/provider-usage.css";
 import { Icon } from "./icon.tsx";
+import { resetCountdownText, usedWindowPercent, usedWindowText } from "./provider-usage-fork.ts";
 
 registerEnglishCatalog(registerProviderUsageEnglish);
 
@@ -103,7 +103,7 @@ function resetText(window: UsageWindow): { date?: string; relative?: string } {
       hour: "numeric",
       minute: "2-digit",
     }).format(new Date(window.resetAt)),
-    relative: formatRelativeTimestamp(window.resetAt),
+    relative: resetCountdownText(window.resetAt),
   };
 }
 
@@ -137,7 +137,7 @@ export function hasProviderUsageDetails(usage: ProviderUsageDetails | undefined)
   );
 }
 
-/** Remaining headroom of one plan window; the fill shows what is left. */
+/** One plan window; the fill shows what is used (fork: as the sidebar usage block). */
 function UsageWindowMeter(props: { window: UsageWindow }) {
   return (
     <div
@@ -146,12 +146,10 @@ function UsageWindowMeter(props: { window: UsageWindow }) {
       aria-label={props.window.label}
       aria-valuemin="0"
       aria-valuemax="100"
-      aria-valuenow={String(remainingPercent(props.window))}
-      aria-valuetext={t("usage.providerUsage.remaining", {
-        percent: String(remainingPercent(props.window)),
-      })}
+      aria-valuenow={String(usedWindowPercent(props.window))}
+      aria-valuetext={usedWindowText(props.window)}
     >
-      <span style={{ width: `${remainingPercent(props.window)}%` }} />
+      <span style={{ width: `${usedWindowPercent(props.window)}%` }} />
     </div>
   );
 }
@@ -295,11 +293,7 @@ export function ProviderUsagePanel(props: { usage: ProviderUsageDetails }) {
                 {(window) => (
                   <div class="provider-usage__window" data-tone={remainingTone(window())}>
                     <span class="provider-usage__window-label">{window().label}</span>
-                    <strong class="provider-usage__window-value">
-                      {t("usage.providerUsage.remaining", {
-                        percent: String(remainingPercent(window())),
-                      })}
-                    </strong>
+                    <strong class="provider-usage__window-value">{usedWindowText(window())}</strong>
                     <UsageWindowMeter window={window()} />
                     <Show when={resetText(window()).date}>
                       <small class="provider-usage__reset">
@@ -349,9 +343,7 @@ export function ProviderUsageChips(props: { usage: ProviderUsageDetails | undefi
           <span class="provider-usage__chip" data-tone={remainingTone(window())}>
             <span class="provider-usage__chip-label">{window().label}</span>
             <UsageWindowMeter window={window()} />
-            <span class="provider-usage__chip-value">
-              {t("usage.providerUsage.remaining", { percent: String(remainingPercent(window())) })}
-            </span>
+            <span class="provider-usage__chip-value">{usedWindowText(window())}</span>
           </span>
         )}
       </For>

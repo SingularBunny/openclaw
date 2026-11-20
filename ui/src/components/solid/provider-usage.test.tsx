@@ -81,13 +81,13 @@ describe("ProviderUsagePanel", () => {
     flush();
     expect(rows()).toEqual(before);
     expect(view.container.querySelector('[role="meter"]')?.getAttribute("aria-valuenow")).toBe(
-      "10",
+      "90",
     );
     expect(view.container.querySelector(".provider-usage__window")?.getAttribute("data-tone")).toBe(
       "error",
     );
     expect(view.container.querySelector(".provider-usage__chip-value")?.textContent).toBe(
-      "10% left",
+      "90% used",
     );
     expect(rowValues(view.container)).toEqual([
       ["Balance", "14 credits"],
@@ -98,7 +98,7 @@ describe("ProviderUsagePanel", () => {
     ]);
   });
 
-  it("groups windows in rank order and presents remaining headroom accessibly", () => {
+  it("groups windows in rank order and presents the used share accessibly", () => {
     const view = mountSolid(() => (
       <ProviderUsagePanel
         usage={{
@@ -119,11 +119,11 @@ describe("ProviderUsagePanel", () => {
         meter.closest(".provider-usage__window")?.getAttribute("data-tone"),
       ]),
     ).toEqual([
-      ["5h", "75", null],
-      ["Weekly", "8", "error"],
-      ["Monthly", "20", "warning"],
+      ["5h", "25", null],
+      ["Weekly", "92", "error"],
+      ["Monthly", "80", "warning"],
     ]);
-    expect(meters[0]?.querySelector<HTMLElement>("span")?.style.width).toBe("75%");
+    expect(meters[0]?.querySelector<HTMLElement>("span")?.style.width).toBe("25%");
     expect(
       Array.from(
         view.container.querySelectorAll(".provider-usage__note"),
@@ -147,7 +147,7 @@ describe("ProviderUsagePanel", () => {
     const alert = view.container.querySelector('.provider-usage__alert[role="status"]');
     expect(alert?.textContent).toMatch(/^Premium is used up until .+\.$/u);
     const reset = view.container.querySelector(".provider-usage__window .provider-usage__reset");
-    expect(reset?.textContent).toMatch(/^Resets .+ · in 3h$/u);
+    expect(reset?.textContent).toMatch(/^Resets .+ · in (?:2h 59m|3h)$/u);
     // A window with no reported reset says nothing rather than guessing.
     expect(view.container.querySelectorAll(".provider-usage__reset")).toHaveLength(1);
   });

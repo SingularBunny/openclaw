@@ -77,7 +77,7 @@ describe("ModelProvidersPage usage convergence", () => {
       );
     const expectLimits = (remaining: number) =>
       expect(limitsText()).toEqual(
-        Array.from({ length: 2 }, () => expect.stringContaining(`${remaining}% left`)),
+        Array.from({ length: 2 }, () => expect.stringContaining(`${100 - remaining}% used`)),
       );
     await vi.waitFor(() => expectLimits(90));
     expect(accountRequests).toEqual([
@@ -88,7 +88,7 @@ describe("ModelProvidersPage usage convergence", () => {
       [...openai.querySelectorAll('.model-providers__account-limits [role="meter"]')].map((meter) =>
         meter.getAttribute("aria-valuenow"),
       ),
-    ).toEqual(["90", "90"]);
+    ).toEqual(["10", "10"]);
     for (const [row, id] of [
       [anthropic, "anthropic:one"],
       [openai, "openai:key"],

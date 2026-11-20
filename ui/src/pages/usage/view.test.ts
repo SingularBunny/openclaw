@@ -443,7 +443,7 @@ describe("renderUsage", () => {
     });
 
     const card = container.querySelector(".provider-usage-card");
-    for (const label of ["OpenRouter", "Production", "75% left", "$64.50", "$5.00 / $20.00"]) {
+    for (const label of ["OpenRouter", "Production", "25% used", "$64.50", "$5.00 / $20.00"]) {
       expect(card?.textContent).toContain(label);
     }
     expect(
@@ -452,7 +452,7 @@ describe("renderUsage", () => {
         (value) => value.textContent,
       ),
     ).toEqual(["$64.50", "$5.00 / $20.00", "¥13 / ¥20", "1.5  Credits  / 3  Credits "]);
-    expect(card?.querySelector(".provider-usage__window-value")?.textContent).toBe("75% left");
+    expect(card?.querySelector(".provider-usage__window-value")?.textContent).toBe("25% used");
   });
 
   it("keeps complete insights and history beyond the visible page", () => {
