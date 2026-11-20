@@ -55,12 +55,13 @@ import { SessionManager } from "../sessions/session-manager.js";
 import { buildAssistantMessage, buildUsageWithNoCost } from "../stream-message-shared.js";
 import { cliAssistantItemId } from "./assistant-identity.js";
 import {
+  cliTranscriptForkFields,
   cliTranscriptMetadataEnvelope,
   resolveCliTranscriptResumePoint,
 } from "./cli-run-transcript-fork.js";
 import type { PreparedCliRunContext, RunCliAgentParams } from "./types.js";
 
-export { resolveCliTranscriptResumePoint };
+export { cliTranscriptForkFields, resolveCliTranscriptResumePoint };
 
 const log = createSubsystemLogger("agents/cli-runner");
 

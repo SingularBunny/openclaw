@@ -147,8 +147,8 @@ function enqueueSessionEventAttempt(
   let genericFailure: string | undefined;
   let terminalOutcome: SessionEventOutcome["terminalOutcome"];
   let errorReason: SessionEventOutcome["errorReason"];
-  let nextCheckMs: number | undefined;
-  let nextCheckFollowUpDepth: number | undefined;
+  // Fork: the follow-up depth of the next check rides with it.
+  let nextCheckMs: number | undefined, nextCheckFollowUpDepth: number | undefined;
   let sourceDeliveryOutcome: SourceDeliveryOutcome | undefined;
   let automationResult: SessionEventOutcome["automationResult"];
   let settlement: "settling" | "finished" | undefined;
