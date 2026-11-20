@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { stripThinkingTags } from "../../../lib/strip-thinking-tags.ts";
-import {
-  prepareChatMessageRender,
-  resolveMessageActionDetails,
-  resolveRefusalHint,
-} from "./chat-message-markdown-view.tsx";
+import { prepareChatMessageRender } from "../../../lib/chat/message-display.ts";
+import { resolveMessageActionDetails, resolveRefusalHint } from "./chat-message-markdown-view.tsx";
 
 const reply = (text: string, extra: Record<string, unknown> = {}) => ({
   role: "assistant",
