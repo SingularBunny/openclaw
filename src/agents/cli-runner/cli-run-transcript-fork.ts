@@ -73,3 +73,17 @@ export function cliTranscriptMetadataEnvelope(params: {
     },
   };
 }
+
+/** The fork's fields of a CLI assistant transcript row: the refusal marker and the resume point. */
+export function cliTranscriptForkFields(
+  context: Parameters<typeof resolveCliTranscriptResumePoint>[0]["context"],
+  output: Parameters<typeof resolveCliTranscriptResumePoint>[0]["output"] &
+    Pick<CliOutput, "refusal">,
+  cliSessionId: string | undefined,
+  bindingKept: boolean,
+): { refusal?: CliOutput["refusal"]; resumePoint?: CliSessionResumePoint } {
+  return {
+    ...(output.refusal ? { refusal: output.refusal } : {}),
+    resumePoint: resolveCliTranscriptResumePoint({ context, output, cliSessionId, bindingKept }),
+  };
+}

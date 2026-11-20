@@ -38,7 +38,7 @@ import {
   finalizeCliContextEngineTurn,
   persistApprovedCliUserTurnTranscript,
   persistCliAssistantTranscript,
-  resolveCliTranscriptResumePoint,
+  cliTranscriptForkFields,
   persistCliRunBlock,
   resolveCliAssistantStopReason,
   runCliAgentEndHook,
@@ -614,13 +614,8 @@ async function runPreparedCliAgentOwned(
           turnUsage: output.diagnosticUsage,
           stopReason: resolveCliAssistantStopReason(output),
           yielded: output.yielded,
-          ...(output.refusal ? { refusal: output.refusal } : {}),
-          resumePoint: resolveCliTranscriptResumePoint({
-            context,
-            output,
-            cliSessionId: effectiveCliSessionId,
-            bindingKept: !sessionBindingDisabled && bindingFlushOk,
-          }),
+          // Fork: the refusal marker and the native resume point (none without a session binding).
+          ...cliTranscriptForkFields(context, output, effectiveCliSessionId, bindingFlushOk),
         });
         const runResult = buildCliRunResult({
           ...resultContext,
