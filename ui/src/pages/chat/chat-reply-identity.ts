@@ -66,9 +66,18 @@ export function publishAcpAgentIdentities(raw: unknown): void {
  * that is new or changed re-renders the replies, so panes publishing the same catalog stay quiet.
  */
 export function publishReplyModelLabels(entries: Iterable<readonly [string, string]>): void {
-  let changed = false;
+  // One name per model in a publish: a bare model id shared by several providers with different names
+  // (`anthropic/x` "X", `openrouter/x` "X (OpenRouter)") would otherwise flip on every publish and re-render
+  // the replies without end. The first name wins.
+  const next = new Map<string, string>();
   for (const [model, name] of entries) {
-    if (name && modelLabels.get(model) !== name) {
+    if (name && !next.has(model)) {
+      next.set(model, name);
+    }
+  }
+  let changed = false;
+  for (const [model, name] of next) {
+    if (modelLabels.get(model) !== name) {
       modelLabels.set(model, name);
       changed = true;
     }
