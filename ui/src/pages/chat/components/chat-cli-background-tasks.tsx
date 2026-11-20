@@ -6,6 +6,7 @@ import {
   formatCliBackgroundTaskType,
 } from "../cli-background-tasks.ts";
 import type { CliBackgroundTaskRow, CliBackgroundTasksStatus } from "../tool-stream-contract.ts";
+import "./chat-cli-background-tasks.css";
 
 /** Resolves whether the CLI accepted the stop request for the task. */
 export type CliBackgroundTaskStop = (taskId: string) => Promise<boolean>;
