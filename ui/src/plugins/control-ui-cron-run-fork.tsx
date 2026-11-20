@@ -4,8 +4,13 @@
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import type { GatewayBrowserClient } from "../api/gateway.ts";
 import type { CronRunLogEntry } from "../api/types.ts";
+import { registerCronEnglish } from "../i18n/locales/en-cron.ts";
+import { registerEnglishCatalog } from "../lib/reactive/i18n.ts";
 import { defineSolidBridge, type SolidBridgeElement } from "../lib/solid-bridge.ts";
 import { CronRunTranscriptView, createCronRunTranscript } from "../pages/cron/run-transcript.tsx";
+
+// The viewer's strings live in the Automations catalog, which a plugin view does not load by itself.
+registerEnglishCatalog(registerCronEnglish);
 
 /** The run to show: its job and its run id, or the run time when the log has no id. */
 export type PluginCronRun = { jobId: string; runId?: string; runAtMs?: number };
