@@ -260,3 +260,16 @@
   color: var(--muted);
   font-size: 12px;
 }
+
+/* A menu item with a description ("Learn a skill…", "Forget a topic…") grows to fit it instead of being squeezed
+   to one row height, where the description overlapped the next item. */
+.oc-menu-item.session-menu__item:has(.session-menu__description) {
+  flex-shrink: 0;
+  height: auto;
+  align-items: flex-start;
+  padding-block: 6px;
+}
+
+.oc-menu-item.session-menu__item:has(.session-menu__description) .oc-menu-item__icon {
+  margin-top: 1px;
+}
