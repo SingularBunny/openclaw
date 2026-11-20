@@ -157,9 +157,9 @@ describe("session catalog schemas", () => {
         { kind: "sessions", threadIds: ["thread-1"] },
         { kind: "sessions", group: "Work", threadIds: ["thread-1", "thread-1"] },
       ]) {
-        expect(
-          validateSessionsCatalogReorderParams({ ...base, target: reorderTarget }),
-        ).toBe(false);
+        expect(validateSessionsCatalogReorderParams({ ...base, target: reorderTarget })).toBe(
+          false,
+        );
       }
       expect(
         validateSessionsCatalogReorderParams({
