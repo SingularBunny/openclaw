@@ -8,6 +8,7 @@ import "./chat/context-attachment.css";
 import "./chat/text.css";
 import "./sidebar-markdown.css";
 import "./chat/grouped.css";
+import "./chat/grouped-fork.css";
 import "./chat/working-indicator.css";
 import "./chat/run-failure.css";
 import "./chat/tool-cards.css";

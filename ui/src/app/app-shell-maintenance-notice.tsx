@@ -2,6 +2,7 @@ import { createMemo, createSignal, Show } from "solid-js";
 import { t } from "../lib/reactive/i18n.ts";
 import { resolveGatewayMaintenanceBanner } from "./gateway-maintenance-notice.ts";
 import type { ApplicationGatewaySnapshot } from "./gateway.ts";
+import "./app-shell-fork-notices.css";
 
 /**
  * Fork: app-level banner while maintenance mode pauses chats, with a Resume chats button
