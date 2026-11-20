@@ -22,6 +22,9 @@ const catalog = {
       topModels: "Top models",
       costCategories: "Cost categories",
       remaining: "{percent}% left",
+      // Fork: windows read as used, like the sidebar usage block and claude.ai.
+      used: "{percent}% used",
+      resetsIn: "in {countdown}",
       resets: "Resets {date}",
       exhausted: "{label} is used up.",
       checkFailed: "Check failed",
