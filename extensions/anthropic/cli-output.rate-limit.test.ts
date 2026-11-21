@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { parseClaudeCliJsonlLifecycleEvent, parseClaudeRateLimitEvent } from "./cli-output.js";
+import { parseClaudeRateLimitEvent } from "./cli-output-fork.js";
+import { parseClaudeCliJsonlLifecycleEvent } from "./cli-output.js";
 
 const record = vi.hoisted(() => vi.fn());
 vi.mock("openclaw/plugin-sdk/provider-usage", () => ({ recordProviderUsageRateLimit: record }));
