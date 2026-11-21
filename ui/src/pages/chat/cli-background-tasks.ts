@@ -1,6 +1,6 @@
 import { t } from "../../i18n/index.ts";
 import { resolveChatAgentId } from "./chat-agent-id.ts";
-import type { ChatPageHost } from "./chat-state-host.ts";
+import type { ChatState } from "./chat-state-contract.ts";
 import type {
   AgentEventPayload,
   CliBackgroundTaskRow,
@@ -133,7 +133,7 @@ export function formatCliBackgroundTasksLabel(
 
 /** Fork (F47): stops one Claude CLI background task of the selected session. */
 export async function stopCliBackgroundTask(
-  state: ChatPageHost | undefined,
+  state: ChatState | undefined,
   taskId: string,
 ): Promise<boolean> {
   if (!state?.client) {
