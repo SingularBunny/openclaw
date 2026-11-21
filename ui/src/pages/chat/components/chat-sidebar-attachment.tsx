@@ -23,6 +23,7 @@ import { openResolvedImage } from "./chat-image-presentation.ts";
 import { releaseChatMediaResourceOwner } from "./chat-message-media.ts";
 import { isOfficeAttachment, officePdfTransform } from "./chat-office-preview.ts";
 import { ChatPdfPreview, isPdfAttachment } from "./chat-pdf-preview.tsx";
+import { SidebarAttachmentReader } from "./chat-sidebar-attachment-fork.tsx";
 import type {
   AttachmentSidebarRuntime,
   SidebarContent,
@@ -103,19 +104,7 @@ function prepareAttachment(input: SidebarAttachmentProps, onSourceChange: () => 
 }
 
 export function SidebarAttachment(props: SidebarAttachmentProps) {
-  // Download-only attachments never resolve preview sources; PDF and Office documents with a
-  // file source read their bytes through it for the reader.
-  const readerKind = createMemo(() => {
-    if (!props.content.file) {
-      return null;
-    }
-    const mimeType = props.content.mimeType ?? "";
-    return isPdfAttachment(mimeType, props.content.title)
-      ? "pdf"
-      : isOfficeAttachment(mimeType, props.content.title)
-        ? "office"
-        : null;
-  });
+  // Download-only attachments never resolve preview sources.
   return (
     <>
       <Show when={!props.mobile && (props.attachment || props.content.file)}>
@@ -169,29 +158,7 @@ export function SidebarAttachment(props: SidebarAttachmentProps) {
               onDownload={() => void download().onDownload()}
               downloadPending={download().pending}
             />
-            {/* PDF and Office documents also open in the reader through the same download source. */}
-            <Show when={readerKind()}>
-              {(kind) => (
-                <ChatPdfPreview
-                  src=""
-                  sourceIdentity={[
-                    props.runtime.connectionEpoch ?? "",
-                    props.runtime.agentId ?? "",
-                    props.runtime.sessionKey ?? "",
-                    props.content.sourceIdentity ?? props.content.title,
-                  ].join("\u0000")}
-                  label={props.content.title}
-                  mimeType={props.content.mimeType ?? ""}
-                  sizeBytes={props.content.sizeBytes}
-                  file={props.content.file}
-                  transform={
-                    kind() === "office"
-                      ? officePdfTransform(props.runtime, props.content.title)
-                      : undefined
-                  }
-                />
-              )}
-            </Show>
+            <SidebarAttachmentReader content={props.content} runtime={props.runtime} />
             <Loading on={download().completion}>
               <Errored fallback={(error) => <div role="alert">{formatUiError(error())}</div>}>
                 {download().outcome()}
