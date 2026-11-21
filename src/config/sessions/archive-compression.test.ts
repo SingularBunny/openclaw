@@ -9,6 +9,7 @@ import {
   materializeSessionArchiveForRead,
   readSessionArchiveContentSync,
   SESSION_ARCHIVE_ZSTD_SUFFIX,
+  sessionArchiveReadBudget,
 } from "./archive-compression.js";
 
 const tempDirs = useAutoCleanupTempDirTracker(afterEach);
@@ -25,6 +26,29 @@ describe("archive compression", () => {
 
     expect(() => read(archivePath)).toThrow(/Session archive .* exceeds .* decompressed bytes/);
     expect(fs.readFileSync(archivePath)).toEqual(bytes);
+  });
+
+  it("reads an ordinary transcript that expands past stored size plus 1 MiB", () => {
+    const dir = tempDirs.make("openclaw-archive-zstd-");
+    const archivePath = path.join(dir, "ordinary.jsonl.zst");
+    const lines: string[] = [];
+    for (let i = 0; lines.join("").length < 3 * 1024 * 1024; i += 1) {
+      lines.push(
+        `${JSON.stringify({ type: "message", id: i, body: `turn ${i} ${"word ".repeat(40)}` })}\n`,
+      );
+    }
+    const content = lines.join("");
+    const bytes = zstdCompressSync(Buffer.from(content));
+    expect(bytes.length + 1024 * 1024).toBeLessThan(content.length);
+    fs.writeFileSync(archivePath, bytes);
+
+    expect(readSessionArchiveContentSync(archivePath)).toBe(content);
+  });
+
+  it("caps the read budget by expansion ratio and an absolute ceiling", () => {
+    expect(sessionArchiveReadBudget(100)).toBe(100 + 1024 * 1024);
+    expect(sessionArchiveReadBudget(1024 * 1024)).toBe(128 * 1024 * 1024);
+    expect(sessionArchiveReadBudget(10 * 1024 * 1024)).toBe(256 * 1024 * 1024);
   });
 
   it("writes compressed bytes compatible with Node zstd", () => {

@@ -26,6 +26,18 @@ export function encodeSessionArchiveContent(content: string): {
   return { bytes: zstdCodec.compress(plain), suffix: SESSION_ARCHIVE_ZSTD_SUFFIX };
 }
 
+// Fork: stored + 1 MiB refused ordinary transcripts (upstream measured p99 34x, max 114x
+// expansion in #192743) and one such archive failed every Usage refresh batch.
+const SESSION_ARCHIVE_MAX_EXPANSION = 128;
+const SESSION_ARCHIVE_READ_CEILING_BYTES = 256 * 1024 * 1024;
+
+export function sessionArchiveReadBudget(storedBytes: number): number {
+  return Math.min(
+    SESSION_ARCHIVE_READ_CEILING_BYTES,
+    Math.max(storedBytes + 1024 * 1024, storedBytes * SESSION_ARCHIVE_MAX_EXPANSION),
+  );
+}
+
 // Writers can bound verification by their known source size; other reads cannot trust the frame.
 export function readSessionArchiveContentSync(filePath: string, expectedBytes?: number): string {
   if (!filePath.endsWith(SESSION_ARCHIVE_ZSTD_SUFFIX)) {
@@ -33,7 +45,7 @@ export function readSessionArchiveContentSync(filePath: string, expectedBytes?: 
   }
   const stored = fs.readFileSync(filePath);
   // Enforce the expansion budget inside zlib's chunk loop, before concatenation.
-  const maxOutputLength = expectedBytes ?? stored.length + 1024 * 1024;
+  const maxOutputLength = expectedBytes ?? sessionArchiveReadBudget(stored.length);
   try {
     return zstdCodec.decompress(stored, maxOutputLength).toString("utf8");
   } catch (error) {
