@@ -8,7 +8,7 @@
 // Fork (V1): chats without a Claude CLI session (any other model) restore from OpenClaw's own
 // file checkpoints, recorded by the write/edit/apply_patch tools (`agents/file-checkpoints.ts`).
 import { asOptionalRecord as asRecord } from "@openclaw/normalization-core/record-coerce";
-import { rewindCliLiveSessionFiles } from "../../agents/cli-runner/cli-live-session-registry.js";
+import { rewindCliLiveSessionFiles } from "../../agents/cli-runner/cli-live-session-registry-fork.js";
 import {
   type FileCheckpointLog,
   planFileRewind,
