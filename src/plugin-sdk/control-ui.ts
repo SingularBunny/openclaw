@@ -208,12 +208,17 @@ export type ControlUiAction = {
    * "chat-header" adds a compact button to the chat's own header, next to Add to group chat.
    */
   placement: "composer" | "header" | "session" | "message" | "composer-controls" | "chat-header";
-  /** Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. */
+  /**
+   * Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. A "chat-header"
+   * action shows the icon before its label.
+   */
   icon?: string;
   resolve?: (
     context: BoardGetParams & { session?: ControlUiSession; message?: ControlUiMessage },
   ) => {
     label?: string;
+    /** Fork: an icon for the current state (e.g. retry after a failed run), replacing `icon`. */
+    icon?: string;
     disabled?: boolean;
     hidden?: boolean;
   };
