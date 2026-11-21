@@ -9,7 +9,7 @@ import {
   activeCatalogReorderDragData,
   readCatalogReorderDragData,
   type CatalogReorderDragPayload,
-} from "../lib/sessions/drag.ts";
+} from "../lib/sessions/drag-fork.ts";
 
 export type DropPosition = "before" | "after";
 
