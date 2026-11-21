@@ -5,7 +5,7 @@ import {
   CLI_SESSION_RESUME_POINT_KEY,
   hashCliSessionResumeCompat,
   type CliSessionResumePoint,
-} from "../../config/sessions/cli-session-binding.js";
+} from "../../config/sessions/cli-session-binding-fork.js";
 import type { CliOutput } from "../cli-output-contracts.js";
 import type { PreparedCliRunContext, RunCliAgentParams } from "./types.js";
 

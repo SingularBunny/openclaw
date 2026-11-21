@@ -1,4 +1,4 @@
-import type { CliSessionResumePoint } from "./cli-session-binding.js";
+import type { CliSessionResumePoint } from "./cli-session-binding-fork.js";
 import type { SessionEntryReplacementPublication } from "./session-accessor.sqlite-entry-cache.types.js";
 import type {
   SessionBranchSwitchMutationResult,

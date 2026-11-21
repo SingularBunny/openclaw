@@ -24,9 +24,9 @@ an `aiwb-*` tag publishes it as a release. On a port to a new upstream release, 
 - Office attachments reach the model as text through `api.registerDocumentExtractor` from installed plugins\
   _any model_. **Where:** `src/plugins/document-extractors.runtime.ts`, `src/media-understanding/file-context.ts`. **Docs:** [Media understanding](docs/nodes/media-understanding.md#file-attachment-extraction).
 - Claude CLI chats keep native context across rewind, edit, branch switch and message fork (resume at the recorded checkpoint with `--fork-session`) and across MCP server set changes (`changed=mcp` drift)\
-  _Claude CLI only_. **Where:** message cut plan (`session-message-cut-plan.ts`, `cli-session-binding.ts`), CLI assistant transcript (`cli-run-transcript-fork.ts`), `cli-session.ts`. **Docs:** [CLI backends](docs/gateway/cli-backends.md).
+  _Claude CLI only_. **Where:** message cut plan (`session-message-cut-plan.ts`, `cli-session-binding-fork.ts`), CLI assistant transcript (`cli-run-transcript-fork.ts`), `cli-session.ts`. **Docs:** [CLI backends](docs/gateway/cli-backends.md).
 - Inline chat widgets keep state across reloads: `openclaw.storage` / `window.storage` (Claude artifact `window.storage` shapes, personal only), per session and widget document\
-  _any model_. **Where:** `src/canvas/widget-storage.ts`, `canvas.storage.*`, bridge in `wrap.ts`, Control UI `widget-storage-bridge.ts`. **Docs:** [Show widget](docs/tools/show-widget.md#persistent-widget-storage).
+  _any model_. **Where:** `src/canvas/widget-storage.ts`, `canvas.storage.*` (`src/gateway/server-methods/canvas-storage-fork.ts`), bridge in `wrap.ts`, Control UI `widget-storage-bridge.ts`. **Docs:** [Show widget](docs/tools/show-widget.md#persistent-widget-storage).
 - Operator grants of `api.runtime.gateway.request` to other plugins, exact methods only, `operator.write` ceiling (`OPENCLAW_PLUGIN_GATEWAY_METHODS`)\
   _any model_. **Where:** `src/gateway/server-plugin-gateway-grants.ts`, `dispatchTrustedPluginGatewayMethod`. **Docs:** [Environment variables](docs/help/environment.md#worker-and-catalog-limits).
 - Marketplace plugin sources honor the Claude `sha` commit pin (installs the pinned commit, not the branch head)\

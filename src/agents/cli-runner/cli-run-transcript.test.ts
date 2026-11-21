@@ -3,7 +3,7 @@ import { afterAll, afterEach, expect, it, onTestFinished } from "vitest";
 import {
   hashCliSessionResumeCompat,
   readCliSessionResumePoint,
-} from "../../config/sessions/cli-session-binding.js";
+} from "../../config/sessions/cli-session-binding-fork.js";
 import { loadTranscriptEvents } from "../../config/sessions/session-accessor.js";
 import { applyAssistantDeliveryDirectives } from "../../config/sessions/transcript-assistant-delivery.js";
 import { sanitizeChatHistoryMessages } from "../../gateway/chat-display-projection.sanitize.js";

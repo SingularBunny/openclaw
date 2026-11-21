@@ -1,6 +1,6 @@
 import { cloneEnvWithPlatformSemantics } from "../../config/config-env-vars.js";
 import { getCliHistoryWriter } from "../../config/sessions/cli-history-boundary.js";
-import type { CliSessionResumePoint } from "../../config/sessions/cli-session-binding.js";
+import type { CliSessionResumePoint } from "../../config/sessions/cli-session-binding-fork.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import {
   patchSessionEntryCore,

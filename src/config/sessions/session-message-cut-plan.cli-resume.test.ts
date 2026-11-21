@@ -3,7 +3,7 @@ import {
   hashCliSessionResumeCompat,
   readCliSessionResumePoint,
   resumeCliSessionBindingsAt,
-} from "./cli-session-binding.js";
+} from "./cli-session-binding-fork.js";
 import type { TranscriptEvent } from "./session-accessor.sqlite-contract.js";
 import { planSessionMessageCut } from "./session-message-cut-plan.js";
 import type { SessionMessageCutIntent } from "./session-message-cut.types.js";

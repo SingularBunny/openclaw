@@ -10,7 +10,7 @@ import {
   setRuntimeConfigSnapshot,
 } from "../../config/runtime-snapshot.js";
 import type { SessionEntry } from "../../config/sessions.js";
-import { resumeCliSessionBindingsAt } from "../../config/sessions/cli-session-binding.js";
+import { resumeCliSessionBindingsAt } from "../../config/sessions/cli-session-binding-fork.js";
 import {
   formatSqliteSessionFileMarker,
   parseSqliteSessionFileMarker,
