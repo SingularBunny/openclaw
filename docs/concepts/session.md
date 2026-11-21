@@ -24,10 +24,10 @@ the Gateway returns a retryable `UNAVAILABLE` error instead of an empty branch
 list. Retry after database preparation finishes. Required integrity checks and
 already-admitted storage cleanup keep their own lifetimes.
 
-Reading a compressed transcript file allows at most its stored size plus 1 MiB of
-decompressed output. Archives exceeding that budget fail with a visible error and
-remain unchanged. This includes valid archives with larger expansion; export
-those as uncompressed JSONL to read them.
+Reading a compressed transcript file allows at most 128 times its stored size of
+decompressed output (at least stored size plus 1 MiB, at most 256 MiB). Archives exceeding
+that budget fail with a visible error and remain unchanged; export those as uncompressed
+JSONL to read them.
 Archive publication verifies compressed output against the original plaintext byte
 count, preserving compression and disk-budget retention.
 
