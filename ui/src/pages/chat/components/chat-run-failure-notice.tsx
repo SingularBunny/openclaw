@@ -4,11 +4,9 @@ import { formatWebUiIconErrorText } from "../../../components/error-presentation
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
 import { registerClaudeCliLoginEnglish } from "../../../i18n/locales/en-claude-cli-login.ts";
-import {
-  CLAUDE_CLI_LOGIN_COMMAND,
-  isClaudeCliLoginExpiredText,
-} from "../../../lib/chat/claude-cli-login.ts";
+import { isClaudeCliLoginExpiredText } from "../../../lib/chat/claude-cli-login.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
+import { ClaudeCliLoginHint } from "./chat-run-failure-notice-fork.tsx";
 
 registerClaudeCliLoginEnglish();
 
@@ -64,27 +62,7 @@ export function ChatRunFailureNotice(props: {
             when={claudeLogin()}
             fallback={<p class="chat-run-failure__summary">{concise()}</p>}
           >
-            <div class="chat-run-failure__login" data-claude-cli-login="">
-              <p class="chat-run-failure__summary">{t("common.claudeCliLogin.body")}</p>
-              <div class="chat-run-failure__login-command">
-                <code>{CLAUDE_CLI_LOGIN_COMMAND}</code>
-                <CopyButton
-                  text={CLAUDE_CLI_LOGIN_COMMAND}
-                  idleLabel={t("common.claudeCliLogin.copyCommand")}
-                />
-                <Show when={props.onOpenModelSetup}>
-                  <button
-                    type="button"
-                    class="btn btn--sm"
-                    data-claude-cli-login-setup=""
-                    onClick={() => props.onOpenModelSetup?.()}
-                  >
-                    <Icon name="settings" />
-                    {t("common.claudeCliLogin.openModelSetup")}
-                  </button>
-                </Show>
-              </div>
-            </div>
+            <ClaudeCliLoginHint onOpenModelSetup={props.onOpenModelSetup} />
           </Show>
           <Show when={props.actions}>
             <div class="chat-run-failure__fork-actions">{props.actions}</div>

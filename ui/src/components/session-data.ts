@@ -26,6 +26,7 @@ import {
 } from "./app-sidebar-session-catalog-live.ts";
 import type { SidebarSessionMutationScope } from "./app-sidebar-session-types.ts";
 import { createPanelRefreshStatus, type PanelRefreshStatus } from "./panel-refresh-status-state.ts";
+import { retainSessionCatalogRows } from "./session-data-catalog-fork.ts";
 import {
   moveSessionCatalog as moveSessionCatalogData,
   reorderSessionCatalog as reorderSessionCatalogData,
@@ -40,7 +41,6 @@ import {
   loadMoreSessionCatalog as loadMoreSessionCatalogData,
   refreshSessionCatalogs as refreshSessionCatalogData,
   resetSessionCatalogConnection,
-  retainSessionCatalogRows,
   retireSessionCatalogData,
   resolveSessionCatalogAgentId,
   scheduleSessionCatalogRefresh,
