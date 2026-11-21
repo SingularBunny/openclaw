@@ -75,7 +75,9 @@ function PluginInlineActions(props: {
     <For each={actions()} keyed={(action) => action.entry.signal}>
       {(action) => {
         const label = () => action().state?.label ?? action().entry.value.label;
-        const icon = () => action().entry.value.icon;
+        const icon = () => action().state?.icon ?? action().entry.value.icon;
+        // The chat header shows icon and label together, like its built-in buttons.
+        const withLabel = () => props.placement === "chat-header";
         return (
           <openclaw-tooltip prop:content={error() || label()}>
             <button
@@ -111,6 +113,9 @@ function PluginInlineActions(props: {
             >
               <Show when={isIconName(icon())} fallback={<span>{label()}</span>}>
                 <Icon name={icon() as IconName} />
+                <Show when={withLabel()}>
+                  <span>{label()}</span>
+                </Show>
               </Show>
             </button>
           </openclaw-tooltip>

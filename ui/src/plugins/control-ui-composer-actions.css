@@ -1,4 +1,15 @@
 /* Fork: plugin buttons in the composer's control row size to their label, like the Claude mode picker. */
+.chat-pane-header__plugin-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.chat-pane-header__plugin-action svg {
+  width: 14px;
+  height: 14px;
+}
+
 .chat-controls__plugin-action,
 .chat-pane-header__plugin-action {
   width: auto;
