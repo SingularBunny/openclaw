@@ -13,11 +13,9 @@ import {
 } from "../../../../src/auto-reply/reply/directive-handling.parse.js";
 import type { IconName } from "../../components/icon-data.ts";
 import { t } from "../../i18n/index.ts";
-import { registerClaudeComposerEnglish } from "../../i18n/locales/en-claude-composer.ts";
 import { registerCommandPaletteEnglish } from "../../i18n/locales/en-command-palette.ts";
 
 registerCommandPaletteEnglish();
-registerClaudeComposerEnglish();
 
 export type SlashCommandCategory = "session" | "model" | "agents" | "tools";
 
@@ -317,56 +315,6 @@ export function buildSlashCommandsFromEntries(entries: CommandEntry[]): SlashCom
     deduped.set(key, command);
   }
   return Array.from(deduped.values());
-}
-
-const CLAUDE_COMMAND_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_.:-]*$/u;
-const MAX_CLAUDE_COMMANDS = 400;
-const MAX_REMOTE_NAME_LENGTH = 200;
-
-/**
- * Fork (F51): appends Claude CLI's own commands and skills after OpenClaw's. A Claude entry whose
- * name an OpenClaw command, alias or skill already uses is dropped: typing it runs OpenClaw's.
- */
-export function mergeClaudeSlashCommands(
-  base: readonly SlashCommandDef[],
-  entries: readonly ClaudeCommandEntry[] | null | undefined,
-): SlashCommandDef[] {
-  const taken = new Set<string>();
-  for (const command of base) {
-    for (const name of [command.name, ...(command.aliases ?? [])]) {
-      taken.add(normalizeLowercaseStringOrEmpty(name.replace(/^\//u, "")));
-    }
-  }
-  const merged = [...base];
-  for (const entry of (entries ?? []).slice(0, MAX_CLAUDE_COMMANDS)) {
-    const name = typeof entry?.name === "string" ? entry.name.trim().replace(/^\//u, "") : "";
-    const key = normalizeLowercaseStringOrEmpty(name);
-    if (
-      !name ||
-      name.length > MAX_REMOTE_NAME_LENGTH ||
-      !CLAUDE_COMMAND_NAME_PATTERN.test(name) ||
-      taken.has(key)
-    ) {
-      continue;
-    }
-    taken.add(key);
-    const kind = entry.kind === "skill" ? "skill" : "command";
-    const descriptionKey =
-      kind === "skill" ? "chat.commands.claudeSkillDescription" : "chat.commands.claudeDescription";
-    merged.push({
-      key: `claude:${name}`,
-      name,
-      description: t(descriptionKey),
-      descriptionKey,
-      icon: "asterisk",
-      category: "tools",
-      executeLocal: false,
-      tier: "standard",
-      source: "claude",
-      claudeKind: kind,
-    });
-  }
-  return merged;
 }
 
 export const SLASH_COMMANDS: SlashCommandDef[] = buildFallbackSlashCommands();
