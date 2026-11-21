@@ -15,10 +15,8 @@ import {
   resolveFileCheckpointLog,
   restoreFileCheckpoints,
 } from "../../agents/file-checkpoints.js";
-import {
-  getCliSessionBinding,
-  readCliSessionResumePoint,
-} from "../../config/sessions/cli-session-binding.js";
+import { readCliSessionResumePoint } from "../../config/sessions/cli-session-binding-fork.js";
+import { getCliSessionBinding } from "../../config/sessions/cli-session-binding.js";
 import type { TranscriptEvent } from "../../config/sessions/session-accessor.sqlite-contract.js";
 import { loadSessionTranscriptEvents } from "../../config/sessions/session-transcript-events.js";
 import {

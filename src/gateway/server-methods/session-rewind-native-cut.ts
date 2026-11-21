@@ -5,10 +5,10 @@ import type {
 } from "../../../packages/gateway-protocol/src/index.js";
 import { cliBackendSupportsSessionFork } from "../../agents/cli-backends.js";
 import {
-  getCliSessionBinding,
   hashCliSessionResumeCompat,
   type CliSessionResumePoint,
-} from "../../config/sessions/cli-session-binding.js";
+} from "../../config/sessions/cli-session-binding-fork.js";
+import { getCliSessionBinding } from "../../config/sessions/cli-session-binding.js";
 import type { SessionEntry } from "../../config/sessions/types.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { resolveClaudeCliRewindPoint } from "../cli-session-history.claude-rewind.js";

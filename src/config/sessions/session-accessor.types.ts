@@ -755,7 +755,7 @@ export type SessionMessageCutMutationParams = {
    * Native checkpoint read from the CLI's own transcript for the cut point. It replaces the
    * checkpoint recorded on the kept branch, which older or imported replies do not carry.
    */
-  cliResumePoint?: import("./cli-session-binding.js").CliSessionResumePoint;
+  cliResumePoint?: import("./cli-session-binding-fork.js").CliSessionResumePoint;
   /**
    * The cut targets a row that exists only in the CLI's own transcript. `entryId` is then
    * the first later local user message, or (with `keepLeaf`) the native id itself when no local

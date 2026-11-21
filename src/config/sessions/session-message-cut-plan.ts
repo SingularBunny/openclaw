@@ -3,7 +3,10 @@ import { asOptionalRecord as asRecord } from "@openclaw/normalization-core/recor
 import { readMessageWorkContext } from "../../chat/work-context.js";
 import { assertModelSelectionUnlocked } from "../../sessions/model-overrides.js";
 import { isIncognitoSessionKey } from "../../shared/incognito-session-key.js";
-import { readCliSessionResumePoint, resumeCliSessionBindingsAt } from "./cli-session-binding.js";
+import {
+  readCliSessionResumePoint,
+  resumeCliSessionBindingsAt,
+} from "./cli-session-binding-fork.js";
 import type { TranscriptEvent } from "./session-accessor.sqlite-contract.js";
 import type { SessionMessageCutMutationResult } from "./session-accessor.types.js";
 import { findSessionTranscriptHeader } from "./session-entry-codec.js";
