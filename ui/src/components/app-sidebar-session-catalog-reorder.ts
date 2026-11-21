@@ -20,7 +20,7 @@ import {
   readCatalogReorderDragData,
   writeCatalogReorderDragData,
   type CatalogReorderDragPayload,
-} from "../lib/sessions/drag.ts";
+} from "../lib/sessions/drag-fork.ts";
 import { showToast } from "../lib/toast.ts";
 import {
   catalogFolderMoveDragOver,

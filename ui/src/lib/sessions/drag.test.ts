@@ -3,9 +3,9 @@ import {
   activeCatalogReorderDragData,
   finishCatalogReorderDrag,
   readCatalogReorderDragData,
-  sessionDragActive,
   writeCatalogReorderDragData,
-} from "./drag.ts";
+} from "./drag-fork.ts";
+import { sessionDragActive } from "./drag.ts";
 
 function fakeDataTransfer(): DataTransfer {
   const data = new Map<string, string>();

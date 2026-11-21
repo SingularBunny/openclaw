@@ -5,10 +5,8 @@ import { formatClaudeUsageCountdown } from "../../../components/claude-usage-ind
 import { readSharedClaudeUsage } from "../../../components/claude-usage-store.ts";
 import { registerClaudeComposerEnglish } from "../../../i18n/locales/en-claude-composer.ts";
 import { isMonitoredAuthProvider } from "../../../lib/model-auth.ts";
-import {
-  collectProviderQuotaGroups,
-  type ProviderUsageDisplayProps,
-} from "../../../lib/provider-quota-summary.ts";
+import { collectProviderQuotaGroups } from "../../../lib/provider-quota-summary-fork.ts";
+import type { ProviderUsageDisplayProps } from "../../../lib/provider-quota-summary.ts";
 import { t } from "../../../lib/reactive/i18n.ts";
 import "../../../styles/chat/composer-status-line.css";
 import {

@@ -15,7 +15,7 @@ import type {
   CatalogSessionKey,
 } from "../lib/sessions/catalog-key.ts";
 import { buildCatalogSessionKey, parseCatalogSessionKey } from "../lib/sessions/catalog-key.ts";
-import type { CatalogReorderDragPayload } from "../lib/sessions/drag.ts";
+import type { CatalogReorderDragPayload } from "../lib/sessions/drag-fork.ts";
 import type { SidebarSessionHovercardRow } from "./app-sidebar-session-types.ts";
 
 export function catalogSessionRowsByKey(rows: readonly GatewaySessionRow[]) {

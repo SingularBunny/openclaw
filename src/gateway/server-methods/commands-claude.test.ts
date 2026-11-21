@@ -9,7 +9,7 @@ import {
   recordClaudeNativeCommands,
   resetClaudeNativeCommandsForTest,
 } from "../../infra/claude-native-commands.js";
-import { buildClaudeCommandsResult } from "./commands.js";
+import { buildClaudeCommandsResult } from "./commands-claude-fork.js";
 
 afterEach(() => {
   resetClaudeNativeCommandsForTest();
