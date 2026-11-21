@@ -5,6 +5,8 @@ import {
   appendClaudeCliChromeArgs,
   appendClaudeCliPromptSuggestionArgs,
   isClaudeCliPromptSuggestionsEnabled,
+} from "./cli-shared-fork.js";
+import {
   normalizeClaudeBackendConfig,
   resolveClaudeCliExecutionArgs,
   supportsClaudeDynamicSystemPromptSections,

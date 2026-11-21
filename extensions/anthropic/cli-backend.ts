@@ -22,10 +22,12 @@ import { CLAUDE_CLI_FILE_CHECKPOINTING_ENV } from "./cli-rewind-files.js";
 import {
   appendClaudeCliChromeArgs,
   appendClaudeCliPromptSuggestionArgs,
+  resolveClaudeCliPromptSuggestionEnv,
+} from "./cli-shared-fork.js";
+import {
   normalizeClaudeBackendConfig,
   resolveClaudeCliAutoCompactEnv,
   resolveClaudeCliExecutionArgs,
-  resolveClaudeCliPromptSuggestionEnv,
   resolveClaudeCliThinkingEnv,
 } from "./cli-shared.js";
 import { CLAUDE_CLI_TODO_TOOL_NAMES, CLAUDE_CLI_TODO_TOOLS_ENV } from "./cli-todo-tools.js";

@@ -8,10 +8,8 @@ import type { MsgContext } from "../auto-reply/templating.js";
 import type { OpenClawConfig } from "../config/types.js";
 import { logVerbose, shouldLogVerbose } from "../globals.js";
 import { renderFileContextBlock } from "../media/file-context.js";
-import {
-  extractFileContentFromBuffer,
-  extractPluginDocumentFromBuffer,
-} from "../media/input-files.js";
+import { extractPluginDocumentFromBuffer } from "../media/input-files-fork.js";
+import { extractFileContentFromBuffer } from "../media/input-files.js";
 import type { MediaFact } from "../media/media-facts.js";
 import { classifyMediaReferenceSource } from "../media/media-reference.js";
 import { resolveAttachmentKind } from "./attachments.normalize.js";
