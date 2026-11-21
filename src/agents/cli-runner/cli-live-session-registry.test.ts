@@ -16,14 +16,16 @@ import { resolveClaudeCliProjectDirForWorkspace } from "../command/claude-cli-pr
 import { hasModelFallbackStop } from "../failover-error.js";
 import { createAgentCleanupScope } from "../run-cleanup-timeout.js";
 import {
+  hasCliLiveSessionTranscriptChanged,
+  rememberCliLiveSessionTranscript,
+} from "./cli-live-session-registry-fork.js";
+import {
   acceptsCliLiveSession,
   closeCliLiveSession,
   createCliLiveSessionCapability,
   getCliLiveSessionApprovalGrants,
   getCliLiveSessionGeneration,
   hasCliLiveSession,
-  hasCliLiveSessionTranscriptChanged,
-  rememberCliLiveSessionTranscript,
   restartCliLiveSession,
 } from "./cli-live-session-registry.js";
 import { settlePreparedCliRun } from "./cli-run-settlement.js";

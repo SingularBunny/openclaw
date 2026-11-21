@@ -6,10 +6,8 @@ import {
   resolveRunClaudePermissionMode,
 } from "./claude-permission-mode.js";
 import { createClaudeCliTodoObserver } from "./claude-todos.js";
-import {
-  hasCliLiveSessionTranscriptChanged,
-  restartCliLiveSession,
-} from "./cli-live-session-registry.js";
+import { hasCliLiveSessionTranscriptChanged } from "./cli-live-session-registry-fork.js";
+import { restartCliLiveSession } from "./cli-live-session-registry.js";
 import { cliBackendLog } from "./log.js";
 import { createCliModelRequestWatchdogBridge } from "./model-request-watchdog-fork.js";
 import { createCliModelRetryStatusObserver } from "./model-retry-status-fork.js";

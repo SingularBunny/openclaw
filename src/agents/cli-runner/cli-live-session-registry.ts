@@ -1,4 +1,3 @@
-import fs from "node:fs/promises";
 import { racePromiseWithAbortSignal } from "@openclaw/retry";
 import { sha256Hex } from "../../infra/crypto-digest.js";
 import { readHostFreeMemoryBytes } from "../../infra/host-memory.js";
@@ -6,10 +5,7 @@ import type {
   CliBackendLiveSessionCapability,
   CliBackendLiveSessionCloseReason,
   CliBackendLiveSessionHandle,
-  CliBackendRewindFilesResult,
 } from "../../plugins/cli-backend.types.js";
-import { sleep } from "../../utils/sleep.js";
-import { claudeCliSessionTranscriptPath } from "../command/attempt-execution.helpers.js";
 import { CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE } from "../failover/error.js";
 import { runCliCleanup } from "./cleanup.js";
 import { createCliRunCurrentAssertion } from "./execution-target.js";
@@ -21,8 +17,6 @@ const MAX_LIVE_SESSIONS = 16;
 // A warm session measured ~490 MiB RSS: Claude Code (~200 MiB Linux, ~260 MiB macOS)
 // plus its supervisor helpers, more while it works. Keep room for about two.
 const MIN_FREE_MEMORY_BYTES = 1024 ** 3;
-const TRANSCRIPT_SETTLE_MS = 250;
-const TRANSCRIPT_SETTLE_ATTEMPTS = 8;
 
 type CliLiveSessionOwner = {
   backendId: string;
@@ -31,7 +25,7 @@ type CliLiveSessionOwner = {
   sessionKey?: string;
 };
 
-type CliLiveSessionRecord = {
+export type CliLiveSessionRecord = {
   handle: CliBackendLiveSessionHandle;
   owner: PreparedCliRunContext["preparedBackend"];
   /** Fork (F47): the conversation this process serves, for per-task controls. */
@@ -50,6 +44,18 @@ type CliLiveSessionRecord = {
 };
 
 const liveSessions = new Map<string, CliLiveSessionRecord>();
+
+/** Fork: read access for cli-live-session-registry-fork.ts (per-task controls, transcript checks). */
+export function forkCliLiveSessions(): ReadonlyMap<string, CliLiveSessionRecord> {
+  return liveSessions;
+}
+
+/** Fork: the live session record serving this prepared run, if any. */
+export function forkCliLiveSessionRecord(
+  context: PreparedCliRunContext,
+): CliLiveSessionRecord | undefined {
+  return liveSessions.get(buildCliLiveSessionKey(context));
+}
 const retiredSessionCleanup = new Map<string, Promise<void>>();
 const retiringSessionHandles = new WeakSet<CliBackendLiveSessionHandle>();
 
@@ -93,61 +99,6 @@ export function getCliLiveSessionApprovalGrants(
 ): Set<string> | undefined {
   const record = liveSessions.get(buildCliLiveSessionKey(context));
   return record?.owner === context.preparedBackend ? record.approvalGrants : undefined;
-}
-
-/**
- * Fork (F47): asks the live CLI process of a conversation to stop one of its background
- * tasks. Resolves false when no live process of that conversation knows the task.
- */
-export async function stopCliLiveSessionTask(
-  conversation: { agentId?: string; sessionKeys: readonly string[] },
-  taskId: string,
-): Promise<boolean> {
-  for (const record of liveSessions.values()) {
-    const { agentId, sessionKey } = record.conversation;
-    if (
-      !sessionKey ||
-      !conversation.sessionKeys.includes(sessionKey) ||
-      (conversation.agentId && agentId && conversation.agentId !== agentId) ||
-      !record.handle.stopTask
-    ) {
-      continue;
-    }
-    if (await record.handle.stopTask(taskId)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Fork (F52): asks the idle live CLI process of a conversation to restore (or, with
- * `dryRun`, list) files changed since one of its native user messages. Resolves undefined
- * when no idle live process of that conversation can take the request.
- */
-export async function rewindCliLiveSessionFiles(
-  conversation: { backendId: string; agentId?: string; sessionKeys: readonly string[] },
-  userMessageId: string,
-  options: { dryRun: boolean },
-): Promise<CliBackendRewindFilesResult | undefined> {
-  for (const [key, record] of liveSessions) {
-    const { agentId, sessionKey } = record.conversation;
-    if (
-      !key.startsWith(`${conversation.backendId}:`) ||
-      !sessionKey ||
-      !conversation.sessionKeys.includes(sessionKey) ||
-      (conversation.agentId && agentId && conversation.agentId !== agentId) ||
-      !record.handle.rewindFiles ||
-      !record.handle.isIdle()
-    ) {
-      continue;
-    }
-    const result = await record.handle.rewindFiles(userMessageId, options);
-    if (result) {
-      return result;
-    }
-  }
-  return undefined;
 }
 
 export async function closeCliLiveSession(
@@ -291,72 +242,6 @@ export async function ensureCliLiveSessionMemory(
       CLI_LIVE_SESSION_HOST_MEMORY_ERROR_CODE,
     );
   }
-}
-
-async function statTranscriptIdentity(filePath: string): Promise<string | undefined> {
-  try {
-    const stats = await fs.stat(filePath);
-    return [stats.dev, stats.ino, stats.size, stats.mtimeMs].join(":");
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Remembers the native transcript an idle Claude process last wrote, once its trailing writes
- * settle. Never blocks the turn; a transcript that cannot be located keeps plain reuse.
- */
-export async function rememberCliLiveSessionTranscript(
-  context: PreparedCliRunContext,
-  cliSessionId: string | undefined,
-): Promise<void> {
-  const record = liveSessions.get(buildCliLiveSessionKey(context));
-  const filePath =
-    context.preparedBackend.backend.liveSession === "claude-stdio"
-      ? claudeCliSessionTranscriptPath({
-          sessionId: cliSessionId,
-          workspaceDir: context.cwd ?? context.workspaceDir,
-        })
-      : null;
-  if (!record || record.owner !== context.preparedBackend || !filePath) {
-    return;
-  }
-  const note = {};
-  record.transcriptNote = note;
-  record.transcript = undefined;
-  let identity = await statTranscriptIdentity(filePath);
-  for (let attempt = 0; identity && attempt < TRANSCRIPT_SETTLE_ATTEMPTS; attempt += 1) {
-    await sleep(TRANSCRIPT_SETTLE_MS);
-    const next = await statTranscriptIdentity(filePath);
-    if (next === identity) {
-      break;
-    }
-    identity = next;
-  }
-  // A later turn or a retired process makes this snapshot stale; plain reuse stays.
-  if (
-    identity &&
-    record.transcriptNote === note &&
-    record.handle.isIdle() &&
-    !record.cleanupPromise
-  ) {
-    record.transcript = { path: filePath, identity };
-  }
-}
-
-/**
- * Whether another writer (a terminal `claude --resume`) appended to the transcript since this
- * idle process finished its turn. The process would answer without those turns.
- */
-export async function hasCliLiveSessionTranscriptChanged(
-  context: PreparedCliRunContext,
-): Promise<boolean> {
-  const transcript = liveSessions.get(buildCliLiveSessionKey(context))?.transcript;
-  if (!transcript) {
-    return false;
-  }
-  const identity = await statTranscriptIdentity(transcript.path);
-  return identity !== undefined && identity !== transcript.identity;
 }
 
 /** Returns whether this prepared local plugin transport may retain its execution process. */

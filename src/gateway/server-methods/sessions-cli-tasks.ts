@@ -1,7 +1,7 @@
 import { Type } from "typebox";
 import { Value } from "typebox/value";
 import { ErrorCodes, errorShape } from "../../../packages/gateway-protocol/src/index.js";
-import { stopCliLiveSessionTask } from "../../agents/cli-runner/cli-live-session-registry.js";
+import { stopCliLiveSessionTask } from "../../agents/cli-runner/cli-live-session-registry-fork.js";
 import { resolveRequestedSessionStoreTarget } from "../session-store-key.js";
 import type { GatewayRequestHandlers } from "./types.js";
 

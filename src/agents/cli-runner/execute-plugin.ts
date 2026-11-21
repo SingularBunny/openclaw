@@ -33,12 +33,12 @@ import { runStructuredInput } from "../harness/structured-input-execution.js";
 import { compileStructuredInputQuestions } from "../harness/structured-input.js";
 import { resolveExecToolConfig } from "../lazy-exec-tool.js";
 import { resolveToolLoopDetectionConfig } from "../tool-loop-detection-config.js";
+import { rememberCliLiveSessionTranscript } from "./cli-live-session-registry-fork.js";
 import {
   restartCliLiveSession,
   createCliLiveSessionCapability,
   ensureCliLiveSessionMemory,
   getCliLiveSessionApprovalGrants,
-  rememberCliLiveSessionTranscript,
 } from "./cli-live-session-registry.js";
 import {
   requestCliNativeToolApproval,
