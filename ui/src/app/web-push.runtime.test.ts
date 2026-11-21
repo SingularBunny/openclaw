@@ -5,11 +5,11 @@ import type { GatewayBrowserClient } from "../api/gateway.ts";
 import { restorePropertyDescriptor } from "../test-helpers/property-descriptor.ts";
 import { createStorageMock } from "../test-helpers/storage.ts";
 import { autoPromptNotificationsOnSend } from "./notifications-auto-prompt.ts";
+import { rebasePreferenceEdit } from "./web-push-fork.ts";
 import {
   getExistingSubscription,
   subscribeToWebPush,
   unsubscribeFromWebPush,
-  rebasePreferenceEdit,
 } from "./web-push.runtime.ts";
 
 const originalServiceWorkerDescriptor = Object.getOwnPropertyDescriptor(
