@@ -3,10 +3,7 @@ import { asOptionalRecord as asRecord } from "@openclaw/normalization-core/recor
 import { readMessageWorkContext } from "../../chat/work-context.js";
 import { assertModelSelectionUnlocked } from "../../sessions/model-overrides.js";
 import { isIncognitoSessionKey } from "../../shared/incognito-session-key.js";
-import {
-  readCliSessionResumePoint,
-  resumeCliSessionBindingsAt,
-} from "./cli-session-binding-fork.js";
+import { resumeCliSessionBindingsAt } from "./cli-session-binding-fork.js";
 import type { TranscriptEvent } from "./session-accessor.sqlite-contract.js";
 import type { SessionMessageCutMutationResult } from "./session-accessor.types.js";
 import { findSessionTranscriptHeader } from "./session-entry-codec.js";
@@ -14,6 +11,11 @@ import { preserveSqliteSameKeySessionRolloverLineage } from "./session-entry-lin
 import { buildSessionCreationStamp } from "./session-entry-provenance.js";
 import { inheritSessionSelection } from "./session-entry-selection.js";
 import { extractEditorText } from "./session-message-cut-content.js";
+import {
+  cliSessionIdsOf,
+  copyPathPrefix,
+  readCliResumePointAtLeaf,
+} from "./session-message-cut-plan-fork.js";
 import type {
   SessionMessageCutIntent,
   SessionMessageCutResult,
@@ -224,14 +226,7 @@ export function planSessionMessageCut(
     // A cut normally starts a fresh native session. When the kept branch ends at an assistant
     // turn with a recorded native checkpoint, the next turn forks the native session there.
     cliSessionBindings: resumedCliSessionBindings,
-    cliSessionIds: resumedCliSessionBindings
-      ? Object.fromEntries(
-          Object.entries(resumedCliSessionBindings).map(([provider, binding]) => [
-            provider,
-            binding.sessionId,
-          ]),
-        )
-      : undefined,
+    cliSessionIds: cliSessionIdsOf(resumedCliSessionBindings),
     claudeCliSessionId: undefined,
     agentHarnessId: undefined,
     modelSelectionLocked: undefined,
@@ -293,31 +288,6 @@ export function planSessionMessageCut(
   };
 }
 
-/** The native checkpoint of the last assistant turn on the branch ending at `leafId`. */
-function readCliResumePointAtLeaf(
-  events: readonly TranscriptEvent[],
-  hydrate: ((selected: readonly TranscriptEvent[]) => Iterable<TranscriptEvent>) | undefined,
-  leafId: string | null,
-) {
-  if (!leafId) {
-    return undefined;
-  }
-  const tree = scanSessionTranscriptTree(events);
-  const lastAssistant = selectSessionTranscriptTreePathNodes(tree, leafId).findLast((node) => {
-    const record = asRecord(node.entry);
-    return record?.type === "message" && asRecord(record.message)?.role === "assistant";
-  });
-  if (!lastAssistant) {
-    return undefined;
-  }
-  const point = readCliSessionResumePoint(asRecord(lastAssistant.entry)?.message);
-  if (point || !hydrate) {
-    return point;
-  }
-  const [full] = hydrate([lastAssistant.entry as TranscriptEvent]);
-  return readCliSessionResumePoint(asRecord(full)?.message);
-}
-
 function validateBranchTip(
   events: readonly TranscriptEvent[],
   entryId: string,
@@ -371,7 +341,17 @@ function resolveMessageCut(
   if (targetIndex < 0) {
     return { status: "off-active-path" };
   }
-  const prefix = copyPrefix ? copyPathPrefix(activePath.slice(0, targetIndex)) : [];
+  const prefix: TranscriptEvent[] = [];
+  for (const node of copyPrefix ? activePath.slice(0, targetIndex) : []) {
+    const entry = asRecord(node.entry);
+    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
+    // data property instead of rebinding the copy's prototype.
+    prefix.push(
+      entry && entry.parentId !== node.parentId
+        ? { ...entry, parentId: node.parentId }
+        : node.entry,
+    );
+  }
   if (nativeCut) {
     // The local row is only the cut anchor after a native-only row; the composer gets that row.
     return {
@@ -389,19 +369,6 @@ function resolveMessageCut(
     parentId: target.parentId,
     prefix,
   };
-}
-
-function copyPathPrefix(
-  nodes: ReturnType<typeof selectSessionTranscriptTreePathNodes>,
-): TranscriptEvent[] {
-  return nodes.map((node) => {
-    const entry = asRecord(node.entry);
-    // Spread (not Object.assign) so a parsed own `__proto__` key stays an inert
-    // data property instead of rebinding the copy's prototype.
-    return entry && entry.parentId !== node.parentId
-      ? { ...entry, parentId: node.parentId }
-      : node.entry;
-  });
 }
 
 // Gateway-written inline images are already size-capped at send time; these bounds

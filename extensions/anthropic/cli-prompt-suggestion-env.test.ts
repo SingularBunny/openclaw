@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildAnthropicCliBackend } from "./cli-backend.js";
-import { resolveClaudeCliPromptSuggestionEnv } from "./cli-shared.js";
+import { resolveClaudeCliPromptSuggestionEnv } from "./cli-shared-fork.js";
 
 const KEY = "CLAUDE_CODE_ENABLE_PROMPT_SUGGESTION";
 
