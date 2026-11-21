@@ -228,3 +228,170 @@
 .oc-menu-item.session-menu__item:has(.session-menu__description) .oc-menu-item__icon {
   margin-top: 1px;
 }
+
+/* Plugin message actions (placement "message") look and reveal like the built-in reply actions. Generated from
+   the upstream grouped.css rules for those buttons, so upstream selector lists stay untouched. */
+.chat-group.user.chat-group--peer
+  .chat-group-footer-actions
+  .chat-plugin-message-action:focus-visible {
+  opacity: 1;
+}
+
+:is(.chat-group-footer-actions, .chat-message-actions-row) .chat-plugin-message-action {
+  background: none;
+  border: none;
+  padding: 4px;
+  min-width: 24px;
+  min-height: 24px;
+  border-radius: var(--radius-md);
+  color: var(--muted);
+  transition:
+    opacity 120ms ease-out,
+    color 120ms ease-out,
+    background 120ms ease-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.chat-group-footer-actions .chat-plugin-message-action {
+  opacity: var(--chat-footer-disclosure-opacity, 0);
+  pointer-events: var(--chat-footer-disclosure-pointer-events, none);
+}
+
+.chat-message-actions-row .chat-plugin-message-action {
+  min-height: var(--chat-message-action-size);
+  opacity: var(--chat-message-action-opacity, 0);
+  pointer-events: var(--chat-message-action-pointer-events, none);
+}
+
+.chat-group:hover
+  :is(.chat-group-footer-actions, .chat-message-actions-row)
+  .chat-plugin-message-action {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.chat-group.user.chat-group--peer
+  :is(.chat-message-actions-row, .chat-group-footer-actions)
+  .chat-plugin-message-action {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.chat-group.user.chat-group--peer
+  :is(.chat-bubble, .chat-message--reply):hover
+  + .chat-message-actions-row
+  .chat-plugin-message-action,
+.chat-group.user.chat-group--peer .chat-message-actions-row:hover .chat-plugin-message-action,
+.chat-group.user.chat-group--peer
+  :is(.chat-bubble, .chat-message--reply):is(:focus-within, .chat-bubble--actions-revealed)
+  + .chat-message-actions-row
+  .chat-plugin-message-action,
+.chat-group.user.chat-group--peer
+  .chat-message--reply:has(> .chat-bubble--actions-revealed)
+  + .chat-message-actions-row
+  .chat-plugin-message-action,
+.chat-group.user.chat-group--peer
+  .chat-message-actions-row:focus-within
+  .chat-plugin-message-action {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+.chat-group.user.chat-group--peer
+  > .chat-group-footer
+  .chat-group-footer-actions
+  .chat-plugin-message-action {
+  opacity: var(--chat-peer-final-action-opacity, 0);
+  pointer-events: var(--chat-peer-final-action-pointer-events, none);
+}
+
+.chat-group.user.chat-group--peer
+  .chat-group-footer:hover
+  .chat-group-footer-actions
+  .chat-plugin-message-action,
+.chat-group.user.chat-group--peer
+  .chat-group-footer:focus-within
+  .chat-group-footer-actions
+  .chat-plugin-message-action {
+  opacity: 0.6;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .chat-group:focus-within
+    :is(.chat-group-footer-actions, .chat-message-actions-row)
+    .chat-plugin-message-action {
+    opacity: 0.6;
+    pointer-events: auto;
+  }
+}
+
+.chat-group:hover .chat-group-footer-actions .chat-plugin-message-action:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
+:is(.chat-group-footer-actions, .chat-message-actions-row) .chat-plugin-message-action:hover {
+  opacity: 1 !important;
+  background: transparent;
+  color: var(--accent);
+}
+
+:is(.chat-group-footer-actions, .chat-message-actions-row) .chat-plugin-message-action svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+@media (hover: none),
+  (max-width: 768px),
+  (max-width: 932px) and (max-height: 500px) and (orientation: landscape) {
+  :is(.chat-group-footer-actions, .chat-message-actions-row) .chat-plugin-message-action {
+    position: relative;
+    margin-inline: 10px;
+  }
+
+  :is(.chat-group-footer-actions, .chat-message-actions-row) .chat-plugin-message-action::before {
+    content: "";
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: -10px;
+    width: var(--chat-touch-target);
+    height: var(--chat-touch-target);
+    pointer-events: inherit;
+  }
+}
+
+.chat-plugin-message-action {
+  color: var(--muted);
+}
+
+.chat-group
+  :is(.chat-group-footer-actions, .chat-message-actions-row)
+  .chat-plugin-message-action[data-copy-state="copied"] {
+  opacity: 1;
+  border-color: var(--ok-subtle);
+  background: var(--ok-subtle);
+  color: var(--ok);
+}
+
+.chat-plugin-message-action:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 768px), (max-width: 932px) and (max-height: 500px) and (orientation: landscape) {
+  .chat-group.user.chat-group--peer
+    .chat-message-footer
+    .chat-group-footer-actions
+    .chat-plugin-message-action {
+    opacity: var(--chat-footer-action-opacity);
+    pointer-events: var(--chat-footer-disclosure-pointer-events);
+  }
+}
