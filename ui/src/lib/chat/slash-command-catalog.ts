@@ -1,18 +1,19 @@
 import type { CommandsListResult } from "../../../../packages/gateway-protocol/src/index.js";
-import type {
-  ClaudeCommandEntry,
-  CommandsClaudeResult,
-} from "../../../../packages/gateway-protocol/src/schema/commands.js";
+import type { ClaudeCommandEntry } from "../../../../packages/gateway-protocol/src/schema/commands.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import { isGatewayMethodAdvertised } from "../gateway-methods.ts";
 import { peekChatMetadata } from "./chat-metadata-store.ts";
 import {
   buildFallbackSlashCommands,
   buildSlashCommandsFromEntries,
-  mergeClaudeSlashCommands,
   replaceSlashCommands,
   type SlashCommandDef,
 } from "./commands.ts";
+import {
+  invalidateClaudeSlashCommands,
+  loadClaudeSlashCommands,
+  mergeClaudeSlashCommands,
+} from "./slash-command-catalog-fork.ts";
 
 let refreshSeq = 0;
 const REMOTE_SLASH_COMMAND_CACHE_TTL_MS = 60_000;
@@ -89,80 +90,8 @@ function loadRemoteSlashCommands(
   return inFlight;
 }
 
-// Fork (F51): Claude CLI's own commands per session. A list appears after the session's first
-// Claude turn, so an empty answer is asked again sooner than a filled one.
-const CLAUDE_COMMAND_CACHE_TTL_MS = 30_000;
-const CLAUDE_COMMAND_EMPTY_TTL_MS = 10_000;
-// A failed read (scope, session access) is not repeated on every `/`.
-const CLAUDE_COMMAND_FAILED_TTL_MS = 5 * 60_000;
-
-type ClaudeCommandCacheEntry = {
-  entries: ClaudeCommandEntry[];
-  expiresAt: number;
-  inFlight?: Promise<ClaudeCommandEntry[]>;
-};
-
-const claudeCommandCache = new WeakMap<
-  GatewayBrowserClient,
-  Map<string, ClaudeCommandCacheEntry>
->();
 /** Claude entries of the session whose commands were refreshed last; metadata updates keep them. */
 let currentClaudeCommands: ClaudeCommandEntry[] = [];
-
-function loadClaudeSlashCommands(
-  client: GatewayBrowserClient,
-  agentId: string | undefined,
-  sessionKey: string,
-): Promise<ClaudeCommandEntry[]> {
-  let cache = claudeCommandCache.get(client);
-  if (!cache) {
-    cache = new Map();
-    claudeCommandCache.set(client, cache);
-  }
-  const key = remoteSlashCommandCacheKey(agentId, sessionKey);
-  const cached = cache.get(key);
-  if (cached?.inFlight) {
-    return cached.inFlight;
-  }
-  if (cached && cached.expiresAt > Date.now()) {
-    return Promise.resolve(cached.entries);
-  }
-  const entry: ClaudeCommandCacheEntry = {
-    entries: cached?.entries ?? [],
-    expiresAt: cached?.expiresAt ?? 0,
-  };
-  const inFlight = client
-    .request<CommandsClaudeResult>("commands.claude", {
-      sessionKey,
-      ...(agentId ? { agentId } : {}),
-    })
-    .then(
-      (result) => {
-        const entries = Array.isArray(result?.commands) ? result.commands : [];
-        if (cache.get(key) === entry) {
-          entry.entries = entries;
-          entry.expiresAt =
-            Date.now() +
-            (entries.length > 0 ? CLAUDE_COMMAND_CACHE_TTL_MS : CLAUDE_COMMAND_EMPTY_TTL_MS);
-        }
-        return entries;
-      },
-      () => {
-        if (cache.get(key) === entry) {
-          entry.expiresAt = Date.now() + CLAUDE_COMMAND_FAILED_TTL_MS;
-        }
-        return entry.entries;
-      },
-    )
-    .finally(() => {
-      if (cache.get(key) === entry) {
-        delete entry.inFlight;
-      }
-    });
-  entry.inFlight = inFlight;
-  cache.set(key, entry);
-  return inFlight;
-}
 
 export function invalidateSessionSlashCommands(
   client: GatewayBrowserClient,
@@ -172,9 +101,7 @@ export function invalidateSessionSlashCommands(
   remoteSlashCommandCache
     .get(client)
     ?.delete(remoteSlashCommandCacheKey(scope.agentId, scope.sessionKey));
-  claudeCommandCache
-    .get(client)
-    ?.delete(remoteSlashCommandCacheKey(scope.agentId, scope.sessionKey));
+  invalidateClaudeSlashCommands(client, scope);
 }
 
 export function applyRemoteSlashCommandsResult(

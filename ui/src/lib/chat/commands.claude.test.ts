@@ -3,11 +3,11 @@ import {
   buildFallbackSlashCommands,
   executesInlineImmediately,
   getSlashCommandCompletions,
-  mergeClaudeSlashCommands,
   parseSlashCommand,
   replaceSlashCommands,
   type SlashCommandDef,
 } from "./commands.ts";
+import { mergeClaudeSlashCommands } from "./slash-command-catalog-fork.ts";
 
 describe("mergeClaudeSlashCommands", () => {
   const base: SlashCommandDef[] = [
