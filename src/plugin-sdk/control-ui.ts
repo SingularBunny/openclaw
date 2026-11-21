@@ -204,9 +204,10 @@ export type ControlUiAction = {
   label: string;
   /**
    * Fork: "message" adds the action to the actions under each chat message, next to Reply and Copy Markdown;
-   * "composer-controls" adds a compact button to the composer's control row, next to the model and effort pickers.
+   * "composer-controls" adds a compact button to the composer's control row, next to the model and effort pickers;
+   * "chat-header" adds a compact button to the chat's own header, next to Add to group chat.
    */
-  placement: "composer" | "header" | "session" | "message" | "composer-controls";
+  placement: "composer" | "header" | "session" | "message" | "composer-controls" | "chat-header";
   /** Fork: the icon of a "message" action (a Control UI icon name); without it the label is shown. */
   icon?: string;
   resolve?: (

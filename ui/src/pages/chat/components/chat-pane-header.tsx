@@ -19,6 +19,7 @@ import { redactLoginFailureError } from "../../../lib/connection-hints.ts";
 import { elementRef } from "../../../lib/reactive/element-ref.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { HoverMarquee } from "../../../lib/solid/hover-marquee.tsx";
+import { PluginChatHeaderActions } from "../../../plugins/control-ui-composer-actions.solid.tsx";
 import { PaneHeaderPresence, PaneSubagentStop } from "../chat-pane-header-view.tsx";
 import { usePanePresentation } from "../chat-pane-presentation.ts";
 import { ChatDetails } from "./chat-details.tsx";
@@ -463,6 +464,7 @@ function ChatPaneHeaderChrome(
               <RunningSubagents count={props.runningSubagentCount} />
             </Show>
             <Show when={props.runAction}>{(action) => <PaneSubagentStop {...action()} />}</Show>
+            <PluginChatHeaderActions sessionKey={props.session?.key} />
             <ChatGroupHeaderButton sessionKey={props.session?.key} />
             <Show when={!props.mergedChrome}>
               <Show when={props.presence}>

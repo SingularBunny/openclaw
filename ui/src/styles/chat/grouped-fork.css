@@ -395,3 +395,12 @@
     pointer-events: var(--chat-footer-disclosure-pointer-events);
   }
 }
+
+/* Plugin header actions (placement "header", e.g. Run now of aiwb-automation-chat) render as direct children of the
+   conversation column, which stretches them across the whole chat; keep each one a compact button on the right. */
+.chat-main__conversation-column > openclaw-plugin-contributions > button {
+  align-self: flex-end;
+  flex: 0 0 auto;
+  width: auto;
+  margin: 6px 16px 0;
+}

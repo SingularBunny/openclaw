@@ -1,11 +1,11 @@
-// Fork: plugin actions in the composer's control row (ControlUiAction placement "composer-controls"), next to the
-// permission, Claude mode, model and effort pickers. A compact button with the action's label (or icon); the label
-// carries the state, e.g. "Plan: on".
+// Fork: compact plugin action buttons in the composer's control row (ControlUiAction placement "composer-controls"),
+// next to the permission, Claude mode, model and effort pickers, and in the chat's own header ("chat-header"), next to
+// Add to group chat. A button with the action's label (or icon); the label carries the state, e.g. "Plan: on".
 import { For, Show, createMemo, createSignal, onCleanup } from "solid-js";
 import type { ControlUiAction } from "../../../src/plugin-sdk/control-ui.js";
 import { iconData, type IconName } from "../components/icon-data.ts";
 import { Icon } from "../components/solid/icon.tsx";
-import { useApplication } from "../lib/reactive/context.ts";
+import { useOptionalApplication } from "../lib/reactive/context.ts";
 import { findUiSessionRow } from "../lib/sessions/route-navigation.ts";
 import { runControlUiPluginAction } from "./control-ui-actions.ts";
 import type { ControlUiRegistration } from "./control-ui-capability.ts";
@@ -14,8 +14,28 @@ import "./control-ui-composer-actions.css";
 const isIconName = (name: string | undefined): name is IconName =>
   Boolean(name && Object.hasOwn(iconData, name));
 
+type InlinePlacement = Extract<ControlUiAction["placement"], "composer-controls" | "chat-header">;
+
+const BUTTON_CLASS: Record<InlinePlacement, string> = {
+  "composer-controls": "chat-controls__inline-select-trigger chat-controls__plugin-action",
+  "chat-header": "btn btn--sm chat-pane-header__plugin-action",
+};
+
 export function PluginComposerControlActions(props: { sessionKey?: string; agentId?: string }) {
-  const context = useApplication();
+  return <PluginInlineActions placement="composer-controls" {...props} />;
+}
+
+export function PluginChatHeaderActions(props: { sessionKey?: string; agentId?: string }) {
+  return <PluginInlineActions placement="chat-header" {...props} />;
+}
+
+function PluginInlineActions(props: {
+  placement: InlinePlacement;
+  sessionKey?: string;
+  agentId?: string;
+}) {
+  // Optional: headers and composers also render standalone (tests, previews) without an application.
+  const context = useOptionalApplication();
   const [version, setVersion] = createSignal(0);
   const [error, setError] = createSignal("");
   const stop = context?.plugins?.subscribe(() => setVersion((v) => v + 1));
@@ -34,7 +54,7 @@ export function PluginComposerControlActions(props: { sessionKey?: string; agent
     return (
       context?.plugins
         ?.registrations("actions")
-        .filter((entry) => entry.value.placement === "composer-controls")
+        .filter((entry) => entry.value.placement === props.placement)
         .flatMap((entry: ControlUiRegistration<ControlUiAction>) => {
           try {
             const row = session();
@@ -59,7 +79,7 @@ export function PluginComposerControlActions(props: { sessionKey?: string; agent
         return (
           <openclaw-tooltip prop:content={error() || label()}>
             <button
-              class="chat-controls__inline-select-trigger chat-controls__plugin-action"
+              class={BUTTON_CLASS[props.placement]}
               type="button"
               data-plugin-composer-action={action().entry.key}
               aria-label={label()}
@@ -75,7 +95,7 @@ export function PluginComposerControlActions(props: { sessionKey?: string; agent
                     await runControlUiPluginAction({
                       runtime,
                       id: action().entry.key,
-                      placement: "composer-controls",
+                      placement: props.placement,
                       sessionKey: props.sessionKey,
                       agentId: props.agentId,
                       session: session(),
