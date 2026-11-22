@@ -69,6 +69,7 @@ describe("sessions.catalog.move", () => {
       hostId: "gateway:local",
       agentId: "beta",
       allowProcessHomeFallback: expect.any(Boolean),
+      callerShares: true,
       threadId: "thread-1",
       group: "Home",
       threadIds: ["thread-2", "thread-1"],
@@ -106,6 +107,66 @@ describe("sessions.catalog.move", () => {
       warning: expect.stringContaining(
         "agent:alpha:old was not archived: Session agent:alpha:old is still active",
       ),
+    });
+  });
+
+  it("shares the new session as the caller before archiving, and keeps the source when sharing fails", async () => {
+    const move = vi.fn<NonNullable<SessionCatalogProvider["move"]>>(async () => ({
+      ok: true,
+      sessionKey: "agent:beta:moved",
+      share: { key: "agent:beta:moved" },
+      archive: { key: "agent:alpha:old" },
+    }));
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { move }) }];
+    const request = {
+      catalogId: "claude",
+      hostId: "gateway:local",
+      threadId: "t-1",
+      group: "Home",
+    };
+
+    dispatch.request.mockResolvedValue({ ok: true });
+    const respond = await call("sessions.catalog.move", request);
+    expect(dispatch.request.mock.calls.map(([method]) => method)).toEqual([
+      "session.visibility.set",
+      "sessions.patch",
+    ]);
+    expect(dispatch.request).toHaveBeenNthCalledWith(
+      1,
+      "session.visibility.set",
+      { sessionKey: "agent:beta:moved", visibility: "shared" },
+      expect.objectContaining({ requestIdPrefix: "catalog-move" }),
+    );
+    expect(respond).toHaveBeenCalledWith(true, { ok: true, sessionKey: "agent:beta:moved" });
+
+    dispatch.request.mockReset();
+    dispatch.request.mockRejectedValueOnce(new Error("storage not ready"));
+    const partial = await call("sessions.catalog.move", request);
+    expect(dispatch.request).toHaveBeenCalledTimes(1);
+    expect(partial).toHaveBeenCalledWith(true, {
+      ok: true,
+      sessionKey: "agent:beta:moved",
+      warning: expect.stringContaining("agent:beta:moved is still a draft: storage not ready"),
+    });
+  });
+
+  it("passes the provider's own warning through", async () => {
+    const move = vi.fn<NonNullable<SessionCatalogProvider["move"]>>(async () => ({
+      ok: true,
+      sessionKey: "agent:beta:moved",
+      warning: "the old chat stays until the next pass",
+    }));
+    hoisted.activeRegistry.sessionCatalogs = [{ provider: catalogProvider("claude", { move }) }];
+    const respond = await call("sessions.catalog.move", {
+      catalogId: "claude",
+      hostId: "gateway:local",
+      threadId: "t-1",
+      group: "Home",
+    });
+    expect(respond).toHaveBeenCalledWith(true, {
+      ok: true,
+      sessionKey: "agent:beta:moved",
+      warning: "the old chat stays until the next pass",
     });
   });
 

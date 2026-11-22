@@ -56,3 +56,36 @@ export async function archiveMovedCatalogSource(
     return `Moved, but the previous session ${archive.key} was not archived: ${formatErrorMessage(error)}. Archive it to avoid seeing the chat twice.`;
   }
 }
+
+/**
+ * Shares the session a catalog move created, as the caller of the move: the session sharing
+ * checks hold the operator's authority, which a plugin dispatching inside the operator's request
+ * does not carry. Returns a warning instead of failing: the move itself has already happened.
+ */
+export async function shareMovedCatalogSession(
+  options: CallerOptions,
+  share: { key: string } | undefined,
+): Promise<string | undefined> {
+  if (!share) {
+    return undefined;
+  }
+  try {
+    await dispatchGatewayRequestInProcess(
+      "session.visibility.set",
+      { sessionKey: share.key, visibility: "shared" },
+      {
+        client: options.client,
+        context: options.context,
+        isWebchatConnect: options.isWebchatConnect,
+        methodRegistry: options.context.getGatewayMethodRegistry?.(),
+        requestIdPrefix: "catalog-move",
+        ...(options.hasCurrentClientAuthority
+          ? { hasCurrentClientAuthority: options.hasCurrentClientAuthority }
+          : {}),
+      },
+    );
+    return undefined;
+  } catch (error) {
+    return `Moved, but the new session ${share.key} is still a draft: ${formatErrorMessage(error)}. Share it, then archive the previous one.`;
+  }
+}

@@ -31,6 +31,7 @@ import { listSessionCatalogHandler } from "./session-catalog-list.js";
 import {
   archiveCatalogSessionAsCaller,
   archiveMovedCatalogSource,
+  shareMovedCatalogSession,
 } from "./session-catalog-move-archive.js";
 import {
   allowProcessHomeFallback,
@@ -563,12 +564,22 @@ export const sessionCatalogHandlers: GatewayRequestHandlers = {
       }
       try {
         const { catalogId: _catalogId, ...providerRequest } = request;
-        const { archive, ...result } = await provider.move({
+        const {
+          archive,
+          share,
+          warning: providerWarning,
+          ...result
+        } = await provider.move({
           ...providerRequest,
           agentId: resolvedAgent.agentId,
           allowProcessHomeFallback: allowProcessHomeFallback(context.logGateway),
+          callerShares: true,
         });
-        const warning = await archiveMovedCatalogSource(options, archive);
+        // Archive the superseded session only once its replacement is shared: never hide the
+        // only shared copy of a conversation.
+        const shareWarning = await shareMovedCatalogSession(options, share);
+        const warning =
+          shareWarning ?? (await archiveMovedCatalogSource(options, archive)) ?? providerWarning;
         retireSessionCatalogLists(context.getRuntimeConfig());
         respond(true, { ...result, ...(warning ? { warning } : {}) });
       } catch (error) {
