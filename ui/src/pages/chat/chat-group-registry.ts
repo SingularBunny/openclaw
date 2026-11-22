@@ -34,7 +34,8 @@ export type ChatGroupController = {
 
 const controllers = new Map<string, ChatGroupController>();
 const signatures = new Map<string, string>();
-const [version, setVersion] = createSignal(0);
+// Published while the chat renders its controls, so the write is owned by design.
+const [version, setVersion] = createSignal(0, { ownedWrite: true });
 
 /** The chat's controller; the header passes the session row's key, which may be the canonical form. */
 export function readChatGroupController(sessionKey: string | undefined) {

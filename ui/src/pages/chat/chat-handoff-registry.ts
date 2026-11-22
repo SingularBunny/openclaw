@@ -45,7 +45,8 @@ export type ChatHandoffController = {
 };
 
 const controllers = new Map<string, ChatHandoffController>();
-const [controllerVersion, setControllerVersion] = createSignal(0);
+// Published while the chat renders its controls, so the write is owned by design.
+const [controllerVersion, setControllerVersion] = createSignal(0, { ownedWrite: true });
 const controllerSignatures = new Map<string, string>();
 
 /** Solid readers track this, so actions update when the chat publishes a new state. */
