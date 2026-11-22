@@ -10,10 +10,8 @@ import { BUILTIN_THEMES } from "../../../../packages/gateway-protocol/src/theme.
 import { createDeferred as deferred } from "../../../../test/helpers/promise.js";
 import type { GatewayBrowserClient } from "../../api/gateway.ts";
 import type { ThemeCatalogSnapshot } from "../../app/theme-catalog.ts";
-import {
-  setStoredSessionCatalogFolderHidden,
-  setStoredSessionCatalogHidden,
-} from "../../components/app-sidebar-session-types.ts";
+import { setStoredSessionCatalogFolderHidden } from "../../components/app-sidebar-session-types-fork.ts";
+import { setStoredSessionCatalogHidden } from "../../components/app-sidebar-session-types.ts";
 import { createTestGatewayClient } from "../../test-helpers/gateway-client.ts";
 import { gatewayHelloForMethods } from "../../test-helpers/gateway-methods.ts";
 import { cleanupSolid } from "../../test-helpers/mount-solid.ts";

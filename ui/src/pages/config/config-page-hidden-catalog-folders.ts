@@ -1,7 +1,7 @@
 import {
   loadStoredHiddenSessionCatalogFolders,
   SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
-} from "../../components/app-sidebar-session-types.ts";
+} from "../../components/app-sidebar-session-types-fork.ts";
 import { listen } from "../../lib/reactive/listener.ts";
 
 /** Fork: catalog folders hidden from the sidebar, as Settings lists them. */

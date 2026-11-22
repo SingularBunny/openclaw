@@ -12,10 +12,10 @@ import {
   normalizeTextScale,
   UI_APPEARANCE_DEFAULTS,
 } from "../../app/settings.ts";
+import { setStoredSessionCatalogFolderHidden } from "../../components/app-sidebar-session-types-fork.ts";
 import {
   loadStoredHiddenSessionCatalogIds,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
-  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
 } from "../../components/app-sidebar-session-types.ts";
 import { getLobsterdex, subscribeLobsterdex } from "../../components/lobster-dex.ts";

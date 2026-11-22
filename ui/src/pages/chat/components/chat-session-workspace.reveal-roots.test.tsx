@@ -3,12 +3,14 @@
 import { flush } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 import { mountSolid } from "../../../test-helpers/mount-solid.ts";
+import {
+  canRevealSessionWorkspaceFile,
+  resolveSessionWorkspaceRevealTarget,
+} from "./chat-session-workspace-fork.ts";
 import { SessionWorkspaceRail } from "./chat-session-workspace-rail-solid.tsx";
 import { getSessionWorkspace } from "./chat-session-workspace-state.ts";
 import {
-  canRevealSessionWorkspaceFile,
   createSessionWorkspaceProps,
-  resolveSessionWorkspaceRevealTarget,
   revealSessionWorkspaceFile,
   type SessionWorkspaceHost,
 } from "./chat-session-workspace.ts";

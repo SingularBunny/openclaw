@@ -18,8 +18,10 @@ import { AppSidebarOwner } from "./app-sidebar-owner.tsx";
 import { createSessionPullRequestIndicators } from "./app-sidebar-session-pr-indicators.ts";
 import {
   loadStoredHiddenSessionCatalogFolderKeys,
-  loadStoredHiddenSessionCatalogIds,
   SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+} from "./app-sidebar-session-types-fork.ts";
+import {
+  loadStoredHiddenSessionCatalogIds,
   SIDEBAR_HIDDEN_SESSION_CATALOGS_CHANGED_EVENT,
 } from "./app-sidebar-session-types.ts";
 import { createSessionAttention } from "./session-attention.ts";

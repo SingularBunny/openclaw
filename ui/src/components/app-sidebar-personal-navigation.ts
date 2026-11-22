@@ -21,8 +21,8 @@ import {
 } from "./app-sidebar-session-navigation-logic.ts";
 import type { SidebarSessionNavigationState } from "./app-sidebar-session-navigation-logic.ts";
 import { applySidebarSessionOwnerFilter } from "./app-sidebar-session-ownership.ts";
+import { setStoredSessionCatalogFolderHidden } from "./app-sidebar-session-types-fork.ts";
 import {
-  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
   type SidebarRecentSession,
   type SidebarPinZone,
