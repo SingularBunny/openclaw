@@ -48,13 +48,18 @@ describe("chat.forget (N11)", () => {
       find: find as never,
       createEmbedder: async () => embedder,
       memoryFiles: async () => [],
+      findGit: async () => ({ repositories: [], commits: [] }),
     });
     const { respond } = await call(handlers, "chat.forget.find", {
       sessionKey: "agent:main:main",
       topic: "  taxes\n",
     });
     expect(find).toHaveBeenCalledWith(expect.objectContaining({ topic: "taxes", embedder }));
-    expect(respond).toHaveBeenCalledWith(true, { candidates: expect.any(Array), memory: [] });
+    expect(respond).toHaveBeenCalledWith(true, {
+      candidates: expect.any(Array),
+      memory: [],
+      git: { repositories: [], commits: [] },
+    });
   });
 
   it("ranks with the embedding model memory search is configured with, not OpenAI by default", async () => {
@@ -68,6 +73,7 @@ describe("chat.forget (N11)", () => {
       readEntry: vi.fn(async () => entry) as never,
       find: find as never,
       memoryFiles: async () => [],
+      findGit: async () => ({ repositories: [], commits: [] }),
     });
     const { respond } = await call(
       handlers,
@@ -75,7 +81,11 @@ describe("chat.forget (N11)", () => {
       { sessionKey: "agent:main:main", topic: "taxes" },
       { memory: { search: { provider: "local" } } },
     );
-    expect(respond).toHaveBeenCalledWith(true, { candidates: [], memory: [] });
+    expect(respond).toHaveBeenCalledWith(true, {
+      candidates: [],
+      memory: [],
+      git: { repositories: [], commits: [] },
+    });
     expect(embeddings.create).toHaveBeenCalledWith(expect.objectContaining({ provider: "local" }));
     expect(embeddings.create).not.toHaveBeenCalledWith(
       expect.objectContaining({ provider: "auto" }),
