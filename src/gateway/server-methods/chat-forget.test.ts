@@ -1,14 +1,21 @@
 import { describe, expect, it, vi } from "vitest";
+
+const embeddings = vi.hoisted(() => ({ create: vi.fn() }));
+// mock-isolation: observe which embedding model the ranking asks for, without loading one.
+vi.mock("../../plugin-sdk/memory-core-bundled-runtime.js", () => ({
+  createEmbeddingProvider: embeddings.create,
+}));
 import { createChatForgetHandlers } from "./chat-forget.js";
 
 function call(
   handlers: ReturnType<typeof createChatForgetHandlers>,
   method: string,
   params: Record<string, unknown>,
+  cfg: Record<string, unknown> = {},
 ) {
   const respond = vi.fn();
   const context = {
-    getRuntimeConfig: () => ({}),
+    getRuntimeConfig: () => cfg,
     logGateway: { info: vi.fn(), warn: vi.fn() },
   };
   return handlers[method]!({ params, respond, context } as never).then(() => ({
@@ -48,6 +55,32 @@ describe("chat.forget (N11)", () => {
     });
     expect(find).toHaveBeenCalledWith(expect.objectContaining({ topic: "taxes", embedder }));
     expect(respond).toHaveBeenCalledWith(true, { candidates: expect.any(Array), memory: [] });
+  });
+
+  it("ranks with the embedding model memory search is configured with, not OpenAI by default", async () => {
+    const provider = { embedBatch: vi.fn(async (texts: string[]) => texts.map(() => [1, 0])) };
+    embeddings.create.mockResolvedValue({ provider, requestedProvider: "local" });
+    const find = vi.fn(async ({ embedder }: { embedder: { embedQuery(t: string): unknown } }) => {
+      await embedder.embedQuery("taxes");
+      return [];
+    });
+    const handlers = createChatForgetHandlers({
+      readEntry: vi.fn(async () => entry) as never,
+      find: find as never,
+      memoryFiles: async () => [],
+    });
+    const { respond } = await call(
+      handlers,
+      "chat.forget.find",
+      { sessionKey: "agent:main:main", topic: "taxes" },
+      { memory: { search: { provider: "local" } } },
+    );
+    expect(respond).toHaveBeenCalledWith(true, { candidates: [], memory: [] });
+    expect(embeddings.create).toHaveBeenCalledWith(expect.objectContaining({ provider: "local" }));
+    expect(embeddings.create).not.toHaveBeenCalledWith(
+      expect.objectContaining({ provider: "auto" }),
+    );
+    expect(provider.embedBatch).toHaveBeenCalledWith(["taxes"], { inputType: "query" });
   });
 
   it("marks the rows forgotten and drops the Claude CLI binding", async () => {

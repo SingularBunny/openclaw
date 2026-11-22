@@ -137,12 +137,26 @@ async function createLocalEmbedder(params: {
   agentId: string;
 }): Promise<ForgetEmbedder> {
   const cfg = params.cfg as Parameters<typeof resolveAgentDir>[0];
+  // The embedding model memory search is configured with (memory.search.provider, e.g. "local"
+  // for llama.cpp), never a bare "auto": "auto" resolves to OpenAI, which would send the chat
+  // to a remote API, or fail without a key.
+  const settings = resolveMemorySearchConfig(cfg, params.agentId);
+  if (!settings) {
+    throw new Error(
+      "Memory search is off for this agent; Forget a topic ranks with its embedding model.",
+    );
+  }
   const result = await createEmbeddingProvider({
     config: cfg,
     agentDir: resolveAgentDir(cfg, params.agentId),
-    provider: "auto",
-    fallback: "none",
-    model: "",
+    provider: settings.provider,
+    model: settings.model,
+    fallback: settings.fallback,
+    ...(settings.remote ? { remote: settings.remote } : {}),
+    ...(settings.local ? { local: settings.local } : {}),
+    ...(settings.outputDimensionality
+      ? { outputDimensionality: settings.outputDimensionality }
+      : {}),
   });
   const provider = result.provider;
   if (!provider) {
