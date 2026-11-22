@@ -23,6 +23,7 @@ export const FORK_GATEWAY_METHOD_SPECS = [
   // Fork (N15): rewrite commit messages of the chat's repositories; force-push on confirmation.
   ["chat.forget.git.apply", "chat-forget", "operator.admin", "2026.11"],
   ["chat.forget.git.push", "chat-forget", "operator.admin", "2026.11"],
+  ["chat.forget.review.apply", "chat-forget", "operator.admin", "2026.11"],
   // Fork: maintenance mode pauses new chat turns while admin work (config, plugins) stays open.
   ["gateway.maintenance.status", "maintenance-mode", "operator.read", "2026.11"],
   ["gateway.maintenance.enter", "maintenance-mode", "operator.admin", "2026.11"],
