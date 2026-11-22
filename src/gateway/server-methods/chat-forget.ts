@@ -21,7 +21,13 @@ import {
   type ForgetTarget,
 } from "../../sessions/topic-forget-fork.js";
 import {
+  pushRewrittenBranch,
+  redactCommitMessage,
+  rewriteCommitMessages,
+} from "../../sessions/topic-forget-git-apply-fork.js";
+import {
   findForgetGitCommits,
+  runGit,
   gitFoldersOfChat,
   resolveGitRepositories,
   type ForgetGitCommit,
@@ -51,6 +57,43 @@ const FindParams = Type.Object(
     sessionKey: Type.String({ minLength: 1, maxLength: 512 }),
     agentId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
     topic: Topic,
+  },
+  { additionalProperties: false },
+);
+const GitHash = Type.String({ pattern: "^[0-9a-f]{40,64}$" });
+const GitPath = Type.String({ minLength: 1, maxLength: 4_096 });
+const GitApplyParams = Type.Object(
+  {
+    sessionKey: Type.String({ minLength: 1, maxLength: 512 }),
+    agentId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+    topic: Topic,
+    commits: Type.Array(
+      Type.Object({ repo: GitPath, hash: GitHash }, { additionalProperties: false }),
+      {
+        minItems: 1,
+        maxItems: 2_000,
+      },
+    ),
+  },
+  { additionalProperties: false },
+);
+const GitPushParams = Type.Object(
+  {
+    sessionKey: Type.String({ minLength: 1, maxLength: 512 }),
+    agentId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+    pushes: Type.Array(
+      Type.Object(
+        {
+          repo: GitPath,
+          branch: Type.String({ minLength: 1, maxLength: 255 }),
+          remote: Type.String({ minLength: 1, maxLength: 255 }),
+          remoteBranch: Type.String({ minLength: 1, maxLength: 255 }),
+          expected: GitHash,
+        },
+        { additionalProperties: false },
+      ),
+      { minItems: 1, maxItems: 200 },
+    ),
   },
   { additionalProperties: false },
 );
@@ -104,6 +147,12 @@ type Deps = {
   memoryFiles: (params: { cfg: unknown; agentId: string }) => Promise<string[]>;
   forgetMemory: typeof forgetMemoryParagraphs;
   backupDir: () => string;
+  chatRepositories: (params: {
+    target: ForgetTarget;
+    workingFolders: readonly (string | undefined)[];
+  }) => Promise<ForgetGitRepository[]>;
+  rewriteGit: typeof rewriteCommitMessages;
+  pushGit: typeof pushRewrittenBranch;
   findGit: (params: {
     target: ForgetTarget;
     workingFolders: readonly (string | undefined)[];
@@ -112,16 +161,21 @@ type Deps = {
   }) => Promise<NonNullable<ChatForgetFindResult["git"]>>;
 };
 
+async function chatGitRepositories(params: {
+  target: ForgetTarget;
+  workingFolders: readonly (string | undefined)[];
+}): Promise<ForgetGitRepository[]> {
+  const entries = await loadCliSessionEntries({ sessionTarget: params.target });
+  return await resolveGitRepositories(gitFoldersOfChat(entries, params.workingFolders));
+}
+
 async function findChatGitCommits(params: {
   target: ForgetTarget;
   workingFolders: readonly (string | undefined)[];
   topic: string;
   embedder: ForgetEmbedder;
 }): Promise<NonNullable<ChatForgetFindResult["git"]>> {
-  const entries = await loadCliSessionEntries({ sessionTarget: params.target });
-  const repositories = await resolveGitRepositories(
-    gitFoldersOfChat(entries, params.workingFolders),
-  );
+  const repositories = await chatGitRepositories(params);
   const commits = await findForgetGitCommits({
     repositories,
     topic: params.topic,
@@ -213,6 +267,36 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
   const memoryFiles = deps.memoryFiles ?? agentMemoryFiles;
   const forgetMemory = deps.forgetMemory ?? forgetMemoryParagraphs;
   const findGit = deps.findGit ?? findChatGitCommits;
+  const chatRepositories = deps.chatRepositories ?? chatGitRepositories;
+  const rewriteGit = deps.rewriteGit ?? rewriteCommitMessages;
+  const pushGit = deps.pushGit ?? pushRewrittenBranch;
+  const workingFolders = (resolved: {
+    cfg: unknown;
+    agentId: string;
+    entry?: { spawnedCwd?: string } | null;
+  }) => [
+    resolved.entry?.spawnedCwd,
+    resolveAgentWorkspaceDir(
+      resolved.cfg as Parameters<typeof resolveAgentWorkspaceDir>[0],
+      resolved.agentId,
+    ),
+  ];
+  // Only the repositories the chat itself worked in may be rewritten or pushed.
+  async function allowedRoots(resolved: {
+    cfg: unknown;
+    agentId: string;
+    entry?: { spawnedCwd?: string } | null;
+    target?: ForgetTarget;
+  }) {
+    if (!resolved.target) {
+      return new Set<string>();
+    }
+    const repositories = await chatRepositories({
+      target: resolved.target,
+      workingFolders: workingFolders(resolved),
+    });
+    return new Set(repositories.map((repository) => repository.root));
+  }
   const backupDir =
     deps.backupDir ??
     (() =>
@@ -279,13 +363,7 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
         const git = resolved.target
           ? await findGit({
               target: resolved.target,
-              workingFolders: [
-                resolved.entry?.spawnedCwd,
-                resolveAgentWorkspaceDir(
-                  resolved.cfg as Parameters<typeof resolveAgentWorkspaceDir>[0],
-                  resolved.agentId,
-                ),
-              ],
+              workingFolders: workingFolders(resolved),
               topic,
               embedder,
             }).catch((error: unknown) => {
@@ -305,6 +383,109 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
             error instanceof Error ? error.message : String(error)
           }`,
         );
+        fail(respond, error);
+      }
+    },
+    // Fork (N15): rewrite the ticked commit messages; pushing is the separate step below.
+    "chat.forget.git.apply": async ({ params, respond, context }) => {
+      if (!Value.Check(GitApplyParams, params)) {
+        respond(
+          false,
+          undefined,
+          errorShape(
+            ErrorCodes.INVALID_REQUEST,
+            "chat.forget.git.apply expects { sessionKey, agentId?, topic, commits: [{ repo, hash }] }",
+          ),
+        );
+        return;
+      }
+      try {
+        const resolved = await resolveTarget(context, params);
+        if (!resolved.ok) {
+          respond(false, undefined, resolved.error);
+          return;
+        }
+        const allowed = await allowedRoots(resolved);
+        const outside = params.commits.find((commit) => !allowed.has(commit.repo));
+        if (outside) {
+          respond(
+            false,
+            undefined,
+            errorShape(
+              ErrorCodes.INVALID_REQUEST,
+              `${outside.repo} is not a repository this chat worked in`,
+            ),
+          );
+          return;
+        }
+        const topic = sanitizeTopic(params.topic);
+        const dir = path.join(backupDir(), "git");
+        const repos = [...new Set(params.commits.map((commit) => commit.repo))];
+        const results = [];
+        for (const repo of repos) {
+          const rewrites = [];
+          for (const commit of params.commits.filter((candidate) => candidate.repo === repo)) {
+            const message = await runGit(repo, ["log", "-1", "--format=%B", commit.hash]);
+            rewrites.push({
+              repo,
+              hash: commit.hash,
+              message: redactCommitMessage(message, topic),
+            });
+          }
+          results.push(await rewriteGit({ repo, rewrites, backupDir: dir }));
+        }
+        context.logGateway.info(
+          `chat forget git: session=${resolved.sessionKey} rewrote ${params.commits.length} commit(s) in ${repos.length} repo(s)`,
+        );
+        respond(true, { repositories: results });
+      } catch (error) {
+        fail(respond, error);
+      }
+    },
+    // Fork (N15): force-push the branches the owner confirmed, each with a lease on the remote
+    // tip seen before the rewrite.
+    "chat.forget.git.push": async ({ params, respond, context }) => {
+      if (!Value.Check(GitPushParams, params)) {
+        respond(
+          false,
+          undefined,
+          errorShape(
+            ErrorCodes.INVALID_REQUEST,
+            "chat.forget.git.push expects { sessionKey, agentId?, pushes: [{ repo, branch, remote, remoteBranch, expected }] }",
+          ),
+        );
+        return;
+      }
+      try {
+        const resolved = await resolveTarget(context, params);
+        if (!resolved.ok) {
+          respond(false, undefined, resolved.error);
+          return;
+        }
+        const allowed = await allowedRoots(resolved);
+        const pushed: string[] = [];
+        const failed: Array<{ repo: string; branch: string; error: string }> = [];
+        for (const plan of params.pushes) {
+          if (!allowed.has(plan.repo)) {
+            failed.push({ ...plan, error: "not a repository this chat worked in" });
+            continue;
+          }
+          try {
+            await pushGit(plan);
+            pushed.push(`${plan.repo}:${plan.branch}`);
+          } catch (error) {
+            failed.push({
+              repo: plan.repo,
+              branch: plan.branch,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        context.logGateway.info(
+          `chat forget git push: session=${resolved.sessionKey} pushed ${pushed.length}, failed ${failed.length}`,
+        );
+        respond(true, { pushed, failed });
+      } catch (error) {
         fail(respond, error);
       }
     },

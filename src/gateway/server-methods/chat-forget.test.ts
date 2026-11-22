@@ -149,4 +149,109 @@ describe("chat.forget (N11)", () => {
     });
     expect(respond).toHaveBeenCalledWith(true, expect.objectContaining({ memoryRemoved: 1 }));
   });
+
+  describe("git (N15)", () => {
+    const repoWith = async (messages: string[]) => {
+      const { execFileSync } = await import("node:child_process");
+      const fs = await import("node:fs");
+      const os = await import("node:os");
+      const path = await import("node:path");
+      const dir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "forget-git-handler-")));
+      const env = {
+        ...process.env,
+        GIT_AUTHOR_NAME: "O",
+        GIT_AUTHOR_EMAIL: "o@example.test",
+        GIT_COMMITTER_NAME: "O",
+        GIT_COMMITTER_EMAIL: "o@example.test",
+      };
+      execFileSync("git", ["-C", dir, "init", "-q"], { env });
+      for (const message of messages) {
+        execFileSync("git", ["-C", dir, "commit", "-q", "--allow-empty", "-m", message], { env });
+      }
+      const head = execFileSync("git", ["-C", dir, "rev-parse", "HEAD"], {
+        encoding: "utf8",
+      }).trim();
+      return { dir, head, cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
+    };
+
+    it("rewrites only commits of the chat's repositories, with the topic redacted", async () => {
+      const repo = await repoWith(["Plan\n\nFiled the taxes return"]);
+      try {
+        const rewriteGit = vi.fn(async (params: { repo: string }) => ({
+          repo: params.repo,
+          rewritten: 1,
+          backup: "/b",
+          push: [],
+        }));
+        const handlers = createChatForgetHandlers({
+          readEntry: vi.fn(async () => entry) as never,
+          chatRepositories: async () => [{ root: repo.dir, remotes: [] }],
+          rewriteGit: rewriteGit as never,
+          backupDir: () => "/tmp/forget-backups-test",
+        });
+        const outside = await call(handlers, "chat.forget.git.apply", {
+          sessionKey: "agent:main:main",
+          topic: "taxes",
+          commits: [{ repo: "/elsewhere", hash: repo.head }],
+        });
+        expect(outside.respond).toHaveBeenCalledWith(
+          false,
+          undefined,
+          expect.objectContaining({
+            message: "/elsewhere is not a repository this chat worked in",
+          }),
+        );
+        expect(rewriteGit).not.toHaveBeenCalled();
+
+        const { respond } = await call(handlers, "chat.forget.git.apply", {
+          sessionKey: "agent:main:main",
+          topic: "taxes",
+          commits: [{ repo: repo.dir, hash: repo.head }],
+        });
+        expect(rewriteGit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            repo: repo.dir,
+            rewrites: [{ repo: repo.dir, hash: repo.head, message: "Plan\n\n[removed]\n" }],
+          }),
+        );
+        expect(respond).toHaveBeenCalledWith(true, {
+          repositories: [{ repo: repo.dir, rewritten: 1, backup: "/b", push: [] }],
+        });
+      } finally {
+        repo.cleanup();
+      }
+    });
+
+    it("pushes only confirmed branches of the chat's repositories", async () => {
+      const pushGit = vi.fn(async () => undefined);
+      const handlers = createChatForgetHandlers({
+        readEntry: vi.fn(async () => entry) as never,
+        chatRepositories: async () => [{ root: "/repo/a", remotes: [] }],
+        pushGit: pushGit as never,
+      });
+      const plan = {
+        branch: "main",
+        remote: "origin",
+        remoteBranch: "main",
+        expected: "a".repeat(40),
+      };
+      const { respond } = await call(handlers, "chat.forget.git.push", {
+        sessionKey: "agent:main:main",
+        pushes: [
+          { repo: "/repo/a", ...plan },
+          { repo: "/repo/b", ...plan },
+        ],
+      });
+      expect(pushGit).toHaveBeenCalledTimes(1);
+      expect(respond).toHaveBeenCalledWith(true, {
+        pushed: ["/repo/a:main"],
+        failed: [
+          expect.objectContaining({
+            repo: "/repo/b",
+            error: "not a repository this chat worked in",
+          }),
+        ],
+      });
+    });
+  });
 });
