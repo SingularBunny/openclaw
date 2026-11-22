@@ -73,7 +73,9 @@ it("closes from the search button after its tooltip and restores focus without c
   const pane = createPane();
   await pane.openSearch("unmatched query");
   const target = expectDefined(
-    pane.container.querySelector<HTMLElement>(".agent-chat__search-bar button"),
+    pane.container.querySelector<HTMLElement>(
+      '.agent-chat__search-bar button[aria-label="Close search"]',
+    ),
     "search control",
   );
   target.focus();

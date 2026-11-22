@@ -1,0 +1,25 @@
+/* Fork: highlighted transcript search matches (chat-transcript-search-fork.tsx), in the find-bar
+   colors browsers use: every match tinted, the current one solid. */
+::highlight(openclaw-search) {
+  background-color: color-mix(in srgb, var(--warn) 35%, transparent);
+}
+
+::highlight(openclaw-search-current) {
+  background-color: var(--warn);
+  color: #0e1015;
+}
+
+.agent-chat__search-matches {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 2px;
+  white-space: nowrap;
+}
+
+.agent-chat__search-count {
+  padding: 0 6px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
