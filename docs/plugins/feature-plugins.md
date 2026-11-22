@@ -188,7 +188,11 @@ copies it, and `id` its transcript entry when persisted. Messages still streamin
 `placement: "composer-controls"` adds a compact button to the composer's control row, next to the permission,
 model and effort pickers; its label (or `icon`) is the button, so a toggle shows its state in the label, e.g.
 "Plan: on". `placement: "chat-header"` adds the same kind of button to the chat's own header, next to **Add to
-group chat** (upstream's `"header"` places actions in a row above the conversation instead). `host.ui.placements` lists the placements the Control UI renders, so a plugin can leave out an action
+group chat** (upstream's `"header"` places actions in a row above the conversation instead). In this build the chat's own **⋯** menu also lists `placement: "session"` actions in the browser, as the sidebar's
+session menu does (upstream shows them there only inside a native app host). A plugin dialog
+(`host.components.mountDialog`) is a bare frame 540px wide: give its content `width: 100%` and its own card
+background and padding, and widen it with `style: "--openclaw-modal-width: <n>px"` when needed.
+`host.ui.placements` lists the placements the Control UI renders, so a plugin can leave out an action
 that has nowhere to go on another build.
 A `registerPanel` panel may also set `icon` (a Control UI icon name) and `available(session)`: the tab is offered
 only in the chats it returns `true` for (called on each side-panel render; keep it cheap, `host.ui.invalidate()`

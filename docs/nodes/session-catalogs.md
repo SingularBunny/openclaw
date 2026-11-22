@@ -293,8 +293,13 @@ replaced it, and `sessionKey` the Gateway session that holds it. A provider whos
 move supersedes a Gateway session returns it as `archive: { key, expectedSessionId? }`
 (not part of the RPC result): the Gateway archives that session with
 `sessions.patch` as the caller who moved the row, since a plugin may patch only
-sessions it created. If that archive fails, the move still stands and the result
-carries a `warning`, which the Control UI shows. A rejected move puts the row back
+sessions it created. A provider may also return `share: { key }`, a session the move
+created: the Gateway shares it with `session.visibility.set` as the caller first, since
+sharing checks the operator's authority, which a plugin request inside the operator's
+request does not carry; the Gateway passes `callerShares: true` to the provider so it
+can leave sharing to it. The old session is archived only after the new one is shared.
+If sharing or the archive fails, the move still stands and the result carries a
+`warning`, which the Control UI shows. A rejected move puts the row back
 and shows the error. The Gateway resolves the caller's agent
 like a reorder and refreshes catalog lists after a successful move.
 
