@@ -14,7 +14,7 @@ an `aiwb-*` tag publishes it as a release. On a port to a new upstream release, 
 - Compressed session archives read with a budget of 128x stored size (at least stored + 1 MiB, at most 256 MiB) instead of stored + 1 MiB, so an ordinary deleted transcript no longer fails every Usage refresh\
   _any model_. **Where:** `src/config/sessions/archive-compression.ts`. **Docs:** [Session management](docs/concepts/session.md).
 - Catalog continuation limits from the environment (`OPENCLAW_CATALOG_CONTINUATION_*`)\
-  _any model_. **Where:** `src/plugins/session-catalog-history-import.ts`. **Docs:** [Session catalogs](docs/nodes/session-catalogs.md).
+  _any model_. **Where:** `src/plugins/session-catalog-history-import.ts`, `session-catalog-history-import-fork.ts`. **Docs:** [Session catalogs](docs/nodes/session-catalogs.md).
 - Owner imports (`OPENCLAW_CATALOG_IMPORT_OWNER=1`): `senderIsOwner`, no untrusted-reference notice or boundaries, earlier imports read unwrapped\
   _any model_. **Where:** catalog import, `packages/agent-core` session context, chat display projection. **Docs:** [Owner imports](docs/nodes/session-catalogs.md#owner-imports).
 - Office documents open in the chat PDF reader through a converter route; PDF and Office session artifacts open in it too, read through the artifact download; a converter refusal (e.g. a PDF over the 16 MB viewer limit) says why under **Preview unavailable**\

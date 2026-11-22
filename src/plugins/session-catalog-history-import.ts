@@ -10,33 +10,13 @@ import type { OpenClawConfig } from "../config/types.openclaw.js";
 import type { AgentMessage } from "../plugin-sdk/agent-core.js";
 import { withSessionTranscriptWrite } from "../plugin-sdk/session-transcript-runtime.js";
 import { wrapExternalContent } from "../security/external-content.js";
+import {
+  sessionCatalogContinuationLimits,
+  sessionCatalogImportMarksOwner,
+} from "./session-catalog-history-import-fork.js";
 
 const SESSION_CATALOG_CONTINUATION_LIMITS = { maxItems: 200, maxBytes: 512 * 1024 };
 
-function envPositiveInt(name: string, fallback: number): number {
-  const value = Number(process.env[name]);
-  return Number.isSafeInteger(value) && value > 0 ? value : fallback;
-}
-
-// How much of a native chat "continue" carries over. OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS and
-// OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES (e.g. config env.vars) replace the defaults; read on use.
-export function sessionCatalogContinuationLimits() {
-  return {
-    maxItems: envPositiveInt(
-      "OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS",
-      SESSION_CATALOG_CONTINUATION_LIMITS.maxItems,
-    ),
-    maxBytes: envPositiveInt(
-      "OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES",
-      SESSION_CATALOG_CONTINUATION_LIMITS.maxBytes,
-    ),
-  };
-}
-
-/** OPENCLAW_CATALOG_IMPORT_OWNER=1: imported user rows are the owner's (off by default). */
-export function sessionCatalogImportMarksOwner(): boolean {
-  return /^(1|true|yes)$/i.test(process.env.OPENCLAW_CATALOG_IMPORT_OWNER?.trim() ?? "");
-}
 export const SESSION_CATALOG_TRANSCRIPT_IMPORT_LIMITS = {
   maxItems: 50_000,
   maxBytes: 64 * 1024 * 1024,
@@ -231,7 +211,7 @@ export async function importSessionCatalogHistory(params: {
 }): Promise<void> {
   const { items } = await readBoundedSessionCatalogHistory({
     read: params.read,
-    limits: sessionCatalogContinuationLimits(),
+    limits: sessionCatalogContinuationLimits(SESSION_CATALOG_CONTINUATION_LIMITS),
   });
   const fallbackTimestamp = Date.now();
   await withSessionTranscriptWrite(params, async (transcript) => {
@@ -351,31 +331,31 @@ export async function preserveSessionCatalogHistory(params: {
         // Despite its name, scan uses the transcript identity index, not a
         // transcript walk. Each source item needs one indexed lookup.
         idempotencyLookup: "scan",
-        preparation: ownerImport
-          ? { source: params.commitGuard }
-          : {
-              prepareMessage: async (message) => {
-                const wrapped = importedSessionCatalogMessage({
-                  catalogId: params.catalogId,
-                  item: {
-                    ...item,
-                    // Normalize wrapper separators without trimming the recorded body.
-                    text: wrapExternalContent(
-                      item.text?.trim() ? item.text : "[Unsupported catalog transcript item]",
-                      {
-                        source: "unknown",
-                        includeWarning: false,
-                      },
-                    ).trim(),
+        preparation: {
+          prepareMessage: async (message) => {
+            const wrapped = importedSessionCatalogMessage({
+              catalogId: params.catalogId,
+              item: {
+                ...item,
+                // Normalize wrapper separators without trimming the recorded body.
+                text: wrapExternalContent(
+                  item.text?.trim() ? item.text : "[Unsupported catalog transcript item]",
+                  {
+                    source: "unknown",
+                    includeWarning: false,
                   },
-                  fallbackTimestamp: fallbackTimestamp + index + 1,
-                });
-                return wrapped
-                  ? { ...wrapped, __openclaw: imported["__openclaw"], idempotencyKey }
-                  : message;
+                ).trim(),
               },
-              source: params.commitGuard,
-            },
+              fallbackTimestamp: fallbackTimestamp + index + 1,
+            });
+            return wrapped
+              ? { ...wrapped, __openclaw: imported["__openclaw"], idempotencyKey }
+              : message;
+          },
+          source: params.commitGuard,
+        },
+        // The owner's own chats are kept as written, without external-content boundaries.
+        ...(ownerImport ? { preparation: { source: params.commitGuard } } : {}),
       });
       if (appended?.appended) {
         importedItems += 1;
