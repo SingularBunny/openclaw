@@ -647,6 +647,8 @@ fork's) makes the agent forget part of the conversation without deleting it from
    ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick.
 3. **Forget** (`chat.forget.apply`): the ticked turns stay visible in the chat but never reach a model
    again — not on the next turn, not after a reset, not in a Claude CLI reseed or an ACP history seed.
+   Each mark waits for the transcript projection the previous one made the Gateway rebuild; if some
+   entries still cannot be marked, the dialog says how many were forgotten, so run it again.
 
 What else changes:
 

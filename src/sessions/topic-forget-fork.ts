@@ -11,6 +11,7 @@ import { loadCliSessionEntries } from "../agents/cli-runner/session-history.js";
 import type { SessionEntry } from "../agents/sessions/session-manager.js";
 import { rewritePreparedTranscriptMessageAtAnchor } from "../config/sessions/session-message-rewrite.js";
 import { readActiveTranscriptEntryAnchorAsync } from "../config/sessions/session-transcript-anchor-read.js";
+import { waitForSessionTranscriptProjection } from "../config/sessions/session-transcript-reconcile.js";
 
 export type ForgetTarget = {
   agentId: string;
@@ -209,21 +210,51 @@ export async function findForgetCandidates(params: {
   return rankForgetCandidates(turns, scores, params.topic);
 }
 
-/** Marks the given rows forgotten; returns the ids actually changed. */
+/** Reads after a projection rebuild: the attempts and the pause between them. */
+const ANCHOR_ATTEMPTS = 4;
+const ANCHOR_RETRY_MS = 250;
+
+export type MarkForgottenDeps = {
+  readAnchor: typeof readActiveTranscriptEntryAnchorAsync;
+  waitForProjection: (target: ForgetTarget, signal?: AbortSignal) => Promise<void>;
+  sleep: (ms: number) => Promise<void>;
+};
+
+const defaultMarkDeps: MarkForgottenDeps = {
+  readAnchor: readActiveTranscriptEntryAnchorAsync,
+  waitForProjection: (target, signal) => waitForSessionTranscriptProjection(target, signal),
+  sleep: (ms) =>
+    new Promise((resolve) => {
+      setTimeout(resolve, ms);
+    }),
+};
+
+/**
+ * Marks the given rows forgotten; returns the ids actually changed. Each rewrite makes the Gateway
+ * rebuild the transcript projection, and an entry read during the rebuild is not found (live
+ * 23.11.2026: 1 of 56 ticked entries marked), so every read waits for the projection and a
+ * missing entry is read again after a pause.
+ */
 export async function markEntriesForgotten(params: {
   target: ForgetTarget;
   entryIds: readonly string[];
   topic: string;
   now?: number;
   signal?: AbortSignal;
+  deps?: Partial<MarkForgottenDeps>;
 }): Promise<string[]> {
+  const deps = { ...defaultMarkDeps, ...params.deps };
   const at = params.now ?? Date.now();
   const changed: string[] = [];
   for (const entryId of params.entryIds) {
-    const anchor = await readActiveTranscriptEntryAnchorAsync(
-      { ...params.target, entryId },
-      params.signal,
-    );
+    let anchor: Awaited<ReturnType<typeof readActiveTranscriptEntryAnchorAsync>>;
+    for (let attempt = 0; attempt < ANCHOR_ATTEMPTS && !anchor; attempt += 1) {
+      if (attempt > 0) {
+        await deps.sleep(ANCHOR_RETRY_MS * attempt);
+      }
+      await deps.waitForProjection(params.target, params.signal);
+      anchor = await deps.readAnchor({ ...params.target, entryId }, params.signal);
+    }
     if (!anchor) {
       continue;
     }
