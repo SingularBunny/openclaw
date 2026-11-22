@@ -276,6 +276,11 @@ const enChatSession = {
       search: "Search messages",
       searchPlaceholder: "Search messages...",
       closeSearch: "Close search",
+      // Fork: whole-chat search with highlighted matches (chat-transcript-search-fork.tsx).
+      searchLoadingHistory: "Loading earlier messages…",
+      searchNoMatches: "No matches",
+      searchPrevious: "Previous match",
+      searchNext: "Next match",
       loading: "Loading chat",
       showEarlier: "Show earlier",
       loadingEarlier: "Loading earlier…",

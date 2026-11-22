@@ -634,6 +634,15 @@ as a fallback and does the same thing:
 - Switching models and ACP agents, and the bound agent's model: see
   [Switching models and agents](#switching-models-and-agents).
 
+## Searching a chat
+
+Ctrl+F (Command-F on macOS) in a chat opens **Search messages**. The transcript shows only the
+messages that contain the text, and in this build (the ai-workbench fork) the search covers the whole
+chat: while a query is typed it loads earlier pages until the chat's start ("Loading earlier
+messages…"), highlights every match in the messages, and shows "3 / 12". Use ↑ ↓, Enter and
+Shift+Enter to move between matches; the newest match is current first. Escape or **Close search**
+restores the full transcript.
+
 ## Forgetting a topic
 
 **Forget a topic…** in the chat's **⋯** menu (the `aiwb-chat-tools` plugin; the Gateway methods are the

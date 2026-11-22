@@ -2,11 +2,13 @@ import { Icon } from "../../../components/solid/icon.tsx";
 import { registerChatSessionEnglish } from "../../../i18n/locales/en-chat-session.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import "../../../components/tooltip.ts";
+import { TranscriptSearchMatches } from "./chat-transcript-search-fork.tsx";
 import type { TranscriptSearchState } from "./chat-transcript-search-state.ts";
 
 registerEnglishCatalog(registerChatSessionEnglish);
 
 export function TranscriptSearchContent(props: { search: TranscriptSearchState; query: string }) {
+  let inputElement: HTMLInputElement | undefined;
   return (
     <>
       <div
@@ -31,8 +33,16 @@ export function TranscriptSearchContent(props: { search: TranscriptSearchState; 
           placeholder={t("chat.thread.searchPlaceholder")}
           aria-label={t("chat.thread.search")}
           value={props.query}
-          ref={(element) => props.search.focusInput(element)}
+          ref={(element) => {
+            inputElement = element;
+            props.search.focusInput(element);
+          }}
           onInput={(event) => props.search.setQuery(event.currentTarget.value)}
+        />
+        <TranscriptSearchMatches
+          search={props.search}
+          query={props.query}
+          input={() => inputElement}
         />
         <openclaw-tooltip prop:content={t("chat.thread.closeSearch")}>
           <button
