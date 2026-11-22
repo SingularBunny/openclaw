@@ -93,6 +93,14 @@ export type SessionCatalogReorderProviderParams = Omit<
  */
 export type SessionCatalogMoveProviderResult = Omit<SessionsCatalogMoveResult, "warning"> & {
   archive?: SessionCatalogSessionArchive;
+  /**
+   * A session the move created that the Gateway shares as the caller (`callerShares`), before
+   * archiving: sharing checks the operator's authority, which a plugin acting in the operator's
+   * request does not carry. When sharing fails, `archive` is skipped and a `warning` reported.
+   */
+  share?: { key: string };
+  /** A provider's own note on a partial move, reported as the result's `warning`. */
+  warning?: string;
 };
 
 /** A Gateway session the Gateway archives as the caller of a catalog request. */
@@ -104,6 +112,8 @@ export type SessionCatalogMoveProviderParams = Omit<SessionsCatalogMoveParams, "
   agentId?: string;
   /** False when Gateway-local moves must not inherit a root from process HOME. */
   allowProcessHomeFallback?: boolean;
+  /** Fork: the Gateway shares the result's `share` session as the caller; the provider need not. */
+  callerShares?: boolean;
 };
 
 export type SessionCatalogStartTerminalProviderParams = {
