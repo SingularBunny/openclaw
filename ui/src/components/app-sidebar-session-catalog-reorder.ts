@@ -33,7 +33,7 @@ import {
   type DropPosition,
 } from "./app-sidebar-session-catalog-drag.ts";
 import type { SessionCatalogGroupsParams } from "./app-sidebar-session-render-types.ts";
-import { sessionCatalogFolderKey } from "./app-sidebar-session-types.ts";
+import { sessionCatalogFolderKey } from "./app-sidebar-session-types-fork.ts";
 
 export type CatalogFolder = ReturnType<typeof groupCatalogSessionsByProject>["groups"][number];
 type CatalogFolderGroups = ReturnType<typeof groupCatalogSessionsByProject>;

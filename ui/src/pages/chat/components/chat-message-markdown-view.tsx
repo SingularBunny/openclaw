@@ -1,13 +1,6 @@
-import { asNullableRecord } from "@openclaw/normalization-core/record-coerce";
 import { truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import { onSettled, Show } from "solid-js";
 import { CHAT_PENDING_INPUT_MESSAGE_PREFIX } from "../../../../../packages/gateway-protocol/src/schema/chat-history-constants.js";
-import {
-  matchesRefusalPhrase,
-  readRefusalHandoff,
-  readStoredRefusal,
-  type RefusalSignal,
-} from "../../../../../src/shared/refusal-signal.js";
 import { copyMarkdownLabel } from "../../../components/copy-button-state.ts";
 import { CopyButton } from "../../../components/solid/copy-button.tsx";
 import { Icon } from "../../../components/solid/icon.tsx";
@@ -20,18 +13,20 @@ import {
 import { normalizeRoleForGrouping } from "../../../lib/chat/message-normalizer.ts";
 import { registerEnglishCatalog, t } from "../../../lib/reactive/i18n.ts";
 import { stripThinkingTags } from "../../../lib/strip-thinking-tags.ts";
-import { PluginMessageActions } from "../../../plugins/control-ui-message-actions.solid.tsx";
 import {
   type AssistantMessageExpansionState,
   resolveCappedMessageId,
   resolveSourceMessageId,
 } from "../chat-message-recovery.ts";
 import { persistedMessageEntryId } from "../chat-thread-items.ts";
-import { ChatHandoffMessageAction, ChatTurnFailureActions } from "./chat-handoff-view.tsx";
 import {
   registerMessageActionElements,
   type MessageActionElements,
 } from "./chat-message-action-elements.ts";
+import {
+  forkMessageActionDetails,
+  ForkMessageActions,
+} from "./chat-message-markdown-view-fork.tsx";
 import type { MessageActionDetails, MessageReplyTarget } from "./chat-message-markdown.types.ts";
 import { extractMessageMediaText } from "./chat-message-media.ts";
 import {
@@ -74,25 +69,6 @@ export function resolveMessageReplyText(
   markdown: string,
 ): string {
   return markdown || extractMessageMediaText(message, normalizedMessage.content);
-}
-
-/**
- * Fork (I14): the refusal signal of an assistant reply, strongest first: the API's (recorded
- * by any provider), the model's own marker, else a weak phrase match. A turn already handed
- * off from the hint is out of the model context and shows no hint.
- */
-export function resolveRefusalHint(
-  message: unknown,
-  visibleMarkdown: string,
-): { refusal?: RefusalSignal } {
-  if (readRefusalHandoff(message)) {
-    return {};
-  }
-  const stored = readStoredRefusal(message);
-  if (stored) {
-    return { refusal: stored.signal };
-  }
-  return matchesRefusalPhrase(visibleMarkdown) ? { refusal: "phrase" } : {};
 }
 
 export function resolveMessageActionDetails(
@@ -139,29 +115,17 @@ export function resolveMessageActionDetails(
     ...(role === "assistant" && visibleMarkdown ? { readAloudText: visibleMarkdown } : {}),
     ...(reactionMessageId ? { reactionMessageId } : {}),
     ...(markdown === undefined ? {} : { markdown }),
-    ...(isConversationMessage && !pendingInput && copyMarkdown && params.sessionKey
-      ? {
-          pluginMessage: {
-            sessionKey: params.sessionKey,
-            ...(params.agentId ? { agentId: params.agentId } : {}),
-            message: {
-              role,
-              text: copyMarkdown,
-              ...(sourceMessageId ? { id: sourceMessageId } : {}),
-            },
-          },
-        }
-      : {}),
-    ...(role === "assistant" && !pendingInput && params.sessionKey
-      ? {
-          handoff: {
-            sessionKey: params.sessionKey,
-            ...(sourceMessageId ? { messageKey: sourceMessageId } : {}),
-            failed: asNullableRecord(message)?.stopReason === "error",
-            ...resolveRefusalHint(message, visibleMarkdown),
-          },
-        }
-      : {}),
+    ...forkMessageActionDetails({
+      message,
+      role,
+      pendingInput,
+      isConversationMessage,
+      copyMarkdown,
+      visibleMarkdown,
+      sourceMessageId,
+      sessionKey: params.sessionKey,
+      agentId: params.agentId,
+    }),
     fullMessage,
     ...(replyText
       ? {
@@ -232,25 +196,7 @@ export function MessageActions(props: {
           }}
         />
       </Show>
-      <Show when={props.details?.handoff?.failed}>
-        <ChatTurnFailureActions
-          sessionKey={props.details!.handoff!.sessionKey}
-          messageKey={props.details!.handoff!.messageKey}
-        />
-      </Show>
-      <Show when={props.details?.handoff}>
-        <ChatHandoffMessageAction
-          sessionKey={props.details!.handoff!.sessionKey}
-          messageKey={props.details!.handoff!.messageKey}
-        />
-      </Show>
-      <Show when={props.details?.pluginMessage}>
-        <PluginMessageActions
-          sessionKey={props.details!.pluginMessage!.sessionKey}
-          agentId={props.details!.pluginMessage!.agentId}
-          message={props.details!.pluginMessage!.message}
-        />
-      </Show>
+      <ForkMessageActions details={props.details} />
       <Show when={hasActionRowReactionPicker(props.details?.reactionMessageId, props.options)}>
         <MessageReactionPicker
           class="chat-reaction-action"

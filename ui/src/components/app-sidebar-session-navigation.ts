@@ -73,8 +73,8 @@ import {
   sidebarCatalogLiveRows,
   sidebarSessionSnoozeWakeRows,
 } from "./app-sidebar-session-snooze-visibility.ts";
+import { loadStoredHiddenSessionCatalogFolderKeys } from "./app-sidebar-session-types-fork.ts";
 import {
-  loadStoredHiddenSessionCatalogFolderKeys,
   loadStoredHiddenSessionCatalogIds,
   loadStoredSidebarSessionSortMode,
   loadStoredSidebarSessionStatusFilter,

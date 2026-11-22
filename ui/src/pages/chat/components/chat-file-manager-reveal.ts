@@ -3,7 +3,7 @@ import { canCallGatewayMethod } from "../../../lib/gateway-methods.ts";
 import { parseAgentSessionKey } from "../../../lib/sessions/session-key.ts";
 import { setChatError } from "../chat-history-state.ts";
 import type { ChatPageHost } from "../chat-state-host.ts";
-import { resolveSessionWorkspaceRevealTarget } from "./chat-session-workspace.ts";
+import { resolveSessionWorkspaceRevealTarget } from "./chat-session-workspace-fork.ts";
 import type { SidebarContent } from "./chat-sidebar-content-types.ts";
 
 const REVEAL_METHOD = "sessions.files.reveal";

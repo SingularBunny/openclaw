@@ -7,9 +7,9 @@ import { openSlot } from "../sidebar-layout.ts";
 import { fileManagerRevealer } from "./chat-file-manager-reveal.ts";
 import { ChatLazyBoundary } from "./chat-lazy-boundary.tsx";
 import { assistantMediaPolicyKey } from "./chat-message-media.ts";
+import { canRevealSessionWorkspaceFile } from "./chat-session-workspace-fork.ts";
 import { getSessionWorkspace } from "./chat-session-workspace-state.ts";
 import {
-  canRevealSessionWorkspaceFile,
   openSessionWorkspaceFile,
   openSessionWorkspaceFileView,
   revealSessionWorkspaceFile,

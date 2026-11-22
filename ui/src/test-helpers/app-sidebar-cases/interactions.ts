@@ -9,9 +9,9 @@ import type { ApplicationGatewaySnapshot } from "../../app/context.ts";
 import "../../lib/toast-host.tsx";
 import {
   loadStoredHiddenSessionCatalogFolders,
-  loadStoredHiddenSessionCatalogIds,
   setStoredSessionCatalogFolderHidden,
-} from "../../components/app-sidebar-session-types.ts";
+} from "../../components/app-sidebar-session-types-fork.ts";
+import { loadStoredHiddenSessionCatalogIds } from "../../components/app-sidebar-session-types.ts";
 import { buildCatalogSessionKey } from "../../lib/sessions/catalog-key.ts";
 import {
   createGatewayHarness,

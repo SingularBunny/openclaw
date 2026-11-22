@@ -4,18 +4,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { restorePropertyDescriptor } from "../test-helpers/property-descriptor.ts";
 import { createStorageMock } from "../test-helpers/storage.ts";
 import {
-  loadStoredCollapsedSessionSections,
   loadStoredHiddenSessionCatalogFolderKeys,
   loadStoredHiddenSessionCatalogFolders,
+  sessionCatalogFolderKey,
+  setStoredSessionCatalogFolderHidden,
+  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
+} from "./app-sidebar-session-types-fork.ts";
+import {
+  loadStoredCollapsedSessionSections,
   loadStoredHiddenSessionCatalogIds,
   loadStoredSidebarSessionSortMode,
   loadStoredSidebarSessionStatusFilter,
   loadStoredSidebarSessionOwnerFilter,
   loadStoredSidebarSessionsShowPreview,
-  sessionCatalogFolderKey,
-  setStoredSessionCatalogFolderHidden,
   setStoredSessionCatalogHidden,
-  SIDEBAR_HIDDEN_SESSION_CATALOG_FOLDERS_CHANGED_EVENT,
   storeSidebarSessionSortMode,
   storeSidebarSessionStatusFilter,
   storeSidebarSessionOwnerFilter,
