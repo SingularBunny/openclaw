@@ -19,10 +19,12 @@ import * as externalContent from "../security/external-content.js";
 import { createNestedToolActivity } from "../sessions/nested-tool-activity.js";
 import { createPluginInlineViewResult, bindPluginInlineViewInvocation } from "./inline-view.js";
 import {
-  importSessionCatalogHistory,
-  preserveSessionCatalogHistory,
   sessionCatalogContinuationLimits,
   sessionCatalogImportMarksOwner,
+} from "./session-catalog-history-import-fork.js";
+import {
+  importSessionCatalogHistory,
+  preserveSessionCatalogHistory,
 } from "./session-catalog-history-import.js";
 import { catalogReader, readHistory } from "./session-catalog.test-support.js";
 
@@ -370,12 +372,18 @@ it("preserves inline fallback through native storage, text catalog and untrusted
 
 it("keeps catalog import defaults and reads environment overrides on use", () => {
   try {
-    expect(sessionCatalogContinuationLimits()).toEqual({ maxItems: 200, maxBytes: 512 * 1024 });
+    expect(sessionCatalogContinuationLimits({ maxItems: 200, maxBytes: 512 * 1024 })).toEqual({
+      maxItems: 200,
+      maxBytes: 512 * 1024,
+    });
     expect(sessionCatalogImportMarksOwner()).toBe(false);
     vi.stubEnv("OPENCLAW_CATALOG_CONTINUATION_MAX_ITEMS", "5000");
     vi.stubEnv("OPENCLAW_CATALOG_CONTINUATION_MAX_BYTES", "lots");
     vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "1");
-    expect(sessionCatalogContinuationLimits()).toEqual({ maxItems: 5000, maxBytes: 512 * 1024 });
+    expect(sessionCatalogContinuationLimits({ maxItems: 200, maxBytes: 512 * 1024 })).toEqual({
+      maxItems: 5000,
+      maxBytes: 512 * 1024,
+    });
     expect(sessionCatalogImportMarksOwner()).toBe(true);
     vi.stubEnv("OPENCLAW_CATALOG_IMPORT_OWNER", "0");
     expect(sessionCatalogImportMarksOwner()).toBe(false);
