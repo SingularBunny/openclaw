@@ -640,8 +640,9 @@ as a fallback and does the same thing:
 fork's) makes the agent forget part of the conversation without deleting it from view (any model):
 
 1. Name the topic. The Gateway ranks the chat's turns (a question with everything that answered it)
-   and the agent's memory paragraphs against it with the local embedding model memory search uses (`chat.forget.find`); no chat model sees
-   the request or the conversation for it.
+   and the agent's memory paragraphs against it with the embedding model memory search is configured with
+   (`memory.search.provider`, for example `local` for llama.cpp; never a bare `auto`, which means OpenAI)
+   (`chat.forget.find`); no chat model sees the request or the conversation for it.
 2. Tick the turns to forget. Turns well above this chat's average closeness, or naming the topic, start
    ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick.
 3. **Forget** (`chat.forget.apply`): the ticked turns stay visible in the chat but never reach a model
@@ -660,6 +661,36 @@ What else changes:
   files; a file left without content is deleted along with the `MEMORY.md` line that links it. The
   previous files are kept under `~/.openclaw/forget-backups/<time>/`, outside memory search; delete that
   folder to forget for good. Claude Code's own memory (`~/.claude/projects/*/memory`) is not touched.
+
+### Commits and pull requests
+
+For an operator with admin access, **Forget a topic…** also searches git (`chat.forget.find` returns them
+under `git`):
+
+- **Repositories** are the chat's working folder and every folder a git command of the chat ran in
+  (`git -C <dir>`, `cd <dir> && git …`), up to 20; in each, the 2,000 newest commit messages of all branches.
+- **Commit messages** are listed under **In commit messages**, marked _pushed_ when a remote-tracking
+  branch holds them. **Forget** rewrites the ticked ones (`chat.forget.git.apply`): a repository with
+  uncommitted changes is refused; a bundle of every ref goes to `~/.openclaw/forget-backups/<time>/git/`
+  first; `git filter-repo --refs <local branches and tags> --commit-callback` replaces each paragraph that
+  names the topic with `[removed]` (remotes and reflogs are kept). Commit hashes change from the first
+  rewritten commit on; signatures on rewritten commits are dropped.
+- **Pushed branches** are not changed on the server until a second dialog lists them and you confirm.
+  The push (`chat.forget.git.push`) carries a lease on the server branch's tip seen before the rewrite,
+  so it fails instead of overwriting work pushed since.
+- **Pull requests** of the repositories' GitHub remotes that you took part in (search `involves:@me`,
+  50 most recent; through `gh`, signed in as you) are listed under **In pull requests**: descriptions,
+  conversation comments, review comments and reviews (`chat.forget.review.apply`). Your own conversation
+  comments are posted again cleaned and the old ones deleted, so no old version is left. Descriptions,
+  reviews, review comments and other people's comments are edited; tick **Delete and repost other
+  people's comments too** to repost theirs as well, quoting the author (their replies and reactions are
+  lost).
+
+What stays elsewhere: GitHub keeps the old text of an edited comment in its edit history, readable by
+anyone who can read the repository (a revision can be deleted only on the web page); GitLab keeps
+description versions; forks, other people's clones and pull request refs keep the old commits; GitHub
+Support purges only sensitive data. See git-filter-repo, GitHub's "Removing sensitive data from a
+repository" and git-push `--force-with-lease`.
 
 Closeness thresholds differ for every embedding model (the BGE and E5 model cards say to calibrate on
 your own data), so the pre-selection is relative to the chat, not a fixed number.
