@@ -49,6 +49,7 @@ const SESSION_TARGET_POLICY_BY_METHOD = new Map<string, SessionTargetPolicy>([
   ["chat.forget.apply", { fields: ["sessionKey"], required: true }],
   ["chat.forget.git.apply", { fields: ["sessionKey"], required: true }],
   ["chat.forget.git.push", { fields: ["sessionKey"], required: true }],
+  ["chat.forget.review.apply", { fields: ["sessionKey"], required: true }],
   ["sessions.abort", { fields: ["key"], required: true }],
   ["sessions.assignOwner", { fields: ["key"], required: true }],
   // This changes a personal list preference, not the shared session.

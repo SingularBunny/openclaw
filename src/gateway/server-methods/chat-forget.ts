@@ -38,6 +38,13 @@ import {
   forgetMemoryParagraphs,
   listMemoryFiles,
 } from "../../sessions/topic-forget-memory-fork.js";
+import {
+  cleanReviewText,
+  githubRepoOfRemote,
+  rankReviewTexts,
+  readGithubReviewTexts,
+  type ForgetReviewCandidate,
+} from "../../sessions/topic-forget-review-fork.js";
 import { resolveRequestedSessionStoreTarget } from "../session-store-key.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
@@ -74,6 +81,32 @@ const GitApplyParams = Type.Object(
         maxItems: 2_000,
       },
     ),
+  },
+  { additionalProperties: false },
+);
+const ReviewApplyParams = Type.Object(
+  {
+    sessionKey: Type.String({ minLength: 1, maxLength: 512 }),
+    agentId: Type.Optional(Type.String({ minLength: 1, maxLength: 128 })),
+    topic: Topic,
+    items: Type.Array(
+      Type.Object(
+        {
+          repo: Type.String({ pattern: "^[\\w.-]+/[\\w.-]+$", maxLength: 200 }),
+          number: Type.Integer({ minimum: 1 }),
+          kind: Type.Union([
+            Type.Literal("pr-body"),
+            Type.Literal("issue-comment"),
+            Type.Literal("review-comment"),
+            Type.Literal("review"),
+          ]),
+          id: Type.Integer({ minimum: 1 }),
+        },
+        { additionalProperties: false },
+      ),
+      { minItems: 1, maxItems: 500 },
+    ),
+    repostOthers: Type.Optional(Type.Boolean()),
   },
   { additionalProperties: false },
 );
@@ -129,7 +162,12 @@ export type ChatForgetFindResult = {
   candidates: ForgetCandidate[];
   memory: ChatForgetMemoryCandidate[];
   /** Fork (N15): commit messages of the repositories the chat's model worked in. */
-  git?: { repositories: ForgetGitRepository[]; commits: ForgetGitCommit[] };
+  git?: {
+    repositories: ForgetGitRepository[];
+    commits: ForgetGitCommit[];
+    /** Pull request texts of the repositories' GitHub remotes (owner's PRs and the ones they joined). */
+    reviews?: ForgetReviewCandidate[];
+  };
 };
 export type ChatForgetApplyResult = {
   forgotten: string[];
@@ -152,6 +190,7 @@ type Deps = {
     workingFolders: readonly (string | undefined)[];
   }) => Promise<ForgetGitRepository[]>;
   rewriteGit: typeof rewriteCommitMessages;
+  cleanReview: typeof cleanReviewText;
   pushGit: typeof pushRewrittenBranch;
   findGit: (params: {
     target: ForgetTarget;
@@ -160,6 +199,14 @@ type Deps = {
     embedder: ForgetEmbedder;
   }) => Promise<NonNullable<ChatForgetFindResult["git"]>>;
 };
+
+const githubReposOf = (repositories: readonly ForgetGitRepository[]) => [
+  ...new Set(
+    repositories.flatMap((repository) =>
+      repository.remotes.map(githubRepoOfRemote).filter((repo): repo is string => Boolean(repo)),
+    ),
+  ),
+];
 
 async function chatGitRepositories(params: {
   target: ForgetTarget;
@@ -181,7 +228,11 @@ async function findChatGitCommits(params: {
     topic: params.topic,
     embedder: params.embedder,
   });
-  return { repositories, commits };
+  // GitHub is optional: without `gh` or a sign-in the commits are still returned.
+  const reviews = await readGithubReviewTexts(githubReposOf(repositories))
+    .then((items) => rankReviewTexts(items, params.topic, params.embedder))
+    .catch(() => undefined);
+  return { repositories, commits, ...(reviews ? { reviews } : {}) };
 }
 
 async function agentMemoryFiles(params: { cfg: unknown; agentId: string }): Promise<string[]> {
@@ -270,6 +321,7 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
   const chatRepositories = deps.chatRepositories ?? chatGitRepositories;
   const rewriteGit = deps.rewriteGit ?? rewriteCommitMessages;
   const pushGit = deps.pushGit ?? pushRewrittenBranch;
+  const cleanReview = deps.cleanReview ?? cleanReviewText;
   const workingFolders = (resolved: {
     cfg: unknown;
     agentId: string;
@@ -438,6 +490,69 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
           `chat forget git: session=${resolved.sessionKey} rewrote ${params.commits.length} commit(s) in ${repos.length} repo(s)`,
         );
         respond(true, { repositories: results });
+      } catch (error) {
+        fail(respond, error);
+      }
+    },
+    // Fork (N15): clean the ticked PR texts of the chat's GitHub repositories.
+    "chat.forget.review.apply": async ({ params, respond, context }) => {
+      if (!Value.Check(ReviewApplyParams, params)) {
+        respond(
+          false,
+          undefined,
+          errorShape(
+            ErrorCodes.INVALID_REQUEST,
+            "chat.forget.review.apply expects { sessionKey, agentId?, topic, items: [{ repo, number, kind, id }], repostOthers? }",
+          ),
+        );
+        return;
+      }
+      try {
+        const resolved = await resolveTarget(context, params);
+        if (!resolved.ok) {
+          respond(false, undefined, resolved.error);
+          return;
+        }
+        const allowed = new Set(
+          resolved.target
+            ? githubReposOf(
+                await chatRepositories({
+                  target: resolved.target,
+                  workingFolders: workingFolders(resolved),
+                }),
+              )
+            : [],
+        );
+        const topic = sanitizeTopic(params.topic);
+        const redact = (value: string) => redactCommitMessage(value, topic).trimEnd();
+        const done = [];
+        const failed: Array<{ repo: string; number: number; id: number; error: string }> = [];
+        for (const item of params.items) {
+          if (!allowed.has(item.repo)) {
+            failed.push({ ...item, error: "not a repository this chat worked in" });
+            continue;
+          }
+          try {
+            done.push(
+              await cleanReview({
+                target: item,
+                redact,
+                repostOthers: params.repostOthers === true,
+              }),
+            );
+          } catch (error) {
+            failed.push({
+              repo: item.repo,
+              number: item.number,
+              id: item.id,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }
+        context.logGateway.info(
+          `chat forget review: session=${resolved.sessionKey} cleaned ${done.length}, failed ${failed.length}`,
+        );
+        respond(true, { done, failed });
       } catch (error) {
         fail(respond, error);
       }
