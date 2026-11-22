@@ -3,6 +3,7 @@ import { Type } from "typebox";
 import { Value } from "typebox/value";
 import { ErrorCodes, errorShape } from "../../../packages/gateway-protocol/src/index.js";
 import { resolveAgentDir, resolveAgentWorkspaceDir } from "../../agents/agent-scope-config.js";
+import { loadCliSessionEntries } from "../../agents/cli-runner/session-history.js";
 import { clearCliSessionInStore } from "../../agents/cli-session-store.js";
 import { resolveMemorySearchConfig } from "../../agents/memory-search.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
@@ -19,6 +20,13 @@ import {
   type ForgetEmbedder,
   type ForgetTarget,
 } from "../../sessions/topic-forget-fork.js";
+import {
+  findForgetGitCommits,
+  gitFoldersOfChat,
+  resolveGitRepositories,
+  type ForgetGitCommit,
+  type ForgetGitRepository,
+} from "../../sessions/topic-forget-git-fork.js";
 import {
   collectMemoryParagraphs,
   forgetMemoryParagraphs,
@@ -77,6 +85,8 @@ export type ChatForgetMemoryCandidate = Closeness & {
 export type ChatForgetFindResult = {
   candidates: ForgetCandidate[];
   memory: ChatForgetMemoryCandidate[];
+  /** Fork (N15): commit messages of the repositories the chat's model worked in. */
+  git?: { repositories: ForgetGitRepository[]; commits: ForgetGitCommit[] };
 };
 export type ChatForgetApplyResult = {
   forgotten: string[];
@@ -94,7 +104,31 @@ type Deps = {
   memoryFiles: (params: { cfg: unknown; agentId: string }) => Promise<string[]>;
   forgetMemory: typeof forgetMemoryParagraphs;
   backupDir: () => string;
+  findGit: (params: {
+    target: ForgetTarget;
+    workingFolders: readonly (string | undefined)[];
+    topic: string;
+    embedder: ForgetEmbedder;
+  }) => Promise<NonNullable<ChatForgetFindResult["git"]>>;
 };
+
+async function findChatGitCommits(params: {
+  target: ForgetTarget;
+  workingFolders: readonly (string | undefined)[];
+  topic: string;
+  embedder: ForgetEmbedder;
+}): Promise<NonNullable<ChatForgetFindResult["git"]>> {
+  const entries = await loadCliSessionEntries({ sessionTarget: params.target });
+  const repositories = await resolveGitRepositories(
+    gitFoldersOfChat(entries, params.workingFolders),
+  );
+  const commits = await findForgetGitCommits({
+    repositories,
+    topic: params.topic,
+    embedder: params.embedder,
+  });
+  return { repositories, commits };
+}
 
 async function agentMemoryFiles(params: { cfg: unknown; agentId: string }): Promise<string[]> {
   const cfg = params.cfg as Parameters<typeof resolveAgentWorkspaceDir>[0];
@@ -178,6 +212,7 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
   const createEmbedder = deps.createEmbedder ?? createLocalEmbedder;
   const memoryFiles = deps.memoryFiles ?? agentMemoryFiles;
   const forgetMemory = deps.forgetMemory ?? forgetMemoryParagraphs;
+  const findGit = deps.findGit ?? findChatGitCommits;
   const backupDir =
     deps.backupDir ??
     (() =>
@@ -240,7 +275,29 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
           topic,
           embedder,
         );
-        const response: ChatForgetFindResult = { candidates, memory };
+        // The repositories the chat's model worked in: its working folder and git commands.
+        const git = resolved.target
+          ? await findGit({
+              target: resolved.target,
+              workingFolders: [
+                resolved.entry?.spawnedCwd,
+                resolveAgentWorkspaceDir(
+                  resolved.cfg as Parameters<typeof resolveAgentWorkspaceDir>[0],
+                  resolved.agentId,
+                ),
+              ],
+              topic,
+              embedder,
+            }).catch((error: unknown) => {
+              context.logGateway.warn(
+                `chat forget git search failed: session=${params.sessionKey}: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
+              );
+              return undefined;
+            })
+          : undefined;
+        const response: ChatForgetFindResult = { candidates, memory, ...(git ? { git } : {}) };
         respond(true, response);
       } catch (error) {
         context.logGateway.warn(
