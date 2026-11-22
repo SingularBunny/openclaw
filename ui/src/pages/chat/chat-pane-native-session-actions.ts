@@ -21,7 +21,11 @@ export class ChatPaneNativeSessionActions {
     onAction: (action: HeaderMenuAction) => void,
   ): HeaderMenuSessionAction[] {
     const enabled = context.nativeConversation?.supportsSessionActions;
-    const pluginActions = enabled && row ? pluginSessionMenuActions(context.plugins, row) : [];
+    // Fork: in the browser the chat's ⋯ menu lists plugin session actions too (Forget a topic,
+    // New chat, ...), as the sidebar's session menu does; a native host still opts in.
+    const pluginActionsShown = context.nativeConversation ? enabled : true;
+    const pluginActions =
+      pluginActionsShown && row ? pluginSessionMenuActions(context.plugins, row) : [];
     const canStop = Boolean(
       enabled &&
       resolveCloudWorkerStopAction(row?.placement) &&
