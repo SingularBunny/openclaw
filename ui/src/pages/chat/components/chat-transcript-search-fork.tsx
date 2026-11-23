@@ -18,7 +18,9 @@ const CURRENT = "openclaw-search-current";
 
 const normalize = (value: string) => value.normalize("NFC").toLocaleLowerCase();
 
-const SKIP = ".agent-chat__search-bar, button, input, textarea, [contenteditable], script, style";
+// The details panel (people, automations) shares the column but is not the conversation.
+const SKIP =
+  ".agent-chat__search-bar, .chat-details, button, input, textarea, [contenteditable], script, style";
 
 /** Text ranges of the query in the transcript under `root` (case-insensitive). */
 export function findTranscriptMatches(root: Element, query: string): Range[] {

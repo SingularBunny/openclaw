@@ -24,9 +24,10 @@ function mountSearch(column: HTMLElement, query: string) {
 }
 
 describe("whole-chat transcript search (fork)", () => {
-  it("finds the query in message text, case-insensitively, and not in the search bar or buttons", () => {
+  it("finds the query in message text, case-insensitively, and not in the search bar, buttons or details", () => {
     const column = transcript(
       `<div class="agent-chat__search-bar"><span>Antibot</span></div>
+       <aside class="chat-details"><h3>Antibot automations</h3></aside>
        <div class="chat-group"><p>The antibot check failed. ANTIBOT again.</p><button>antibot</button></div>`,
     );
     const ranges = findTranscriptMatches(column, "antibot");
