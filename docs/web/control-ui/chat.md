@@ -652,7 +652,8 @@ fork's) makes the agent forget part of the conversation without deleting it from
    and the agent's memory paragraphs against it with the embedding model memory search is configured with
    (`memory.search.provider`, for example `local` for llama.cpp; never a bare `auto`, which means OpenAI)
    (`chat.forget.find`); no chat model sees the request or the conversation for it. Texts go to the
-   embedding model 64 at a time, so a history of thousands of commits stays within llama.cpp's answer size.
+   embedding model 64 at a time, so a history of thousands of commits stays within llama.cpp's answer size;
+   if the commit search still fails, the dialog says why (`git.error`) instead of leaving the commits out.
 2. Tick the turns to forget. Turns well above this chat's average closeness, or naming the topic, start
    ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick.
 3. **Forget** (`chat.forget.apply`): the ticked turns stay visible in the chat but never reach a model

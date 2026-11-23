@@ -168,6 +168,8 @@ export type ChatForgetFindResult = {
     commits: ForgetGitCommit[];
     /** Pull request texts of the repositories' GitHub remotes (owner's PRs and the ones they joined). */
     reviews?: ForgetReviewCandidate[];
+    /** Why the commit search failed; the dialog says so instead of showing no git section. */
+    error?: string;
   };
 };
 export type ChatForgetApplyResult = {
@@ -421,12 +423,13 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
               topic,
               embedder,
             }).catch((error: unknown) => {
+              const message = error instanceof Error ? error.message : String(error);
               context.logGateway.warn(
-                `chat forget git search failed: session=${params.sessionKey}: ${
-                  error instanceof Error ? error.message : String(error)
-                }`,
+                `chat forget git search failed: session=${params.sessionKey}: ${message}`,
               );
-              return undefined;
+              // The first line, without the tool's stderr that follows: it may be long.
+              const reason = message.split("\n")[0]!.split("; stderr:")[0]!.slice(0, 300);
+              return { repositories: [], commits: [], error: reason };
             })
           : undefined;
         const response: ChatForgetFindResult = { candidates, memory, ...(git ? { git } : {}) };
