@@ -9,9 +9,15 @@
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import { loadCliSessionEntries } from "../agents/cli-runner/session-history.js";
 import type { SessionEntry } from "../agents/sessions/session-manager.js";
-import { rewritePreparedTranscriptMessageAtAnchor } from "../config/sessions/session-message-rewrite.js";
-import { readActiveTranscriptEntryAnchorAsync } from "../config/sessions/session-transcript-anchor-read.js";
-import { waitForSessionTranscriptProjection } from "../config/sessions/session-transcript-reconcile.js";
+import {
+  resolveSqliteTranscriptReadScope,
+  toDatabaseOptions,
+} from "../config/sessions/session-accessor.sqlite-scope.js";
+import { withPreparedTranscriptCorrection } from "../config/sessions/session-transcript-correction.js";
+import { reconcileSessionTranscriptIndexes } from "../config/sessions/session-transcript-reconcile.js";
+import { createSubsystemLogger } from "../logging/subsystem.js";
+
+const log = createSubsystemLogger("sessions/forget");
 
 export type ForgetTarget = {
   agentId: string;
@@ -230,71 +236,72 @@ export async function findForgetCandidates(params: {
   return rankForgetCandidates(turns, scores, params.topic);
 }
 
-/** Reads after a projection rebuild: the attempts and the pause between them. */
-const ANCHOR_ATTEMPTS = 4;
-const ANCHOR_RETRY_MS = 250;
-
-export type MarkForgottenDeps = {
-  readAnchor: typeof readActiveTranscriptEntryAnchorAsync;
-  waitForProjection: (target: ForgetTarget, signal?: AbortSignal) => Promise<void>;
-  sleep: (ms: number) => Promise<void>;
-};
-
-const defaultMarkDeps: MarkForgottenDeps = {
-  readAnchor: readActiveTranscriptEntryAnchorAsync,
-  waitForProjection: (target, signal) => waitForSessionTranscriptProjection(target, signal),
-  sleep: (ms) =>
-    new Promise((resolve) => {
-      setTimeout(resolve, ms);
-    }),
-};
-
 /**
- * Marks the given rows forgotten; returns the ids actually changed. Each rewrite makes the Gateway
- * rebuild the transcript projection, and an entry read during the rebuild is not found (live
- * 23.11.2026: 1 of 56 ticked entries marked), so every read waits for the projection and a
- * missing entry is read again after a pause.
+ * Marks the given rows forgotten in one transcript correction; returns the ids actually changed.
+ * One write for all rows, so the Gateway rebuilds the transcript projection once. Rows are found
+ * in the transcript events themselves, not through the projection: a transcript above the
+ * synchronous rebuild limit (4000 rows) rebuilds it in the background after a rewrite, and an
+ * entry looked up through it meanwhile is missing (live 23.11.2026: 4 of 567 marked in 14 minutes
+ * when every row was rewritten and looked up on its own).
  */
 export async function markEntriesForgotten(params: {
   target: ForgetTarget;
   entryIds: readonly string[];
   topic: string;
   now?: number;
-  signal?: AbortSignal;
-  deps?: Partial<MarkForgottenDeps>;
 }): Promise<string[]> {
-  const deps = { ...defaultMarkDeps, ...params.deps };
+  const wanted = new Set(params.entryIds);
+  if (wanted.size === 0) {
+    return [];
+  }
   const at = params.now ?? Date.now();
-  const changed: string[] = [];
-  for (const entryId of params.entryIds) {
-    let anchor: Awaited<ReturnType<typeof readActiveTranscriptEntryAnchorAsync>>;
-    for (let attempt = 0; attempt < ANCHOR_ATTEMPTS && !anchor; attempt += 1) {
-      if (attempt > 0) {
-        await deps.sleep(ANCHOR_RETRY_MS * attempt);
-      }
-      await deps.waitForProjection(params.target, params.signal);
-      anchor = await deps.readAnchor({ ...params.target, entryId }, params.signal);
-    }
-    if (!anchor) {
-      continue;
-    }
-    const rewritten = await rewritePreparedTranscriptMessageAtAnchor(anchor, (value) => {
-      const message = asOptionalRecord(value);
-      if (!message) {
-        return undefined;
+  const changed = await withPreparedTranscriptCorrection(params.target, async (transcript) => {
+    const events = await transcript.readEvents();
+    const changed: string[] = [];
+    const replaced = events.map((event) => {
+      const row = asOptionalRecord(event);
+      const message = asOptionalRecord(row?.message);
+      if (
+        row?.type !== "message" ||
+        typeof row.id !== "string" ||
+        !wanted.has(row.id) ||
+        !message
+      ) {
+        return event;
       }
       const meta = asOptionalRecord(message["__openclaw"]);
       if (message.excludeFromContext === true && meta?.forgotten) {
-        return undefined;
+        return event;
       }
+      changed.push(row.id);
       return {
-        ...message,
-        excludeFromContext: true,
-        __openclaw: { ...meta, forgotten: { topic: params.topic, at } },
-      };
+        ...row,
+        message: {
+          ...message,
+          excludeFromContext: true,
+          __openclaw: { ...meta, forgotten: { topic: params.topic, at } },
+        },
+      } as typeof event;
     });
-    if (rewritten) {
-      changed.push(entryId);
+    if (changed.length > 0) {
+      await transcript.replaceEvents(replaced);
+    }
+    return changed;
+  });
+  if (changed.length > 0) {
+    // Above the synchronous limit (4000 rows) the write only marks the projection for a background
+    // rebuild, and the chat cannot be read until it runs; a rebuild scheduled from a worker thread
+    // fails ("Agent admission requires its host owner"). Run it here, on the Gateway's main thread.
+    const database = toDatabaseOptions(resolveSqliteTranscriptReadScope(params.target));
+    try {
+      await reconcileSessionTranscriptIndexes({
+        ...database,
+        preferredSessionId: params.target.sessionId,
+      });
+    } catch (error) {
+      log.warn(
+        `forget: transcript projection rebuild deferred: session=${params.target.sessionKey}: ${String(error)}`,
+      );
     }
   }
   return changed;
