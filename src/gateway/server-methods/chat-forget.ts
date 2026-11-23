@@ -12,6 +12,7 @@ import { resolveStateDir } from "../../config/state-dir.js";
 import { createEmbeddingProvider } from "../../plugin-sdk/memory-core-bundled-runtime.js";
 import {
   cosineSimilarity,
+  embedInBatches,
   findForgetCandidates,
   markEntriesForgotten,
   rankByCloseness,
@@ -303,7 +304,8 @@ async function createLocalEmbedder(params: {
   }
   return {
     embedQuery: async (text) => (await provider.embedBatch([text], { inputType: "query" }))[0]!,
-    embedDocuments: (texts) => provider.embedBatch(texts, { inputType: "document" }),
+    embedDocuments: (texts) =>
+      embedInBatches((batch) => provider.embedBatch(batch, { inputType: "document" }), texts),
   };
 }
 

@@ -186,6 +186,26 @@ export type ForgetEmbedder = {
   embedDocuments(texts: string[]): Promise<number[][]>;
 };
 
+/**
+ * Texts per embedding request. A chat's git history easily holds a thousand commits; one request
+ * with all of them made llama.cpp's answer exceed its 16 MB JSON limit (live 23.11.2026, 1071
+ * commit messages), and the git section silently vanished. 64 vectors stay far below that.
+ */
+export const FORGET_EMBED_BATCH = 64;
+
+/** Embeds the texts in consecutive batches, keeping their order. */
+export async function embedInBatches(
+  embed: (texts: string[]) => Promise<number[][]>,
+  texts: readonly string[],
+  size = FORGET_EMBED_BATCH,
+): Promise<number[][]> {
+  const vectors: number[][] = [];
+  for (let start = 0; start < texts.length; start += size) {
+    vectors.push(...(await embed(texts.slice(start, start + size))));
+  }
+  return vectors;
+}
+
 /** Turns of the chat ranked against the topic, in chat order. */
 export async function findForgetCandidates(params: {
   target: ForgetTarget;
