@@ -3,6 +3,7 @@ import type { SessionEntry } from "../agents/sessions/session-manager.js";
 import {
   collectForgetTurns,
   cosineSimilarity,
+  embedInBatches,
   findForgetCandidates,
   rankForgetCandidates,
 } from "./topic-forget-fork.js";
@@ -108,6 +109,36 @@ describe("forget a topic (N11)", () => {
       rankForgetCandidates(turns.slice(1), scores.slice(1), "футбол").some((c) => c.selected),
     ).toBe(true);
     expect(collectForgetTurns(entries).map((turn) => turn.id)).toEqual(["u2", "u3", "u4", "u5"]);
+  });
+
+  it("cuts a text the embedding model refuses as too large and keeps the order", async () => {
+    const seen: string[][] = [];
+    const embed = async (batch: string[]) => {
+      seen.push(batch);
+      if (batch.some((text) => text.length > 1_000)) {
+        throw new Error(
+          'HTTP 500: {"error":{"message":"input (2179 tokens) is too large to process. increase the physical batch size"}}',
+        );
+      }
+      return batch.map((text) => [text.length]);
+    };
+    const texts = ["a", "x".repeat(4_000), "bb", "ccc"];
+    expect(await embedInBatches(embed, texts, 3)).toEqual([[1], [1_000], [2], [3]]);
+    // The refused batch was split, then only the long text was halved, twice.
+    expect(seen.map((batch) => batch.map((text) => text.length))).toEqual([
+      [1, 4_000, 2],
+      [1, 4_000],
+      [1],
+      [4_000],
+      [2_000],
+      [1_000],
+      [2],
+      [3],
+    ]);
+    const down = async () => {
+      throw new Error("connect ECONNREFUSED");
+    };
+    await expect(embedInBatches(down, texts)).rejects.toThrow("ECONNREFUSED");
   });
 
   it("ranks with the embedder and needs no chat model", async () => {
