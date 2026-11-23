@@ -41,23 +41,71 @@ function topicStems(topic: string): string[] {
     .map((word) => word.slice(0, Math.max(STEM_MIN, word.length - 2)));
 }
 
+/** Whether the text names a word of the topic (by stem, case-insensitive). */
+export function namesTopic(text: string, topic: string): boolean {
+  const stems = topicStems(topic);
+  const lower = text.toLocaleLowerCase();
+  return stems.some((stem) => lower.includes(stem));
+}
+
+/**
+ * Rewrites one paragraph without the topic (a local chat model); undefined when it cannot.
+ * An empty answer means nothing of the paragraph is left.
+ */
+export type ForgetParagraphRewriter = (
+  paragraph: string,
+  topic: string,
+) => Promise<string | undefined>;
+
+/**
+ * A text without the topic, paragraph by paragraph. With `rewrite`, a paragraph that names the
+ * topic is rewritten by the model; the rewrite is kept only when it no longer names the topic,
+ * otherwise (or when the model fails) the paragraph becomes the placeholder.
+ */
+export async function rewriteTopicText(
+  message: string,
+  topic: string,
+  rewrite?: ForgetParagraphRewriter,
+): Promise<string> {
+  const paragraphs = splitParagraphs(message);
+  const out: string[] = [];
+  for (const paragraph of paragraphs) {
+    if (!namesTopic(paragraph, topic)) {
+      out.push(paragraph);
+      continue;
+    }
+    const rewritten = rewrite
+      ? await rewrite(paragraph, topic).then(
+          (text) => text?.trim(),
+          () => undefined,
+        )
+      : undefined;
+    if (rewritten === "") {
+      continue;
+    }
+    out.push(rewritten && !namesTopic(rewritten, topic) ? rewritten : FORGET_GIT_PLACEHOLDER);
+  }
+  return joinParagraphs(out);
+}
+
+const splitParagraphs = (message: string) =>
+  message
+    .replace(/\r\n/g, "\n")
+    .trim()
+    .split(/\n{2,}/);
+
 /**
  * A commit message without the topic: each paragraph that names a topic word becomes the
  * placeholder; a subject that names it does too. The message is never empty.
  */
 export function redactCommitMessage(message: string, topic: string): string {
-  const stems = topicStems(topic);
-  const names = (text: string) => {
-    const lower = text.toLocaleLowerCase();
-    return stems.some((stem) => lower.includes(stem));
-  };
-  const paragraphs = message
-    .replace(/\r\n/g, "\n")
-    .trim()
-    .split(/\n{2,}/);
-  const out = paragraphs.map((paragraph) =>
-    names(paragraph) ? FORGET_GIT_PLACEHOLDER : paragraph,
+  const out = splitParagraphs(message).map((paragraph) =>
+    namesTopic(paragraph, topic) ? FORGET_GIT_PLACEHOLDER : paragraph,
   );
+  return joinParagraphs(out);
+}
+
+function joinParagraphs(out: readonly string[]): string {
   const collapsed = out.filter(
     (paragraph, index) => !(paragraph === FORGET_GIT_PLACEHOLDER && out[index - 1] === paragraph),
   );

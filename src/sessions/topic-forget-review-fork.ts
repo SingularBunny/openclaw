@@ -185,7 +185,7 @@ export type ForgetReviewOutcome = ForgetReviewTarget & {
  */
 export async function cleanReviewText(params: {
   target: ForgetReviewTarget;
-  redact: (text: string) => string;
+  redact: (text: string) => string | Promise<string>;
   repostOthers: boolean;
   gh?: GhRunner;
 }): Promise<ForgetReviewOutcome> {
@@ -194,28 +194,28 @@ export async function cleanReviewText(params: {
   if (kind === "pr-body") {
     const pr = (await gh([`repos/${repo}/pulls/${number}`])) as Json;
     await gh(["-X", "PATCH", `repos/${repo}/pulls/${number}`], {
-      body: params.redact(text(pr.body)),
+      body: await params.redact(text(pr.body)),
     });
     return { ...params.target, action: "edited" };
   }
   if (kind === "review") {
     const review = (await gh([`repos/${repo}/pulls/${number}/reviews/${id}`])) as Json;
     await gh(["-X", "PUT", `repos/${repo}/pulls/${number}/reviews/${id}`], {
-      body: params.redact(text(review.body)),
+      body: await params.redact(text(review.body)),
     });
     return { ...params.target, action: "edited" };
   }
   if (kind === "review-comment") {
     const comment = (await gh([`repos/${repo}/pulls/comments/${id}`])) as Json;
     await gh(["-X", "PATCH", `repos/${repo}/pulls/comments/${id}`], {
-      body: params.redact(text(comment.body)),
+      body: await params.redact(text(comment.body)),
     });
     return { ...params.target, action: "edited" };
   }
   const comment = (await gh([`repos/${repo}/issues/comments/${id}`])) as Json;
   const me = login(await gh(["user"]));
   const author = login(comment.user);
-  const cleaned = params.redact(text(comment.body));
+  const cleaned = await params.redact(text(comment.body));
   if (author !== me && !params.repostOthers) {
     await gh(["-X", "PATCH", `repos/${repo}/issues/comments/${id}`], { body: cleaned });
     return { ...params.target, action: "edited" };

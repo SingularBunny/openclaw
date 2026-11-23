@@ -693,6 +693,13 @@ under `git`):
   first; `git filter-repo --refs <local branches and tags> --commit-callback` replaces each paragraph that
   names the topic with `[removed]` (remotes and reflogs are kept). Commit hashes change from the first
   rewritten commit on; signatures on rewritten commits are dropped.
+- **Rewrite with** picks a chat model served from this machine (a provider whose `baseUrl` is
+  `127.0.0.1`, `localhost` or `::1`, such as the managed llama.cpp server or Ollama; listed as
+  `rewriteModels` by `chat.forget.find`). Each paragraph that names the topic then goes to that model
+  alone, without tools, to be rewritten without it (`rewriteModel` of `chat.forget.git.apply` and
+  `chat.forget.review.apply`); a rewrite that still names the topic, or a model that fails, gives
+  `[removed]`. A remote model is refused, so the topic never leaves the machine. Without a local
+  model, `[removed]` is used.
 - **Pushed branches** are not changed on the server until a second dialog lists them and you confirm.
   The push (`chat.forget.git.push`) carries a lease on the server branch's tip seen before the rewrite,
   so it fails instead of overwriting work pushed since.

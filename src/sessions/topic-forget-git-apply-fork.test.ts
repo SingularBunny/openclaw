@@ -8,6 +8,7 @@ import {
   pushRewrittenBranch,
   redactCommitMessage,
   rewriteCommitMessages,
+  rewriteTopicText,
 } from "./topic-forget-git-apply-fork.js";
 
 const hasFilterRepo = (() => {
@@ -40,6 +41,35 @@ const temp = () => {
   dirs.push(dir);
   return dir;
 };
+
+describe("rewriteTopicText (N15)", () => {
+  it("keeps a model rewrite only when the topic is gone, and the placeholder otherwise", async () => {
+    const text = "Fix timer\n\nAlso filed the taxes return and fixed the clock.\n\nTaxes again.";
+    const seen: string[] = [];
+    const rewrite = async (paragraph: string) => {
+      seen.push(paragraph);
+      if (paragraph.startsWith("Also")) {
+        return "Also fixed the clock.";
+      }
+      return "Taxes, still."; // the model left the topic in: not accepted
+    };
+    expect(await rewriteTopicText(text, "taxes", rewrite)).toBe(
+      `Fix timer\n\nAlso fixed the clock.\n\n${FORGET_GIT_PLACEHOLDER}\n`,
+    );
+    // Only the paragraphs that name the topic go to the model.
+    expect(seen).toEqual(["Also filed the taxes return and fixed the clock.", "Taxes again."]);
+    // Nothing left of a paragraph: it is dropped; a failing model: the placeholder.
+    expect(await rewriteTopicText("Fix timer\n\nTaxes.", "taxes", async () => "")).toBe(
+      "Fix timer\n",
+    );
+    const down = async () => {
+      throw new Error("model unavailable");
+    };
+    expect(await rewriteTopicText("Taxes.", "taxes", down)).toBe(`${FORGET_GIT_PLACEHOLDER}\n`);
+    // Without a model it is the plain redaction.
+    expect(await rewriteTopicText(text, "taxes")).toBe(redactCommitMessage(text, "taxes"));
+  });
+});
 
 describe("redactCommitMessage (N15)", () => {
   it("replaces the paragraphs that name the topic and never leaves the message empty", () => {

@@ -282,6 +282,42 @@ describe("chat.forget (N11)", () => {
       }
     });
 
+    it("rewrites with the local model picked in the dialog", async () => {
+      const repo = await repoWith(["Plan\n\nFiled the taxes return and fixed the clock"]);
+      try {
+        const rewriteGit = vi.fn(async (params: { repo: string }) => ({
+          repo: params.repo,
+          rewritten: 1,
+          backup: "/b",
+          push: [],
+        }));
+        const createRewriter = vi.fn(async () => async () => "Fixed the clock");
+        const handlers = createChatForgetHandlers({
+          readEntry: vi.fn(async () => entry) as never,
+          chatRepositories: async () => [{ root: repo.dir, remotes: [] }],
+          rewriteGit: rewriteGit as never,
+          createRewriter: createRewriter as never,
+          backupDir: () => "/tmp/forget-backups-test",
+        });
+        await call(handlers, "chat.forget.git.apply", {
+          sessionKey: "agent:main:main",
+          topic: "taxes",
+          commits: [{ repo: repo.dir, hash: repo.head }],
+          rewriteModel: "llama-cpp/gemma-4-e4b-it-q4_k_m",
+        });
+        expect(createRewriter).toHaveBeenCalledWith(
+          expect.objectContaining({ modelRef: "llama-cpp/gemma-4-e4b-it-q4_k_m" }),
+        );
+        expect(rewriteGit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            rewrites: [{ repo: repo.dir, hash: repo.head, message: "Plan\n\nFixed the clock\n" }],
+          }),
+        );
+      } finally {
+        repo.cleanup();
+      }
+    });
+
     it("pushes only confirmed branches of the chat's repositories", async () => {
       const pushGit = vi.fn(async () => undefined);
       const handlers = createChatForgetHandlers({
