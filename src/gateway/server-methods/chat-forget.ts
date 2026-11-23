@@ -8,6 +8,7 @@ import { resolveMemorySearchConfig } from "../../agents/memory-search.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
 import { readSessionEntryReadOnlyInWorker } from "../../config/sessions/session-entry-read-runtime.js";
 import { resolveStateDir } from "../../config/state-dir.js";
+import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { createEmbeddingProvider } from "../../plugin-sdk/memory-core-bundled-runtime.js";
 import {
   cosineSimilarity,
@@ -23,7 +24,7 @@ import {
 } from "../../sessions/topic-forget-fork.js";
 import {
   pushRewrittenBranch,
-  redactCommitMessage,
+  rewriteTopicText,
   rewriteCommitMessages,
 } from "../../sessions/topic-forget-git-apply-fork.js";
 import {
@@ -47,6 +48,7 @@ import {
   type ForgetReviewCandidate,
 } from "../../sessions/topic-forget-review-fork.js";
 import { resolveRequestedSessionStoreTarget } from "../session-store-key.js";
+import { createForgetRewriter, listLocalRewriteModels } from "./chat-forget-rewrite.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 /**
@@ -82,6 +84,8 @@ const GitApplyParams = Type.Object(
         maxItems: 2_000,
       },
     ),
+    /** A local chat model (`provider/model`) that rewrites the paragraphs naming the topic. */
+    rewriteModel: Type.Optional(Type.String({ minLength: 3, maxLength: 300 })),
   },
   { additionalProperties: false },
 );
@@ -108,6 +112,7 @@ const ReviewApplyParams = Type.Object(
       { minItems: 1, maxItems: 500 },
     ),
     repostOthers: Type.Optional(Type.Boolean()),
+    rewriteModel: Type.Optional(Type.String({ minLength: 3, maxLength: 300 })),
   },
   { additionalProperties: false },
 );
@@ -171,6 +176,8 @@ export type ChatForgetFindResult = {
     /** Why the commit search failed; the dialog says so instead of showing no git section. */
     error?: string;
   };
+  /** Chat models served from this machine that can rewrite commit and PR texts (`provider/model`). */
+  rewriteModels?: string[];
 };
 export type ChatForgetApplyResult = {
   forgotten: string[];
@@ -194,6 +201,7 @@ type Deps = {
   }) => Promise<ForgetGitRepository[]>;
   rewriteGit: typeof rewriteCommitMessages;
   cleanReview: typeof cleanReviewText;
+  createRewriter: typeof createForgetRewriter;
   pushGit: typeof pushRewrittenBranch;
   findGit: (params: {
     target: ForgetTarget;
@@ -326,6 +334,7 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
   const rewriteGit = deps.rewriteGit ?? rewriteCommitMessages;
   const pushGit = deps.pushGit ?? pushRewrittenBranch;
   const cleanReview = deps.cleanReview ?? cleanReviewText;
+  const createRewriter = deps.createRewriter ?? createForgetRewriter;
   const workingFolders = (resolved: {
     cfg: unknown;
     agentId: string;
@@ -432,7 +441,13 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
               return { repositories: [], commits: [], error: reason };
             })
           : undefined;
-        const response: ChatForgetFindResult = { candidates, memory, ...(git ? { git } : {}) };
+        const rewriteModels = listLocalRewriteModels(resolved.cfg as OpenClawConfig);
+        const response: ChatForgetFindResult = {
+          candidates,
+          memory,
+          ...(git ? { git } : {}),
+          ...(rewriteModels.length ? { rewriteModels } : {}),
+        };
         respond(true, response);
       } catch (error) {
         context.logGateway.warn(
@@ -476,6 +491,13 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
           return;
         }
         const topic = sanitizeTopic(params.topic);
+        const rewrite = params.rewriteModel
+          ? await createRewriter({
+              cfg: resolved.cfg as OpenClawConfig,
+              agentId: resolved.agentId,
+              modelRef: params.rewriteModel,
+            })
+          : undefined;
         const dir = path.join(backupDir(), "git");
         const repos = [...new Set(params.commits.map((commit) => commit.repo))];
         const results = [];
@@ -486,7 +508,7 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
             rewrites.push({
               repo,
               hash: commit.hash,
-              message: redactCommitMessage(message, topic),
+              message: await rewriteTopicText(message, topic, rewrite),
             });
           }
           results.push(await rewriteGit({ repo, rewrites, backupDir: dir }));
@@ -529,7 +551,15 @@ export function createChatForgetHandlers(deps: Partial<Deps> = {}): GatewayReque
             : [],
         );
         const topic = sanitizeTopic(params.topic);
-        const redact = (value: string) => redactCommitMessage(value, topic).trimEnd();
+        const rewrite = params.rewriteModel
+          ? await createRewriter({
+              cfg: resolved.cfg as OpenClawConfig,
+              agentId: resolved.agentId,
+              modelRef: params.rewriteModel,
+            })
+          : undefined;
+        const redact = async (value: string) =>
+          (await rewriteTopicText(value, topic, rewrite)).trimEnd();
         const done = [];
         const failed: Array<{ repo: string; number: number; id: number; error: string }> = [];
         for (const item of params.items) {

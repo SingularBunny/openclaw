@@ -8,4 +8,6 @@ export type IsolatedCompletionPurpose =
   | "progress-narration"
   | "transcript-summary"
   | "skill-diet"
-  | "plugin-completion";
+  | "plugin-completion"
+  // Fork (N15): Forget a topic rewrites commit and pull request paragraphs with a local model.
+  | "forget-rewrite";
