@@ -35,6 +35,8 @@ export type ForgetTurn = {
   timestamp?: string;
   /** Before the latest compaction: forgetting it also drops that summary. */
   beforeSummary: boolean;
+  /** Forgotten earlier: kept only for the chat's similarity baseline, never a candidate. */
+  forgotten?: boolean;
 };
 
 export type ForgetCandidate = Omit<ForgetTurn, "text"> & {
@@ -67,8 +69,19 @@ function isExcluded(message: Record<string, unknown>): boolean {
   return message.excludeFromContext === true;
 }
 
-/** Splits the active branch into user turns; already excluded rows are left out. */
-export function collectForgetTurns(entries: readonly SessionEntry[]): ForgetTurn[] {
+function isForgotten(message: Record<string, unknown>): boolean {
+  return isExcluded(message) && Boolean(asOptionalRecord(message["__openclaw"])?.forgotten);
+}
+
+/**
+ * Splits the active branch into user turns; already excluded rows are left out. With
+ * `keepForgotten`, rows forgotten earlier still give their text (not their ids) to the turn, and a
+ * turn with no other rows comes back as `forgotten: true`.
+ */
+export function collectForgetTurns(
+  entries: readonly SessionEntry[],
+  options: { keepForgotten?: boolean } = {},
+): ForgetTurn[] {
   const boundaryIndex = entries.findLastIndex(
     (entry) => entry.type === "compaction" || entry.type === "reset",
   );
@@ -79,7 +92,7 @@ export function collectForgetTurns(entries: readonly SessionEntry[]): ForgetTurn
     if (current) {
       const text = current.parts.join("\n").slice(0, TURN_TEXT_LIMIT);
       const { parts: _parts, ...turn } = current;
-      turns.push({ ...turn, text });
+      turns.push(turn.entryIds.length > 0 ? { ...turn, text } : { ...turn, text, forgotten: true });
     }
     current = undefined;
   };
@@ -88,7 +101,11 @@ export function collectForgetTurns(entries: readonly SessionEntry[]): ForgetTurn
       return;
     }
     const message = asOptionalRecord(entry.message);
-    if (!message || isExcluded(message)) {
+    if (!message) {
+      return;
+    }
+    const forgotten = options.keepForgotten === true && isForgotten(message);
+    if (isExcluded(message) && !forgotten) {
       return;
     }
     const role = message.role;
@@ -97,7 +114,7 @@ export function collectForgetTurns(entries: readonly SessionEntry[]): ForgetTurn
       finish();
       current = {
         id: entry.id,
-        entryIds: [entry.id],
+        entryIds: forgotten ? [] : [entry.id],
         parts: text ? [text] : [],
         text: "",
         preview: text.replace(/\s+/g, " ").slice(0, PREVIEW_LIMIT),
@@ -109,7 +126,9 @@ export function collectForgetTurns(entries: readonly SessionEntry[]): ForgetTurn
     if (!current) {
       return;
     }
-    current.entryIds.push(entry.id);
+    if (!forgotten) {
+      current.entryIds.push(entry.id);
+    }
     if (text) {
       current.parts.push(text);
     }
@@ -170,6 +189,12 @@ export function rankByCloseness(
   });
 }
 
+/**
+ * Candidates in chat order. The baseline (mean and deviation) counts the turns forgotten earlier
+ * too: without them every repeated search ticked the next layer of the chat, because the top of
+ * the distribution was gone (live 23.11.2026: 15 turns forgotten, the next search ticked 12 new
+ * ones, none naming the topic).
+ */
 export function rankForgetCandidates(
   turns: readonly ForgetTurn[],
   scores: readonly number[],
@@ -181,8 +206,10 @@ export function rankForgetCandidates(
     topic,
   );
   const out: ForgetCandidate[] = [];
-  turns.forEach(({ text: _text, ...turn }, index) => {
-    out.push(Object.assign(turn, ranked[index]!));
+  turns.forEach(({ text: _text, forgotten, ...turn }, index) => {
+    if (!forgotten) {
+      out.push(Object.assign(turn, ranked[index]!));
+    }
   });
   return out;
 }
@@ -224,8 +251,8 @@ export async function findForgetCandidates(params: {
     sessionTarget: params.target,
     abortSignal: params.signal,
   });
-  const turns = collectForgetTurns(entries);
-  if (turns.length === 0) {
+  const turns = collectForgetTurns(entries, { keepForgotten: true });
+  if (!turns.some((turn) => !turn.forgotten)) {
     return [];
   }
   const [query, documents] = await Promise.all([
@@ -257,7 +284,7 @@ export async function markEntriesForgotten(params: {
   const at = params.now ?? Date.now();
   const changed = await withPreparedTranscriptCorrection(params.target, async (transcript) => {
     const events = await transcript.readEvents();
-    const changed: string[] = [];
+    const marked: string[] = [];
     const replaced = events.map((event) => {
       const row = asOptionalRecord(event);
       const message = asOptionalRecord(row?.message);
@@ -273,20 +300,18 @@ export async function markEntriesForgotten(params: {
       if (message.excludeFromContext === true && meta?.forgotten) {
         return event;
       }
-      changed.push(row.id);
-      return {
-        ...row,
-        message: {
-          ...message,
-          excludeFromContext: true,
-          __openclaw: { ...meta, forgotten: { topic: params.topic, at } },
-        },
-      } as typeof event;
+      marked.push(row.id);
+      // Copies, not in-place edits: readEvents may hand out cached rows.
+      const updated = Object.assign({}, message, {
+        excludeFromContext: true,
+        __openclaw: Object.assign({}, meta, { forgotten: { topic: params.topic, at } }),
+      });
+      return Object.assign({}, row, { message: updated }) as typeof event;
     });
-    if (changed.length > 0) {
+    if (marked.length > 0) {
       await transcript.replaceEvents(replaced);
     }
-    return changed;
+    return marked;
   });
   if (changed.length > 0) {
     // Above the synchronous limit (4000 rows) the write only marks the projection for a background
