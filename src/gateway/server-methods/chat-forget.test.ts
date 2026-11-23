@@ -5,6 +5,7 @@ const embeddings = vi.hoisted(() => ({ create: vi.fn() }));
 vi.mock("../../plugin-sdk/memory-core-bundled-runtime.js", () => ({
   createEmbeddingProvider: embeddings.create,
 }));
+import { FORGET_EMBED_BATCH } from "../../sessions/topic-forget-fork.js";
 import { createChatForgetHandlers } from "./chat-forget.js";
 
 function call(
@@ -91,6 +92,40 @@ describe("chat.forget (N11)", () => {
       expect.objectContaining({ provider: "auto" }),
     );
     expect(provider.embedBatch).toHaveBeenCalledWith(["taxes"], { inputType: "query" });
+  });
+
+  // Live 23.11.2026: 1071 commit messages in one request made llama.cpp's answer exceed 16 MB,
+  // and the git section silently vanished from the dialog.
+  it("embeds many documents in batches, in order", async () => {
+    const provider = {
+      embedBatch: vi.fn(async (texts: string[]) => texts.map((text) => [Number(text), 0])),
+    };
+    embeddings.create.mockResolvedValue({ provider, requestedProvider: "local" });
+    const texts = Array.from({ length: 1071 }, (_, index) => String(index));
+    let vectors: number[][] = [];
+    const handlers = createChatForgetHandlers({
+      readEntry: vi.fn(async () => entry) as never,
+      find: (async ({
+        embedder,
+      }: {
+        embedder: { embedDocuments(t: string[]): Promise<number[][]> };
+      }) => {
+        vectors = await embedder.embedDocuments(texts);
+        return [];
+      }) as never,
+      memoryFiles: async () => [],
+      findGit: async () => ({ repositories: [], commits: [] }),
+    });
+    await call(
+      handlers,
+      "chat.forget.find",
+      { sessionKey: "agent:main:main", topic: "taxes" },
+      { memory: { search: { provider: "local" } } },
+    );
+    const sizes = provider.embedBatch.mock.calls.map(([batch]) => batch.length);
+    expect(Math.max(...sizes)).toBeLessThanOrEqual(FORGET_EMBED_BATCH);
+    expect(sizes.reduce((sum, size) => sum + size, 0)).toBe(1071);
+    expect(vectors.map(([first]) => first)).toEqual(texts.map(Number));
   });
 
   it("marks the rows forgotten and drops the Claude CLI binding", async () => {
