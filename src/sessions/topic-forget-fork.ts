@@ -217,15 +217,42 @@ export type ForgetEmbedder = {
  */
 export const FORGET_EMBED_BATCH = 64;
 
-/** Embeds the texts in consecutive batches, keeping their order. */
+/** An embedding server's answer that the input exceeds the model's window (llama.cpp, OpenAI). */
+const INPUT_TOO_LARGE = /too large|too long|exceeds?|maximum context|context length|batch size/iu;
+const MIN_EMBED_TEXT = 200;
+
+/**
+ * Embeds the texts in consecutive batches, keeping their order. A text over the model's window
+ * (live 23.11.2026: a 4000-character Russian turn was 2179 tokens for embeddinggemma's 2048) is
+ * cut in half until it fits, as sentence-transformers truncates to `max_seq_length`; a batch the
+ * server refuses as too large is split first.
+ */
 export async function embedInBatches(
   embed: (texts: string[]) => Promise<number[][]>,
   texts: readonly string[],
   size = FORGET_EMBED_BATCH,
 ): Promise<number[][]> {
+  const fit = async (batch: string[]): Promise<number[][]> => {
+    try {
+      return await embed(batch);
+    } catch (error) {
+      if (!INPUT_TOO_LARGE.test(String(error))) {
+        throw error;
+      }
+      if (batch.length > 1) {
+        const half = Math.ceil(batch.length / 2);
+        return [...(await fit(batch.slice(0, half))), ...(await fit(batch.slice(half)))];
+      }
+      const text = batch[0] ?? "";
+      if (text.length <= MIN_EMBED_TEXT) {
+        throw error;
+      }
+      return await fit([text.slice(0, Math.ceil(text.length / 2))]);
+    }
+  };
   const vectors: number[][] = [];
   for (let start = 0; start < texts.length; start += size) {
-    vectors.push(...(await embed(texts.slice(start, start + size))));
+    vectors.push(...(await fit(texts.slice(start, start + size))));
   }
   return vectors;
 }
