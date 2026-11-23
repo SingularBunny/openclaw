@@ -648,7 +648,8 @@ restores the full transcript.
 **Forget a topic…** in the chat's **⋯** menu (the `aiwb-chat-tools` plugin; the Gateway methods are the
 fork's) makes the agent forget part of the conversation without deleting it from view (any model):
 
-1. Name the topic. The Gateway ranks the chat's turns (a question with everything that answered it)
+1. Name the topic. The Gateway ranks all of the chat's turns (a question with everything that answered it;
+   the whole active branch, not only the newest part a model is sent)
    and the agent's memory paragraphs against it with the embedding model memory search is configured with
    (`memory.search.provider`, for example `local` for llama.cpp; never a bare `auto`, which means OpenAI)
    (`chat.forget.find`); no chat model sees the request or the conversation for it. Texts go to the

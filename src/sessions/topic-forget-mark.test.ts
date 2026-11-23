@@ -56,6 +56,41 @@ it("marks every ticked entry of a real transcript", async () => {
   });
 });
 
+// Live 23.11.2026: the model's history is capped at the newest 5 MB, and the search of a 9.7 MB chat
+// never saw 77 of its 146 turns, the oldest ones.
+it("searches the start of a chat larger than the model's history cap", async () => {
+  await withTempHome(async (home) => {
+    const target = await transcriptWithTurns(home, 0);
+    const filler = "weather ".repeat(12_500); // 100 KB per answer, 6 MB in all
+    for (let turn = 0; turn < 60; turn += 1) {
+      await appendTranscriptMessage(target, {
+        message: {
+          role: "user",
+          content: turn === 0 ? "first question about antibot" : `question ${turn}`,
+          timestamp: turn * 2,
+        },
+      });
+      await appendTranscriptMessage(target, {
+        message: {
+          role: "assistant",
+          content: [{ type: "text", text: filler }],
+          timestamp: turn * 2 + 1,
+        },
+      });
+    }
+    const embedder = {
+      embedQuery: async () => [1, 0],
+      embedDocuments: async (batch: string[]) => batch.map(() => [0, 1]),
+    };
+    const candidates = await findForgetCandidates({ target, topic: "antibot", embedder });
+    expect(candidates).toHaveLength(60);
+    expect(candidates[0]).toMatchObject({
+      preview: "first question about antibot",
+      selected: true,
+    });
+  });
+}, 300_000);
+
 // Live 23.11.2026: after 15 turns were forgotten, searching the same topic again ticked 12 new ones,
 // because the chat history the search reads has no forgotten rows and the baseline dropped.
 it("a repeated search after forgetting ticks no new turns", async () => {

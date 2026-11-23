@@ -3,7 +3,6 @@ import { Type } from "typebox";
 import { Value } from "typebox/value";
 import { ErrorCodes, errorShape } from "../../../packages/gateway-protocol/src/index.js";
 import { resolveAgentDir, resolveAgentWorkspaceDir } from "../../agents/agent-scope-config.js";
-import { loadCliSessionEntries } from "../../agents/cli-runner/session-history.js";
 import { clearCliSessionInStore } from "../../agents/cli-session-store.js";
 import { resolveMemorySearchConfig } from "../../agents/memory-search.js";
 import { resolveSessionStorePathCore } from "../../config/sessions/paths.js";
@@ -14,6 +13,7 @@ import {
   cosineSimilarity,
   embedInBatches,
   findForgetCandidates,
+  loadForgetEntries,
   markEntriesForgotten,
   rankByCloseness,
   type Closeness,
@@ -215,7 +215,7 @@ async function chatGitRepositories(params: {
   target: ForgetTarget;
   workingFolders: readonly (string | undefined)[];
 }): Promise<ForgetGitRepository[]> {
-  const entries = await loadCliSessionEntries({ sessionTarget: params.target });
+  const entries = await loadForgetEntries({ sessionTarget: params.target });
   return await resolveGitRepositories(gitFoldersOfChat(entries, params.workingFolders));
 }
 

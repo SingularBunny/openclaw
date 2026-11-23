@@ -7,14 +7,12 @@
 // next turn starts a fresh native session from the filtered history instead of resuming one that
 // still holds the topic.
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
-import { loadCliSessionEntries } from "../agents/cli-runner/session-history.js";
-import type { SessionEntry } from "../agents/sessions/session-manager.js";
+import { SessionManager, type SessionEntry } from "../agents/sessions/session-manager.js";
 import {
   resolveSqliteTranscriptReadScope,
   toDatabaseOptions,
 } from "../config/sessions/session-accessor.sqlite-scope.js";
 import { withPreparedTranscriptCorrection } from "../config/sessions/session-transcript-correction.js";
-import { loadSessionTranscriptEvents as loadTranscriptEvents } from "../config/sessions/session-transcript-events.js";
 import { reconcileSessionTranscriptIndexes } from "../config/sessions/session-transcript-reconcile.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 
@@ -240,35 +238,47 @@ export async function embedInBatches(
   return vectors;
 }
 
+/**
+ * The chat's whole active branch, forgotten rows included. Not the model's history
+ * (`loadCliSessionEntries`): that one is capped at the newest 5 MB and has no forgotten rows, so
+ * the search missed the start of a large chat (live 23.11.2026: 77 of 146 turns of a 9.7 MB chat)
+ * and the baseline lost the turns already forgotten.
+ */
+export async function loadForgetEntries(params: {
+  sessionTarget: ForgetTarget;
+  abortSignal?: AbortSignal;
+}): Promise<SessionEntry[]> {
+  const { restoreSessionColdTranscript } =
+    await import("../config/sessions/session-cold-storage.js");
+  await restoreSessionColdTranscript(params.sessionTarget, () =>
+    params.abortSignal?.throwIfAborted(),
+  );
+  const manager = await SessionManager.openAsync(
+    params.sessionTarget,
+    undefined,
+    undefined,
+    params.abortSignal,
+  );
+  return manager.getBranch();
+}
+
 /** Turns of the chat ranked against the topic, in chat order. */
 export async function findForgetCandidates(params: {
   target: ForgetTarget;
   topic: string;
   embedder: ForgetEmbedder;
   signal?: AbortSignal;
-  loadEntries?: typeof loadCliSessionEntries;
-  loadEvents?: (target: ForgetTarget) => Promise<unknown[]>;
+  loadEntries?: typeof loadForgetEntries;
 }): Promise<ForgetCandidate[]> {
-  const entries = await (params.loadEntries ?? loadCliSessionEntries)({
+  const entries = await (params.loadEntries ?? loadForgetEntries)({
     sessionTarget: params.target,
     abortSignal: params.signal,
   });
-  const live = collectForgetTurns(entries);
-  if (live.length === 0) {
+  // Turns forgotten earlier only count toward the baseline (see rankForgetCandidates).
+  const turns = collectForgetTurns(entries, { keepForgotten: true });
+  if (!turns.some((turn) => !turn.forgotten)) {
     return [];
   }
-  // The history above is the model's view and has no forgotten rows; the baseline reads them from
-  // the stored transcript.
-  let forgotten: ForgetTurn[] = [];
-  try {
-    const events = await (params.loadEvents ?? loadTranscriptEvents)(params.target);
-    forgotten = collectForgetTurns(events as SessionEntry[], { keepForgotten: true }).filter(
-      (turn) => turn.forgotten,
-    );
-  } catch (error) {
-    log.warn(`forget: baseline without forgotten turns: ${String(error)}`);
-  }
-  const turns = [...live, ...forgotten];
   const [query, documents] = await Promise.all([
     params.embedder.embedQuery(params.topic),
     params.embedder.embedDocuments(turns.map((turn) => turn.text)),
