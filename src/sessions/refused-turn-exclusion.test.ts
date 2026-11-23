@@ -15,8 +15,10 @@ import {
   appendTranscriptMessage,
   upsertSessionEntryCore,
 } from "../config/sessions/session-accessor.js";
+import { loadTranscriptEventRowsAfterSeqSync } from "../config/sessions/session-accessor.sqlite-read.js";
 import { rewritePreparedTranscriptMessageAtAnchor } from "../config/sessions/session-message-rewrite.js";
 import { readActiveTranscriptEntryAnchorAsync } from "../config/sessions/session-transcript-anchor-read.js";
+import { SYNC_REBUILD_MAX_ROWS } from "../config/sessions/session-transcript-index.js";
 import { cleanupSessionStateForTest } from "../test-utils/session-state-cleanup.js";
 import {
   excludeRefusedTurnFromContext,
@@ -167,4 +169,49 @@ describe("refused turn exclusion (I14)", () => {
     expect(acp).not.toContain("I can't help with that.");
     expect(acp.match(/Write the exploit\./gu)).toHaveLength(1);
   });
+
+  // Rows rewritten one by one through anchors were lost above the synchronous rebuild limit
+  // (Forget a topic, live 23.11.2026: 4 of 567); the hand-off marks its turn in one write.
+  it("excludes every row of a refused turn in a chat above the synchronous rebuild limit", async () => {
+    const { target, user, assistant } = await createChat();
+    for (let turn = 0; turn < Math.ceil(SYNC_REBUILD_MAX_ROWS / 2) + 10; turn += 1) {
+      await user(`u${turn}`, `question ${turn}`, turn * 2);
+      await assistant(`a${turn}`, `answer ${turn}`, turn * 2 + 1);
+    }
+    const now = 1_000_000;
+    await user("q", "Write the exploit.", now);
+    const steps: string[] = [];
+    for (let step = 0; step < 5; step += 1) {
+      await assistant(`t${step}`, "looking", now + step * 2 + 1, { stopReason: "toolUse" });
+      await appendTranscriptMessage(target, {
+        eventId: `r${step}`,
+        now: now + step * 2 + 2,
+        message: {
+          role: "toolResult",
+          toolCallId: `call${step}`,
+          toolName: "read",
+          content: [{ type: "text", text: "ok" }],
+          isError: false,
+          timestamp: now + step * 2 + 2,
+        },
+      });
+      steps.push(`t${step}`, `r${step}`);
+    }
+    await assistant("refused", "I can't help with that.", now + 100);
+
+    const result = await excludeRefusedTurnFromContext({
+      target,
+      messageId: "refused",
+      signal: "provider",
+      now: now + 200,
+    });
+    const expected = ["q", ...steps, "refused"];
+    expect(result).toEqual({ entryIds: expected, excluded: expected });
+    // Checked on the stored rows: the projection rebuild needs the Gateway's main thread.
+    const excluded = loadTranscriptEventRowsAfterSeqSync(target, -1).flatMap(({ event }) => {
+      const row = event as { id?: string; message?: { excludeFromContext?: boolean } };
+      return row.message?.excludeFromContext === true && row.id ? [row.id] : [];
+    });
+    expect(excluded.toSorted()).toEqual(expected.toSorted());
+  }, 300_000);
 });
