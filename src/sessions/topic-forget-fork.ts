@@ -8,15 +8,7 @@
 // still holds the topic.
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import { SessionManager, type SessionEntry } from "../agents/sessions/session-manager.js";
-import {
-  resolveSqliteTranscriptReadScope,
-  toDatabaseOptions,
-} from "../config/sessions/session-accessor.sqlite-scope.js";
-import { withPreparedTranscriptCorrection } from "../config/sessions/session-transcript-correction.js";
-import { reconcileSessionTranscriptIndexes } from "../config/sessions/session-transcript-reconcile.js";
-import { createSubsystemLogger } from "../logging/subsystem.js";
-
-const log = createSubsystemLogger("sessions/forget");
+import { markTranscriptRows } from "./transcript-row-mark-fork.js";
 
 export type ForgetTarget = {
   agentId: string;
@@ -301,57 +293,19 @@ export async function markEntriesForgotten(params: {
   topic: string;
   now?: number;
 }): Promise<string[]> {
-  const wanted = new Set(params.entryIds);
-  if (wanted.size === 0) {
-    return [];
-  }
   const at = params.now ?? Date.now();
-  const changed = await withPreparedTranscriptCorrection(params.target, async (transcript) => {
-    const events = await transcript.readEvents();
-    const marked: string[] = [];
-    const replaced = events.map((event) => {
-      const row = asOptionalRecord(event);
-      const message = asOptionalRecord(row?.message);
-      if (
-        row?.type !== "message" ||
-        typeof row.id !== "string" ||
-        !wanted.has(row.id) ||
-        !message
-      ) {
-        return event;
-      }
+  return await markTranscriptRows({
+    target: params.target,
+    entryIds: params.entryIds,
+    mark: (message) => {
       const meta = asOptionalRecord(message["__openclaw"]);
       if (message.excludeFromContext === true && meta?.forgotten) {
-        return event;
+        return undefined;
       }
-      marked.push(row.id);
-      // Copies, not in-place edits: readEvents may hand out cached rows.
-      const updated = Object.assign({}, message, {
+      return Object.assign(message, {
         excludeFromContext: true,
         __openclaw: Object.assign({}, meta, { forgotten: { topic: params.topic, at } }),
       });
-      return Object.assign({}, row, { message: updated }) as typeof event;
-    });
-    if (marked.length > 0) {
-      await transcript.replaceEvents(replaced);
-    }
-    return marked;
+    },
   });
-  if (changed.length > 0) {
-    // Above the synchronous limit (4000 rows) the write only marks the projection for a background
-    // rebuild, and the chat cannot be read until it runs; a rebuild scheduled from a worker thread
-    // fails ("Agent admission requires its host owner"). Run it here, on the Gateway's main thread.
-    const database = toDatabaseOptions(resolveSqliteTranscriptReadScope(params.target));
-    try {
-      await reconcileSessionTranscriptIndexes({
-        ...database,
-        preferredSessionId: params.target.sessionId,
-      });
-    } catch (error) {
-      log.warn(
-        `forget: transcript projection rebuild deferred: session=${params.target.sessionKey}: ${String(error)}`,
-      );
-    }
-  }
-  return changed;
 }

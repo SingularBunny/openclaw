@@ -8,9 +8,8 @@
 import { asOptionalRecord } from "@openclaw/normalization-core/record-coerce";
 import { loadCliSessionEntries } from "../agents/cli-runner/session-history.js";
 import type { SessionEntry } from "../agents/sessions/session-manager.js";
-import { rewritePreparedTranscriptMessageAtAnchor } from "../config/sessions/session-message-rewrite.js";
-import { readActiveTranscriptEntryAnchorAsync } from "../config/sessions/session-transcript-anchor-read.js";
 import type { RefusalSignal } from "../shared/refusal-signal.js";
+import { markTranscriptRows } from "./transcript-row-mark-fork.js";
 
 export type RefusedTurnTarget = {
   agentId: string;
@@ -56,17 +55,6 @@ export function selectRefusedTurnEntryIds(
   return ids.toReversed();
 }
 
-async function readAnchor(target: RefusedTurnTarget, entryId: string, signal?: AbortSignal) {
-  const anchor = await readActiveTranscriptEntryAnchorAsync({ ...target, entryId }, signal);
-  if (anchor) {
-    return anchor;
-  }
-  const { waitForSessionTranscriptProjection } =
-    await import("../config/sessions/session-transcript-reconcile.js");
-  await waitForSessionTranscriptProjection(target, signal);
-  return await readActiveTranscriptEntryAnchorAsync({ ...target, entryId }, signal);
-}
-
 /** Leaves the refused turn ending at `messageId` out of the model context; returns its row ids. */
 export async function excludeRefusedTurnFromContext(params: {
   target: RefusedTurnTarget;
@@ -81,29 +69,18 @@ export async function excludeRefusedTurnFromContext(params: {
   });
   const entryIds = selectRefusedTurnEntryIds(entries, params.messageId);
   const at = params.now ?? Date.now();
-  const excluded: string[] = [];
-  for (const entryId of entryIds) {
-    const anchor = await readAnchor(params.target, entryId, params.abortSignal);
-    if (!anchor) {
-      continue;
-    }
-    const rewritten = await rewritePreparedTranscriptMessageAtAnchor(anchor, (value) => {
-      const message = asOptionalRecord(value);
-      if (!message || message.excludeFromContext === true) {
-        return undefined;
-      }
-      return {
-        ...message,
-        excludeFromContext: true,
-        __openclaw: {
-          ...asOptionalRecord(message["__openclaw"]),
-          refusalHandoff: { signal: params.signal, at },
-        },
-      };
-    });
-    if (rewritten) {
-      excluded.push(entryId);
-    }
-  }
+  const excluded = await markTranscriptRows({
+    target: params.target,
+    entryIds,
+    mark: (message) =>
+      message.excludeFromContext === true
+        ? undefined
+        : Object.assign(message, {
+            excludeFromContext: true,
+            __openclaw: Object.assign({}, asOptionalRecord(message["__openclaw"]), {
+              refusalHandoff: { signal: params.signal, at },
+            }),
+          }),
+  });
   return { entryIds, excluded };
 }

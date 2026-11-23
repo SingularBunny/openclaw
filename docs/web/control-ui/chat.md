@@ -587,7 +587,8 @@ safeguards, so the choice is yours. The hint works for any model and comes from,
 Handing off from the hint asks the Gateway (`chat.refusal.handoff`) to write a log line
 (`chat refusal handoff: session=… message=… signal=… to=…`) and to leave the declined turn, its
 question and the refused reply, out of what any model reads next: both rows get `excludeFromContext`
-and stay in the chat. The question is then sent again, so the new model or agent sees it once and
+and stay in the chat (with any tool steps between them, all in one transcript write, so a chat of
+thousands of rows loses none of them). The question is then sent again, so the new model or agent sees it once and
 never the refused answer (Hermes Agent likewise keeps a refused turn out of its history). This covers
 the Claude CLI history replay, a resumed Claude session's unseen turns, the history an ACP agent gets
 when it is bound, and models that read the chat transcript directly. **Hand off to…** under a reply
