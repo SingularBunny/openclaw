@@ -9,6 +9,7 @@ import { upsertSessionEntry } from "../plugin-sdk/session-store-runtime.js";
 import { withTempHome } from "../plugin-sdk/test-env.js";
 import {
   collectForgetTurns,
+  findForgetCandidates,
   markEntriesForgotten,
   type ForgetTarget,
 } from "./topic-forget-fork.js";
@@ -52,6 +53,44 @@ it("marks every ticked entry of a real transcript", async () => {
     expect(changed.toSorted()).toEqual(entryIds.toSorted());
     // Forgotten rows never reach a model context again, so a second search finds nothing.
     expect(await tickedIds(target)).toEqual([]);
+  });
+});
+
+// Live 23.11.2026: after 15 turns were forgotten, searching the same topic again ticked 12 new ones,
+// because the chat history the search reads has no forgotten rows and the baseline dropped.
+it("a repeated search after forgetting ticks no new turns", async () => {
+  await withTempHome(async (home) => {
+    const target = await transcriptWithTurns(home, 0);
+    const texts = [
+      "bots one",
+      "bots two",
+      ...Array.from({ length: 7 }, (_, i) => `weather ${i}`),
+      "weather near",
+    ];
+    for (const [index, text] of texts.entries()) {
+      await appendTranscriptMessage(target, {
+        message: { role: "user", content: text, timestamp: index },
+      });
+    }
+    // Cosine with the topic: 1 for the two bot turns, 0.447 for "weather near", 0 for the rest.
+    const vector = (text: string) =>
+      text.startsWith("bots") ? [1, 0] : text === "weather near" ? [0.5, 1] : [0, 1];
+    const embedder = {
+      embedQuery: async () => [1, 0],
+      embedDocuments: async (batch: string[]) => batch.map(vector),
+    };
+    const ticked = async () =>
+      (await findForgetCandidates({ target, topic: "spam", embedder }))
+        .filter((candidate) => candidate.selected)
+        .map((candidate) => candidate.preview);
+
+    const first = await findForgetCandidates({ target, topic: "spam", embedder });
+    expect(await ticked()).toEqual(["bots one", "bots two"]);
+    const entryIds = first.filter((c) => c.selected).flatMap((c) => c.entryIds);
+    await markEntriesForgotten({ target, entryIds, topic: "spam" });
+
+    // Without the forgotten turns "weather near" alone would be above mean + deviation.
+    expect(await ticked()).toEqual([]);
   });
 });
 
