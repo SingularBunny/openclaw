@@ -72,6 +72,44 @@ describe("forget a topic (N11)", () => {
     expect(ranked[0]).not.toHaveProperty("text");
   });
 
+  it("keeps forgotten turns in the baseline, so a repeated search ticks no new layer", () => {
+    const forgotten = {
+      excludeFromContext: true,
+      __openclaw: { forgotten: { topic: "t", at: 1 } },
+    };
+    const entries = [
+      msg("u1", "user", "про налоги", forgotten),
+      msg("a1", "assistant", "вычеты", forgotten),
+      msg("u2", "user", "погода"),
+      msg("u3", "user", "кино"),
+      msg("u4", "user", "еда"),
+      msg("u5", "user", "спорт"),
+      msg("u6", "user", "hidden", { excludeFromContext: true }),
+    ];
+    const turns = collectForgetTurns(entries, { keepForgotten: true });
+    expect(turns.map((turn) => [turn.id, turn.entryIds, turn.forgotten ?? false])).toEqual([
+      ["u1", [], true],
+      ["u2", ["u2"], false],
+      ["u3", ["u3"], false],
+      ["u4", ["u4"], false],
+      ["u5", ["u5"], false],
+    ]);
+    expect(turns[0]!.text).toBe("про налоги\nвычеты");
+    // Without the forgotten turn the highest of the rest (0.2) is above mean + deviation.
+    const scores = [0.9, 0.1, 0.12, 0.11, 0.2];
+    const ranked = rankForgetCandidates(turns, scores, "футбол");
+    expect(ranked.map((candidate) => [candidate.id, candidate.selected])).toEqual([
+      ["u2", false],
+      ["u3", false],
+      ["u4", false],
+      ["u5", false],
+    ]);
+    expect(
+      rankForgetCandidates(turns.slice(1), scores.slice(1), "футбол").some((c) => c.selected),
+    ).toBe(true);
+    expect(collectForgetTurns(entries).map((turn) => turn.id)).toEqual(["u2", "u3", "u4", "u5"]);
+  });
+
   it("ranks with the embedder and needs no chat model", async () => {
     const vectors: Record<string, number[]> = {
       topic: [1, 0],

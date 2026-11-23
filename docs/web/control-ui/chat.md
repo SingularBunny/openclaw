@@ -655,7 +655,9 @@ fork's) makes the agent forget part of the conversation without deleting it from
    embedding model 64 at a time, so a history of thousands of commits stays within llama.cpp's answer size;
    if the commit search still fails, the dialog says why (`git.error`) instead of leaving the commits out.
 2. Tick the turns to forget. Turns well above this chat's average closeness, or naming the topic, start
-   ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick.
+   ticked; closeness is not proof, so check the list. Nothing is forgotten without a tick. Turns
+   forgotten earlier are not listed again but still count toward the chat's average, so searching the
+   same topic again does not tick the next most similar turns just because the closest ones are gone.
 3. **Forget** (`chat.forget.apply`): the ticked turns stay visible in the chat but never reach a model
    again — not on the next turn, not after a reset, not in a Claude CLI reseed or an ACP history seed.
    All ticked rows are marked in one transcript write, and the Gateway then rebuilds the transcript
