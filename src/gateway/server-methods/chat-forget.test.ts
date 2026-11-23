@@ -94,6 +94,31 @@ describe("chat.forget (N11)", () => {
     expect(provider.embedBatch).toHaveBeenCalledWith(["taxes"], { inputType: "query" });
   });
 
+  it("says why the commit search failed instead of dropping the git section", async () => {
+    const handlers = createChatForgetHandlers({
+      readEntry: vi.fn(async () => entry) as never,
+      createEmbedder: async () => ({ embedQuery: vi.fn(), embedDocuments: vi.fn() }),
+      find: (async () => []) as never,
+      memoryFiles: async () => [],
+      findGit: async () => {
+        throw new Error("llama-cpp embeddings failed: JSON response too big; stderr: noise\nmore");
+      },
+    });
+    const { respond } = await call(handlers, "chat.forget.find", {
+      sessionKey: "agent:main:main",
+      topic: "taxes",
+    });
+    expect(respond).toHaveBeenCalledWith(true, {
+      candidates: [],
+      memory: [],
+      git: {
+        repositories: [],
+        commits: [],
+        error: "llama-cpp embeddings failed: JSON response too big",
+      },
+    });
+  });
+
   // Live 23.11.2026: 1071 commit messages in one request made llama.cpp's answer exceed 16 MB,
   // and the git section silently vanished from the dialog.
   it("embeds many documents in batches, in order", async () => {
