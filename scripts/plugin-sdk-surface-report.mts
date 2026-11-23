@@ -301,7 +301,9 @@ export function readPluginSdkSurfaceBudgets(env: NodeJS.ProcessEnv = process.env
       // +4: capability-aware auth context and transport model types in core/plugin-entry.
       // +2: the shared automation tool-default resolver and its exact-selection mode type.
       // +19: reconcile the accepted public export inventory after the cron budget update.
-      3843,
+      // +8 fork (aiwb): session catalog move/reorder/archive types, ProviderUsageRateLimit and
+      // recordProviderUsageRateLimit, ControlUiCronRunProps and ControlUiMessage for the fork's plugins.
+      3851,
       env,
     ),
     publicFunctionExports: readPluginSdkSurfaceBudgetEnv(
