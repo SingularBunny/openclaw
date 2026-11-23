@@ -14,6 +14,7 @@ import {
   toDatabaseOptions,
 } from "../config/sessions/session-accessor.sqlite-scope.js";
 import { withPreparedTranscriptCorrection } from "../config/sessions/session-transcript-correction.js";
+import { loadSessionTranscriptEvents as loadTranscriptEvents } from "../config/sessions/session-transcript-events.js";
 import { reconcileSessionTranscriptIndexes } from "../config/sessions/session-transcript-reconcile.js";
 import { createSubsystemLogger } from "../logging/subsystem.js";
 
@@ -246,15 +247,28 @@ export async function findForgetCandidates(params: {
   embedder: ForgetEmbedder;
   signal?: AbortSignal;
   loadEntries?: typeof loadCliSessionEntries;
+  loadEvents?: (target: ForgetTarget) => Promise<unknown[]>;
 }): Promise<ForgetCandidate[]> {
   const entries = await (params.loadEntries ?? loadCliSessionEntries)({
     sessionTarget: params.target,
     abortSignal: params.signal,
   });
-  const turns = collectForgetTurns(entries, { keepForgotten: true });
-  if (!turns.some((turn) => !turn.forgotten)) {
+  const live = collectForgetTurns(entries);
+  if (live.length === 0) {
     return [];
   }
+  // The history above is the model's view and has no forgotten rows; the baseline reads them from
+  // the stored transcript.
+  let forgotten: ForgetTurn[] = [];
+  try {
+    const events = await (params.loadEvents ?? loadTranscriptEvents)(params.target);
+    forgotten = collectForgetTurns(events as SessionEntry[], { keepForgotten: true }).filter(
+      (turn) => turn.forgotten,
+    );
+  } catch (error) {
+    log.warn(`forget: baseline without forgotten turns: ${String(error)}`);
+  }
+  const turns = [...live, ...forgotten];
   const [query, documents] = await Promise.all([
     params.embedder.embedQuery(params.topic),
     params.embedder.embedDocuments(turns.map((turn) => turn.text)),
