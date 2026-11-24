@@ -1,4 +1,5 @@
 import { createLazyAcpElicitationHandler } from "../../auto-reply/reply/acp-elicitation-handler-lazy.js";
+import { createUnavailableAcpPermissionPromptHandler } from "../../auto-reply/reply/acp-permission-prompt-unavailable.js";
 import { resolveInlineAgentImageAttachments } from "../../auto-reply/reply/agent-turn-attachments.js";
 import { recordAgentRunTerminalOutcome } from "../../channels/turn/agent-run-terminal-outcome.js";
 import type { CliDeps } from "../../cli/deps.types.js";
@@ -177,6 +178,15 @@ export async function runAcpAgentCommand(params: {
       },
       isActive: isElicitationActive,
     });
+    // Fork: command, cron and spawn runs have no chat to ask in; deny and say why.
+    const onPermissionPrompt = createUnavailableAcpPermissionPromptHandler({
+      agentLabel: acpAgent,
+      notify: (text) =>
+        attemptExecutionRuntime.emitAcpRuntimeEvent({
+          ...runtimeEventContext,
+          event: { type: "status", text, tag: "permission" },
+        }),
+    });
     await params.acpManager.runTurn({
       admittedRunContext,
       cfg: params.cfg,
@@ -189,6 +199,7 @@ export async function runAcpAgentCommand(params: {
       requestId: params.runId,
       signal: params.opts.abortSignal,
       onElicitation,
+      onPermissionPrompt,
       onBeforePrompt: async () => {
         const recorder = params.opts.userTurnTranscriptRecorder;
         if (recorder && !recorder.hasPersisted() && !(await recorder.persistApproved())) {

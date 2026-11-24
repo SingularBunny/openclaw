@@ -103,7 +103,8 @@ export function resolveAcpxPluginRoot(moduleUrl: string = import.meta.url): stri
 }
 
 const DEFAULT_PERMISSION_MODE: AcpxPermissionMode = "approve-reads";
-const DEFAULT_NON_INTERACTIVE_POLICY: AcpxNonInteractivePermissionPolicy = "fail";
+// Fork: ask in chat by default; upstream fails the turn ("fail").
+const DEFAULT_NON_INTERACTIVE_POLICY: AcpxNonInteractivePermissionPolicy = "ask";
 
 export function resolveOpenClawRoot(currentRoot: string): string {
   if (

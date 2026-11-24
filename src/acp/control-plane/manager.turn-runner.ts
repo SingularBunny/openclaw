@@ -30,7 +30,7 @@ import { applyManagerRuntimeControls } from "./manager.runtime-controls.js";
 import type { ManagerRuntimeHandleCache } from "./manager.runtime-handle-cache.js";
 import { isAcpOwnerRepairRequired } from "./manager.runtime-owner.js";
 import { prepareFreshManagerRuntimeHandleRetry } from "./manager.runtime-resume-state.js";
-import { consumeAcpTurnStream } from "./manager.turn-stream.js";
+import { acpTurnInputHandlers, consumeAcpTurnStream } from "./manager.turn-stream.js";
 import {
   ACP_TURN_TIMEOUT_DETAIL_CODE,
   awaitTurnWithTimeout,
@@ -472,7 +472,7 @@ export async function runManagerTurn(params: {
                   mode: input.mode,
                   requestId: input.requestId,
                   signal,
-                  onElicitation: input.onElicitation,
+                  ...acpTurnInputHandlers(input),
                 },
                 eventGate,
                 onBeforePrompt: async () => {

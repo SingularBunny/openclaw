@@ -37,11 +37,17 @@ import {
   splitCommandParts,
   type AcpxAgentCommand,
 } from "./command-line.js";
+import type { AcpxPermissionMode } from "./config-schema.js";
 import {
   ensureSessionWithModelRef,
   withAcpxSessionOptions,
   withOpenClawModelRef,
 } from "./model-ref.js";
+import {
+  AcpxPermissionGrants,
+  acpxAskSessionPermissions,
+  createAcpxPermissionPromptBridge,
+} from "./permission-prompt.js";
 import {
   ACPX_PROBE_LEASE_SESSION_KEY,
   hashAcpxProcessCommand,
@@ -85,6 +91,11 @@ type OpenClawAcpxRuntimeOptions = AcpRuntimeOptions & {
   openclawProcessLeaseStore?: AcpxProcessLeaseStore;
   pluginToolsMcpBridgeEnabled?: boolean;
   openclawToolsMcpBridgeEnabled?: boolean;
+  /** Fork: `nonInteractivePermissions: "ask"`; acpx itself then gets `deny`. */
+  openclawPermissionPrompts?: {
+    permissionMode: AcpxPermissionMode;
+    log?: (message: string) => void;
+  };
 };
 type OpenClawRuntimeTurnInput = Parameters<NonNullable<AcpRuntime["startTurn"]>>[0] &
   Pick<Parameters<BaseAcpxRuntime["startTurn"]>[0], "onPermissionRequest" | "assertActive">;
@@ -345,6 +356,8 @@ export class AcpxRuntime implements CompleteAcpRuntime {
   private readonly delegate: BaseAcpxRuntime;
   private readonly generationRegistry: AcpxGenerationRegistry;
   private readonly sessionScope = new AsyncLocalStorage<BridgeSession | null>();
+  private readonly permissionPrompts: OpenClawAcpxRuntimeOptions["openclawPermissionPrompts"];
+  private readonly permissionGrants = new AcpxPermissionGrants();
   private readonly probe: AcpxRuntimeProbe;
   private readonly pluginToolsMcpBridgeEnabled: boolean;
   private readonly openclawToolsMcpBridgeEnabled: boolean;
@@ -362,6 +375,7 @@ export class AcpxRuntime implements CompleteAcpRuntime {
     this.processLeaseStore = options.openclawProcessLeaseStore;
     this.pluginToolsMcpBridgeEnabled = options.pluginToolsMcpBridgeEnabled === true;
     this.openclawToolsMcpBridgeEnabled = options.openclawToolsMcpBridgeEnabled === true;
+    this.permissionPrompts = options.openclawPermissionPrompts;
     this.managedToolsMcpBridgeEnabled =
       this.pluginToolsMcpBridgeEnabled || this.openclawToolsMcpBridgeEnabled;
     this.cwd = options.cwd;
@@ -393,6 +407,13 @@ export class AcpxRuntime implements CompleteAcpRuntime {
             const session = this.sessionScope.getStore();
             return {
               ...permissions,
+              ...(this.permissionPrompts && session && !session.native
+                ? acpxAskSessionPermissions({
+                    ...this.permissionPrompts,
+                    sessionKey: context.sessionKey,
+                    grants: this.permissionGrants,
+                  })
+                : {}),
               // Admitted host-native harnesses own their tools. A live turn
               // approves ACP requests without a second TTY-only filesystem gate.
               ...(session?.native ? { permissionMode: "approve-all" as const } : {}),
@@ -1014,6 +1035,24 @@ export class AcpxRuntime implements CompleteAcpRuntime {
     }
   }
 
+  /** Fork: chat question for prompts acpx would fail; native and bridge-less turns keep acpx's own. */
+  private permissionPromptBridge(
+    input: OpenClawRuntimeTurnInput,
+    prompt: OpenClawRuntimeTurnInput["onPermissionPrompt"],
+  ) {
+    const session = resolveBridgeSession(input.handle);
+    if (!this.permissionPrompts || session === null || session.native) {
+      return undefined;
+    }
+    return createAcpxPermissionPromptBridge({
+      permissionMode: this.permissionPrompts.permissionMode,
+      sessionKey: input.handle.sessionKey,
+      prompt,
+      grants: this.permissionGrants,
+      log: this.permissionPrompts.log,
+    });
+  }
+
   startTurn(input: OpenClawRuntimeTurnInput): CompleteAcpRuntimeTurn {
     const withTurnDiagnostics = <T>(command: AcpxAgentCommand | undefined, run: () => Promise<T>) =>
       this.withCodexWrapperDiagnostics({
@@ -1033,8 +1072,12 @@ export class AcpxRuntime implements CompleteAcpRuntime {
               snapshot.record?.acpxRecordId ?? input.handle.acpxRecordId ?? generation.resource,
             );
             try {
+              const { onPermissionPrompt, ...turnInput } = toAcpxResourceInput(input);
+              const onPermissionRequest =
+                input.onPermissionRequest ?? this.permissionPromptBridge(input, onPermissionPrompt);
               const turn = delegate.startTurn({
-                ...toAcpxResourceInput(input),
+                ...turnInput,
+                ...(onPermissionRequest ? { onPermissionRequest } : {}),
                 // OpenClaw owns deadlines; ACPX must not complete partial output.
                 timeoutMs: 0,
               });

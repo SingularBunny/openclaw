@@ -93,6 +93,13 @@ export async function emitCancelledAcpTurn(
   return { sawOutput: false, terminalStatus: "cancelled" };
 }
 
+/** Turn-owned user callbacks: ACP elicitation and (fork) permission questions. */
+export function acpTurnInputHandlers(
+  input: Pick<AcpRuntimeTurnInput, "onElicitation" | "onPermissionPrompt">,
+): Pick<AcpRuntimeTurnInput, "onElicitation" | "onPermissionPrompt"> {
+  return { onElicitation: input.onElicitation, onPermissionPrompt: input.onPermissionPrompt };
+}
+
 export async function consumeAcpTurnStream(params: {
   runtime: AcpRuntime;
   source?: SessionSourceAssertion;

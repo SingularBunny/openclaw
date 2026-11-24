@@ -109,6 +109,38 @@ export type AcpElicitationHandler = (
   context: AcpElicitationContext,
 ) => Promise<AcpElicitationResponse>;
 
+/** One choice an ACP agent offers in `session/request_permission` (ACP `PermissionOption`). */
+export type AcpPermissionPromptOption = {
+  optionId: string;
+  name: string;
+  /** ACP kind: `allow_once`, `allow_always`, `reject_once` or `reject_always`. */
+  kind: string;
+};
+
+/** Fork: an ACP permission request the backend could not settle from its own policy. */
+export type AcpPermissionPromptRequest = {
+  toolCallId?: string;
+  title?: string;
+  /** ACP tool kind (`edit`, `execute`, `delete`, ...), declared or inferred from the title. */
+  toolKind?: string;
+  rawInput?: unknown;
+  options: AcpPermissionPromptOption[];
+};
+
+export type AcpPermissionPromptDecision =
+  | { outcome: "selected"; optionId: string }
+  | {
+      outcome: "rejected";
+      reason: "timeout" | "unavailable" | "cancelled";
+      /** What happened and what to do; already shown to the user where a surface exists. */
+      message: string;
+    };
+
+export type AcpPermissionPromptHandler = (
+  request: AcpPermissionPromptRequest,
+  context: { signal: AbortSignal },
+) => Promise<AcpPermissionPromptDecision>;
+
 export type AcpRuntimeTurnInput = {
   handle: AcpRuntimeHandle;
   text: string;
@@ -118,6 +150,8 @@ export type AcpRuntimeTurnInput = {
   signal?: AbortSignal;
   /** Handles provider-neutral user input requests owned by this exact turn. */
   onElicitation?: AcpElicitationHandler;
+  /** Fork: asks the turn's user about permission requests the backend would otherwise fail. */
+  onPermissionPrompt?: AcpPermissionPromptHandler;
 };
 
 export type AcpRuntimeCapabilities = {
