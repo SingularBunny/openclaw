@@ -41,6 +41,24 @@ export function withPluginRetentionOwner<T>(owner: PluginRetentionOwner, run: ()
   );
 }
 
+/**
+ * Fork: names the acquiring host site in retention dumps when no turn or service
+ * owner is in scope. Unlike `withPluginRetentionOwner`, it records no plugin use.
+ */
+export function withFallbackPluginRetentionOwner<T>(
+  owner: PluginRetentionOwner | undefined,
+  run: () => T,
+): T {
+  const current = getPluginExecutionFrame();
+  if (!owner || current?.retentionOwner) {
+    return run();
+  }
+  return runWithPluginExecutionFrame(
+    createPluginExecutionFrame({ ...current, retentionOwner: copyOwner(owner) }, current),
+    run,
+  );
+}
+
 /** Observations never own tokens; the instance's live sets determine retention. */
 export class PluginReferenceDiagnostics {
   private readonly instanceId = randomUUID();

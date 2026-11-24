@@ -33,6 +33,7 @@ import {
   logMessageDispatchStarted,
 } from "../../logging/diagnostic.js";
 import { createDiagnosticMessageLifecycle } from "../../logging/message-lifecycle.js";
+import { withPluginRetentionOwner } from "../../plugins/plugin-retention-diagnostics.js";
 import { withPluginRuntimeGenerationScope } from "../../plugins/runtime/generation-scope.js";
 import { isCommandLaneTaskTimeoutError } from "../../process/command-queue.js";
 import { CommandLane } from "../../process/lanes.js";
@@ -100,8 +101,11 @@ async function disposeCronRunContext(params: {
 export async function runCronIsolatedAgentTurn(
   params: RunCronAgentTurnParams,
 ): Promise<RunCronAgentTurnResult> {
+  // Fork: the isolated run's runtime lease keeps only plugins this run calls into.
   return await runWithDiagnosticTraceContext(createDiagnosticTraceContextFromActiveScope(), () =>
-    runCronIsolatedAgentTurnInTrace(params),
+    withPluginRetentionOwner({ serviceId: `cron:${params.job.id}` }, () =>
+      runCronIsolatedAgentTurnInTrace(params),
+    ),
   );
 }
 

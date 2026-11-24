@@ -1,10 +1,20 @@
 import { raceWithTimeout } from "@openclaw/retry";
+import { withPluginRetentionOwner } from "../plugins/plugin-retention-diagnostics.js";
 import type { ModelCatalogSnapshot } from "./model-catalog.types.js";
 import type {
   PreparedModelCatalogInventory,
   PreparedModelCatalogProviderFacts,
   PreparedModelCatalogRefreshOptions,
 } from "./prepared-model-runtime.types.js";
+
+/**
+ * Fork: runs catalog discovery work as its own plugin-use owner, so a lease it takes
+ * (held while it queues and while the worker waits on slow provider endpoints) keeps
+ * only plugins it calls into on the Gateway thread, and retention dumps name it.
+ */
+export function runAsDiscoveryOwner<T>(serviceId: string, run: () => T): T {
+  return withPluginRetentionOwner({ serviceId }, run);
+}
 
 // Failed discovery keeps saved rows; its catalog owner retries off the read path with capped backoff.
 const FAILED_DISCOVERY_RETRY_MS = 30_000;
@@ -92,7 +102,9 @@ export function createFailedDiscoveryRetry(
           return;
         }
         // The acquisition re-arms when it settles.
-        void acquire({ providerIds, refresh: true }).catch(() => undefined);
+        void runAsDiscoveryOwner("model-catalog-retry", () =>
+          acquire({ providerIds, refresh: true }),
+        ).catch(() => undefined);
       },
       Math.max(0, due - Date.now()),
     ).unref();

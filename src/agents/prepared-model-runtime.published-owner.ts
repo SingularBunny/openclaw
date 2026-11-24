@@ -63,7 +63,7 @@ export function retainPublishedModelRuntimeOwner(
   return {
     snapshot: capturePreparedModelRuntimeCatalog(snapshot, snapshot),
     pluginGeneration,
-    [Symbol.asyncDispose]: retainPreparedPluginGeneration(pluginGeneration),
+    [Symbol.asyncDispose]: retainPreparedPluginGeneration(pluginGeneration, "published-runtime"),
   };
 }
 

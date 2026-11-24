@@ -109,7 +109,12 @@ export const toolsCatalogHandlers: GatewayRequestHandlers = {
           throw new Error("Plugin catalog generation is no longer available");
         }
       };
-      const releaseWork = retainRuntimePluginWork(runtimeRegistry ? [runtimeRegistry] : []);
+      const releaseWork = retainRuntimePluginWork(
+        runtimeRegistry ? [runtimeRegistry] : [],
+        "unknown",
+        undefined,
+        { serviceId: "tools-catalog" },
+      );
       let acquisition: Awaited<ReturnType<typeof acquireStandalonePluginToolRegistry>> | undefined;
       try {
         assertCurrent();
