@@ -317,10 +317,7 @@ describe("Claude CLI login banner", () => {
   const setup = (provider: string, unavailableReason: "missing-auth" | "auth-failed") => {
     const onSetup = () => undefined;
     const result = resolveChatModelSetup({
-      catalog: false,
-      connected: true,
-      agentsLoaded: true,
-      selectedAgentFound: true,
+      ...loaded,
       agentModel: `${provider}/claude-opus-5-5`,
       chatModelCatalog: [
         { id: "claude-opus-5-5", name: "Opus", provider, available: false, unavailableReason },

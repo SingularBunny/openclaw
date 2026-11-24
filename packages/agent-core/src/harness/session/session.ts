@@ -11,12 +11,7 @@ import type { SessionContext, SessionTreeEntry } from "../types.js";
 import { selectResetKeptMessageFacts, type ToolPairingMessageFact } from "./tool-pairing-facts.js";
 import { collectToolPairingMessageFact, selectResetKeptEntries } from "./tool-result-pairing.js";
 import { projectOwnerCatalogImport } from "./catalog-import.js";
-import {
-  FORGOTTEN_SUMMARY,
-  isForgottenEntry,
-  isNeutralizedBoundary,
-  markForgottenBoundary,
-} from "./forgotten-fork.js";
+import { FORGOTTEN_SUMMARY, isForgottenEntry } from "./forgotten-fork.js";
 import { isTranscriptArtifactProvider } from "./transcript-model.js";
 
 const SESSION_HISTORY_PRELUDE = Symbol.for("openclaw.sessionHistoryPrelude");
@@ -80,6 +75,8 @@ export type SessionContextEntryFact = {
   excluded: boolean;
   promptBoundary: boolean;
   promptUpdate: boolean;
+  /** Fork (N11): the entry's message was forgotten. */
+  forgotten?: boolean;
 };
 
 export function collectSessionContextEntryFact(entry: SessionTreeEntry): SessionContextEntryFact {
@@ -102,6 +99,7 @@ export function collectSessionContextEntryFact(entry: SessionTreeEntry): Session
       entry.customType === "openclaw.system-prompt" &&
       asOptionalRecord(entry.data)?.restart === true,
     promptUpdate: getOpenClawSystemUpdateKind(entry) === "prompt-update",
+    ...(isForgottenEntry(entry) ? { forgotten: true } : {}),
   };
 }
 
@@ -131,7 +129,11 @@ export function* iterateSessionContextEntries<T extends SessionTreeEntry>(
     );
     return selectedFacts.filter((fact) => selectedSources.has(fact.source));
   })) {
-    yield { entry: selected.entry.source, context: selected.context };
+    yield {
+      entry: selected.entry.source,
+      context: selected.context,
+      ...(selected.neutralized ? { neutralized: true } : {}),
+    };
   }
 }
 
@@ -144,7 +146,12 @@ export function* iterateSessionContextEntryFacts<T extends SessionContextEntryFa
 function* iterateContextFacts<T extends SessionContextEntryFact>(
   pathEntries: readonly T[],
   selectReset: (entries: readonly T[]) => T[],
-): Generator<{ entry: T; context: "current" | "retained" | "reset-retained" }> {
+): Generator<{
+  entry: T;
+  context: "current" | "retained" | "reset-retained";
+  /** Fork (N11): a summary written over forgotten messages, shown as a neutral note. */
+  neutralized?: boolean;
+}> {
   const { boundaryIndex, firstKeptIndex } = resolveSessionContextWindow(pathEntries);
   // A rebuilt prefix retires prompt overrides; retained turns still own their runtime facts.
   const operatorBoundaryIndex = Math.max(
@@ -158,8 +165,10 @@ function* iterateContextFacts<T extends SessionContextEntryFact>(
       : undefined;
   if (boundary) {
     // Fork (N11): a summary written over forgotten messages is replaced by a neutral note.
-    markForgottenBoundary(pathEntries, boundaryIndex);
-    yield { entry: boundary, context: "current" };
+    const neutralized =
+      boundary.type === "compaction" &&
+      pathEntries.slice(0, boundaryIndex).some((entry) => entry.forgotten === true);
+    yield { entry: boundary, context: "current", ...(neutralized ? { neutralized } : {}) };
   }
   let index = -1;
   for (const entry of pathEntries) {
@@ -182,7 +191,7 @@ function* iterateContextFacts<T extends SessionContextEntryFact>(
       !hasMessage ||
       (entry.type === "custom_message" && entry.excluded) ||
       // Fork (N11): a forgotten message stays out even in a reset's retained tail.
-      isForgottenEntry(entry) ||
+      entry.forgotten === true ||
       (!resetKept?.has(entry) && entry.type === "message" && entry.excluded)
     ) {
       continue;
@@ -207,7 +216,11 @@ export function* iterateSessionContextMessages<T extends SessionTreeEntry>(
 
 /** Project one selected entry without changing its canonical position or retained context. */
 export function projectSessionContextMessage<T extends SessionTreeEntry>(
-  { entry, context }: { entry: T; context: "current" | "retained" | "reset-retained" },
+  {
+    entry,
+    context,
+    neutralized,
+  }: { entry: T; context: "current" | "retained" | "reset-retained"; neutralized?: boolean },
   readEntry: (entry: T) => SessionTreeEntry = (selected) => selected,
 ): AgentMessage | undefined {
   if (entry.type === "reset") {
@@ -217,7 +230,7 @@ export function projectSessionContextMessage<T extends SessionTreeEntry>(
   if (hydrated.type === "branch_summary" && !hydrated.summary) {
     return undefined;
   }
-  if (hydrated.type === "compaction" && isNeutralizedBoundary(entry)) {
+  if (hydrated.type === "compaction" && neutralized) {
     return createCompactionSummaryMessage(
       FORGOTTEN_SUMMARY,
       hydrated.tokensBefore,

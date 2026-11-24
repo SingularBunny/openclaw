@@ -19,8 +19,6 @@ import { buildChatClaudeModePicker } from "./chat-claude-mode-controls.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
 import { getAcceptedChatHistorySession, isChatSessionProvenAbsent } from "./chat-history-state.ts";
-import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
-import { getAcceptedChatHistorySession } from "./chat-history-state.ts";
 import { createChatHandoffPicker } from "./chat-pane-handoff-picker-fork.ts";
 import { ChatPaneModelControl } from "./chat-pane-model-control.tsx";
 import { readChatSessionActionAccess } from "./chat-session-action-access.ts";

@@ -10,7 +10,7 @@ import { buildSessionContext } from "./session.js";
 const timestamp = "2026-11-20T00:00:00.000Z";
 const base = (id: string, parentId: string | null) => ({ id, parentId, timestamp });
 
-function forgotten<T extends Record<string, unknown>>(message: T) {
+function forgotten<T extends object>(message: T) {
   return { ...message, excludeFromContext: true, __openclaw: { forgotten: { topic: "x", at: 1 } } };
 }
 

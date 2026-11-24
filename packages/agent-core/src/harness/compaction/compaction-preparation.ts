@@ -260,8 +260,6 @@ export type CompactionPreparationEntryFact = SessionContextEntryFact &
     contextMessage?: CompactionPreparationMessageFact;
     previousSummary?: string;
     previousSummaryDetails?: CompactionDetails;
-    /** Fork (N11): the entry's message was forgotten. */
-    forgotten?: boolean;
   };
 
 /** Only bounded requests, prior summaries and exact file/pairing facts survive each decoded row. */
@@ -293,7 +291,6 @@ export function collectCompactionPreparationEntryFact(
     cut: collectCompactionCutEntryFact(entry, message),
     message: messageFact,
     contextMessage: contextMessage ? (messageFact ?? collect(contextMessage)) : undefined,
-    ...(isForgottenEntry(entry) ? { forgotten: true } : {}),
     ...(entry.type === "compaction"
       ? {
           fromHook: entry.fromHook,

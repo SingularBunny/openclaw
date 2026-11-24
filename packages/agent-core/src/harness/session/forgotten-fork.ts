@@ -16,36 +16,3 @@ export function isForgottenEntry(entry: SessionTreeEntry): boolean {
   const message = asOptionalRecord(entry.message);
   return asOptionalRecord(message?.["__openclaw"])?.forgotten !== undefined;
 }
-
-const neutralizedBoundaries = new WeakSet<object>();
-
-/** Marks the context boundary when a message before it was forgotten. */
-export function markForgottenBoundary(
-  pathEntries: readonly SessionTreeEntry[],
-  boundaryIndex: number,
-): void {
-  const boundary = pathEntries[boundaryIndex];
-  if (
-    boundary?.type === "compaction" &&
-    pathEntries.slice(0, boundaryIndex).some((entry) => isForgottenEntry(entry))
-  ) {
-    neutralizedBoundaries.add(boundary);
-  }
-}
-
-/** Whether this selected boundary's summary must not reach the model. */
-export function isNeutralizedBoundary(entry: object): boolean {
-  return neutralizedBoundaries.has(entry);
-}
-
-/** Fork (N11): a summary written over forgotten messages is not carried into the next one. */
-export function forgottenPreviousSummary(
-  pathEntries: readonly SessionTreeEntry[],
-  boundaryIndex: number,
-  previousSummary: string | undefined,
-): string | undefined {
-  return previousSummary !== undefined &&
-    pathEntries.slice(0, boundaryIndex).some((entry) => isForgottenEntry(entry))
-    ? FORGOTTEN_SUMMARY
-    : previousSummary;
-}

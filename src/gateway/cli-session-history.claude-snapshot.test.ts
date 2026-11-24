@@ -138,7 +138,7 @@ it("bounds oversized Claude messages and continues after malformed records", () 
   }));
 
 it("treats Claude tool results without is_error as completed, not outcome unknown", async () => {
-  await withClaudeProjectsDir(async ({ homeDir, sessionId, filePath }) => {
+  await withClaudeProjectsDir(async ({ projectsDir, sessionId, filePath }) => {
     const entry = (type: "user" | "assistant", uuid: string, content: unknown) =>
       JSON.stringify({
         type,
@@ -163,7 +163,7 @@ it("treats Claude tool results without is_error as completed, not outcome unknow
       ].join("\n"),
       "utf8",
     );
-    const messages = await readClaudeCliSessionMessagesAsync({ cliSessionId: sessionId, homeDir });
+    const messages = await readClaudeCliSessionMessagesAsync({ cliSessionId: sessionId, projectsDir });
     const activity = projectAgentHistoryActivity(
       messages.map((message, index) => ({ messageId: `m${index}`, message })),
     ).flatMap(({ items }) => items);

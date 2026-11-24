@@ -59,7 +59,7 @@ import { attachCliReplyBackend, createCliRunCurrentAssertion } from "./execution
 import { createCliFailoverError as failover } from "./exit-error.js";
 import * as noOutputPolicy from "./no-output-timeout-policy.js";
 import { normalizeCliToolName } from "./tool-policy.js";
-import type { CliMcpCapture, PreparedCliRunContext } from "./types.js";
+import type { PreparedCliRunContext } from "./types.js";
 
 function denyTool(message: string): CliBackendToolPermissionResult {
   return { behavior: "deny", message };

@@ -19,7 +19,7 @@ function call(
     getRuntimeConfig: () => cfg,
     logGateway: { info: vi.fn(), warn: vi.fn() },
   };
-  return handlers[method]!({ params, respond, context } as never).then(() => ({
+  return Promise.resolve(handlers[method]!({ params, respond, context } as never)).then(() => ({
     respond,
     context,
   }));
