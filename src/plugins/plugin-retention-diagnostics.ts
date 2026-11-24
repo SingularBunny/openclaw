@@ -11,6 +11,7 @@ import type {
   PluginRetentionReason,
   PluginWorkRelease,
 } from "./plugin-instance.types.js";
+import { runWithPluginUseScope } from "./plugin-use-scope.js";
 import type { PluginRegistry } from "./registry-types.js";
 import { getPluginRegistryVersion } from "./runtime-state.js";
 
@@ -28,12 +29,15 @@ function copyOwner(owner: PluginRetentionOwner | undefined): PluginRetentionOwne
   return Object.values(result).some(Boolean) ? Object.freeze(result) : undefined;
 }
 
-/** Bind scalar acquisition facts through the existing execution frame. */
+/**
+ * Bind scalar acquisition facts through the existing execution frame. Fork: the
+ * owner (a turn, a service) also records which plugins its work calls into.
+ */
 export function withPluginRetentionOwner<T>(owner: PluginRetentionOwner, run: () => T): T {
   const current = getPluginExecutionFrame();
   return runWithPluginExecutionFrame(
     createPluginExecutionFrame({ ...current, retentionOwner: copyOwner(owner) }, current),
-    run,
+    () => runWithPluginUseScope(run),
   );
 }
 

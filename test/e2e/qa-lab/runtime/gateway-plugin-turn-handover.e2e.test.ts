@@ -49,7 +49,8 @@ type Body = {
   input: Array<Partial<Record<"role" | "type" | "call_id" | "output", string>>>;
 };
 type Step = { step: number; plugin: string; generation: number; atMs: number };
-type Plugin = { id: string; turnHandover: boolean; contextEngine?: boolean };
+// `idle` plugins load with the turn but are never called by it; only they reload.
+type Plugin = { id: string; turnHandover: boolean; contextEngine?: boolean; idle?: boolean };
 // `bundled` steps through a shipped plugin's tool, which reports no generation.
 type Scenario = { name: string; plugins: Plugin[]; handsOver: boolean; bundled?: Bundled };
 type Bundled = { id: string; tool: string };
@@ -143,6 +144,15 @@ const scenarios: Scenario[] = [
     plugins: [{ id: "engine-proof", turnHandover: true, contextEngine: true }],
     handsOver: true,
   },
+  // Fork: a reload of a plugin the turn never called does not wait for the turn.
+  {
+    name: "unused plugin",
+    plugins: [
+      { id: "swap-proof", turnHandover: false },
+      { id: "idle-proof", turnHandover: false, idle: true },
+    ],
+    handsOver: true,
+  },
   {
     name: "bundled Knowledge",
     plugins: [],
@@ -171,6 +181,9 @@ it.for(scenarios)(
     const written = bundled
       ? [{ ...bundled, root: "" }]
       : await Promise.all(plugins.map((plugin) => writePlugin(home, plugin, counts, events)));
+    const idleIds = new Set(plugins.filter((plugin) => plugin.idle).map((plugin) => plugin.id));
+    const reloaded = idleIds.size ? written.filter(({ id }) => idleIds.has(id)) : written;
+    const stepping = written.filter(({ id }) => !idleIds.has(id));
     const sessionKey = "agent:main:dashboard:" + randomUUID();
     const token = randomUUID();
     const failure = createDeferred<Error>();
@@ -230,7 +243,7 @@ it.for(scenarios)(
                 reloadStartedAt = Date.now();
                 reload = gateway!.client
                   .request("plugins.reload", {
-                    plugins: written.map(({ id }) => ({ pluginId: id })),
+                    plugins: reloaded.map(({ id }) => ({ pluginId: id })),
                   })
                   .finally(() => {
                     reloadSettledAt = Date.now();
@@ -245,7 +258,7 @@ it.for(scenarios)(
                 return;
               }
               // Alternate tools across plugins so every reloaded plugin is held by the turn.
-              const tool = written[steps.length % written.length]!.tool;
+              const tool = stepping[steps.length % stepping.length]!.tool;
               writeToolCall(response, tool, "s" + steps.length + "-" + outputs.length);
             } catch (error) {
               failure.resolve(error instanceof Error ? error : new Error(String(error)));
@@ -284,7 +297,7 @@ it.for(scenarios)(
         if (bundled) {
           cfg.plugins = { enabled: true, allow: [bundled.id], slots: { memory: bundled.id } };
         }
-        cfg.tools = { allow: written.map(({ tool }) => tool), codeMode: false, toolSearch: false };
+        cfg.tools = { allow: stepping.map(({ tool }) => tool), codeMode: false, toolSearch: false };
         cfg.gateway = { auth: { mode: "token", token } };
         await fs.writeFile(configPath, JSON.stringify(cfg));
         await seedInstalledPluginIndex(
@@ -391,7 +404,15 @@ it.for(scenarios)(
           firstGeneration.set(plugin, firstGeneration.get(plugin) ?? generation);
         }
         const later = steps.slice(RELOAD_AFTER_STEP + 1);
-        if (handsOver) {
+        if (idleIds.size) {
+          // The reload finished mid-turn without touching the plugin the turn runs on.
+          expect(summary.reloadSettledBeforeReply, proof).toBe(true);
+          expect(summary.reloadMs, proof).toBeLessThan(STEPS * STEP_MS);
+          expect(
+            later.every(({ plugin, generation }) => generation === firstGeneration.get(plugin)),
+            proof,
+          ).toBe(true);
+        } else if (handsOver) {
           // The reload finished mid-turn. A slow reload can land a step late, but from
           // the first step on the new generation the turn never returns to the old one.
           expect(summary.reloadSettledBeforeReply, proof).toBe(true);

@@ -285,6 +285,10 @@ By default, `openclaw plugins reload` waits for every running agent turn that
 loaded the plugin to finish. A long turn can make the reload wait out its drain
 budget and roll back.
 
+A turn that loaded the plugin but never called into it does not hold the
+reload: its hold on that plugin is released as soon as the reload asks for it.
+Calls count from the start of the turn, including nested runs it started.
+
 A plugin that declares `reload.turnHandover` in `openclaw.plugin.json` lets
 the reload hand those turns over instead: each running turn stops at its next
 model step, the swap happens, and the same turn continues on the new plugin
