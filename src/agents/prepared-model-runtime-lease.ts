@@ -217,7 +217,7 @@ async function acquirePreparedModelRuntimeLeaseAttempt(
       return {
         snapshot: withPreparedModelRuntimePolicyConfig(borrowed, input.readPolicyConfig),
         pluginGeneration: generation,
-        [Symbol.asyncDispose]: retainPreparedPluginGeneration(generation),
+        [Symbol.asyncDispose]: retainPreparedPluginGeneration(generation, "model-runtime-lease"),
       };
     }
   }
@@ -465,7 +465,10 @@ async function acquirePreparedModelRuntimeLeaseAttempt(
       return {
         snapshot,
         pluginGeneration,
-        [Symbol.asyncDispose]: retainPreparedPluginGeneration(pluginGeneration),
+        [Symbol.asyncDispose]: retainPreparedPluginGeneration(
+          pluginGeneration,
+          "model-runtime-lease",
+        ),
       };
     }
     if (provenance === "run" && options.retainIdleRunOwner) {
@@ -473,7 +476,10 @@ async function acquirePreparedModelRuntimeLeaseAttempt(
     } else if (provenance === "run" && context.getGatewayLifecycleActive()) {
       context.retainedGatewayRunOwners.retain(key, owner, context.owners);
     }
-    const releaseGeneration = retainPreparedPluginGeneration(pluginGeneration);
+    const releaseGeneration = retainPreparedPluginGeneration(
+      pluginGeneration,
+      "model-runtime-lease",
+    );
     owner.leaseCount = (owner.leaseCount ?? 0) + 1;
     admission.release();
     let released = false;

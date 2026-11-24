@@ -1,5 +1,6 @@
 import { isDeepStrictEqual } from "node:util";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
+import { withPluginRetentionOwner } from "../plugins/plugin-retention-diagnostics.js";
 import type { ProviderCatalogOutcome } from "../plugins/provider-catalog-outcome.js";
 import { withPluginRuntimeGenerationScope } from "../plugins/runtime/generation-scope.js";
 import { listManifestSyntheticAuthProviderRefs } from "../plugins/synthetic-auth.runtime.js";
@@ -466,7 +467,17 @@ type PreparedModelCatalogAuthOwner = {
   ) => Promise<Parameters<typeof replacePreparedModelCatalogAuth>[1]>;
 };
 
-async function refreshScopedModelCatalogAuth(
+// Fork: the refresh's lease keeps only plugins it calls into on the Gateway thread.
+function refreshScopedModelCatalogAuth(
+  owner: PreparedModelCatalogAuthOwner,
+  scope: PreparedModelRuntimeAuthScope,
+): Promise<PreparedModelCatalogAuth> {
+  return withPluginRetentionOwner({ serviceId: "model-auth-refresh" }, () =>
+    refreshScopedModelCatalogAuthInScope(owner, scope),
+  );
+}
+
+async function refreshScopedModelCatalogAuthInScope(
   owner: PreparedModelCatalogAuthOwner,
   { providerIds, profileIds }: PreparedModelRuntimeAuthScope,
 ): Promise<PreparedModelCatalogAuth> {
@@ -511,7 +522,7 @@ export function createNativeLoginRecheck(
   );
   let checkedAt = Date.now();
   let pending: Promise<void> | undefined;
-  const recheck = async () => {
+  const recheckInScope = async () => {
     owner.assertCurrent();
     await using _ = {
       [Symbol.asyncDispose]: retainPreparedPluginGeneration(owner.pluginGeneration),
@@ -557,6 +568,9 @@ export function createNativeLoginRecheck(
       },
     );
   };
+  // Fork: the recheck's lease keeps only the CLI backend plugins it calls into.
+  const recheck = () =>
+    withPluginRetentionOwner({ serviceId: "native-login-recheck" }, recheckInScope);
   return (options) => {
     const now = Date.now();
     if (pending) {

@@ -288,6 +288,11 @@ budget and roll back.
 A turn that loaded the plugin but never called into it does not hold the
 reload: its hold on that plugin is released as soon as the reload asks for it.
 Calls count from the start of the turn, including nested runs it started.
+Background model-catalog work (provider discovery and its retries, auth
+refresh, catalog reads) and isolated cron runs follow the same rule, so a slow
+or unreachable provider endpoint does not hold up a reload of an unrelated
+plugin. The "Plugin retained references" log names each hold's owner, such as
+`model-catalog` or `cron:<job id>`.
 
 A plugin that declares `reload.turnHandover` in `openclaw.plugin.json` lets
 the reload hand those turns over instead: each running turn stops at its next

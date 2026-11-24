@@ -45,6 +45,11 @@ import type {
 import { releaseRuntimePluginWork, retainRuntimePluginWork } from "./runtime-plugin-work.js";
 
 const log = createSubsystemLogger("agents/prepared-model-runtime");
+/** Fork: which host code took a prepared-generation lease, for retention dumps. */
+export type PreparedPluginGenerationLeaseSite =
+  | "published-runtime"
+  | "model-runtime-lease"
+  | "session-cleanup";
 type Lifetime = ReturnType<typeof createLifetime>;
 type PreparedPluginGenerationResources = Pick<
   PreparedModelRuntimePluginGeneration,
@@ -62,7 +67,10 @@ const { generations, active, retirements, publications } = resolveGlobalSingleto
   }),
 );
 
-function createLifetime(dispose: () => Promise<unknown>, retainWork?: () => () => void) {
+function createLifetime(
+  dispose: () => Promise<unknown>,
+  retainWork?: (site: string | undefined) => () => void,
+) {
   const cleanupWork = new AsyncWorkScope();
   const references = new Set<object>();
   let closing: Deferred | undefined;
@@ -71,13 +79,13 @@ function createLifetime(dispose: () => Promise<unknown>, retainWork?: () => () =
     get referenced() {
       return references.size > 0;
     },
-    retain(work = false) {
+    retain(work = false, site?: string) {
       if (closing) {
         throw new PreparedModelRuntimePluginGenerationRetiredError(
           "Prepared plugin generation has retired",
         );
       }
-      const releaseWork = work ? retainWork?.() : undefined;
+      const releaseWork = work ? retainWork?.(site) : undefined;
       const reference = {};
       references.add(reference);
       let releaseCompletion: Promise<void> | undefined;
@@ -203,11 +211,12 @@ export function ownPreparedPluginGeneration(
         );
       }
     },
-    () =>
+    (site) =>
       retainRuntimePluginWork(
         selectedRegistries,
         "prepared-generation-lease",
         captureTurnHandoverRequest(selectedRegistries),
+        site ? { serviceId: site } : undefined,
       ),
   );
   try {
@@ -227,10 +236,15 @@ export function ownPreparedPluginGeneration(
   return lifetime;
 }
 
+/**
+ * Retains a generation for admitted work. Fork: `site` names the acquiring host
+ * code in retention dumps when no turn or service owner is in scope.
+ */
 export function retainPreparedPluginGeneration(
   generation: PreparedModelRuntimePluginGeneration,
+  site?: PreparedPluginGenerationLeaseSite,
 ): () => Promise<void> {
-  const release = ownPreparedPluginGeneration(generation).retain(true);
+  const release = ownPreparedPluginGeneration(generation).retain(true, site);
   return async () => {
     await release();
   };

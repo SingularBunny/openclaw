@@ -233,7 +233,9 @@ async function withGatewayToolInventoryScope<T>(
     return run();
   }
   // Full tool facts need their own custody; the selected model lease stays narrow.
-  const releaseWork = retainRuntimePluginWork([registry]);
+  const releaseWork = retainRuntimePluginWork([registry], "unknown", undefined, {
+    serviceId: "tools-effective-inventory",
+  });
   try {
     return await withPluginRuntimeRegistryScope(registry, () =>
       withPluginMetadataSnapshotScope(metadata, run, {

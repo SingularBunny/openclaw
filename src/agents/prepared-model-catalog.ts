@@ -2,6 +2,7 @@
 import { getRuntimeConfig } from "../config/config.js";
 import type { OpenClawConfig } from "../config/types.openclaw.js";
 import { isAbortError } from "../infra/abort-signal.js";
+import { withPluginRetentionOwner } from "../plugins/plugin-retention-diagnostics.js";
 import {
   listAgentIds,
   resolveAgentDir,
@@ -362,11 +363,24 @@ async function resolvePreparedModelCatalogOwnerSnapshotWithPolicy(
   return { snapshot: lease.snapshot, release: () => lease[Symbol.asyncDispose]() };
 }
 
-async function withPreparedModelCatalogOwnerPolicy<T>(
+// Fork: a catalog read (models list, status, model selection) holds its lease while it
+// waits on catalog discovery; that lease keeps only plugins this read calls into.
+function withPreparedModelCatalogOwnerPolicy<T>(
   params: LoadPreparedModelCatalogParams,
   configPolicy: PreparedModelCatalogConfigPolicy,
   read: (snapshot: PreparedModelRuntimeSnapshot) => T | Promise<T>,
   preparePublishedOwner = preparePublishedCatalogOwner,
+): Promise<T> {
+  return withPluginRetentionOwner({ serviceId: "model-catalog-read" }, () =>
+    readPreparedModelCatalogOwnerPolicy(params, configPolicy, read, preparePublishedOwner),
+  );
+}
+
+async function readPreparedModelCatalogOwnerPolicy<T>(
+  params: LoadPreparedModelCatalogParams,
+  configPolicy: PreparedModelCatalogConfigPolicy,
+  read: (snapshot: PreparedModelRuntimeSnapshot) => T | Promise<T>,
+  preparePublishedOwner: typeof preparePublishedCatalogOwner,
 ): Promise<T> {
   if (!getPreparedSharedAuthStoreOwnership(params.env ?? process.env)) {
     await prepareSharedAuthStoreOwnership(params.env);

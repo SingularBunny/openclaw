@@ -40,6 +40,7 @@ import {
   completeConfiguredRuntimeModels,
   prepareConfiguredModelAliases,
 } from "./prepared-model-runtime.configured-completion.js";
+import { runAsDiscoveryOwner } from "./prepared-model-runtime.discovery-retry.js";
 import { acquirePreparedMediaCapabilityProviders } from "./prepared-model-runtime.plugin-generation.js";
 import type {
   PreparedRuntimeCapabilityModel,
@@ -391,9 +392,13 @@ export function createPreparedModelRuntimeSnapshot(
     modelCatalog: catalogAccess.withRefreshStatus(modelCatalog),
     readFullModelCatalog: catalogAccess.readFullModelCatalog,
     recheckNativeLogin: catalogAccess.recheckNativeLogin,
-    refreshExpiredModelCatalog: catalogAccess.refreshExpiredModelCatalog,
+    // Fork: catalog discovery is its own plugin-use owner (see runAsDiscoveryOwner).
+    refreshExpiredModelCatalog: () =>
+      runAsDiscoveryOwner("model-catalog", catalogAccess.refreshExpiredModelCatalog),
     readPublishedModels: catalogAccess.readPublishedModels,
-    loadFullModelCatalog: catalogAccess.loadFullModelCatalog,
+    loadFullModelCatalog: (options) =>
+      runAsDiscoveryOwner("model-catalog", () => catalogAccess.loadFullModelCatalog(options)),
+    // Catalog access recognizes its own native loader by identity; keep it unwrapped.
     loadNativeModelCatalog: catalogAccess.loadNativeModelCatalog,
     configuredRuntimeModels,
     configuredModelAliases: prepareConfiguredModelAliases(

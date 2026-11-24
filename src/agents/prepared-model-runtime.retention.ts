@@ -138,7 +138,7 @@ export async function acquireRetainedAgentRuntimeCleanupRegistries(
       ) {
         continue;
       }
-      releases.push(retainPreparedPluginGeneration(generation));
+      releases.push(retainPreparedPluginGeneration(generation, "session-cleanup"));
       registries.add(registry);
     }
   } catch (error) {

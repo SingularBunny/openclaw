@@ -10,6 +10,7 @@ import type { PreparedModelRuntimePluginGeneration } from "../../agents/prepared
 import { normalizeVerboseLevel } from "../../auto-reply/thinking.js";
 import { createPluginMetadataSnapshot } from "../../config/plugin-auto-enable.test-helpers.js";
 import { createPluginMetadataSnapshotFixture } from "../../plugins/plugin-metadata.test-support.js";
+import { capturePluginUseScope, recordPluginUse } from "../../plugins/plugin-use-scope.js";
 import { createEmptyPluginRegistry } from "../../plugins/registry-empty.js";
 import { withPluginRuntimeGenerationScope } from "../../plugins/runtime/generation-scope.js";
 import { makeIsolatedAgentParamsFixture } from "./job-fixtures.js";
@@ -145,6 +146,27 @@ describe("runCronIsolatedAgentTurn plugin generation carry", () => {
     expect(runEmbeddedAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({ ...selected, verboseLevel: "on" }),
     );
+  });
+
+  // Fork: the run's runtime lease keeps only plugins its embedded run calls into.
+  it("admits its runtime lease in a plugin use scope that sees the embedded run's calls", async () => {
+    const captured: { leaseScope?: ReturnType<typeof capturePluginUseScope> } = {};
+    const acquire = acquirePreparedModelRuntimeMock.getMockImplementation()!;
+    acquirePreparedModelRuntimeMock.mockImplementationOnce(async (...args) => {
+      captured.leaseScope = capturePluginUseScope();
+      return await acquire(...args);
+    });
+    mockRunCronFallbackPassthrough();
+    runEmbeddedAgentMock.mockImplementationOnce(async () => {
+      recordPluginUse("acpx");
+      return { payloads: [{ text: "summary done" }], meta: { agentMeta: {} } };
+    });
+
+    const result = await runTurn();
+
+    expect(result.status).toBe("ok");
+    expect(captured.leaseScope).toBeDefined();
+    expect([...(captured.leaseScope?.pluginIds ?? [])]).toEqual(["acpx"]);
   });
 
   it("admits the published generation and keeps it active through embedded execution", async () => {
