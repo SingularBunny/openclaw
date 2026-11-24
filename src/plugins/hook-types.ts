@@ -444,11 +444,6 @@ export type PluginHookReplyDispatchContext = {
     },
   ) => void;
   markIdle: (reason: string) => void;
-  /**
-   * Host-owned liveness for a backend that bounds its own turn (an ACP agent with its turn timeout):
-   * while held, the reply watchdog does not stop the turn for silence. Returns the release.
-   */
-  ownLiveness?: () => () => void;
 };
 
 export type PluginHookReplyDispatchResult = {

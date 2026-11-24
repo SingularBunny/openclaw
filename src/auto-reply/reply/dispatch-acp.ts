@@ -641,17 +641,14 @@ export async function tryDispatchAcpReplyCore(
         await projector.onEvent(event);
       },
     };
-    // A silent ACP agent is bounded by its own turn timeout and the user's stop, not the watchdog.
-    const releaseLiveness = params.ownLiveness?.();
-    await input
-      .withCurrent(() => {
-        if (getAdmittedRunDelegatedAuthority(turnAdmission) === undefined) {
-          throw new Error("ACP turn admission ended before input dispatch.");
-        }
-        turnDispatched = true;
-        return acpManager.runTurn(turnInput);
-      })
-      .finally(() => releaseLiveness?.());
+    // acpManager.runTurn holds the reply watchdogs of this turn (manager.turn-liveness.ts).
+    await input.withCurrent(() => {
+      if (getAdmittedRunDelegatedAuthority(turnAdmission) === undefined) {
+        throw new Error("ACP turn admission ended before input dispatch.");
+      }
+      turnDispatched = true;
+      return acpManager.runTurn(turnInput);
+    });
 
     await projector.flush();
     await delivery.flushBlockText();
