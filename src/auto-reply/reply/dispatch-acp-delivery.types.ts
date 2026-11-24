@@ -110,4 +110,6 @@ export type AcpDispatchAttemptParams = Omit<
   prepareAssistantTranscriptMessage?: PrepareAssistantTranscriptMessage;
   recordProcessed: InboundMessageAuditTerminalRecorder["note"];
   markIdle: (reason: string) => void;
+  /** Holds the reply watchdog off while the ACP turn runs; the turn has its own timeout. */
+  ownLiveness?: () => () => void;
 };

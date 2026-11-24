@@ -22,6 +22,7 @@ import {
 } from "./session-controller.watchdog-state.js";
 import {
   createSessionControllerWatchdog,
+  SESSION_WATCHDOG_STALL_MESSAGE,
   type SessionWatchdogEffect,
   type SessionWatchdogEffectResult,
 } from "./session-controller.watchdog.js";
@@ -321,7 +322,7 @@ describe("operation-owned watchdog through controller admission", () => {
       if (replacement === "assessed evidence") {
         expectStalled(operation, cancel);
         expect(operation.abortSignal.reason).toMatchObject({
-          message: "Reply operation stalled",
+          message: SESSION_WATCHDOG_STALL_MESSAGE,
           assessment: { state: "unknown", basis: "status_unsupported" },
         });
         return;
@@ -748,7 +749,7 @@ describe("bounded pre-stop assessment", () => {
         message:
           outcome === "closed"
             ? "Reply backend closed before completing"
-            : "Reply operation stalled",
+            : SESSION_WATCHDOG_STALL_MESSAGE,
         assessment: {
           ...result,
           durationMs: outcome === "timeout" ? 10_000 : 0,

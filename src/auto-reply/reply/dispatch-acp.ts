@@ -640,14 +640,16 @@ export async function tryDispatchAcpReplyCore(
         await projector.onEvent(event);
       },
     };
-    await input.withCurrent(() => {
-      if (getAdmittedRunDelegatedAuthority(turnAdmission) === undefined) {
-        throw new Error("ACP turn admission ended before input dispatch.");
-      }
-      turnDispatched = true;
-      return acpManager.runTurn(turnInput);
-    });
-
+    const releaseLiveness = params.ownLiveness?.();
+    await input
+      .withCurrent(() => {
+        if (getAdmittedRunDelegatedAuthority(turnAdmission) === undefined) {
+          throw new Error("ACP turn admission ended before input dispatch.");
+        }
+        turnDispatched = true;
+        return acpManager.runTurn(turnInput);
+      })
+      .finally(() => releaseLiveness?.());
     await projector.flush();
     await delivery.flushBlockText();
     if (auditResultStatus !== "cancelled" && !params.abortSignal?.aborted) {

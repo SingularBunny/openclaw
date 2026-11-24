@@ -81,6 +81,10 @@ export type SessionControllerWatchdog = {
   beginFinalizationWork(timeoutMs: number): () => void;
 };
 
+/** What the user reads when the watchdog stops a silent turn: what happened and what to do. */
+export const SESSION_WATCHDOG_STALL_MESSAGE = `Reply stopped: no reply text or tool activity for ${Math.round(
+  Math.max(SESSION_WATCHDOG_ABORT_FLOOR_MS, 3 * SESSION_WATCHDOG_WARNING_MS) / 60_000,
+)} minutes, so the turn was treated as stuck. Send the message again to retry.`;
 const inertWait: SessionWatchdogWait = { close() {}, updateDeadline() {} };
 const noop = () => {};
 function live(assertion: () => boolean): boolean {
@@ -502,7 +506,7 @@ export function createSessionControllerWatchdog(params: {
             rateLimitMessage ??
               (result?.state === "closed"
                 ? "Reply backend closed before completing"
-                : "Reply operation stalled"),
+                : SESSION_WATCHDOG_STALL_MESSAGE),
           ),
           {
             code: "OPENCLAW_SESSION_WATCHDOG",
