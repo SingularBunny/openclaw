@@ -27,11 +27,11 @@ import { appendCronJobScratchPrompt, buildCronCommandBody } from "./run-prompt.j
 import { isCronScratchEffectivelyEmpty } from "./scratch-contract.js";
 import { readCronScratchSnapshot } from "./scratch-read.js";
 import type { CronServiceDeps } from "./service/state.js";
-import { resolveCronDeliverySessionKey } from "./session-target.js";
 import {
   markAutomationRunUnread,
   shouldMarkAutomationRunUnread,
 } from "./session-run-unread-mark.js";
+import { resolveCronDeliverySessionKey } from "./session-target.js";
 import { resolveCronJobsStorePathFromConfigAsync } from "./store.js";
 import type { CronResolvedDeliveryState } from "./types.js";
 

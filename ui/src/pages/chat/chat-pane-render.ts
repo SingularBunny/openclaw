@@ -56,11 +56,11 @@ import { chatSendPendingReason } from "./chat-send-support.ts";
 import { readChatModelCatalogState, refreshChatCommands } from "./chat-state-refresh.ts";
 import { resolveChatAgentId, selectedChatSessionRow } from "./chat-state-route.ts";
 import type { ChatProps } from "./chat-view.tsx";
+import { stopCliBackgroundTask } from "./cli-background-tasks.ts";
 import {
   openSessionWorkspaceFile,
   openSessionWorkspaceManagedArtifact,
 } from "./components/chat-session-workspace.ts";
-import { stopCliBackgroundTask } from "./cli-background-tasks.ts";
 import { chatFailureRunId, hasAbortableSessionRun, hasDirectSessionRun } from "./run-lifecycle.ts";
 import { lockChatScroll, scheduleChatScroll } from "./scroll.ts";
 import { resolveChatProjectionRunId } from "./tool-stream-snapshot.ts";

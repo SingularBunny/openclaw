@@ -1,7 +1,5 @@
 import type { ProgressCardStep } from "../../../packages/gateway-protocol/src/schema/progress-card.js";
-import type {
-  CliBackendExecute,
-} from "../../plugins/cli-backend.types.js";
+import type { CliBackendExecute } from "../../plugins/cli-backend.types.js";
 import type { CliTerminalInterruption } from "../cli-output-contracts.js";
 import type { FailoverError } from "../failover-error.js";
 import type { CliBackgroundTasksState } from "./native-wait-state.js";

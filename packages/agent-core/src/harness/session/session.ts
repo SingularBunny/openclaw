@@ -8,10 +8,10 @@ import {
   createCustomMessage,
 } from "../messages.js";
 import type { SessionContext, SessionTreeEntry } from "../types.js";
-import { selectResetKeptMessageFacts, type ToolPairingMessageFact } from "./tool-pairing-facts.js";
-import { collectToolPairingMessageFact, selectResetKeptEntries } from "./tool-result-pairing.js";
 import { projectOwnerCatalogImport } from "./catalog-import.js";
 import { FORGOTTEN_SUMMARY, isForgottenEntry } from "./forgotten-fork.js";
+import { selectResetKeptMessageFacts, type ToolPairingMessageFact } from "./tool-pairing-facts.js";
+import { collectToolPairingMessageFact, selectResetKeptEntries } from "./tool-result-pairing.js";
 import { isTranscriptArtifactProvider } from "./transcript-model.js";
 
 const SESSION_HISTORY_PRELUDE = Symbol.for("openclaw.sessionHistoryPrelude");

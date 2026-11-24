@@ -14,7 +14,6 @@ import { hasClaudeRawToolInvocation } from "./cli-output.js";
 import { createClaudeCliPlanApprover, readClaudeCliPermissionMode } from "./cli-permission-mode.js";
 import type { ClaudeCliSecretInput } from "./cli-process.js";
 import { prepareClaudeCliTransportArgs } from "./cli-runtime-args.js";
-import * as promptHooks from "./cli-runtime-prompt-context.js";
 import {
   approveClaudeCliPlanExit,
   claudeCliForkHandleMethods,
@@ -24,6 +23,7 @@ import {
   resolveClaudeCliToolModeGate,
   startClaudeCliTurnPermissionMode,
 } from "./cli-runtime-fork.js";
+import * as promptHooks from "./cli-runtime-prompt-context.js";
 import { createClaudeTurnStatus } from "./cli-runtime-status.js";
 import * as tasks from "./cli-runtime-tasks.js";
 import type {

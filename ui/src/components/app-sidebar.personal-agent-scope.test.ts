@@ -29,75 +29,81 @@ it("intersects selected owners with each agent and opens an unloaded agent's Hom
       status: "running",
     }),
   ];
-  await withOwnerSidebar(rows, [viewer, other], "personal", async ({ sidebar, context }) => {
-    const visit = async (row: GatewaySessionRow, refresh = true) => {
-      bindChatPageSession(context, row.key);
-      sidebar.sessionKey = row.key;
-      await settleLitElement(sidebar);
-      if (refresh) {
-        await sidebar.sessionData.refreshSidebarSessions();
+  await withOwnerSidebar(
+    rows,
+    [viewer, other],
+    "personal",
+    async ({ sidebar, context }) => {
+      const visit = async (row: GatewaySessionRow, refresh = true) => {
+        bindChatPageSession(context, row.key);
+        sidebar.sessionKey = row.key;
         await settleLitElement(sidebar);
+        if (refresh) {
+          await sidebar.sessionData.refreshSidebarSessions();
+          await settleLitElement(sidebar);
+        }
+      };
+      for (const row of [rows[1]!, rows[0]!, rows[1]!]) {
+        await visit(row);
+
+        expect(context.agentSelection.state.selectedId).toBe(row.agentId);
+        expect(sidebar.getRouteSessionKey()).toBe(row.key);
+        expect(Boolean(sidebar.querySelector('[data-session-key="agent:main:mine"]'))).toBe(
+          row.agentId === "main",
+        );
+        expect(sidebar.querySelector('[data-session-key="agent:research:shared"]')).toBeNull();
+        expect(Boolean(sidebar.querySelector(`[data-session-key="${rows[2]!.key}"]`))).toBe(
+          row.agentId === "research",
+        );
       }
-    };
-    for (const row of [rows[1]!, rows[0]!, rows[1]!]) {
-      await visit(row);
 
-      expect(context.agentSelection.state.selectedId).toBe(row.agentId);
-      expect(sidebar.getRouteSessionKey()).toBe(row.key);
-      expect(Boolean(sidebar.querySelector('[data-session-key="agent:main:mine"]'))).toBe(
-        row.agentId === "main",
-      );
+      await visit(rows[0]!);
+
+      // A named owner with no sessions on the selected agent stays empty.
+      await sidebar.sidebarMenus.preloadMenuRenderer();
+      await selectSessionMenuValue(sidebar, "status:all");
+      await selectSessionMenuValue(sidebar, "owner:other");
+      await settleLitElement(sidebar);
+      expect(sidebar.getRouteSessionKey()).toBe("agent:main:mine");
       expect(sidebar.querySelector('[data-session-key="agent:research:shared"]')).toBeNull();
-      expect(Boolean(sidebar.querySelector(`[data-session-key="${rows[2]!.key}"]`))).toBe(
-        row.agentId === "research",
+      expect(sidebar.querySelector('[data-session-key="agent:main:mine"]')).toBeNull();
+      await selectSessionMenuValue(sidebar, "owner:viewer");
+
+      const onNavigate = vi.fn();
+      sidebar.onNavigate = onNavigate;
+      sidebar.querySelector<HTMLButtonElement>(".sidebar-agent-card__main")!.click();
+      await settleLitElement(sidebar);
+      const researchMenuItem = sidebar.querySelector<HTMLElement>(
+        '.sidebar-agent-menu [data-value="agent:research"]',
+      )!;
+      expect.soft(researchMenuItem.querySelector('[aria-label="Unread"]')).toBeNull();
+      researchMenuItem.click();
+      await vi.waitFor(() =>
+        expect(onNavigate).toHaveBeenCalledWith(
+          "chat",
+          expect.objectContaining({
+            pathname: "/chat/research",
+          }),
+        ),
       );
-    }
 
-    await visit(rows[0]!);
+      await visit(rows[2]!, false);
+      const home = sidebar.querySelector<HTMLElement>(".sidebar-footer-bar__home")!;
+      expect.soft(home.querySelector('[aria-label="Active run"]')).not.toBeNull();
 
-    // A named owner with no sessions on the selected agent stays empty.
-    await sidebar.sidebarMenus.preloadMenuRenderer();
-    await selectSessionMenuValue(sidebar, "status:all");
-    await selectSessionMenuValue(sidebar, "owner:other");
-    await settleLitElement(sidebar);
-    expect(sidebar.getRouteSessionKey()).toBe("agent:main:mine");
-    expect(sidebar.querySelector('[data-session-key="agent:research:shared"]')).toBeNull();
-    expect(sidebar.querySelector('[data-session-key="agent:main:mine"]')).toBeNull();
-    await selectSessionMenuValue(sidebar, "owner:viewer");
-
-    const onNavigate = vi.fn();
-    sidebar.onNavigate = onNavigate;
-    sidebar.querySelector<HTMLButtonElement>(".sidebar-agent-card__main")!.click();
-    await settleLitElement(sidebar);
-    const researchMenuItem = sidebar.querySelector<HTMLElement>(
-      '.sidebar-agent-menu [data-value="agent:research"]',
-    )!;
-    expect.soft(researchMenuItem.querySelector('[aria-label="Unread"]')).toBeNull();
-    researchMenuItem.click();
-    await vi.waitFor(() =>
-      expect(onNavigate).toHaveBeenCalledWith(
-        "chat",
-        expect.objectContaining({
-          pathname: "/chat/research",
-        }),
-      ),
-    );
-
-    await visit(rows[2]!, false);
-    const home = sidebar.querySelector<HTMLElement>(".sidebar-footer-bar__home")!;
-    expect.soft(home.querySelector('[aria-label="Active run"]')).not.toBeNull();
-
-    rows[2]!.unread = false;
-    await visit(rows[0]!);
-    sidebar.querySelector<HTMLButtonElement>(".sidebar-agent-card__main")!.click();
-    await settleLitElement(sidebar);
-    expect(
-      sidebar.querySelector(
-        '.sidebar-agent-menu [data-value="agent:research"] [aria-label="Unread"]',
-      ),
-    ).toBeNull();
-    // The default is all owners; this case covers a saved "My sessions" choice.
-  }, { savedOwnerId: viewer.id });
+      rows[2]!.unread = false;
+      await visit(rows[0]!);
+      sidebar.querySelector<HTMLButtonElement>(".sidebar-agent-card__main")!.click();
+      await settleLitElement(sidebar);
+      expect(
+        sidebar.querySelector(
+          '.sidebar-agent-menu [data-value="agent:research"] [aria-label="Unread"]',
+        ),
+      ).toBeNull();
+      // The default is all owners; this case covers a saved "My sessions" choice.
+    },
+    { savedOwnerId: viewer.id },
+  );
 });
 
 it("keeps an explicitly empty route selection instead of discovering ambient Home", async () => {

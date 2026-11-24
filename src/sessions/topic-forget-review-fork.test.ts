@@ -13,9 +13,9 @@ function fakeGh(responses: Record<string, unknown>) {
   const calls: Array<{ args: readonly string[]; input?: unknown }> = [];
   const gh: GhRunner = async (args, input) => {
     calls.push({ args, input });
-    const key = args.filter(
+    const key = args.find(
       (arg) => !arg.startsWith("-") && !/^(GET|PATCH|PUT|POST|DELETE)$/.test(arg),
-    )[0]!;
+    )!;
     return responses[`${args.includes("-X") ? args[args.indexOf("-X") + 1] : "GET"} ${key}`];
   };
   return { gh, calls };

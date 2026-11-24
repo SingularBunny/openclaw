@@ -1,6 +1,7 @@
 import type { HistoryUsage } from "@openclaw/llm-core";
 import { sliceUtf16Safe, truncateUtf16Safe } from "@openclaw/normalization-core/utf16-slice";
 import type { AgentMessage } from "../../types.js";
+import { FORGOTTEN_SUMMARY, isForgottenEntry } from "../session/forgotten-fork.js";
 import {
   buildSessionContext,
   collectSessionContextEntryFact,
@@ -9,7 +10,6 @@ import {
   selectResetKeptContextEntryFacts,
   type SessionContextEntryFact,
 } from "../session/session.js";
-import { FORGOTTEN_SUMMARY, isForgottenEntry } from "../session/forgotten-fork.js";
 import { selectResetKeptEntries } from "../session/tool-result-pairing.js";
 import {
   CompactionError,
@@ -401,10 +401,11 @@ function prepareCompactionSource<
       const previous = source.previous(prevBoundary);
       previousSummary = previous.summary;
       // Fork (N11): a summary written before a message was forgotten may repeat it.
+      const forgotten = source.forgotten;
       if (
         previousSummary !== undefined &&
-        source.forgotten &&
-        pathEntries.slice(0, prevBoundaryIndex).some((entry) => source.forgotten!(entry))
+        forgotten &&
+        pathEntries.slice(0, prevBoundaryIndex).some((entry) => forgotten(entry))
       ) {
         previousSummary = FORGOTTEN_SUMMARY;
       }

@@ -163,7 +163,10 @@ it("treats Claude tool results without is_error as completed, not outcome unknow
       ].join("\n"),
       "utf8",
     );
-    const messages = await readClaudeCliSessionMessagesAsync({ cliSessionId: sessionId, projectsDir });
+    const messages = await readClaudeCliSessionMessagesAsync({
+      cliSessionId: sessionId,
+      projectsDir,
+    });
     const activity = projectAgentHistoryActivity(
       messages.map((message, index) => ({ messageId: `m${index}`, message })),
     ).flatMap(({ items }) => items);
