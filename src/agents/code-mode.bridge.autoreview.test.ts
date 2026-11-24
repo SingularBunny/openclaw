@@ -4,6 +4,7 @@ import { createDeferred } from "../../test/helpers/promise.js";
 import { clearRuntimeConfigSnapshot } from "../config/runtime-snapshot.js";
 import type { OpenClawPluginToolContext } from "../plugins/types.js";
 import { SESSION_WATCHDOG_QUIET_TOOL_MS } from "../sessions/session-controller.watchdog-state.js";
+import { SESSION_WATCHDOG_STALL_MESSAGE } from "../sessions/session-controller.watchdog.js";
 import { loadBundledPluginFacade } from "../test-utils/bundled-plugin-public-surface.js";
 import { wrapToolWithBeforeToolCallHook } from "./agent-tools.before-tool-call.js";
 import { createSubscribedCodeModeHarness } from "./code-mode.bridge.lifecycle.test-support.js";
@@ -122,7 +123,7 @@ describe("Auto Review parent execution allowance", () => {
         expect(operation.abortSignal.reason).toMatchObject({
           name: "AbortError",
           code: "OPENCLAW_SESSION_WATCHDOG",
-          message: "Reply operation stalled",
+          message: SESSION_WATCHDOG_STALL_MESSAGE,
         });
         expect(operation.result).toMatchObject({ kind: "failed", code: "run_stalled" });
         await settled;

@@ -31,6 +31,7 @@ import {
 } from "../../sessions/session-controller.message-injection.js";
 import { createReplyOperation } from "../../sessions/session-controller.operation.js";
 import { getAttachedBackend } from "../../sessions/session-controller.state.js";
+import { SESSION_WATCHDOG_STALL_MESSAGE } from "../../sessions/session-controller.watchdog.js";
 import { createUserTurnTranscriptRecorder } from "../../sessions/user-turn-transcript.js";
 import { getAdmittedRunDelegatedAuthority } from "../admitted-run-context.js";
 import * as beforeToolCall from "../agent-tools.before-tool-call.js";
@@ -768,7 +769,7 @@ describe("plugin turn assessments through the operation watchdog", () => {
         expect(aborts).toHaveBeenCalledOnce();
         expect(operation.result).toMatchObject({ kind: "failed", code: "run_stalled" });
         expect(operation.abortSignal.reason).toMatchObject({
-          message: "Reply operation stalled",
+          message: SESSION_WATCHDOG_STALL_MESSAGE,
           assessment: {
             state: "unknown",
             basis: mode === "capture throws" ? "failed" : "status_unsupported",
