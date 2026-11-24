@@ -5,6 +5,8 @@ import type {
 import { createLazyAcpElicitationHandler } from "./acp-elicitation-handler-lazy.js";
 import type { AcpElicitationHandlerParams } from "./acp-elicitation-handler.js";
 import type { AcpPermissionPromptHandlerParams } from "./acp-permission-prompt.js";
+import { inAcpQuestionQueue } from "./acp-question-queue.js";
+import { resolveAcpQuestionTarget } from "./acp-question-target.js";
 
 /** Fork: defers the Gateway question stack until an ACP agent first asks for permission. */
 export function createLazyAcpPermissionPromptHandler(
@@ -19,17 +21,45 @@ export function createLazyAcpPermissionPromptHandler(
   };
 }
 
-/** Fork: one channel turn's ACP input bridges, both asked in the target session's chat. */
+/** Forms share the per-chat question queue with permission questions (`acp-question-queue.ts`). */
+function queuedElicitation(
+  sessionKey: string,
+  handler: AcpElicitationHandler,
+): AcpElicitationHandler {
+  return async (request, context) =>
+    await inAcpQuestionQueue(sessionKey, context.signal, () => handler(request, context));
+}
+
+/**
+ * Fork: one channel turn's ACP input bridges. Both ask in the conversation the human typed
+ * in (`conversationSessionKey`; for a bound chat, the chat; see `resolveAcpQuestionTarget`).
+ */
 export function createLazyAcpTurnInputHandlers(
-  params: AcpElicitationHandlerParams & { agentLabel: string },
+  params: AcpElicitationHandlerParams & {
+    agentLabel: string;
+    conversationSessionKey: string | undefined;
+  },
 ): { onElicitation: AcpElicitationHandler; onPermissionPrompt: AcpPermissionPromptHandler } {
+  const { conversationSessionKey, agentLabel, ...elicitation } = params;
+  const questionTarget = resolveAcpQuestionTarget({
+    sourceSessionKey: conversationSessionKey,
+    acpSessionKey: params.targetSessionKey,
+    acpAgentId: params.agentId,
+  });
   return {
-    onElicitation: createLazyAcpElicitationHandler(params),
+    onElicitation: queuedElicitation(
+      questionTarget.sessionKey,
+      createLazyAcpElicitationHandler({
+        ...elicitation,
+        questionSessionKey: questionTarget.sessionKey,
+        questionAgentId: questionTarget.agentId,
+      }),
+    ),
     onPermissionPrompt: createLazyAcpPermissionPromptHandler({
-      sessionKey: params.targetSessionKey,
+      sessionKey: questionTarget.sessionKey,
       outerRequestId: params.outerRequestId,
-      agentLabel: params.agentLabel,
-      agentId: params.agentId,
+      agentLabel,
+      agentId: questionTarget.agentId,
       runId: params.runId,
       delivery: params.delivery,
       isActive: params.isActive,

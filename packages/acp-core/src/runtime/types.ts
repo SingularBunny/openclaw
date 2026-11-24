@@ -124,6 +124,8 @@ export type AcpPermissionPromptRequest = {
   /** ACP tool kind (`edit`, `execute`, `delete`, ...), declared or inferred from the title. */
   toolKind?: string;
   rawInput?: unknown;
+  /** Files the action touches (ACP `ToolCallLocation.path`), shown in the question. */
+  locations?: string[];
   options: AcpPermissionPromptOption[];
 };
 

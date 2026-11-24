@@ -434,6 +434,73 @@ describe("tryDispatchAcpReplyCore", () => {
     expect(order).toEqual(["turn", "ask codex", '{"outcome":"selected","optionId":"allow"}']);
   });
 
+  it.each([
+    ["a chat bound to the ACP session asks in that chat", "agent:main:catalog-import:abc", "main"],
+    ["a turn sent to the ACP session itself asks there", undefined, "codex-acp"],
+  ])("%s", async (_name, sourceSessionKey, agentId) => {
+    let asked: { sessionKey?: string; agentId?: string } | undefined;
+    permissionPromptMocks.createAcpPermissionPromptHandler.mockImplementationOnce(
+      (params: { sessionKey: string; agentId?: string }) => async () => {
+        asked = params;
+        return { outcome: "selected", optionId: "allow" };
+      },
+    );
+    managerMocks.runTurn.mockImplementationOnce(
+      async ({
+        onEvent,
+        onPermissionPrompt,
+      }: {
+        onEvent: (event: unknown) => Promise<void>;
+        onPermissionPrompt: (
+          request: unknown,
+          context: { signal: AbortSignal },
+        ) => Promise<unknown>;
+      }) => {
+        await onPermissionPrompt(
+          { title: "Allow viewing files?", options: [] },
+          { signal: new AbortController().signal },
+        );
+        await onEvent({ type: "done" });
+      },
+    );
+    await runDispatch({
+      bodyForAgent: "read the repo",
+      ...(sourceSessionKey ? { ctxOverrides: { SessionKey: sourceSessionKey } } : {}),
+    });
+    expect(asked).toMatchObject({ sessionKey: sourceSessionKey ?? sessionKey, agentId });
+  });
+
+  it("claims a typed answer for a question pending in the bound chat", async () => {
+    const chatSessionKey = "agent:main:catalog-import:abc";
+    const registration = registerPendingAgentQuestion({
+      questionId: "acpperm_bound",
+      sessionKey: chatSessionKey,
+      questions: [
+        { id: "permission", header: "Permission", question: "Allow?", options: [], isOther: true },
+      ],
+      gatewayCall: async () => {
+        throw new Error("custom response lost");
+      },
+    });
+    registration.attachRegistration(Promise.resolve());
+    const recordProcessed = vi.fn();
+    try {
+      await runDispatch({
+        bodyForAgent: "Allow once",
+        shouldRouteToOriginating: true,
+        recordProcessed,
+        ctxOverrides: { SessionKey: chatSessionKey },
+      });
+      expect(recordProcessed).toHaveBeenCalledWith(
+        "error",
+        expect.objectContaining({ reason: "acp_question_answer_unconfirmed" }),
+      );
+      expect(managerMocks.runTurn).not.toHaveBeenCalled();
+    } finally {
+      registration.dispose();
+    }
+  });
+
   it("seeds a bound ACP session with its parent chat history only when enabled (F72)", async () => {
     parentHistoryMocks.buildAcpParentHistoryPrompt.mockReset();
     parentHistoryMocks.buildAcpParentHistoryPrompt.mockImplementation(

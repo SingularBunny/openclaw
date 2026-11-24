@@ -3,30 +3,32 @@ import { createHash } from "node:crypto";
 import type {
   AcpPermissionPromptDecision,
   AcpPermissionPromptHandler,
-  AcpPermissionPromptOption,
-  AcpPermissionPromptRequest,
 } from "@openclaw/acp-core/runtime/types";
 import { runAgentHarnessGatewayQuestion } from "../../agents/harness/gateway-question.js";
-import type { AgentHarnessUserInputQuestion } from "../../agents/harness/user-input-types.js";
 import { DEFAULT_EXEC_APPROVAL_TIMEOUT_MS } from "../../infra/exec-approvals-core.js";
 import type { ReplyPayload } from "../types.js";
+import {
+  ACP_PERMISSION_QUESTION_ID as QUESTION_ID,
+  buildAcpPermissionDetailMessage,
+  buildAcpPermissionQuestion,
+  formatAcpPermissionMinutes as minutes,
+} from "./acp-permission-prompt-text.js";
 import {
   ACP_PERMISSION_STOP_ASKING_HINT as STOP_ASKING_HINT,
   describeAcpPermissionTitle,
 } from "./acp-permission-prompt-unavailable.js";
+import { inAcpQuestionQueue } from "./acp-question-queue.js";
+
+export {
+  buildAcpPermissionQuestion,
+  buildAcpPermissionQuestionOptions,
+  describeAcpPermissionOptionScope,
+  isAcpDecisionRequest,
+  renderAcpPermissionInput,
+} from "./acp-permission-prompt-text.js";
 
 /** Unanswered permission questions deny like unanswered exec approvals (30 min). */
 export const ACP_PERMISSION_PROMPT_TIMEOUT_MS = DEFAULT_EXEC_APPROVAL_TIMEOUT_MS;
-
-const QUESTION_ID = "permission";
-const DETAIL_LIMIT = 600;
-
-const OPTION_LABELS: Record<string, string> = {
-  allow_once: "Allow once",
-  allow_always: "Allow always",
-  reject_once: "Deny",
-  reject_always: "Deny always",
-};
 
 export type AcpPermissionPromptHandlerParams = {
   /** Session the question belongs to; its chat shows the buttons. */
@@ -45,66 +47,6 @@ export type AcpPermissionPromptHandlerParams = {
   /** Test seam; production uses the Gateway question service. */
   askQuestion?: typeof runAgentHarnessGatewayQuestion;
 };
-
-function describeDetail(rawInput: unknown): string | undefined {
-  if (rawInput === undefined || rawInput === null) {
-    return undefined;
-  }
-  let text: string;
-  try {
-    text = typeof rawInput === "string" ? rawInput : JSON.stringify(rawInput, null, 1);
-  } catch {
-    return undefined;
-  }
-  if (!text || text === "{}") {
-    return undefined;
-  }
-  return text.length > DETAIL_LIMIT ? `${text.slice(0, DETAIL_LIMIT - 1)}…` : text;
-}
-
-function minutes(ms: number): string {
-  const value = Math.max(1, Math.round(ms / 60_000));
-  return value === 1 ? "1 minute" : `${value} minutes`;
-}
-
-/** Labels follow the ACP option kind, so every agent gets the same buttons. */
-export function buildAcpPermissionQuestionOptions(
-  options: readonly AcpPermissionPromptOption[],
-): Array<{ label: string; value: string }> {
-  const used = new Set<string>();
-  return options.map((option) => {
-    let label = OPTION_LABELS[option.kind] ?? (option.name.trim() || option.optionId);
-    if (used.has(label.toLowerCase())) {
-      label = `${label} (${option.name.trim() || option.optionId})`;
-    }
-    used.add(label.toLowerCase());
-    return { label, value: option.optionId };
-  });
-}
-
-export function buildAcpPermissionQuestion(params: {
-  request: AcpPermissionPromptRequest;
-  agentLabel: string;
-  timeoutMs: number;
-}): AgentHarnessUserInputQuestion {
-  const { request } = params;
-  const kind = request.toolKind ? ` (${request.toolKind})` : "";
-  const detail = describeDetail(request.rawInput);
-  return {
-    id: QUESTION_ID,
-    header: "Permission",
-    question: [
-      `${params.agentLabel} asks for permission: ${describeAcpPermissionTitle(request)}${kind}`,
-      detail ? `\n${detail}` : undefined,
-      `\nNo answer within ${minutes(params.timeoutMs)} denies it.`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    isOther: false,
-    isSecret: false,
-    options: buildAcpPermissionQuestionOptions(request.options),
-  };
-}
 
 function rejected(
   reason: "timeout" | "unavailable" | "cancelled",
@@ -128,22 +70,33 @@ export function createAcpPermissionPromptHandler(
   const timeoutMs = params.timeoutMs ?? ACP_PERMISSION_PROMPT_TIMEOUT_MS;
   const ask = params.askQuestion ?? runAgentHarnessGatewayQuestion;
   let seq = 0;
-  const notify = async (text: string) => {
+  const tryDeliver = async (text: string): Promise<boolean> => {
     try {
-      await params.delivery.deliver("block", { text });
+      return await params.delivery.deliver("block", { text });
     } catch {
-      // The agent still receives the rejection; the notice is best effort.
+      // Best effort: the agent still receives its answer or rejection.
+      return false;
     }
   };
-  return async (request, context) => {
+  const notify = async (text: string) => {
+    await tryDeliver(text);
+  };
+  const askOne: AcpPermissionPromptHandler = async (request, context) => {
     const title = describeAcpPermissionTitle(request);
     if (context.signal.aborted || !params.isActive()) {
       return rejected("cancelled", `Permission for "${title}" was not asked: the turn ended.`);
     }
+    // Input too long for the question (a plan, a file body) is posted in full first.
+    const detailMessage = buildAcpPermissionDetailMessage({
+      request,
+      agentLabel: params.agentLabel,
+    });
+    const detailShownAbove = detailMessage !== undefined && (await tryDeliver(detailMessage));
     const question = buildAcpPermissionQuestion({
       request,
       agentLabel: params.agentLabel,
       timeoutMs,
+      detailShownAbove,
     });
     const startedAt = Date.now();
     let result: Awaited<ReturnType<typeof runAgentHarnessGatewayQuestion>>;
@@ -206,4 +159,6 @@ export function createAcpPermissionPromptHandler(
     await notify(message);
     return rejected("cancelled", message);
   };
+  return async (request, context) =>
+    await inAcpQuestionQueue(params.sessionKey, context.signal, () => askOne(request, context));
 }

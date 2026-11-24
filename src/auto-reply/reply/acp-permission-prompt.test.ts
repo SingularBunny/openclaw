@@ -5,7 +5,11 @@ import { createUnavailableAcpPermissionPromptHandler } from "./acp-permission-pr
 import {
   ACP_PERMISSION_PROMPT_TIMEOUT_MS,
   buildAcpPermissionQuestion,
+  buildAcpPermissionQuestionOptions,
   createAcpPermissionPromptHandler,
+  describeAcpPermissionOptionScope,
+  isAcpDecisionRequest,
+  renderAcpPermissionInput,
 } from "./acp-permission-prompt.js";
 
 type Ask = NonNullable<Parameters<typeof createAcpPermissionPromptHandler>[0]["askQuestion"]>;
@@ -30,11 +34,15 @@ function answered(answer: string): AskResult {
 
 function setup(
   ask: Ask,
-  overrides: { deliver?: (payload: unknown) => Promise<boolean>; active?: boolean } = {},
+  overrides: {
+    deliver?: (payload: unknown) => Promise<boolean>;
+    active?: boolean;
+    sessionKey?: string;
+  } = {},
 ) {
   const deliver = vi.fn(overrides.deliver ?? (async () => true));
   const handler = createAcpPermissionPromptHandler({
-    sessionKey: "agent:main:telegram:direct:1",
+    sessionKey: overrides.sessionKey ?? "agent:main:telegram:direct:1",
     outerRequestId: "req-1",
     agentLabel: "junie",
     delivery: { deliver: async (_kind, payload) => await deliver(payload) },
@@ -67,6 +75,222 @@ describe("ACP permission prompt", () => {
     expect(question.question).toContain("npm test");
     expect(question.question).toContain("No answer within 30 minutes denies it.");
     expect(question.header.length).toBeLessThanOrEqual(12);
+  });
+
+  it("labels buttons by kind and moves the agent's scope wording to the description", () => {
+    // The shape a JetBrains Junie read outside its project arrives in (vendor-neutral kinds).
+    expect(
+      buildAcpPermissionQuestionOptions([
+        { optionId: "Yes", name: "Yes", kind: "allow_once" },
+        { optionId: "Always", name: 'Always allow ("/repo/*")', kind: "allow_always" },
+        { optionId: "No", name: "No", kind: "reject_once" },
+      ]),
+    ).toEqual([
+      { label: "Allow once", value: "Yes" },
+      { label: "Allow always", value: "Always", description: "/repo/*" },
+      { label: "Deny", value: "No" },
+    ]);
+  });
+
+  it("names the scope in the label when one kind is offered twice, without repeating text", () => {
+    const labels = buildAcpPermissionQuestionOptions([
+      { optionId: "once", name: "Allow", kind: "allow_once" },
+      { optionId: "always", name: "Always allow", kind: "allow_always" },
+      { optionId: "dir", name: 'Always allow ("/repo/src/*")', kind: "allow_always" },
+      { optionId: "no", name: "Reject", kind: "reject_once" },
+    ]).map((option) => option.label);
+    expect(labels).toEqual(["Allow once", "Allow always", "Allow always: /repo/src/*", "Deny"]);
+    for (const label of labels) {
+      expect(label).not.toMatch(/always allow/i);
+    }
+  });
+
+  it.each([
+    ["Allow", undefined],
+    ["Always", undefined],
+    ["Allow once", undefined],
+    ["Reject always", undefined],
+    ["Yes", undefined],
+    ['Always allow ("/repo/*")', "/repo/*"],
+    ["Allow for this session", "for this session"],
+  ])("reads the scope of option %s as %s", (name, scope) => {
+    expect(describeAcpPermissionOptionScope(name)).toBe(scope);
+  });
+
+  it("names the files an action touches and drops the uninformative kind", () => {
+    const question = buildAcpPermissionQuestion({
+      request: {
+        toolCallId: "call-2",
+        title: "Allow viewing files?",
+        toolKind: "other",
+        locations: ["/repo/tools/check.py"],
+        options: request.options,
+      },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(question.question).toContain("junie asks for permission: Allow viewing files?\n");
+    expect(question.question).not.toContain("(other)");
+    expect(question.question).toContain("File:\n/repo/tools/check.py");
+  });
+
+  it("asks concurrent requests of one chat one after another, each on its own", async () => {
+    const order: string[] = [];
+    const answers: Array<(result: AskResult) => void> = [];
+    const ask = vi.fn<Ask>(async (params) => {
+      order.push(`ask ${params.questionId?.slice(0, 8)}`);
+      return await new Promise<AskResult>((resolve) => {
+        answers.push(resolve);
+      });
+    });
+    const { handler } = setup(ask);
+    const first = handler(request, context());
+    const second = handler({ ...request, toolCallId: "call-2" }, context());
+    await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
+    expect(ask).toHaveBeenCalledTimes(1);
+    answers[0]?.(answered("always-id"));
+    await expect(first).resolves.toEqual({ outcome: "selected", optionId: "always-id" });
+    await vi.waitFor(() => expect(ask).toHaveBeenCalledTimes(2));
+    answers[1]?.(answered("reject-id"));
+    await expect(second).resolves.toEqual({ outcome: "selected", optionId: "reject-id" });
+    const ids = ask.mock.calls.map(([params]) => params.questionId);
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("drops a queued request when its turn ends, and other chats are not held up", async () => {
+    let answerFirst: ((result: AskResult) => void) | undefined;
+    const ask = vi.fn<Ask>(
+      async () =>
+        await new Promise<AskResult>((resolve) => {
+          answerFirst ??= resolve;
+        }),
+    );
+    const { handler } = setup(ask, { sessionKey: "agent:main:dashboard:queue" });
+    const first = handler(request, context());
+    const controller = new AbortController();
+    const queued = handler(request, { signal: controller.signal });
+    controller.abort();
+    await expect(queued).resolves.toMatchObject({ outcome: "rejected", reason: "cancelled" });
+    const other = setup(async () => answered("allow-id"), {
+      sessionKey: "agent:main:dashboard:other",
+    });
+    await expect(other.handler(request, context())).resolves.toEqual({
+      outcome: "selected",
+      optionId: "allow-id",
+    });
+    answerFirst?.(answered("allow-id"));
+    await expect(first).resolves.toMatchObject({ outcome: "selected" });
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  // The shape of a JetBrains Junie plan review sent as session/request_permission.
+  const plan = [
+    "# Plan",
+    "",
+    "1. Read the parser.",
+    "2. Add the cache.",
+    ...Array.from({ length: 40 }, (_, i) => `- step ${i}: details that make the plan long`),
+  ].join("\n");
+  const planRequest: AcpPermissionPromptRequest = {
+    toolCallId: "plan-1",
+    title: "Implement this plan?",
+    toolKind: "other",
+    rawInput: { plan },
+    options: [
+      { optionId: "implement", name: "Implement", kind: "allow_once" },
+      { optionId: "spawn-agentic-team", name: "Spawn agentic team", kind: "allow_once" },
+      { optionId: "revise", name: "Revise", kind: "reject_once" },
+      { optionId: "stop", name: "Save the plan and stop", kind: "reject_once" },
+    ],
+  };
+
+  it("shows a decision with the agent's own option names, not Allow/Deny", () => {
+    expect(isAcpDecisionRequest(planRequest.options)).toBe(true);
+    expect(isAcpDecisionRequest(request.options)).toBe(false);
+    const question = buildAcpPermissionQuestion({
+      request: planRequest,
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+      detailShownAbove: true,
+    });
+    expect(question.options).toEqual([
+      { label: "Implement", value: "implement" },
+      { label: "Spawn agentic team", value: "spawn-agentic-team" },
+      { label: "Revise", value: "revise" },
+      { label: "Save the plan and stop", value: "stop" },
+    ]);
+    expect(question.header).toBe("Decision");
+    expect(question.question).toContain("junie asks: Implement this plan?");
+    expect(question.question).not.toContain("permission");
+    expect(question.question).toContain("The full text is in the message above.");
+  });
+
+  it.each([
+    [
+      "step limit",
+      [
+        { optionId: "stop", name: "Stop", kind: "reject_once" },
+        { optionId: "continue", name: "Continue", kind: "allow_once" },
+      ],
+      ["Stop", "Continue"],
+    ],
+    [
+      "terminal command with an allowlist entry",
+      [
+        { optionId: "Yes", name: "Yes", kind: "allow_once" },
+        { optionId: "git", name: "Always allow (git status)", kind: "allow_always" },
+        { optionId: "No", name: "No", kind: "reject_once" },
+      ],
+      ["Allow once", "Allow always", "Deny"],
+    ],
+  ])("labels a %s request", (_name, options, labels) => {
+    expect(buildAcpPermissionQuestionOptions(options).map((option) => option.label)).toEqual(
+      labels,
+    );
+  });
+
+  it("renders tool input as text, not escaped JSON", () => {
+    expect(renderAcpPermissionInput({ plan: "# Plan\n\n1. Do it" })).toBe("# Plan\n\n1. Do it");
+    expect(renderAcpPermissionInput({ command: "npm test", cwd: "/repo" })).toBe(
+      "command: npm test\n\ncwd: /repo",
+    );
+    expect(renderAcpPermissionInput("rm -rf build")).toBe("rm -rf build");
+    expect(renderAcpPermissionInput({})).toBeUndefined();
+  });
+
+  it("posts a long plan in full as a message before asking, then maps the chosen name", async () => {
+    const order: string[] = [];
+    const ask = vi.fn<Ask>(async () => {
+      order.push("ask");
+      return answered("Spawn agentic team");
+    });
+    const { handler, deliver } = setup(ask, {
+      deliver: async (payload) => {
+        order.push("message");
+        expect((payload as { text: string }).text).toContain(plan);
+        return true;
+      },
+    });
+    await expect(handler(planRequest, context())).resolves.toEqual({
+      outcome: "selected",
+      optionId: "spawn-agentic-team",
+    });
+    expect(order).toEqual(["message", "ask"]);
+    expect(deliver).toHaveBeenCalledTimes(1);
+    const asked = ask.mock.calls[0]?.[0].questions[0]?.question ?? "";
+    expect(asked).toContain("The full text is in the message above.");
+    expect(asked).not.toContain('{"plan"');
+  });
+
+  it("keeps a long plan readable in the question when the message cannot be posted", () => {
+    const question = buildAcpPermissionQuestion({
+      request: planRequest,
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(question.question).toContain("# Plan\n\n1. Read the parser.");
+    expect(question.question).not.toContain('{"plan"');
   });
 
   it("passes the question to the Gateway question service with the exec timeout", async () => {

@@ -146,6 +146,10 @@ export type AcpElicitationHandlerParams = {
   targetSessionKey: string;
   outerRequestId: string;
   agentId: string;
+  /** Fork: session whose chat shows the form (a bound conversation); defaults to the target. */
+  questionSessionKey?: string;
+  /** Fork: agent owning `questionSessionKey`; defaults to `agentId`. */
+  questionAgentId?: string;
   runId: string;
   delivery: {
     deliver: (kind: "block", payload: ReplyPayload) => Promise<boolean>;
@@ -197,8 +201,8 @@ export function createAcpElicitationHandler(
     const parsed = parseAcpElicitationRequest(request);
     const result = await runStructuredInput({
       input: parsed.input,
-      sessionKey: params.targetSessionKey,
-      agentId: params.agentId,
+      sessionKey: params.questionSessionKey ?? params.targetSessionKey,
+      agentId: params.questionAgentId ?? params.agentId,
       runId: params.runId,
       timeoutMs: DEFAULT_ELICITATION_TIMEOUT_MS,
       delivery,
