@@ -180,6 +180,19 @@
             "args": {
               "type": "array",
               "items": { "type": "string" }
+            },
+            "usage": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "command": {
+                  "type": "string",
+                  "pattern": "^/?[A-Za-z0-9][A-Za-z0-9_:.-]{0,63}$"
+                },
+                "timeoutMs": { "type": "integer", "minimum": 1000, "maximum": 300000 },
+                "cacheTtlMs": { "type": "integer", "minimum": 10000 },
+                "label": { "type": "string", "minLength": 1, "maxLength": 64 }
+              }
             }
           },
           "required": ["command"]
@@ -253,7 +266,7 @@
     },
     "agents": {
       "label": "Agent Commands",
-      "help": "Optional per-agent command overrides for the embedded ACP runtime.",
+      "help": "Optional per-agent command overrides for the embedded ACP runtime. An agent's usage object (command, timeoutMs, cacheTtlMs, label) shows its account balance in the Limits views, read with one of its own slash commands such as stats.",
       "advanced": true
     }
   },

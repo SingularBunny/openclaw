@@ -9,7 +9,7 @@ import type {
 // Surrounding headers (name, plan, icon) stay surface-owned.
 import { registerProviderUsageEnglish } from "../../i18n/locales/en-provider-usage.ts";
 import { formatUiExternalText } from "../../lib/format-error.ts";
-import { formatCompactTokenCount } from "../../lib/format.ts";
+import { formatCompactTokenCount, formatRelativeTimestamp } from "../../lib/format.ts";
 import { registerEnglishCatalog, t } from "../../lib/reactive/i18n.ts";
 import "../../styles/carapace-control-ui.css";
 import "../../styles/provider-usage.css";
@@ -20,7 +20,7 @@ registerEnglishCatalog(registerProviderUsageEnglish);
 
 export type ProviderUsageDetails = Pick<
   ProviderUsageSnapshot,
-  "windows" | "billing" | "costHistory" | "summary" | "error"
+  "windows" | "billing" | "costHistory" | "summary" | "error" | "observedAt" | "refreshing"
 >;
 
 type BillingEntry = NonNullable<ProviderUsageDetails["billing"]>[number];
@@ -133,7 +133,8 @@ export function hasProviderUsageDetails(usage: ProviderUsageDetails | undefined)
       (usage.billing?.length ?? 0) > 0 ||
       (usage.costHistory?.daily.length ?? 0) > 0 ||
       usage.error ||
-      usage.summary),
+      usage.summary ||
+      usage.refreshing),
   );
 }
 
@@ -327,6 +328,16 @@ export function ProviderUsagePanel(props: { usage: ProviderUsageDetails }) {
       </Show>
       <Show when={props.usage.summary}>
         {(summary) => <p class="provider-usage__note">{summary()}</p>}
+      </Show>
+      {/* Fork: a source serving its own cache (an ACP agent) says how old the values are. */}
+      <Show when={props.usage.refreshing || props.usage.observedAt}>
+        <p class="provider-usage__note">
+          {props.usage.refreshing
+            ? t("usage.providerUsage.checking")
+            : t("usage.providerUsage.checked", {
+                time: formatRelativeTimestamp(props.usage.observedAt),
+              })}
+        </p>
       </Show>
     </div>
   );

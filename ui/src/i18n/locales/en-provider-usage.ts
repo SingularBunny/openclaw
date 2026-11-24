@@ -28,6 +28,9 @@ const catalog = {
       resets: "Resets {date}",
       exhausted: "{label} is used up.",
       checkFailed: "Check failed",
+      // Fork: account usage a source serves from its own cache (ACP agents).
+      checked: "Checked {time}",
+      checking: "Checking…",
       exhaustedUntil: "{label} is used up until {date}.",
     },
   },

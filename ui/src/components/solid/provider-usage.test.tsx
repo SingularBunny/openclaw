@@ -35,6 +35,24 @@ const rowValues = (container: HTMLElement) =>
   ]);
 
 describe("ProviderUsagePanel", () => {
+  it("says how old a source's cached values are, or that it is checking", () => {
+    const [usage, setUsage] = createSignal<ProviderUsageDetails>({
+      windows: [],
+      billing: [{ type: "balance", label: "Balance left", amount: 42.5, unit: "credits" }],
+      observedAt: Date.now() - 5 * 60_000,
+    });
+    const view = mountSolid(() => <ProviderUsagePanel usage={usage()} />);
+    const notes = () =>
+      Array.from(view.container.querySelectorAll(".provider-usage__note"), (note) =>
+        note.textContent?.trim(),
+      );
+    expect(notes()).toEqual(["Checked 5m ago"]);
+    setUsage({ windows: [], refreshing: true });
+    flush();
+    expect(notes()).toEqual(["Checking…"]);
+    view.unmount();
+  });
+
   it("retains usage rows across fresh snapshots and updates their visible values", () => {
     const initial: ProviderUsageDetails = {
       windows: [

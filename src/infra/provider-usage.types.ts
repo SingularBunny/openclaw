@@ -84,6 +84,12 @@ export type ProviderUsageSnapshot = {
   accountEmail?: string;
   /** Fork: live rate-limit status from the latest model turn, newer than the windows. */
   rateLimit?: ProviderUsageRateLimit;
+  /** Fork: epoch ms the source read these values, when it serves them from its own cache. */
+  observedAt?: number;
+  /** Fork: the source is reading newer values; ask again shortly. */
+  refreshing?: boolean;
+  /** Fork: account usage of something that is not a model provider (an ACP agent): no models or credentials here. */
+  usageOnly?: boolean;
   error?: string;
 };
 

@@ -132,6 +132,30 @@ describe("acpx plugin", () => {
     });
   });
 
+  it("registers an ACP agent usage source that stays idle until an agent opts in", async () => {
+    const sources: Parameters<OpenClawPluginApi["registerUsageSource"]>[0][] = [];
+    createHarnessApi({ registerUsageSource: (source) => sources.push(source) });
+    expect(sources.map((source) => source.id)).toEqual(["acp-agents"]);
+    const collect = (config: OpenClawPluginApi["config"]) =>
+      sources[0]!.collect({
+        config,
+        env: {},
+        signal: new AbortController().signal,
+        timeoutMs: 100,
+      });
+    await expect(collect({})).resolves.toEqual([]);
+    await expect(
+      collect({
+        plugins: { entries: { acpx: { config: { agents: { worker: { command: "worker" } } } } } },
+      }),
+    ).resolves.toEqual([]);
+    expect(createServiceMock).not.toHaveBeenCalled();
+  });
+
+  it("loads on a host without usage sources", () => {
+    expect(() => createHarnessApi({ registerUsageSource: undefined })).not.toThrow();
+  });
+
   it("declares setup auto-enable reasons for ACPX-owned ACP config", () => {
     const registerAutoEnableProbe = vi.fn<OpenClawPluginApi["registerAutoEnableProbe"]>();
     setupPlugin.register(createTestPluginApi({ registerAutoEnableProbe }));

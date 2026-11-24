@@ -355,6 +355,8 @@ export function ProviderRow(props: ProviderRowProps) {
   const card = () => props.card;
   const message = () => props.messages[`key:${card().id}`] ?? props.messages[card().id];
   const limits = () => (hasProviderUsageDetails(card().usage) ? card().usage : undefined);
+  // Fork: an ACP agent's account (usage source) has limits only, nothing to sign in or key.
+  const usageOnly = () => card().usage?.usageOnly === true && card().modelCount === 0;
   const [expanded, setExpanded] = createSignal(false);
   // Work in progress and problems keep the detail open until they settle.
   const pinned = () =>
@@ -366,7 +368,10 @@ export function ProviderRow(props: ProviderRowProps) {
   const open = () => expanded() || pinned();
   const detailId = () => `provider-detail-${card().id.replace(/[^a-z0-9-]/giu, "-")}`;
   const meta = () =>
-    [modelsText(card()), credentialLine(card())].filter((part): part is string => Boolean(part));
+    [
+      modelsText(card()),
+      usageOnly() ? t("modelProviders.row.agentAccount") : credentialLine(card()),
+    ].filter((part): part is string => Boolean(part));
   return (
     <li
       class={["provider-row model-providers__row", { "provider-row--open": open() }]}
@@ -408,17 +413,19 @@ export function ProviderRow(props: ProviderRowProps) {
               </section>
             )}
           </Show>
-          <section class="provider-row__accounts" aria-label={t("modelProviders.row.accounts")}>
-            {card().profiles.length > 0 && props.canViewProfiles ? (
-              <ProviderProfiles {...props} canMutate={props.canMutate && !props.configBusy} />
-            ) : (
-              renderCredentialSummary(card(), props.credentialAgentLabel)
-            )}
-          </section>
-          <KeyEditor {...props} />
-          {renderProbeResult(props.probeResults[card().id])}
-          {renderMutationMessage(message())}
-          <ProviderActions {...props} />
+          <Show when={!usageOnly()}>
+            <section class="provider-row__accounts" aria-label={t("modelProviders.row.accounts")}>
+              {card().profiles.length > 0 && props.canViewProfiles ? (
+                <ProviderProfiles {...props} canMutate={props.canMutate && !props.configBusy} />
+              ) : (
+                renderCredentialSummary(card(), props.credentialAgentLabel)
+              )}
+            </section>
+            <KeyEditor {...props} />
+            {renderProbeResult(props.probeResults[card().id])}
+            {renderMutationMessage(message())}
+            <ProviderActions {...props} />
+          </Show>
         </div>
       </Show>
     </li>

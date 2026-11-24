@@ -321,6 +321,66 @@ session preserves its saved command representation and conversation history.
 
 See [Plugins](/tools/plugin).
 
+### Agent account usage
+
+An ACP agent with its own login (and its own credits) can show its account
+balance next to model providers: on the Usage page (provider plans and billing),
+in **Plan limits** on the Models page, and in `/usage`-style status text. Add a
+`usage` object to the agent's entry:
+
+```json
+{
+  "plugins": {
+    "entries": {
+      "acpx": {
+        "config": {
+          "agents": {
+            "junie": {
+              "command": "/path/to/junie",
+              "args": ["--acp=true"],
+              "usage": { "command": "stats" }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+- `usage.command` is one of the agent's own slash commands that prints its
+  account usage, without the slash. Unset, the first advertised one of `usage`
+  and `stats` is used. The command is only sent when the agent advertises it in
+  its command list, so an agent without it never gets a model prompt.
+- `usage.timeoutMs` bounds one probe (default 30000, 1000–300000).
+- `usage.cacheTtlMs` is how long a balance is reused (default 600000, at least
+  10000). A failed probe is retried after a minute; the last good balance stays
+  visible meanwhile, with its age.
+- `usage.label` names the entry (default: the agent's `agentIdentities` name,
+  else its id with a capital letter).
+
+The probe starts the agent in a temporary directory, opens a session of its own,
+sends the command, closes that session and stops the process. It never touches
+the agent's other sessions. It runs in the background: the page shows the cached
+balance with its age ("Checked 5 minutes ago") or "Checking…" on the first read
+and fills in when the probe finishes. The agent process inherits the same
+environment as ACP sessions (`agentProcessEnvAllow` / `agentProcessEnvBlock`).
+
+The reply is read as `key: value` lines, so any agent that prints them works:
+
+- `Balance left`, `Balance`, `Remaining balance`, `Credit balance`, `Credits left`
+  or `Remaining credits` with `<number> <unit>` becomes the balance
+  (`1,234.50 USD`, `36.01 credits`; no unit means credits).
+- `License`, `Plan`, `Subscription` or `Tier` becomes the plan.
+- An account on its own API keys usually prints no balance; the entry then shows
+  only the plan.
+- A reply that says the agent is not logged in, an empty reply, a single error
+  line, a missing command or a timeout becomes an error on that entry only.
+
+Each agent appears as its own entry (`acp-<id>`, for example `acp-junie`). It is
+not a model provider and adds no models. Plugins can contribute such entries for
+other runtimes with `api.registerUsageSource`.
+
 ### Automatic adapter download
 
 `acpx` auto-downloads ACP adapters (for example the Claude and Codex ACP

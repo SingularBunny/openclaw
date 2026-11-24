@@ -2,6 +2,7 @@ import type { AuthProfileStore } from "../../agents/auth-profiles.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import { loadProviderUsageSummary } from "../../infra/provider-usage.load.js";
 import { PROVIDER_USAGE_TIMEOUT_MS } from "../../infra/provider-usage.shared.js";
+import { hasPluginUsageSources } from "../../infra/provider-usage.sources.js";
 import type {
   ProviderUsageSnapshot,
   UsageProviderId,
@@ -17,6 +18,8 @@ import {
 
 const log = createSubsystemLogger("provider-usage-cache");
 const DEFAULT_USAGE_CACHE_TTL_MS = 60_000;
+// Fork: a usage source still reading (an ACP agent probe) is asked again this soon.
+const REFRESHING_USAGE_CACHE_TTL_MS = 5_000;
 
 export type ProviderUsageStatus = Pick<
   ProviderUsageSnapshot,
@@ -154,6 +157,8 @@ function scheduleProviderUsageRefresh(
       authStore: params.authStore,
       config: params.configRef,
       timeoutMs: PROVIDER_USAGE_TIMEOUT_MS,
+      // Fork: ACP agents and other plugin usage sources share this snapshot.
+      includeUsageSources: true,
     })
       .then((freshUsage) => {
         const usage = retainLastGoodOnTimeout(freshUsage, params.previous?.summary);
@@ -208,6 +213,13 @@ type ProviderUsageCacheParams = {
   now: number;
 };
 
+function resolveUsageCacheTtlMs(config: OpenClawConfig, entry?: ProviderUsageCacheEntry): number {
+  const ttl = config.models?.usage?.cacheTtlMs ?? DEFAULT_USAGE_CACHE_TTL_MS;
+  return entry?.summary.providers.some((provider) => provider.refreshing)
+    ? Math.min(ttl, REFRESHING_USAGE_CACHE_TTL_MS)
+    : ttl;
+}
+
 function resolveProviderUsageCacheRead(params: ProviderUsageCacheParams) {
   const providerIds = params.providerIds.toSorted();
   const providerKey = providerIds.join("\0");
@@ -222,8 +234,7 @@ function resolveProviderUsageCacheRead(params: ProviderUsageCacheParams) {
   const needsRefresh =
     params.forceRefresh === true ||
     !matching ||
-    params.now - matching.refreshedAt >=
-      (params.configRef.models?.usage?.cacheTtlMs ?? DEFAULT_USAGE_CACHE_TTL_MS);
+    params.now - matching.refreshedAt >= resolveUsageCacheTtlMs(params.configRef, matching);
   return {
     matching,
     needsRefresh,
@@ -254,7 +265,8 @@ export async function readProviderUsage(
     const refresh = scheduleProviderUsageRefresh(refreshParams);
     if (params.awaitRefresh) {
       const usage = await refresh;
-      const failed = usage.providers.find((provider) => provider.error);
+      // Fork: an ACP agent's account (usage source) never fails a model provider refresh.
+      const failed = usage.providers.find((provider) => provider.error && !provider.usageOnly);
       if (failed) {
         throw new Error(`Provider usage refresh failed for ${failed.provider}. Try again later.`);
       }
@@ -267,8 +279,7 @@ export async function readProviderUsage(
   return {
     usageByProvider: published?.usageByProvider ?? new Map(),
     refreshAt: published
-      ? published.refreshedAt +
-        (params.configRef.models?.usage?.cacheTtlMs ?? DEFAULT_USAGE_CACHE_TTL_MS)
+      ? published.refreshedAt + resolveUsageCacheTtlMs(params.configRef, published)
       : params.now,
   };
 }
@@ -289,7 +300,7 @@ export async function loadUsageStatusStaleWhileRevalidate(options: {
     coldRead: options.coldRead,
     now: Date.now(),
   };
-  if (params.providerIds.length === 0) {
+  if (params.providerIds.length === 0 && !hasPluginUsageSources()) {
     usageCacheByAgentId.delete(params.agentId);
     return { updatedAt: params.now, providers: [] };
   }

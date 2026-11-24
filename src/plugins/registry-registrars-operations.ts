@@ -41,6 +41,7 @@ import type {
   OpenClawPluginReloadRegistration,
   OpenClawPluginSecurityAuditCollector,
   OpenClawPluginService,
+  OpenClawPluginUsageSource,
   OpenClawPluginServiceV2,
 } from "./types.js";
 
@@ -331,6 +332,23 @@ export function createOperationRegistrars(state: PluginRegistryState) {
     );
   };
 
+  const registerUsageSource = (record: PluginRecord, source: OpenClawPluginUsageSource) => {
+    const id = normalizeOptionalString(source?.id);
+    if (!id || typeof source.collect !== "function") {
+      reportRegistrationError(record, "usage source registration requires id and collect");
+      return;
+    }
+    if (
+      registry.usageSources.some(
+        (entry) => entry.pluginId === record.id && entry.usageSource.id === id,
+      )
+    ) {
+      reportRegistrationError(record, `usage source already registered: ${id}`);
+      return;
+    }
+    registry.usageSources.push(createRegistration(record, { usageSource: { ...source, id } }));
+  };
+
   const registerGatewayAccessPolicy = (record: PluginRecord, policy: PluginGatewayAccessPolicy) => {
     if (typeof policy.authorize !== "function") {
       reportRegistrationError(record, "Gateway access policy requires an authorize handler");
@@ -487,6 +505,7 @@ export function createOperationRegistrars(state: PluginRegistryState) {
     registerNodeInvokePolicy,
     registerGatewayAccessPolicy,
     registerSecurityAuditCollector,
+    registerUsageSource,
     registerService,
     registerGatewayDiscoveryService,
     registerCommand,
