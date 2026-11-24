@@ -56,6 +56,18 @@ function hasKind(request: AcpxPermissionRequest, kinds: readonly string[]): bool
   return request.raw.options.some((option) => kinds.includes(option.kind));
 }
 
+const PERMISSION_WORDING =
+  /^(?:|once|always|yes|no|ok)$|^(?:always|allow|approve|accept|reject|deny|never)\b/i;
+
+/**
+ * An agent may use `session/request_permission` for a decision of its own (a plan review:
+ * Implement / Revise / Stop). Options not worded as allow/deny are such a decision, and a
+ * read rule must never answer it. Mirrors `isAcpDecisionRequest` in the chat question.
+ */
+export function isAcpxDecisionRequest(request: AcpxPermissionRequest): boolean {
+  return request.raw.options.some((option) => !PERMISSION_WORDING.test(option.name.trim()));
+}
+
 /**
  * True when acpx's own policy settles the request without a prompt: approve-all,
  * deny-all, no options, or a read under approve-reads. Mirrors acpx 0.21
@@ -71,12 +83,40 @@ export function acpxSettlesWithoutPrompt(
   if (permissionMode === "approve-all" || permissionMode === "deny-all") {
     return true;
   }
-  return isReadKind(request.inferredKind) && hasKind(request, ["allow_once", "allow_always"]);
+  return (
+    isReadKind(request.inferredKind) &&
+    hasKind(request, ["allow_once", "allow_always"]) &&
+    !isAcpxDecisionRequest(request)
+  );
 }
 
-/** One grant per tool kind and exact title (a command line or file path), like exec allow-always. */
+function locationPaths(request: AcpxPermissionRequest): string[] {
+  return (request.raw.toolCall.locations ?? []).flatMap((location) =>
+    typeof location?.path === "string" && location.path.trim() ? [location.path.trim()] : [],
+  );
+}
+
+function stableInput(rawInput: unknown): string {
+  try {
+    return JSON.stringify(rawInput ?? null) ?? "null";
+  } catch {
+    return "unserializable";
+  }
+}
+
+/**
+ * One grant per exact request: tool kind, title, files and input, like exec allow-always on
+ * one command line. A generic title ("Allow viewing files?") alone must not carry an
+ * "always" answer over to other files; the agent keeps its own scope (an allowlist pattern)
+ * for the option it offered.
+ */
 function grantKey(request: AcpxPermissionRequest): string {
-  return JSON.stringify([request.inferredKind ?? "other", request.raw.toolCall.title ?? ""]);
+  return JSON.stringify([
+    request.inferredKind ?? "other",
+    request.raw.toolCall.title ?? "",
+    locationPaths(request),
+    stableInput(request.raw.toolCall.rawInput),
+  ]);
 }
 
 function toPromptRequest(request: AcpxPermissionRequest): PermissionPromptRequest {
@@ -86,6 +126,7 @@ function toPromptRequest(request: AcpxPermissionRequest): PermissionPromptReques
     ...(toolCall.title ? { title: toolCall.title } : {}),
     ...(request.inferredKind ? { toolKind: request.inferredKind } : {}),
     ...(toolCall.rawInput !== undefined ? { rawInput: toolCall.rawInput } : {}),
+    ...(locationPaths(request).length > 0 ? { locations: locationPaths(request) } : {}),
     options: request.raw.options.map((option) => ({
       optionId: option.optionId,
       name: option.name,

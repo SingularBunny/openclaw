@@ -14,7 +14,15 @@ const options = [
   { optionId: "reject", name: "Reject", kind: "reject_once" as const },
 ];
 
-function request(params: { kind?: string; title?: string; options?: typeof options } = {}) {
+function request(
+  params: {
+    kind?: string;
+    title?: string;
+    options?: typeof options;
+    locations?: string[];
+    rawInput?: unknown;
+  } = {},
+) {
   return {
     sessionId: "acp-session",
     inferredKind: (params.kind ?? "edit") as never,
@@ -23,7 +31,8 @@ function request(params: { kind?: string; title?: string; options?: typeof optio
       toolCall: {
         toolCallId: "call-1",
         title: params.title ?? "Edit src/app.ts",
-        rawInput: { path: "src/app.ts" },
+        rawInput: "rawInput" in params ? params.rawInput : { path: "src/app.ts" },
+        ...(params.locations ? { locations: params.locations.map((path) => ({ path })) } : {}),
       },
       options: params.options ?? options,
     },
@@ -58,6 +67,40 @@ describe("acpx permission prompt bridge", () => {
     ["approve-reads", "execute", false],
   ] as const)("mode %s with %s settles without a prompt: %s", (mode, kind, expected) => {
     expect(acpxSettlesWithoutPrompt(request({ kind }), mode)).toBe(expected);
+  });
+
+  it("never lets the read rule answer an agent's own decision (plan review)", () => {
+    const decision = request({
+      kind: "read",
+      title: "Implement this plan?",
+      options: [
+        { optionId: "implement", name: "Implement", kind: "allow_once" },
+        { optionId: "stop", name: "Save the plan and stop", kind: "reject_once" },
+      ] as unknown as typeof options,
+    });
+    expect(acpxSettlesWithoutPrompt(decision, "approve-reads")).toBe(false);
+    expect(acpxSettlesWithoutPrompt(request({ kind: "read" }), "approve-reads")).toBe(true);
+  });
+
+  it.each([
+    ["Allow viewing files?", "other"],
+    ["Allow changes in this file?", "other"],
+    ["git status", "execute"],
+  ])("asks for %s (kind %s) under approve-reads", (title, kind) => {
+    // How JetBrains Junie sends file access outside its project and terminal commands.
+    expect(
+      acpxSettlesWithoutPrompt(
+        request({
+          kind,
+          title,
+          options: [
+            { optionId: "Yes", name: "Yes", kind: "allow_once" },
+            { optionId: "No", name: "No", kind: "reject_once" },
+          ] as unknown as typeof options,
+        }),
+        "approve-reads",
+      ),
+    ).toBe(false);
   });
 
   it("leaves requests acpx settles itself to acpx", async () => {
@@ -104,6 +147,33 @@ describe("acpx permission prompt bridge", () => {
     expect(prompt).toHaveBeenCalledTimes(2);
     grants.forget(sessionKey);
     await handler(request(), context());
+    expect(prompt).toHaveBeenCalledTimes(3);
+  });
+
+  it("passes the files an action touches to the question", async () => {
+    const prompt = vi.fn(async () => ({ outcome: "selected" as const, optionId: "allow" }));
+    const { handler } = bridge(prompt);
+    await handler(
+      request({ kind: "other", title: "Allow viewing files?", locations: ["/repo/a.py"] }),
+      context(),
+    );
+    expect(prompt).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Allow viewing files?", locations: ["/repo/a.py"] }),
+      expect.anything(),
+    );
+  });
+
+  it("does not carry allow always for a generic title over to other files", async () => {
+    const prompt = vi.fn(async () => ({ outcome: "selected" as const, optionId: "always" }));
+    const { handler } = bridge(prompt);
+    const view = (path: string) =>
+      request({ kind: "other", title: "Allow viewing files?", locations: [path], rawInput: {} });
+    await handler(view("/repo/a.py"), context());
+    await handler(view("/repo/a.py"), context());
+    expect(prompt).toHaveBeenCalledTimes(1);
+    await handler(view("/etc/shadow"), context());
+    expect(prompt).toHaveBeenCalledTimes(2);
+    await handler(request({ rawInput: { path: "src/other.ts" } }), context());
     expect(prompt).toHaveBeenCalledTimes(3);
   });
 

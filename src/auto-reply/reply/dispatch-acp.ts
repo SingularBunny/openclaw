@@ -28,7 +28,6 @@ import {
   PreparedQuestionAnswerRefusedError,
   QuestionAnswerUnconfirmedError,
 } from "../../agents/harness/gateway-question-dispatch.js";
-import { claimPreparedPendingAgentQuestionAnswer } from "../../agents/harness/gateway-question.js";
 import { toolPolicyRestrictsTools } from "../../agents/tool-policy.js";
 import { recordRuntimeActionDecision } from "../../audit/runtime-action-decision.js";
 import { readChannelContextAdmissionEvidence } from "../../channels/message-access/admission-evidence.js";
@@ -53,6 +52,7 @@ import type {
 } from "../get-reply-options.types.js";
 import { createLazyAcpTurnInputHandlers } from "./acp-permission-prompt-lazy.js";
 import { createAcpReplyProjector } from "./acp-projector.js";
+import { claimAcpQuestionAnswer } from "./acp-question-target.js";
 import { resolveAcpProjectionSettings } from "./acp-stream-settings.js";
 import {
   collectDescribedImageAttachmentIndexes,
@@ -213,9 +213,9 @@ export async function tryDispatchAcpReplyCore(
       !params.images?.length &&
       !params.extractedFileImages?.length &&
       !hasInboundMediaForUnderstanding(params.ctx) &&
-      (await claimPreparedPendingAgentQuestionAnswer(
+      (await claimAcpQuestionAnswer(
         {
-          sessionKey: acpResolution.sessionKey,
+          sessionKeys: [params.ctx.SessionKey, acpResolution.sessionKey],
           text: pendingAnswerText,
           sourceRecorder: inputRecorder,
           // The released question dispatcher retains its opaque synchronous source guard.
@@ -577,6 +577,7 @@ export async function tryDispatchAcpReplyCore(
     const turnInputHandlers = createLazyAcpTurnInputHandlers({
       agentLabel: resolvedAcpAgent,
       sourceSessionKey: sessionKey,
+      conversationSessionKey: params.ctx.SessionKey,
       targetSessionKey: canonicalSessionKey,
       outerRequestId: requestId,
       agentId: acpAgentId,

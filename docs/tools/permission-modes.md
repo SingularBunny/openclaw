@@ -76,9 +76,14 @@ For app-server setup, auth order, and native Codex runtime details, see [Codex h
 ACPX sessions have no interactive TTY for permission prompts. Supported ACP
 form and URL requests can still reach the operator as Gateway questions during
 a channel-delivered turn. With `nonInteractivePermissions: ask` (the fork
-default), permission prompts use the same Gateway questions: the chat shows
-**Allow once**, **Allow always** and **Deny** buttons. ACPX uses separate
-harness-level settings under `plugins.entries.acpx.config`:
+default), permission prompts use the same Gateway questions: the chat the
+message was typed in (a chat bound to the ACP session included) shows
+**Allow once**, **Allow always** and **Deny** buttons, with the agent's scope
+for "always" as the description. `approve-reads` approves only requests whose
+ACP kind (or title) is a read; an agent request of kind `other`, such as Junie's
+"Allow viewing files?" for a file outside its working directory, is asked (see
+[ACP agents setup](/tools/acp-agents-setup#permission-questions-in-chat-ask)).
+ACPX uses separate harness-level settings under `plugins.entries.acpx.config`:
 
 | Setting                     | Values          | Meaning                                                           |
 | --------------------------- | --------------- | ----------------------------------------------------------------- |

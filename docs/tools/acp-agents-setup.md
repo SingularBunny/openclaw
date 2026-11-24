@@ -509,8 +509,43 @@ When an ACP agent (any agent: Junie, Codex, Claude Code, Gemini, ...) sends
 `session/request_permission` for an action that `permissionMode` does not settle
 (with `approve-reads`: writes, edits, deletes, moves, shell commands, fetches),
 OpenClaw asks the user in the chat the turn came from, the same way it asks ACP
-form questions. The question names the agent, the action (tool title and kind)
-and its input, and shows one button per option the agent offers:
+form questions.
+
+**Where the buttons appear.** The question belongs to the conversation the
+message was typed in:
+
+- A chat bound to an ACP session (`/acp spawn <agent> --bind here`, an agent
+  picked in the model picker, an imported chat continued with an agent): the
+  buttons appear in that chat, and its sidebar row shows "Waiting for your
+  answer". Before this, the question was filed under the ACP session's own key
+  and the bound chat showed only "working".
+- A message sent to the ACP session itself: the buttons appear there.
+- A bound channel conversation or thread (Telegram, Discord, Slack, ...): the
+  question is sent there with native buttons where the channel has them, like
+  any agent question; a typed reply (number or option text) answers it too.
+
+ACP form questions (`session/elicitation`) follow the same rule.
+
+**What an agent can ask, and how it is shown.**
+
+| Request                                                     | Arrives as                                                                                                                                                                                                      | Shown as                                                                                                              | Default                                                        |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| Permission for a tool call                                  | `session/request_permission`, tool kind `read`, `search`, `edit`, `delete`, `move`, `execute`, `fetch`, `think`, `switch_mode` or `other`; options `allow_once`, `allow_always`, `reject_once`, `reject_always` | Question: **Allow once**, **Allow always**, **Deny**, **Deny always**                                                 | `approve-reads`: kind `read`/`search` approved, the rest asked |
+| A decision of the agent's own (a plan review, a step limit) | `session/request_permission` whose option names are not allow/deny wording (Implement / Spawn agentic team / Revise / Save the plan and stop; Stop / Continue)                                                  | Question titled "Decision" with the agent's option names; long text (the plan) posted in full as a chat message first | Always asked; no read rule answers it                          |
+| A form or a choice                                          | `session/elicitation` (form: string, number, boolean, single and multi select; or URL)                                                                                                                          | The same question card: fields, choices, free text                                                                    | Always asked (15 minutes, then cancelled)                      |
+| A free question                                             | The agent's reply text, ending its turn                                                                                                                                                                         | A normal reply; the user answers by writing                                                                           | Not a question record                                          |
+
+JetBrains Junie uses all four: file access outside its project and edits as
+`other` ("Allow viewing files?", "Allow changes in this file?"), terminal
+commands as `execute`, its plan review and step limit as decisions, its
+`AskUser` questions as forms when the client supports forms (OpenClaw does),
+and plain questions as reply text. Junie does not ask for reads inside its
+project.
+
+**What the question says.** It names the agent, the action (the tool title, its
+kind unless it is the uninformative `other`), the files it touches (ACP tool
+call `locations`) and its input, and shows one button per option the agent
+offers:
 
 | ACP option kind | Button       |
 | --------------- | ------------ |
@@ -519,14 +554,30 @@ and its input, and shows one button per option the agent offers:
 | `reject_once`   | Deny         |
 | `reject_always` | Deny always  |
 
+The agent's own wording of an option goes to the button's description, so the
+scope of an "always" answer is visible: Junie's `Always allow ("/repo/*")`
+becomes **Allow always** with the description `/repo/*`. When an agent offers
+one kind twice (two "always" scopes), the scope goes into the label so the
+buttons differ: **Allow always** and **Allow always: /repo/src/\***.
+
 The user can also reply with the option number or text. The answer goes back to
 the agent and the turn continues.
 
-- **Allow always** is passed to the agent as its `allow_always` option, and
-  OpenClaw also remembers it for the session (same tool kind and exact title, so
-  the same command or file), so an agent that asks again is answered without a
-  question. A different command or file is asked again. The memory ends when the
-  Gateway restarts.
+- **Long input** (a plan in markdown, a file body) longer than 600 characters
+  is posted in full as a chat message just before the question, and the
+  question points to it; tool input is shown field by field, not as escaped
+  JSON.
+- **Several requests at once** (an agent running tool calls in parallel, a
+  form while a permission question is open) are asked one after another in
+  the same chat; each is answered on its own and none is denied for being
+  second.
+- **Allow always** is passed to the agent as its `allow_always` option; the
+  agent keeps its own scope for it (Junie writes the pattern to
+  `~/.junie/allowlist.json` and stops asking for it). OpenClaw also remembers
+  it for the session, but only for the identical request (same tool kind,
+  title, files and input), so an agent that asks the same thing again is
+  answered without a question. A generic title such as "Allow viewing files?"
+  for another file is asked again. The memory ends when the Gateway restarts.
 - **No answer** within 30 minutes (the exec approval timeout,
   `DEFAULT_EXEC_APPROVAL_TIMEOUT_MS`) denies the action; the agent gets the
   rejection and the turn continues. The chat says so and what to do.
@@ -536,12 +587,29 @@ the agent and the turn continues.
   and the Gateway log say why, and the turn continues instead of failing. Talk
   to the agent in a bound chat or thread (`/acp spawn`, `/focus`) to approve
   actions there.
+- **Stop, cancel, close, restart**: a user Stop, a turn cancel or an ACP session
+  close aborts the request (acpx aborts its signal); the question is withdrawn,
+  its buttons disappear and the action is denied. Questions live in Gateway
+  memory, so after a Gateway restart the Control UI drops the stale card on
+  reconnect and the agent process is gone with its request.
 - While the question waits, the turn keeps its watchdog hold, so the reply
-  watchdog does not stop it for silence. A user Stop cancels the question and
-  denies the action.
+  watchdog does not stop it for silence.
 
 Reads are still auto-approved by `approve-reads`, `approve-all` still approves
 everything without asking, and `deny-all` still denies without asking.
+
+`approve-reads` recognizes a read by the ACP tool kind (`read`, `search`) or a
+title that starts with `read`, `cat`, `search`, `find` or `grep` (acpx's
+classification). A request that an agent sends with kind `other` and a title
+such as "Allow viewing files?" is not a read to it and is asked. JetBrains Junie
+sends exactly that, and only for files **outside its project directory** (the
+ACP session's working directory, its `readOutsideProject` rule); it does not
+ask for files inside it. If Junie asks for every file, the session's working
+directory is not the project it works in. Fix that first: start the session in
+the project (`/acp spawn junie --bind here --cwd /path/to/project`; without
+`--cwd` the session inherits the OpenClaw agent's workspace), or press **Allow always** once to add the shown pattern to Junie's
+allowlist, or add a `readOutsideProject` rule to `~/.junie/allowlist.json`.
+OpenClaw does not guess that a request of kind `other` is a read.
 
 With `ask` and `approve-reads`, the permission request is the approval point:
 a file write (`fs/write_text_file`) or terminal command (`terminal/create`) that
