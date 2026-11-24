@@ -390,6 +390,12 @@ export type PluginRegistry = {
       collector: import("./types.js").OpenClawPluginSecurityAuditCollector;
     }
   >;
+  /** Fork: account usage of non-provider runtimes (ACP agents) for the Limits views. */
+  usageSources: Array<
+    PluginRegistrationOwner & {
+      usageSource: import("./types.js").OpenClawPluginUsageSource;
+    }
+  >;
   services: PluginServiceRegistration[];
   gatewayDiscoveryServices: PluginGatewayDiscoveryServiceRegistration[];
   commands: PluginCommandRegistration[];

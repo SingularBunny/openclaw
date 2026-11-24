@@ -71,6 +71,7 @@ import type {
   OpenClawPluginReloadRegistration,
   OpenClawPluginSecurityAuditCollector,
   OpenClawPluginService,
+  OpenClawPluginUsageSource,
   OpenClawPluginServiceV2,
   PluginInteractiveHandlerRegistration,
   PluginRegistrationMode,
@@ -310,6 +311,8 @@ export type OpenClawPluginApi = {
   registerNodeHostCommand: (command: OpenClawPluginNodeHostCommand) => void;
   registerNodeInvokePolicy: (policy: OpenClawPluginNodeInvokePolicy) => void;
   registerSecurityAuditCollector: (collector: OpenClawPluginSecurityAuditCollector) => void;
+  /** Fork: contribute account usage (balance, plan) without registering a model provider. */
+  registerUsageSource: (source: OpenClawPluginUsageSource) => void;
   registerService: {
     (service: OpenClawPluginService): void;
     (service: OpenClawPluginServiceV2): void;

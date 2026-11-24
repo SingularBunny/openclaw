@@ -334,6 +334,31 @@ export type OpenClawPluginSecurityAuditCollector = (
   ctx: OpenClawPluginSecurityAuditContext,
 ) => SecurityAuditFinding[] | Promise<SecurityAuditFinding[]>;
 
+/** Fork: what the host hands a usage source on each provider-usage read. */
+export type OpenClawPluginUsageSourceContext = {
+  config: OpenClawConfig;
+  env: NodeJS.ProcessEnv;
+  /** Aborted when the host stops waiting; the source may keep refreshing in the background. */
+  signal: AbortSignal;
+  /** How long the host waits. Answer with cached or refreshing snapshots before it. */
+  timeoutMs: number;
+};
+
+/**
+ * Fork: account usage (balances, plans) of something that is not a model provider,
+ * such as an ACP agent with its own login. Its snapshots join provider usage and the
+ * Limits views; nothing here makes the entry a selectable model provider.
+ */
+export type OpenClawPluginUsageSource = {
+  /** Stable id of this source within the plugin. */
+  id: string;
+  collect: (
+    ctx: OpenClawPluginUsageSourceContext,
+  ) =>
+    | import("../infra/provider-usage.types.js").ProviderUsageSnapshot[]
+    | Promise<import("../infra/provider-usage.types.js").ProviderUsageSnapshot[]>;
+};
+
 export type OpenClawGatewayDiscoveryAdvertiseContext = {
   machineDisplayName: string;
   gatewayPort: number;

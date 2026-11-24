@@ -51,6 +51,29 @@ export type ResolvedAcpxPluginConfig = {
 const nonEmptyTrimmedString = (message: string) =>
   z.string({ error: message }).trim().min(1, { error: message });
 
+const USAGE_COMMAND_MESSAGE =
+  "agents.<id>.usage.command must be a slash command name such as stats or usage";
+/** Fork: per-agent account usage probe; see docs/tools/acp-agents-setup.md. */
+export const AcpxAgentUsageSchema = z.strictObject({
+  command: z
+    .string({ error: USAGE_COMMAND_MESSAGE })
+    .trim()
+    .regex(/^\/?[A-Za-z0-9][A-Za-z0-9_:.-]{0,63}$/, { error: USAGE_COMMAND_MESSAGE })
+    .optional(),
+  timeoutMs: z
+    .number({ error: "agents.<id>.usage.timeoutMs must be a number" })
+    .int()
+    .min(1000)
+    .max(300_000)
+    .optional(),
+  cacheTtlMs: z
+    .number({ error: "agents.<id>.usage.cacheTtlMs must be a number" })
+    .int()
+    .min(10_000)
+    .optional(),
+  label: z.string().trim().min(1).max(64).optional(),
+});
+
 // Mirrors acpx's name contract (non-empty, no '=' or NUL) and also rejects
 // whitespace, which only appears in config through typos.
 const envNameListSchema = (option: string) => {
@@ -129,6 +152,8 @@ export const AcpxPluginConfigSchema = z.strictObject({
       z.strictObject({
         command: nonEmptyTrimmedString("agents.<id>.command must be a non-empty string"),
         args: z.array(z.string({ error: "args must be an array of strings" })).optional(),
+        /** Fork: probe the agent's account usage (balance, plan) with one of its slash commands. */
+        usage: AcpxAgentUsageSchema.optional(),
       }),
     )
     .optional(),

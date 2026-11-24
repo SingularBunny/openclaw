@@ -17,6 +17,7 @@ import {
   providerUsageLabel,
   raceUsageTimeout,
 } from "./provider-usage.shared.js";
+import { collectPluginUsageSnapshots } from "./provider-usage.sources.js";
 import type {
   ProviderUsageSnapshot,
   UsageProviderId,
@@ -34,6 +35,11 @@ export async function loadProviderUsageSummary(
     workspaceDir?: string;
     config?: OpenClawConfig;
     env?: NodeJS.ProcessEnv;
+    /**
+     * Fork: add plugin usage sources (ACP agents and other non-provider accounts).
+     * Defaults to on for unfiltered reads and off when `providers`/`auth` narrow the read.
+     */
+    includeUsageSources?: boolean;
   } = {},
 ): Promise<UsageSummary> {
   const now = Date.now();
@@ -41,6 +47,7 @@ export async function loadProviderUsageSummary(
   const config = opts.config ?? getRuntimeConfig();
   const env = opts.env ?? process.env;
   const requestedProviders = opts.providers ?? opts.auth?.map(({ provider }) => provider);
+  const includeUsageSources = opts.includeUsageSources ?? !requestedProviders;
   const descriptors: ProviderUsagePluginDescriptor[] = requestedProviders
     ? requestedProviders.map((provider) => ({
         provider,
@@ -152,9 +159,16 @@ export async function loadProviderUsageSummary(
     });
   });
 
-  const snapshots = (await Promise.all(tasks)).filter(
+  const sourceTask = includeUsageSources
+    ? collectPluginUsageSnapshots({ config, env, timeoutMs })
+    : Promise.resolve([]);
+  const [providerSnapshots, sourceSnapshots] = await Promise.all([Promise.all(tasks), sourceTask]);
+  const snapshots = providerSnapshots.filter(
     (snapshot): snapshot is ProviderUsageSnapshot => snapshot !== undefined,
   );
+  // A source never shadows a model provider's own usage entry.
+  const providerIds = new Set(snapshots.map((snapshot) => snapshot.provider));
+  snapshots.push(...sourceSnapshots.filter((snapshot) => !providerIds.has(snapshot.provider)));
   const providers = snapshots.filter(
     (entry) =>
       entry.windows.length > 0 ||

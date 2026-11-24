@@ -20,6 +20,14 @@ import { createLazyAcpRuntimeProxy, type CompleteAcpRuntime } from "./src/runtim
 const ACPX_BACKEND_ID = "acpx";
 type RealAcpxServiceModule = typeof import("./src/service.js");
 const loadServiceModule = createLazyRuntimeModule(() => import("./src/service.js"));
+const loadUsageSourceModule = createLazyRuntimeModule(() => import("./src/usage-source.js"));
+
+/** Cheap check before loading the probe: does any configured agent opt into usage? */
+function hasAgentUsageProbe(rawConfig: unknown): boolean {
+  const agents = (rawConfig as { agents?: Record<string, { usage?: unknown }> } | undefined)
+    ?.agents;
+  return Object.values(agents ?? {}).some((entry) => entry?.usage !== undefined);
+}
 
 function unregisterOwnedRuntime(runtime: CompleteAcpRuntime | null): void {
   if (runtime && getAcpRuntimeBackend(ACPX_BACKEND_ID)?.runtime === runtime) {
@@ -41,6 +49,27 @@ const plugin = {
     let realService: ReturnType<RealAcpxServiceModule["createAcpxRuntimeService"]> | null = null;
     let startPromise: Promise<CompleteAcpRuntime> | null = null;
     let stopPromise: Promise<void> | null = null;
+    // Fork: account usage of configured ACP agents (agents.<id>.usage) in the Limits views.
+    let usageSource: import("./src/usage-source.js").AcpAgentUsageSource | null = null;
+    // A host without usage sources (older than this plugin) still loads the plugin.
+    const { registerUsageSource } = api as Partial<Pick<OpenClawPluginApi, "registerUsageSource">>;
+    registerUsageSource?.call(api, {
+      id: "acp-agents",
+      async collect(usageCtx) {
+        const rawConfig = usageCtx.config.plugins?.entries?.acpx?.config;
+        if (!hasAgentUsageProbe(rawConfig)) {
+          return [];
+        }
+        const { createAcpAgentUsageSource } = await loadUsageSourceModule();
+        usageSource ??= createAcpAgentUsageSource();
+        return await usageSource.collect({
+          rawConfig,
+          env: usageCtx.env,
+          signal: usageCtx.signal,
+          timeoutMs: usageCtx.timeoutMs,
+        });
+      },
+    });
     async function startRealService(
       expectedRevision: number,
       deferredRuntime: CompleteAcpRuntime,
@@ -217,6 +246,9 @@ const plugin = {
         lifecycleRevision += 1;
         ctx = null;
         published = false;
+        // Usage probes are short-lived children of this plugin generation.
+        usageSource?.dispose();
+        usageSource = null;
         const stoppingRuntime = ownedRuntime;
         unregisterOwnedRuntime(stoppingRuntime);
         const startingPromise = startPromise;

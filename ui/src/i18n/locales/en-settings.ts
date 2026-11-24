@@ -1112,6 +1112,8 @@ const enSettings = {
       catalogOnly: "{models} in the catalog, no saved credentials",
       noCredentials: "No saved credentials",
       managedOutside: "Credentials managed outside OpenClaw",
+      // Fork: an ACP agent's own account, shown for its balance only.
+      agentAccount: "Agent account, managed by the agent",
     },
     limits: {
       title: "Plan limits",

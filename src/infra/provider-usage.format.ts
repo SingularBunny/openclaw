@@ -37,6 +37,19 @@ function formatResetRemaining(targetMs?: number): string | null {
   }).format(new Date(targetMs));
 }
 
+// Fork: age of values a usage source serves from its own cache.
+function formatObservedAge(observedAt: number): string {
+  const mins = Math.max(0, Math.floor((Date.now() - observedAt) / 60000));
+  if (mins < 1) {
+    return "just now";
+  }
+  if (mins < 60) {
+    return `${mins}m ago`;
+  }
+  const hours = Math.floor(mins / 60);
+  return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
+}
+
 function formatBillingAmount(amount: number, unit: string): string {
   const normalizedUnit = unit.trim().toUpperCase();
   if (normalizedUnit === "USD") {
@@ -89,7 +102,8 @@ export function formatUsageReportLines(summary: UsageSummary): string[] {
       continue;
     }
     if (entry.windows.length === 0 && !entry.billing?.length) {
-      lines.push(`  ${entry.displayName}${planSuffix}: ${entry.summary?.trim() || "no data"}`);
+      const fallback = entry.refreshing ? "checking…" : "no data";
+      lines.push(`  ${entry.displayName}${planSuffix}: ${entry.summary?.trim() || fallback}`);
       continue;
     }
     lines.push(`  ${entry.displayName}${planSuffix}`);
@@ -104,6 +118,10 @@ export function formatUsageReportLines(summary: UsageSummary): string[] {
     }
     for (const billing of entry.billing ?? []) {
       lines.push(`    ${formatBillingEntry(billing)}`);
+    }
+    if (entry.observedAt !== undefined) {
+      const refreshing = entry.refreshing ? ", checking again" : "";
+      lines.push(`    Checked ${formatObservedAge(entry.observedAt)}${refreshing}`);
     }
   }
   return lines;

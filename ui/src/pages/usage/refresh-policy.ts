@@ -41,8 +41,12 @@ export class UsageRefreshPolicy {
     value: number | null,
     connection: unknown,
   ): void {
+    // Fork: a usage source still reading one account (an ACP agent) is incomplete too.
     const incomplete =
-      result?.ok === false || (result?.ok === true && result.value.refreshing === true);
+      result?.ok === false ||
+      (result?.ok === true &&
+        (result.value.refreshing === true ||
+          result.value.providers.some((provider) => provider.refreshing === true)));
     this.applyLoadState(value, incomplete, connection);
   }
 

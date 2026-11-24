@@ -74,3 +74,39 @@ it("keeps provider identification through probe and access changes", () => {
     { name: "Set API key: OpenAI", text: "Set API key", disabled: true },
   ]);
 });
+
+it("shows an ACP agent's account usage as limits only, with no credential actions", () => {
+  const container = mount(
+    props({
+      cards: [
+        card({
+          id: "acp-junie",
+          displayName: "Junie",
+          credentialProviderIds: [],
+          apiKey: undefined,
+          configApiKeys: [],
+          modelCount: 0,
+          availableModelCount: 0,
+          usage: {
+            provider: "acp-junie",
+            displayName: "Junie",
+            windows: [],
+            plan: "Example AI Ultimate",
+            billing: [{ type: "balance", label: "Balance left", amount: 42.5, unit: "credits" }],
+            usageOnly: true,
+          },
+        }),
+      ],
+      canConnect: () => true,
+    }),
+  );
+  const row = container.querySelector<HTMLElement>('[data-provider-id="acp-junie"]')!;
+  expect(text(row.querySelector(".provider-row__meta")!)).toBe(
+    "Agent account, managed by the agent",
+  );
+  row.querySelector<HTMLButtonElement>(".provider-row__summary")!.click();
+  flush();
+  expect(text(row.querySelector('[aria-label="Plan limits"]')!)).toContain("Balance left");
+  expect(actions(container, "acp-junie")).toEqual([]);
+  expect(row.querySelector(".provider-row__accounts")).toBeNull();
+});

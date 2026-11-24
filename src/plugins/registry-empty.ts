@@ -41,6 +41,7 @@ export const pluginArrays = [
   "nodeInvokePolicies",
   "gatewayAccessPolicies",
   "securityAuditCollectors",
+  "usageSources",
   "services",
   "gatewayDiscoveryServices",
   "commands",

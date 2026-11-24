@@ -8,7 +8,8 @@ import {
 } from "../../agents/auth-profiles.js";
 import type { OpenClawConfig } from "../../config/types.openclaw.js";
 import type { UsageSummary } from "../../infra/provider-usage.types.js";
-import { resetPluginRuntimeStateForTest } from "../../plugins/runtime.js";
+import { createEmptyPluginRegistry } from "../../plugins/registry-empty.js";
+import { resetPluginRuntimeStateForTest, setActivePluginRegistry } from "../../plugins/runtime.js";
 import { AsyncWorkScope } from "../../shared/async-work-scope.js";
 import { createDeferredCore } from "../../shared/deferred.js";
 import type { GatewayClient } from "./types.js";
@@ -189,6 +190,59 @@ describe("usage.status provider usage cache", () => {
       expect(mocks.loadSummary).toHaveBeenCalledTimes(selectionChanges ? 2 : 1);
     },
   );
+
+  it("asks a still-reading usage source again after a few seconds", async () => {
+    const source = { provider: "acp-junie", displayName: "Junie", windows: [] };
+    mocks.loadSummary
+      .mockResolvedValueOnce({ updatedAt: now, providers: [{ ...source, refreshing: true }] })
+      .mockResolvedValueOnce({ updatedAt: now, providers: [{ ...source, observedAt: now }] });
+    await expect(runUsageStatus()).resolves.toMatchObject({
+      providers: [{ refreshing: true }],
+    });
+    now += 6_000;
+    await settledStatus(null);
+    await expect(runUsageStatus()).resolves.toMatchObject({
+      providers: [{ provider: "acp-junie", observedAt: expect.any(Number) }],
+    });
+    expect(mocks.loadSummary).toHaveBeenCalledTimes(2);
+    now += 6_000;
+    await runUsageStatus();
+    expect(mocks.loadSummary).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fail a post-run provider refresh on a usage source's error", async () => {
+    mocks.loadSummary.mockResolvedValueOnce({
+      updatedAt: now,
+      providers: [
+        usageSummary(now, 10).providers[0]!,
+        { provider: "acp-junie", displayName: "Junie", windows: [], error: "x", usageOnly: true },
+      ],
+    });
+    const read = await readProviderUsage({
+      ...(await getProviderUsageRuntimeSnapshot({ config })),
+      providerIds: ["openai"],
+      now,
+      awaitRefresh: true,
+    });
+    expect(read.usageByProvider.get("openai")?.windows).toEqual([{ label: "5h", usedPercent: 10 }]);
+  });
+
+  it("reads plugin usage sources when no model provider reports usage", async () => {
+    const registry = createEmptyPluginRegistry();
+    registry.usageSources.push({
+      pluginId: "acpx",
+      source: "test",
+      usageSource: { id: "acp-agents", collect: () => [] },
+    });
+    setActivePluginRegistry(registry);
+    mocks.listDescriptors.mockReturnValue([]);
+    const entry = { provider: "acp-junie", displayName: "Junie", windows: [] };
+    mocks.loadSummary.mockResolvedValueOnce({ updatedAt: now, providers: [entry] });
+    await expect(runUsageStatus()).resolves.toMatchObject({ providers: [entry] });
+    expect(mocks.loadSummary).toHaveBeenCalledWith(
+      expect.objectContaining({ providers: [], includeUsageSources: true }),
+    );
+  });
 
   it("keeps a failed refresh incomplete for capable clients and recovers", async () => {
     mocks.loadSummary.mockRejectedValueOnce(new Error("provider stack down"));

@@ -279,6 +279,10 @@ describe("loadOpenClawPlugins", () => {
         id: "failme",
         collect: async () => [],
       });
+      api.registerUsageSource({
+        id: "failme",
+        collect: async () => [],
+      });
       api.registerInteractiveHandler({
         channel: "slack",
         namespace: "failme",
@@ -319,6 +323,7 @@ describe("loadOpenClawPlugins", () => {
     expect(registry.nodeHostCommands).toStrictEqual([]);
     expect(registry.nodeInvokePolicies).toStrictEqual([]);
     expect(registry.securityAuditCollectors).toStrictEqual([]);
+    expect(registry.usageSources).toStrictEqual([]);
     expect(registry.interactiveHandlers).toStrictEqual([]);
     expect(
       resolvePluginInteractiveRegistrationsMatch(
