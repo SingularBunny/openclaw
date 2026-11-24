@@ -162,6 +162,9 @@ export function createLazyGatewayCronState(
     getSuspensionBlockerCount() {
       return loaded?.cron.getSuspensionBlockerCount?.() ?? 0;
     },
+    getParkedStartCount() {
+      return loaded?.cron.getParkedStartCount?.() ?? 0;
+    },
     status: bindCron((state) => state.cron.status.bind(state.cron)),
     list: bindCron((state) => state.cron.list.bind(state.cron)),
     listPage: bindCron((state) => state.cron.listPage.bind(state.cron)),

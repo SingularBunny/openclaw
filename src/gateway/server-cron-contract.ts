@@ -44,6 +44,11 @@ export type GatewayCronServiceContract = CronServiceContract & {
   resumeScheduling(): void;
   /** Scheduler-owned work not represented by active cron run markers. */
   getSuspensionBlockerCount?(): number;
+  /**
+   * Fork: starts parked until scheduling resumes. They are included in
+   * getSuspensionBlockerCount but run nothing; maintenance status subtracts them.
+   */
+  getParkedStartCount?(): number;
   /** Materialize lazy cron dependencies before a synchronous operator wake. */
   prepareWake?(): Promise<void>;
   /** Stop cron and await scheduler-owned child process teardown. */

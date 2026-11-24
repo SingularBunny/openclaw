@@ -63,7 +63,7 @@ import {
 } from "./scheduled-run-gateway-context.js";
 import { createGatewayCronAgentDeps } from "./server-cron-agent-run.js";
 import { finalizeCronCompletionAnnouncement, pickDefined } from "./server-cron-completion.js";
-import type { GatewayCronState } from "./server-cron-contract.js";
+import type { GatewayCronServiceContract, GatewayCronState } from "./server-cron-contract.js";
 import {
   bindCronStreamRemoval,
   bindCronStreamUpdate,
@@ -878,6 +878,7 @@ export function buildGatewayCronService(params: {
   let startPromise: Promise<void> | undefined;
   let schedulingPaused = false;
   let schedulingResume: Deferred | undefined;
+  let startParked = false;
   const stopCronLifecycle = (handover = false) => {
     stopped = true;
     heartbeatSummary.clear();
@@ -941,6 +942,10 @@ export function buildGatewayCronService(params: {
     schedulingResume = undefined;
     resumeScheduling();
   };
+  // Fork: a start parked by paused scheduling stays a suspension blocker (upstream contract), but it
+  // waits for maintenance to end, so maintenance status reads it separately instead of waiting on it.
+  const gatewayCron: GatewayCronServiceContract = cron;
+  gatewayCron.getParkedStartCount = () => Number(startParked);
   // Fork: maintenance mode keeps scheduling paused; due jobs run once it ends (deferred, not skipped).
   if (isGatewayMaintenanceActive()) {
     cron.pauseScheduling();
@@ -965,7 +970,13 @@ export function buildGatewayCronService(params: {
     }
     if (schedulingPaused) {
       schedulingResume ??= createDeferredCore();
-      await schedulingResume.promise;
+      // Fork: a parked start runs nothing; maintenance status must not wait on it.
+      startParked = true;
+      try {
+        await schedulingResume.promise;
+      } finally {
+        startParked = false;
+      }
     }
     if (stopped) {
       return;

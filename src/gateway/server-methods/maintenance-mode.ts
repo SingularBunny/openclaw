@@ -9,6 +9,7 @@ import {
 } from "../../process/gateway-maintenance-mode.js";
 import { countRunningAgentTurns } from "../restart-agent-run-wait.js";
 import { createGatewayServerActiveWorkInspectors } from "../server-active-work.js";
+import type { GatewayRequestContext } from "./shared-types.js";
 import type { GatewayRequestHandlers } from "./types.js";
 
 /**
@@ -38,12 +39,18 @@ export type GatewayMaintenanceStatus = {
 };
 
 export function readGatewayMaintenanceStatus(
-  context: Parameters<typeof createGatewayServerActiveWorkInspectors>[0],
+  context: Parameters<typeof createGatewayServerActiveWorkInspectors>[0] & {
+    cron: Pick<GatewayRequestContext["cron"], "getParkedStartCount">;
+  },
 ): GatewayMaintenanceStatus {
   const maintenance = getGatewayMaintenance();
-  const snapshot = createGatewayActiveWorkSnapshot(
-    createGatewayServerActiveWorkInspectors(context),
-  );
+  const inspectors = createGatewayServerActiveWorkInspectors(context);
+  const readCronRuns = inspectors.getCronRuns;
+  // A cron start parked by paused scheduling runs nothing and resumes only when maintenance ends;
+  // counting it made the installer wait on work that was itself waiting for maintenance.
+  inspectors.getCronRuns = () =>
+    Math.max(0, (readCronRuns?.() ?? 0) - (context.cron.getParkedStartCount?.() ?? 0));
+  const snapshot = createGatewayActiveWorkSnapshot(inspectors);
   const { counts } = snapshot;
   const activeTurns = countRunningAgentTurns(counts) + counts.cronRuns + counts.mediaRuns;
   const activeWork = activeTurns + counts.queuedTurns + counts.pendingReplies;
