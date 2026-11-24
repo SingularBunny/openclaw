@@ -1,4 +1,5 @@
 import { scopePreparedModelRuntimeLease } from "../../agents/prepared-model-runtime-generation-scope.js";
+import { runWithPluginUseScope } from "../../plugins/plugin-use-scope.js";
 import { withPluginRuntimeRegistryScope } from "../../plugins/runtime/gateway-request-scope.js";
 import { getGroupThreadTurn } from "../group-thread-context.js";
 import { isDispatchReplyOperationAbortedError } from "./dispatch-from-config.abort.js";
@@ -50,10 +51,9 @@ async function dispatchReplyFromConfigWithQueuePolicy(
   try {
     while (true) {
       try {
-        const result = await dispatchReplyFromConfigInner(
-          params,
-          messageAuditTerminal,
-          allowActiveQueueResolution,
+        // Fork: the dispatch's runtime lease keeps only plugins this dispatch calls into.
+        const result = await runWithPluginUseScope(() =>
+          dispatchReplyFromConfigInner(params, messageAuditTerminal, allowActiveQueueResolution),
         );
         messageAuditTerminal?.finishSuccess(result);
         return result;

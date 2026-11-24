@@ -2,6 +2,7 @@
 import { createSubsystemLogger } from "../logging/subsystem.js";
 import { collectRegistryInvocationInstances } from "../plugins/plugin-invocation-scope.js";
 import { pluginHandsOverTurns } from "../plugins/plugin-turn-handover-eligibility.js";
+import { capturePluginUseScope } from "../plugins/plugin-use-scope.js";
 import type { PluginRegistry } from "../plugins/registry-types.js";
 import { captureAgentPluginRuntimeRefresh } from "./plugin-runtime-refresh.js";
 
@@ -34,25 +35,47 @@ function reservedPluginIds(registries: readonly PluginRegistry[]): Set<string> {
  * - Outside a turn (admission and dispatch leases kept for a whole run), the
  *   hold yields its work count but keeps its custody. A later fresh call into
  *   the replaced plugin waits for the reload and rebinds to the current registry.
+ *
+ * Fork: a hold taken inside a host scope that records plugin use (a turn) keeps
+ * only plugins that scope has called into. A reserved plugin the turn never
+ * called yields at once and takes no part in the decision above, so a long turn
+ * does not hold up the reload of a plugin it does not use. A hold taken outside
+ * such a scope treats every plugin it holds as used.
  */
 export function captureTurnHandoverRequest(
   registries: Iterable<PluginRegistry>,
 ): (pluginId: string, yieldHold: () => void) => void {
   const refresh = captureAgentPluginRuntimeRefresh();
+  const useScope = capturePluginUseScope();
+  const used = (pluginId: string) => !useScope || useScope.pluginIds.has(pluginId);
   const held = [...registries];
-  const yields: Array<() => void> = [];
+  const yields: Array<{ pluginId: string; yieldHold: () => void }> = [];
   let scheduled = false;
+  // Reserved plugins this hold keeps for its work: the ones its turn has called into.
+  const reservedUsed = () => [...reservedPluginIds(held)].filter(used);
   // Every plugin the reload reserved is still reserved, and every one can hand over.
   const handoverReady = () => {
-    const reserved = [...reservedPluginIds(held)];
+    const reserved = reservedUsed();
     return (
       reserved.length > 0 && reserved.every((pluginId) => pluginHandsOverTurns(held, pluginId))
     );
   };
   const decide = () => {
     scheduled = false;
-    const pendingYields = yields.splice(0);
-    const reserved = [...reservedPluginIds(held)];
+    const pendingYields: Array<() => void> = [];
+    const unused = new Set<string>();
+    for (const { pluginId, yieldHold } of yields.splice(0)) {
+      if (used(pluginId)) {
+        pendingYields.push(yieldHold);
+      } else {
+        unused.add(pluginId);
+        yieldHold();
+      }
+    }
+    if (unused.size) {
+      log.info(`reload of ${[...unused].join(", ")} does not wait for a turn that never called it`);
+    }
+    const reserved = reservedUsed();
     const pinning = reserved.filter((pluginId) => !pluginHandsOverTurns(held, pluginId));
     if (!reserved.length || pinning.length) {
       if (pinning.length) {
@@ -73,8 +96,8 @@ export function captureTurnHandoverRequest(
         : `plugin ${plugins} reload requested; turn has no step that can hand over, so the reload waits for it`,
     );
   };
-  return (_pluginId, yieldHold) => {
-    yields.push(yieldHold);
+  return (pluginId, yieldHold) => {
+    yields.push({ pluginId, yieldHold });
     if (!scheduled) {
       scheduled = true;
       queueMicrotask(decide);

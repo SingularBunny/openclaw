@@ -33,6 +33,7 @@ import type {
 import { createPluginReplacementReservation } from "./plugin-replacement-operation.js";
 import { PluginReferenceDiagnostics } from "./plugin-retention-diagnostics.js";
 import { mapPluginReturnPromise, resolvePluginReturnPromise } from "./plugin-return-value.js";
+import { recordPluginUse } from "./plugin-use-scope.js";
 import { releasePluginInstanceRegistry } from "./registry-lifecycle.js";
 import type { PluginRecord, PluginRegistry } from "./registry-types.js";
 import { withPluginRuntimePluginScope } from "./runtime/gateway-request-scope.js";
@@ -400,6 +401,9 @@ export class PluginInstance {
     cleanupFailures?: Set<unknown>,
   ): T {
     const cleanup = this.calls.get(token)?.cleanup === true;
+    if (!cleanup) {
+      recordPluginUse(this.pluginId);
+    }
     const held: { registry?: PluginRegistry } = {};
     try {
       return this.enter(

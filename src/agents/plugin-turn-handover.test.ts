@@ -1,6 +1,7 @@
 /** Verifies how held plugin work reacts when a reload reserves its plugins. */
 import { describe, expect, it, vi } from "vitest";
 import { PluginInstance } from "../plugins/plugin-instance.js";
+import { runWithPluginUseScope } from "../plugins/plugin-use-scope.js";
 import { createEmptyPluginRegistry } from "../plugins/registry-empty.js";
 import type { PluginRegistry } from "../plugins/registry-types.js";
 import { createPluginRecord } from "../plugins/status.test-helpers.js";
@@ -158,5 +159,48 @@ describe("plugin turn handover", () => {
     expect(control.stopAtStep()).toBe(false);
     expect(control.isRequested()).toBe(false);
     expect(control.continuesAfterAttempt()).toBe(false);
+  });
+
+  // Fork: a turn keeps only the plugins it has called into.
+  it("hands a turn over when the only pinned plugin in the reload is one it never called", async () => {
+    const { registry, instance: swap } = createRegistryWithInstance("swap", true);
+    const pinned = addPlugin(registry, "pinned");
+    const control = runWithPluginUseScope(() => {
+      const captured = createRetainedTurnControl(registry);
+      swap.run(() => undefined);
+      return captured;
+    });
+
+    swap.reserveReplacement();
+    pinned.reserveReplacement();
+    await settle();
+
+    expect(pinned.retainedWorkCount).toBe(0);
+    expect(swap.retainedWorkCount).toBe(1);
+    expect(control.isPending()).toBe(true);
+  });
+
+  it("counts a call made in a nested scope for the enclosing turn's hold", async () => {
+    const { registry, instance } = createRegistryWithInstance();
+    runWithPluginUseScope(() => {
+      retainRuntimePluginWork([registry], "unknown", captureTurnHandoverRequest([registry]));
+      runWithPluginUseScope(() => instance.run(() => undefined));
+    });
+
+    instance.reserveReplacement();
+    await settle();
+    expect(instance.retainedWorkCount).toBe(1);
+  });
+
+  it("does not count a sibling scope's calls for a turn's hold", async () => {
+    const { registry, instance } = createRegistryWithInstance();
+    runWithPluginUseScope(() =>
+      retainRuntimePluginWork([registry], "unknown", captureTurnHandoverRequest([registry])),
+    );
+    runWithPluginUseScope(() => instance.run(() => undefined));
+
+    instance.reserveReplacement();
+    await settle();
+    expect(instance.retainedWorkCount).toBe(0);
   });
 });
