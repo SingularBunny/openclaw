@@ -175,7 +175,7 @@ describe("ConfigPage notifications with the live Web Push owner", () => {
     webPush.dispose();
   });
 
-  it("re-enables Send test and Unsubscribe once the test push returns", async () => {
+  it("re-enables Test all browsers and Unsubscribe once the test push returns", async () => {
     const test = createDeferred<unknown>();
     const { gateway, request } = pushGateway({ "push.web.test": () => test.promise });
     // Reconcile first, as after in-app navigation, so the page mounts subscribed.
@@ -183,17 +183,17 @@ describe("ConfigPage notifications with the live Web Push owner", () => {
     await vi.waitFor(() => expect(owner.snapshot.subscription).toBe("registered"));
     const { webPush, button } = mountNotifications(gateway, owner);
 
-    button("Send test").click();
+    button("Test all browsers").click();
     await vi.waitFor(() => expect(request).toHaveBeenCalledWith("push.web.test", {}));
     flush();
-    expect(button("Send test").disabled).toBe(true);
+    expect(button("Test all browsers").disabled).toBe(true);
 
     test.resolve({ results: [{ ok: true, statusCode: 201 }] });
     await vi.waitFor(() => expect(webPush.snapshot.loading).toBe(false));
     flush();
 
     await waitForSolid(() => {
-      expect(button("Send test").disabled).toBe(false);
+      expect(button("Test all browsers").disabled).toBe(false);
       expect(button("Unsubscribe").disabled).toBe(false);
     });
     webPush.dispose();
