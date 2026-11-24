@@ -1,5 +1,4 @@
 import type { AcpRuntime, AcpRuntimeHandle } from "@openclaw/acp-core/runtime/types";
-import { parseModelCatalogRef } from "@openclaw/model-catalog-core/model-catalog-refs";
 import { expectDefined } from "@openclaw/normalization-core";
 import {
   assertOperatorModelAllowed,
@@ -7,10 +6,8 @@ import {
   readAdmittedRunOperatorAuthority,
   resolveAdmittedRunActiveAssertion,
 } from "../../agents/admitted-run-context.js";
-import { normalizeModelRef } from "../../agents/model-ref-shared.js";
 import { composeSessionSourceAssertion } from "../../config/sessions/session-source-authority.js";
 import { logVerbose } from "../../globals.js";
-import { getProcessGatewayPluginMetadataSnapshot } from "../../plugins/current-plugin-metadata-state.js";
 import { withSessionTurn } from "../../sessions/session-controller.admission.js";
 import type { SessionControllerProducer } from "../../sessions/session-controller.producer-custody.js";
 import { recordSessionHumanDirectMessage } from "../../sessions/session-state-events.js";
@@ -30,6 +27,8 @@ import { applyManagerRuntimeControls } from "./manager.runtime-controls.js";
 import type { ManagerRuntimeHandleCache } from "./manager.runtime-handle-cache.js";
 import { isAcpOwnerRepairRequired } from "./manager.runtime-owner.js";
 import { prepareFreshManagerRuntimeHandleRetry } from "./manager.runtime-resume-state.js";
+import { holdAcpTurnLiveness } from "./manager.turn-liveness.js";
+import { createAcpTurnModelRefResolver } from "./manager.turn-model.js";
 import { acpTurnInputHandlers, consumeAcpTurnStream } from "./manager.turn-stream.js";
 import {
   ACP_TURN_TIMEOUT_DETAIL_CODE,
@@ -85,16 +84,7 @@ export async function runManagerTurn(params: {
     throw error;
   };
   const operatorAuthority = readAdmittedRunOperatorAuthority(input.admittedRunContext);
-  const manifestPlugins = getProcessGatewayPluginMetadataSnapshot() ?? [];
-  const resolveModelRef = (model: string | undefined) => {
-    const ref = model ? parseModelCatalogRef(model) : undefined;
-    return ref
-      ? normalizeModelRef(ref.provider, ref.modelId, {
-          allowPluginNormalization: false,
-          manifestPlugins,
-        })
-      : undefined;
-  };
+  const resolveModelRef = createAcpTurnModelRefResolver();
   const assertModelAllowed = (model: string | undefined) =>
     assertOperatorModelAllowed(operatorAuthority, resolveModelRef(model));
   if (input.admittedRunContext.operationalRunInstance.runId !== input.requestId) {
@@ -120,6 +110,7 @@ export async function runManagerTurn(params: {
   // Metadata reads and signal preparation also hold restart-drain custody.
   // Each release is fenced so a retired actor cannot erase its successor.
   let releaseActiveTurn = markAcpTurnActive(params);
+  let releaseTurnLiveness = () => {};
   let spawnedByWatcher: string | undefined;
   let control: Awaited<ReturnType<AcpSessionManagerDeps["prepareSessionControlRead"]>> | undefined;
   let cancellationControl: Parameters<SetManagerSessionState>[0]["acpControl"];
@@ -250,6 +241,9 @@ export async function runManagerTurn(params: {
         abortSignal: signal,
       },
       async (operation, executionSignal) => {
+        // The turn runs under this operation (for a bound chat, one on the ACP session, not the
+        // chat's). Its watchdog would stop a silent turn; the turn's own timeout bounds it instead.
+        releaseTurnLiveness = holdAcpTurnLiveness(operation, sessionKey);
         signal = executionSignal;
         assertSignalAdmission = resolveAdmittedRunActiveAssertion(input.admittedRunContext, signal);
         const { candidateBackends, describeBackendCandidate } = resolveBackendCandidatePlan({
@@ -714,6 +708,7 @@ export async function runManagerTurn(params: {
       },
     );
   } finally {
+    releaseTurnLiveness();
     control?.release();
     releaseActiveTurn?.();
   }

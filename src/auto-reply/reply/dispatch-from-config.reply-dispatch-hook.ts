@@ -72,18 +72,6 @@ export function runReplyDispatchHook(
                   params.replyOptions?.prepareAssistantTranscriptMessage,
                 recordProcessed: state.recordProcessed,
                 markIdle: state.markIdle,
-                ownLiveness: () => {
-                  let held = true;
-                  const wait = state.getDispatchReplyOperation()?.watchdog.beginWait({
-                    kind: "runtime_owned",
-                    releaseStartsSemanticWindow: true,
-                    isCurrent: () => held,
-                  });
-                  return () => {
-                    held = false;
-                    wait?.close();
-                  };
-                },
               },
               {
                 ...(!options.isTailDispatch ? { prepare: state.assertCurrentBindingRoute } : {}),

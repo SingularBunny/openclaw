@@ -402,36 +402,8 @@ function mockCaptionedTts(text: string) {
 }
 
 describe("tryDispatchAcpReplyCore", () => {
-  it("holds the reply watchdog off for exactly the ACP turn, so a silent long task is not stopped", async () => {
+  it("asks ACP permission in the turn's chat while the turn runs", async () => {
     const order: string[] = [];
-    const ownLiveness = vi.fn(() => {
-      order.push("hold");
-      return () => order.push("release");
-    });
-    managerMocks.runTurn.mockImplementationOnce(
-      async ({ onEvent }: { onEvent: (event: unknown) => Promise<void> }) => {
-        order.push("turn");
-        await onEvent({ type: "done" });
-      },
-    );
-    await runDispatch({ bodyForAgent: "long build", ownLiveness });
-    expect(order).toEqual(["hold", "turn", "release"]);
-
-    order.length = 0;
-    managerMocks.runTurn.mockImplementationOnce(async () => {
-      order.push("turn");
-      throw new Error("agent crashed");
-    });
-    await runDispatch({ bodyForAgent: "again", ownLiveness }).catch(() => {});
-    expect(order).toEqual(["hold", "turn", "release"]);
-  });
-
-  it("asks ACP permission in the turn's chat while the watchdog hold is on", async () => {
-    const order: string[] = [];
-    const ownLiveness = vi.fn(() => {
-      order.push("hold");
-      return () => order.push("release");
-    });
     permissionPromptMocks.createAcpPermissionPromptHandler.mockImplementationOnce(
       (params: { agentLabel: string; sessionKey: string }) => async () => {
         order.push(`ask ${params.agentLabel}`);
@@ -458,14 +430,8 @@ describe("tryDispatchAcpReplyCore", () => {
         await onEvent({ type: "done" });
       },
     );
-    await runDispatch({ bodyForAgent: "edit", ownLiveness });
-    expect(order).toEqual([
-      "hold",
-      "turn",
-      "ask codex",
-      '{"outcome":"selected","optionId":"allow"}',
-      "release",
-    ]);
+    await runDispatch({ bodyForAgent: "edit" });
+    expect(order).toEqual(["turn", "ask codex", '{"outcome":"selected","optionId":"allow"}']);
   });
 
   it("seeds a bound ACP session with its parent chat history only when enabled (F72)", async () => {

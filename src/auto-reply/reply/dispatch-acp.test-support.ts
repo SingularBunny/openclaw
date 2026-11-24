@@ -41,7 +41,6 @@ export async function runDispatch(params: {
     opts?: { reason?: string; error?: string },
   ) => void;
   markIdle?: (reason: string) => void;
-  ownLiveness?: () => () => void;
   ctx?: FinalizedRuntimeMsgContext;
 }) {
   const targetSessionKey = params.sessionKeyOverride ?? "agent:codex-acp:session-1";
@@ -83,6 +82,5 @@ export async function runDispatch(params: {
     ...(params.onReplyStart ? { onReplyStart: params.onReplyStart } : {}),
     recordProcessed: params.recordProcessed ?? vi.fn(),
     markIdle: params.markIdle ?? vi.fn(),
-    ...(params.ownLiveness ? { ownLiveness: params.ownLiveness } : {}),
   });
 }

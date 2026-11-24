@@ -37,6 +37,7 @@ import {
 } from "./manager.runtime-options-commands.js";
 import { runManagerStartupIdentityReconcile } from "./manager.startup-identity-reconcile.js";
 import { runManagerGetSessionStatus } from "./manager.status.js";
+import { holdAcpTurnLiveness } from "./manager.turn-liveness.js";
 import { runManagerTurn } from "./manager.turn-runner.js";
 import {
   DEFAULT_DEPS,
@@ -440,6 +441,9 @@ export class AcpSessionManager {
       });
       return terminal;
     };
+    // The caller's operation (a bound chat's own turn) waits on this ACP turn; hold its
+    // watchdog too. The turn's operation on the ACP session is held in runManagerTurn.
+    const releaseCallerLiveness = holdAcpTurnLiveness(inheritedOperation);
     try {
       // The mailbox reservation is synchronous, preserving arrival order. Its settlement
       // owns queued terminal persistence so Stop cannot acknowledge an unfinished writer.
@@ -506,6 +510,7 @@ export class AcpSessionManager {
         throw publicationError;
       }
     } finally {
+      releaseCallerLiveness();
       leave();
       actor.release();
       producer.release();
