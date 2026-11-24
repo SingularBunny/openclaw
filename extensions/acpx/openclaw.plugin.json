@@ -89,7 +89,7 @@
       },
       "nonInteractivePermissions": {
         "type": "string",
-        "enum": ["deny", "fail"]
+        "enum": ["ask", "deny", "fail"]
       },
       "pluginToolsMcpBridge": {
         "type": "boolean"
@@ -202,7 +202,7 @@
     },
     "nonInteractivePermissions": {
       "label": "Non-Interactive Permission Policy",
-      "help": "Policy when interactive permission prompts are unavailable."
+      "help": "Policy when a permission prompt has no TTY: ask (default) shows Allow/Deny buttons in the turn's chat and denies when there is no chat or no answer within 30 minutes; deny denies at once; fail aborts the turn."
     },
     "pluginToolsMcpBridge": {
       "label": "Plugin Tools MCP Bridge",

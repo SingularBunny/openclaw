@@ -27,7 +27,7 @@ it("resolves state independently of the session working directory", () => {
     cwd: workspaceDir,
     stateDir: path.join(stateDir, "acpx"),
     permissionMode: "approve-reads",
-    nonInteractivePermissions: "fail",
+    nonInteractivePermissions: "ask",
     timeoutSeconds: 120,
     probeAgent: undefined,
   });

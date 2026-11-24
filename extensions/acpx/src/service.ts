@@ -316,7 +316,19 @@ export function createAcpxRuntimeService(
           pluginToolsMcpBridgeEnabled: pluginConfig.pluginToolsMcpBridge,
           openclawToolsMcpBridgeEnabled: pluginConfig.openClawToolsMcpBridge,
           permissionMode: pluginConfig.permissionMode,
-          nonInteractivePermissions: pluginConfig.nonInteractivePermissions,
+          // Fork: "ask" is OpenClaw's chat question; acpx denies whatever reaches its own policy.
+          nonInteractivePermissions:
+            pluginConfig.nonInteractivePermissions === "ask"
+              ? "deny"
+              : pluginConfig.nonInteractivePermissions,
+          ...(pluginConfig.nonInteractivePermissions === "ask"
+            ? {
+                openclawPermissionPrompts: {
+                  permissionMode: pluginConfig.permissionMode,
+                  log: (message: string) => ctx.logger.info(message),
+                },
+              }
+            : {}),
           elicitationModes: ["form", "url"],
           timeoutMs: resolveAcpxTimerTimeoutMs(pluginConfig.timeoutSeconds),
         });

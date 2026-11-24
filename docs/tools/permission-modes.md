@@ -75,16 +75,19 @@ For app-server setup, auth order, and native Codex runtime details, see [Codex h
 
 ACPX sessions have no interactive TTY for permission prompts. Supported ACP
 form and URL requests can still reach the operator as Gateway questions during
-a channel-delivered turn; those are separate from permission approval. ACPX
-uses separate harness-level settings under `plugins.entries.acpx.config`:
+a channel-delivered turn. With `nonInteractivePermissions: ask` (the fork
+default), permission prompts use the same Gateway questions: the chat shows
+**Allow once**, **Allow always** and **Deny** buttons. ACPX uses separate
+harness-level settings under `plugins.entries.acpx.config`:
 
-| Setting                     | Values          | Meaning                                     |
-| --------------------------- | --------------- | ------------------------------------------- |
-| `permissionMode`            | `approve-reads` | Auto-approve reads only.                    |
-| `permissionMode`            | `approve-all`   | Auto-approve writes and shell commands.     |
-| `permissionMode`            | `deny-all`      | Deny all permission prompts.                |
-| `nonInteractivePermissions` | `fail`          | Abort when a prompt would be required.      |
-| `nonInteractivePermissions` | `deny`          | Deny the prompt and continue when possible. |
+| Setting                     | Values          | Meaning                                                           |
+| --------------------------- | --------------- | ----------------------------------------------------------------- |
+| `permissionMode`            | `approve-reads` | Auto-approve reads only.                                          |
+| `permissionMode`            | `approve-all`   | Auto-approve writes and shell commands.                           |
+| `permissionMode`            | `deny-all`      | Deny all permission prompts.                                      |
+| `nonInteractivePermissions` | `ask`           | Ask in the turn's chat with buttons; deny without chat or answer. |
+| `nonInteractivePermissions` | `fail`          | Abort when a prompt would be required.                            |
+| `nonInteractivePermissions` | `deny`          | Deny the prompt and continue when possible.                       |
 
 Set ACPX permissions separately from OpenClaw exec approvals:
 

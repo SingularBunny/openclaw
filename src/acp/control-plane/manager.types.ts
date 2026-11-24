@@ -1,5 +1,6 @@
 import type {
   AcpElicitationHandler,
+  AcpPermissionPromptHandler,
   AcpRuntime,
   AcpRuntimeCapabilities,
   AcpRuntimeEvent,
@@ -90,6 +91,8 @@ export type AcpRunTurnInput = {
   requestId: string;
   signal?: AbortSignal;
   onElicitation?: AcpElicitationHandler;
+  /** Fork: chat question for ACP permission requests (`nonInteractivePermissions: "ask"`). */
+  onPermissionPrompt?: AcpPermissionPromptHandler;
   /** Throwable host admission fence immediately before runtime prompt submission. */
   onBeforePrompt?: () => Promise<void> | void;
   onLifecycle?: (event: AcpTurnLifecycleEvent) => Promise<void> | void;

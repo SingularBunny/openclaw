@@ -51,7 +51,7 @@ import type {
   ReplyDispatchRun,
   ReplyDispatchAssistantTranscript,
 } from "../get-reply-options.types.js";
-import { createLazyAcpElicitationHandler } from "./acp-elicitation-handler-lazy.js";
+import { createLazyAcpTurnInputHandlers } from "./acp-permission-prompt-lazy.js";
 import { createAcpReplyProjector } from "./acp-projector.js";
 import { resolveAcpProjectionSettings } from "./acp-stream-settings.js";
 import {
@@ -573,7 +573,9 @@ export async function tryDispatchAcpReplyCore(
     }).admit("acp");
     recordAcceptedSessionParticipantInput(params.ctx, participantTarget);
     const turnAdmission = admittedRunContext;
-    const elicitationParams = {
+    // Fork: elicitation and permission questions share the turn's chat and activity fence.
+    const turnInputHandlers = createLazyAcpTurnInputHandlers({
+      agentLabel: resolvedAcpAgent,
       sourceSessionKey: sessionKey,
       targetSessionKey: canonicalSessionKey,
       outerRequestId: requestId,
@@ -584,8 +586,7 @@ export async function tryDispatchAcpReplyCore(
         params.abortSignal?.aborted !== true &&
         admittedRunContext === turnAdmission &&
         getAdmittedRunDelegatedAuthority(turnAdmission) !== undefined,
-    };
-    const onElicitation = createLazyAcpElicitationHandler(elicitationParams);
+    });
     // ACP can act before its terminal transcript arrives. Consume accepted input
     // before submission while leaving final assistant/outcome persistence below.
     await persistInput?.();
@@ -624,7 +625,7 @@ export async function tryDispatchAcpReplyCore(
           }
         });
       },
-      onElicitation,
+      ...turnInputHandlers,
       onLifecycle: recordUnsupportedNativeActionEvidence,
       onEvent: async (event) => {
         auditRuntime.emitAcpRuntimeEvent({

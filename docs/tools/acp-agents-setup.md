@@ -472,6 +472,8 @@ reloads.
 ACP sessions run without an interactive TTY for file-write and shell-exec
 permission prompts. This does not disable ACP form or URL elicitation during a
 channel-delivered turn: those requests use transient Gateway questions instead.
+With `nonInteractivePermissions: ask` (the default in this fork), permission
+prompts use the same Gateway questions, so they appear in the chat as buttons.
 The acpx plugin provides two config keys that control harness permissions,
 `permissionMode` and `nonInteractivePermissions`, both described below.
 
@@ -495,10 +497,58 @@ Controls which operations the harness agent can perform without prompting.
 
 Controls what happens when a permission prompt would be shown but no interactive TTY is available (which is always the case for ACP sessions).
 
-| Value  | Behavior                                                                 |
-| ------ | ------------------------------------------------------------------------ |
-| `fail` | Abort the session with `PermissionPromptUnavailableError`. **(default)** |
-| `deny` | Silently deny the permission and continue (graceful degradation).        |
+| Value  | Behavior                                                                                    |
+| ------ | ------------------------------------------------------------------------------------------- |
+| `ask`  | Ask in the turn's chat with buttons; deny when there is no chat or no answer. **(default)** |
+| `fail` | Abort the session with `PermissionPromptUnavailableError` (upstream default).               |
+| `deny` | Silently deny the permission and continue (graceful degradation).                           |
+
+### Permission questions in chat (`ask`)
+
+When an ACP agent (any agent: Junie, Codex, Claude Code, Gemini, ...) sends
+`session/request_permission` for an action that `permissionMode` does not settle
+(with `approve-reads`: writes, edits, deletes, moves, shell commands, fetches),
+OpenClaw asks the user in the chat the turn came from, the same way it asks ACP
+form questions. The question names the agent, the action (tool title and kind)
+and its input, and shows one button per option the agent offers:
+
+| ACP option kind | Button       |
+| --------------- | ------------ |
+| `allow_once`    | Allow once   |
+| `allow_always`  | Allow always |
+| `reject_once`   | Deny         |
+| `reject_always` | Deny always  |
+
+The user can also reply with the option number or text. The answer goes back to
+the agent and the turn continues.
+
+- **Allow always** is passed to the agent as its `allow_always` option, and
+  OpenClaw also remembers it for the session (same tool kind and exact title, so
+  the same command or file), so an agent that asks again is answered without a
+  question. A different command or file is asked again. The memory ends when the
+  Gateway restarts.
+- **No answer** within 30 minutes (the exec approval timeout,
+  `DEFAULT_EXEC_APPROVAL_TIMEOUT_MS`) denies the action; the agent gets the
+  rejection and the turn continues. The chat says so and what to do.
+- **No chat to ask in**: turns that run through the Gateway `agent` method
+  (cron, `openclaw agent`, the task turn of `sessions_spawn`) and turns whose
+  replies are suppressed. The action is denied at once, the run's status events
+  and the Gateway log say why, and the turn continues instead of failing. Talk
+  to the agent in a bound chat or thread (`/acp spawn`, `/focus`) to approve
+  actions there.
+- While the question waits, the turn keeps its watchdog hold, so the reply
+  watchdog does not stop it for silence. A user Stop cancels the question and
+  denies the action.
+
+Reads are still auto-approved by `approve-reads`, `approve-all` still approves
+everything without asking, and `deny-all` still denies without asking.
+
+With `ask` and `approve-reads`, the permission request is the approval point:
+a file write (`fs/write_text_file`) or terminal command (`terminal/create`) that
+the agent hands back to OpenClaw after the request is not gated a second time
+(acpx would otherwise deny it for lack of a TTY and fail the turn). Such
+operations stay inside the session working directory. This matches how native
+harness sessions treat delegated operations.
 
 ### Configuration
 
@@ -513,9 +563,9 @@ With the default hybrid reload mode, these changes automatically reload the plug
 See [Config hot reload](/gateway/configuration/hot-reload) for other reload modes.
 
 <Warning>
-OpenClaw defaults to `permissionMode=approve-reads` and `nonInteractivePermissions=fail`. In non-interactive ACP sessions, any write or exec that triggers a permission prompt can fail with `PermissionPromptUnavailableError: Permission prompt unavailable in non-interactive mode`.
+Upstream OpenClaw defaults to `permissionMode=approve-reads` and `nonInteractivePermissions=fail`. With `fail`, any write or exec that triggers a permission prompt in an ACP session fails with `PermissionPromptUnavailableError: Permission prompt unavailable in non-interactive mode`.
 
-If you need to restrict permissions, set `nonInteractivePermissions` to `deny` so sessions deny restricted actions instead of crashing.
+This fork defaults to `nonInteractivePermissions=ask`, which asks in chat and denies (never fails) when it cannot ask. Set `deny` to deny restricted actions without asking, or `fail` for the upstream behavior.
 </Warning>
 
 ## Related
