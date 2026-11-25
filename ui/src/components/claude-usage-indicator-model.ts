@@ -1,5 +1,6 @@
+import { formatBillingAmount } from "../../../src/infra/provider-usage.format.js";
 // Fork: pure view model for the always-visible subscription usage indicator (Claude first, then
-// any other provider whose usage the Gateway reports with limit windows).
+// any other provider whose usage the Gateway reports with limit windows or a balance).
 import type {
   ProviderUsageRateLimit,
   ProviderUsageSnapshot,
@@ -23,8 +24,17 @@ export type ClaudeUsageRow = {
   tone: ClaudeUsageTone;
 };
 
+/** A balance-only provider (an ACP agent's credits, a prepaid API key): one line, no bar. */
+export type ClaudeUsageBalance = {
+  label: string;
+  amount: string;
+  tone: ClaudeUsageTone;
+};
+
 export type ClaudeUsageView = {
   rows: ClaudeUsageRow[];
+  /** Shown only when the provider reports no windows. */
+  balance?: ClaudeUsageBalance;
   plan?: string;
   /** Present only for a warning or a reached limit from the latest turn. */
   rateLimit?: ProviderUsageRateLimit & { label?: string };
@@ -61,6 +71,19 @@ function hasWindows(
   return snapshot !== undefined && !snapshot.error && snapshot.windows.length > 0;
 }
 
+function balanceOf(snapshot: ProviderUsageSnapshot | undefined) {
+  if (!snapshot || snapshot.error) {
+    return undefined;
+  }
+  const entry = snapshot.billing?.find((billing) => billing.type === "balance");
+  return entry?.type === "balance" && Number.isFinite(entry.amount) ? entry : undefined;
+}
+
+/** A read worth showing and remembering: limit windows, or a balance without them. */
+function hasUsage(snapshot: ProviderUsageSnapshot | undefined): snapshot is ProviderUsageSnapshot {
+  return hasWindows(snapshot) || balanceOf(snapshot) !== undefined;
+}
+
 /** Remembers a read with Claude windows; any other read keeps the previous one. */
 export function rememberClaudeUsage(
   previous: ClaudeUsageLastGood | null,
@@ -71,7 +94,10 @@ export function rememberClaudeUsage(
   return hasWindows(snapshot) ? { snapshot, at: now } : previous;
 }
 
-/** Per provider, remembers a read with windows; any other read keeps that provider's previous one. */
+/**
+ * Per provider, remembers a read with windows or a balance; any other read keeps that provider's
+ * previous one.
+ */
 export function rememberProviderUsage(
   previous: ProviderUsageLastGood,
   summary: UsageSummary | null | undefined,
@@ -79,7 +105,7 @@ export function rememberProviderUsage(
 ): ProviderUsageLastGood {
   const next: ProviderUsageLastGood = { ...previous };
   for (const snapshot of summary?.providers ?? []) {
-    if (hasWindows(snapshot)) {
+    if (hasUsage(snapshot)) {
       next[snapshot.provider] = { snapshot, at: now };
     }
   }
@@ -140,8 +166,8 @@ export function resolveClaudeUsageView(
 }
 
 /**
- * Sidebar blocks for every provider with usage windows: Claude first, the rest in the
- * Gateway's order. Providers without windows (no login, API key only, an error) are left out.
+ * Sidebar blocks for every provider with usage windows or a balance: Claude first, the rest in
+ * the Gateway's order. Providers with neither (no login, an error) are left out.
  */
 export function resolveProviderUsageViews(
   summary: UsageSummary | null | undefined,
@@ -181,7 +207,7 @@ function resolveSnapshotView(
   // An expired Claude CLI token, a timeout or a 5xx drop the windows for a while; the last
   // good ones stay, marked with their age, instead of the block vanishing.
   const stale =
-    (!latest || latest.windows.length === 0) &&
+    (!latest || (latest.windows.length === 0 && !balanceOf(latest))) &&
     lastGood !== undefined &&
     lastGood !== null &&
     now - lastGood.at < CLAUDE_USAGE_STALE_KEEP_MS
@@ -214,12 +240,24 @@ function resolveSnapshotView(
       tone: toneFor(percent),
     };
   });
-  if (rows.length === 0 && !live) {
+  // A provider with windows keeps its compact bars; a balance is shown where there are none.
+  const billing = rows.length === 0 ? balanceOf(snapshot) : undefined;
+  if (rows.length === 0 && !live && !billing) {
     return null;
   }
   const label = rateLimitLabel(live?.limitType, t);
   return {
     rows,
+    ...(billing
+      ? {
+          balance: {
+            label: billing.label ?? t("common.claudeUsage.balance"),
+            amount: formatBillingAmount(billing.amount, billing.unit),
+            // Nothing left to spend: the provider refuses requests.
+            tone: billing.amount <= 0 ? ("danger" as const) : ("ok" as const),
+          },
+        }
+      : {}),
     ...(snapshot.plan ? { plan: snapshot.plan } : {}),
     ...(live ? { rateLimit: { ...live, ...(label ? { label } : {}) } } : {}),
     ...(stale ? { staleSince: stale.at } : {}),

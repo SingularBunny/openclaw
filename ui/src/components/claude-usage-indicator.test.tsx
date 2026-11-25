@@ -110,3 +110,35 @@ it("renders a block per provider with usage windows, Claude first", async () => 
   expect(blocks[1]?.querySelector(".claude-usage__row--warn")?.textContent).toContain("80%");
   view.unmount();
 });
+
+// Fork: an ACP agent's credits (balance, no windows) get a block of their own.
+it("renders a balance-only provider as one line under its title", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(Date.parse("2026-11-10T12:00:00Z"));
+  const { gateway } = fakeGateway([
+    {
+      updatedAt: Date.now(),
+      providers: [
+        {
+          provider: "acp-junie",
+          displayName: "Junie",
+          windows: [],
+          plan: "JetBrains AI Ultimate",
+          billing: [{ type: "balance", label: "Balance left", amount: 30.54, unit: "credits" }],
+          usageOnly: true,
+        },
+      ],
+    },
+  ]);
+  const view = mountSolid(() => <ClaudeUsageIndicator gateway={() => gateway} />);
+  await vi.advanceTimersByTimeAsync(0);
+  flush();
+  const block = view.container.querySelector('.claude-usage[data-provider="acp-junie"]');
+  expect(block?.querySelector(".claude-usage__title")?.textContent).toBe(
+    "Junie usage · JetBrains AI Ultimate",
+  );
+  expect(block?.querySelector(".claude-usage__balance")?.textContent).toBe(
+    "Balance left · 30.54 credits",
+  );
+  view.unmount();
+});

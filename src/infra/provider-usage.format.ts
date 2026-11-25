@@ -50,7 +50,8 @@ function formatObservedAge(observedAt: number): string {
   return hours < 24 ? `${hours}h ago` : `${Math.floor(hours / 24)}d ago`;
 }
 
-function formatBillingAmount(amount: number, unit: string): string {
+/** "$30.54", "¥5.00", "30.54 credits". */
+export function formatBillingAmount(amount: number, unit: string): string {
   const normalizedUnit = unit.trim().toUpperCase();
   if (normalizedUnit === "USD") {
     return amount < 0 ? `-$${Math.abs(amount).toFixed(2)}` : `$${amount.toFixed(2)}`;

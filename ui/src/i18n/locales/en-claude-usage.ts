@@ -21,6 +21,8 @@ const catalog = {
       approachingWindow: "Approaching {label} limit",
       openUsage: "Open usage",
       updated: "updated {relative}",
+      balance: "Balance",
+      balanceLine: "{label} · {amount}",
     },
   },
 } satisfies TranslationMap;

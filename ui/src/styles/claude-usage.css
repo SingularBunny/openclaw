@@ -33,7 +33,17 @@
   font-size: 0.9em;
 }
 
-.claude-usage[data-stale] .claude-usage__rows {
+.claude-usage[data-stale] /* Fork: a balance-only provider (an ACP agent's credits, a prepaid key): one line. */
+.claude-usage__balance {
+  overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
+}
+
+.claude-usage__balance--danger {
+  color: var(--danger);
+}
+
+.claude-usage__rows {
   opacity: 0.6;
 }
 

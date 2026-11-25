@@ -189,6 +189,73 @@ describe("Claude usage indicator model", () => {
     expect(resolveProviderUsageViews(null, NOW, t)).toEqual([]);
   });
 
+  // Fork: a provider with a balance and no windows (an ACP agent's credits, a prepaid key).
+  it("shows a balance-only provider, zero in danger, and keeps windows compact", () => {
+    const junie = {
+      provider: "acp-junie",
+      displayName: "Junie",
+      windows: [],
+      plan: "JetBrains AI Ultimate",
+      billing: [
+        { type: "balance" as const, label: "Balance left", amount: 30.54, unit: "credits" },
+      ],
+      usageOnly: true,
+    };
+    const deepseek = {
+      provider: "deepseek",
+      displayName: "DeepSeek",
+      windows: [],
+      plan: "Unavailable",
+      billing: [{ type: "balance" as const, amount: 0, unit: "USD" }],
+    };
+    const openrouter = {
+      provider: "openrouter",
+      displayName: "OpenRouter",
+      windows: [{ label: "API key budget", usedPercent: 40 }],
+      billing: [{ type: "balance" as const, amount: 12, unit: "USD" }],
+    };
+    const failed = { provider: "acp-codex", displayName: "Codex", windows: [], error: "timeout" };
+    const summary = {
+      updatedAt: NOW,
+      providers: [junie, deepseek, openrouter, failed],
+    } as Parameters<typeof resolveProviderUsageViews>[0];
+    const views = resolveProviderUsageViews(summary, NOW, t);
+    expect(views.map((view) => [view.provider, view.plan, view.rows.length, view.balance])).toEqual(
+      [
+        [
+          "acp-junie",
+          "JetBrains AI Ultimate",
+          0,
+          { label: "Balance left", amount: "30.54 credits", tone: "ok" },
+        ],
+        [
+          "deepseek",
+          "Unavailable",
+          0,
+          { label: "common.claudeUsage.balance", amount: "$0.00", tone: "danger" },
+        ],
+        ["openrouter", undefined, 1, undefined],
+      ],
+    );
+
+    // A balance read is remembered like a read with windows and stays while reads fail.
+    const lastGood = rememberProviderUsage({}, summary, NOW);
+    expect(Object.keys(lastGood).toSorted()).toEqual(["acp-junie", "deepseek", "openrouter"]);
+    const junieFailed = {
+      updatedAt: NOW,
+      providers: [{ ...junie, billing: undefined, error: "probe timed out" }],
+    } as Parameters<typeof resolveProviderUsageViews>[0];
+    expect(rememberProviderUsage(lastGood, junieFailed, NOW + 60_000)["acp-junie"]).toBe(
+      lastGood["acp-junie"],
+    );
+    const stale = resolveProviderUsageViews(junieFailed, NOW + 60_000, t, {
+      "acp-junie": lastGood["acp-junie"],
+    });
+    expect(stale.map((view) => [view.provider, view.staleSince, view.balance?.amount])).toEqual([
+      ["acp-junie", NOW, "30.54 credits"],
+    ]);
+  });
+
   it("formats compact countdowns", () => {
     expect(formatClaudeUsageCountdown(NOW + 20_000, NOW)).toBe("<1m");
     expect(formatClaudeUsageCountdown(NOW + 45 * 60_000, NOW)).toBe("45m");

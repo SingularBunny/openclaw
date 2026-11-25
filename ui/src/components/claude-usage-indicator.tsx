@@ -65,8 +65,8 @@ function blockTitle(view: ProviderUsageView): string {
 
 /**
  * Fork: always-visible subscription limits with reset times: Claude (5-hour, weekly, per-model
- * windows) first, then every other provider the Gateway reports windows for (V1: any model).
- * Hidden while no provider has usage windows.
+ * windows) first, then every other provider the Gateway reports windows or a balance for (V1:
+ * any model). Hidden while no provider has either.
  */
 export function ClaudeUsageIndicator(props: {
   gateway: () => ApplicationGateway | undefined;
@@ -245,6 +245,19 @@ export function ClaudeUsageIndicator(props: {
                     </span>
                   )}
                 </Show>
+              </div>
+            )}
+          </Show>
+          <Show when={current().balance}>
+            {(balance) => (
+              <div
+                class={["claude-usage__balance", `claude-usage__balance--${balance().tone}`]}
+                data-tone={balance().tone}
+              >
+                {t("common.claudeUsage.balanceLine", {
+                  label: balance().label,
+                  amount: balance().amount,
+                })}
               </div>
             )}
           </Show>
