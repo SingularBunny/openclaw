@@ -20,6 +20,7 @@ import { projectOnlinePresenceViewers, presenceViewerLabel } from "../lib/presen
 import { elementRef } from "../lib/reactive/element-ref.ts";
 import { t } from "../lib/reactive/i18n.ts";
 import { nativeListener } from "../lib/solid-native-listener.ts";
+import { isChatAnsweredByAnother } from "../pages/chat/chat-handoff-registry.ts";
 import {
   renderSidebarAgentCard,
   renderAppSidebarFooterBar,
@@ -461,6 +462,7 @@ function RailSessionGlyph(props: { session: SidebarRecentSession; label: string 
         props.session.status === "queued" &&
         props.session.runningChildCount === 0
       }
+      delegated={isChatAnsweredByAnother(props.session.key)}
       badge={props.session.unread ? renderSessionUnreadBadge() : undefined}
     />
   );

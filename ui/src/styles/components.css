@@ -2994,6 +2994,21 @@ td.data-table-key-col {
   }
 }
 
+/* Fork: another model or ACP agent answers the chat (the "<name> is answering" chip); the run
+   ring takes the info color the chip uses. */
+.session-glyph--delegated .session-glyph__ring {
+  border-color: color-mix(in srgb, var(--info) 28%, transparent);
+  border-top-color: var(--info);
+}
+
+.session-glyph--delegated .session-glyph__trace-track {
+  stroke: color-mix(in srgb, var(--info) 28%, transparent);
+}
+
+.session-glyph--delegated .session-glyph__trace-run {
+  stroke: var(--info);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .session-run-spinner,
   .session-glyph__ring {
@@ -3007,6 +3022,14 @@ td.data-table-key-col {
 
   .session-glyph__trace-track {
     stroke: var(--accent);
+  }
+
+  .session-glyph--delegated .session-glyph__ring {
+    border-color: var(--info);
+  }
+
+  .session-glyph--delegated .session-glyph__trace-track {
+    stroke: var(--info);
   }
 }
 

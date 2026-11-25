@@ -1,7 +1,10 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenClawConfig } from "../../config/config.js";
 import type { AcpRuntimeEvent } from "../../plugin-sdk/acp-runtime.js";
-import { activeSessionOperations } from "../../sessions/session-controller.state.js";
+import {
+  activeSessionOperations,
+  hasReplyOperationExecutionStarted,
+} from "../../sessions/session-controller.state.js";
 import { createInternalHookEventPayload } from "../../test-utils/internal-hook-event-payload.js";
 import { completeAcpSessionFixture } from "./dispatch-from-config.acp-fixture.test-support.js";
 import {
@@ -208,6 +211,48 @@ describe("dispatchReplyFromConfig ACP turn liveness", () => {
       for (const operation of operations) {
         expect(operation.result?.kind).toBe("completed");
       }
+    },
+  );
+
+  // Fork: the session list shows a turn whose operation never started execution as "queued"
+  // (a paused ring). A bound chat answered by an ACP agent stayed queued for the whole turn.
+  it.each(["bound", "direct"] as const)(
+    "marks the %s ACP turn's reply operations as executing while the agent works",
+    async (shape) => {
+      mockAcpSession(acpKey);
+      const gate = createDispatchGate();
+      const runtime = createAcpRuntime([]);
+      runtime.runTurn.mockImplementation(async function* () {
+        await gate.wait();
+        yield { type: "text_delta", text: "done" } as AcpRuntimeEvent;
+        yield { type: "done" } as AcpRuntimeEvent;
+      });
+      acpMocks.requireAcpRuntimeBackend.mockReturnValue({ id: "acpx", runtime });
+      const chatKey = "agent:main:discord:channel:C1";
+      if (shape === "bound") {
+        sessionBindingMocks.resolveByConversation.mockReturnValue({
+          bindingId: "binding-executing-turn",
+          targetSessionKey: acpKey,
+          targetKind: "session",
+          status: "active",
+          boundAt: Date.now(),
+          conversation: { channel: "discord", accountId: "default", conversationId: "C1" },
+        });
+      }
+      const work = dispatchTo(shape === "bound" ? chatKey : acpKey, "implement it");
+      await gate.started;
+      const operations = [...activeSessionOperations()];
+      expect(operations.map((operation) => operation.key).toSorted()).toEqual(
+        shape === "bound" ? [acpKey, chatKey].toSorted() : [acpKey],
+      );
+      expect(
+        operations.map((operation) => [
+          operation.key,
+          hasReplyOperationExecutionStarted(operation),
+        ]),
+      ).toEqual(operations.map((operation) => [operation.key, true]));
+      gate.resolve();
+      await work;
     },
   );
 });

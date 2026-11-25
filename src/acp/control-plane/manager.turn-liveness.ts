@@ -1,5 +1,6 @@
 import { logVerbose } from "../../globals.js";
 import type { ReplyOperation } from "../../sessions/session-controller.contracts.js";
+import { markReplyOperationExecutionStarted } from "../../sessions/session-controller.state.js";
 
 /**
  * Holds a reply operation's watchdog off while an ACP turn runs. The turn is bounded by its
@@ -28,4 +29,18 @@ export function holdAcpTurnLiveness(
     held = false;
     wait.close();
   };
+}
+
+/**
+ * Fork: marks the reply operations an ACP turn runs for as executing, as embedded and CLI runs
+ * mark theirs. The session list shows an operation that never started as "queued", so a chat
+ * bound to an ACP agent (and the ACP session itself) kept a paused ring for the whole turn.
+ * Marking also publishes the row change, so the sidebar starts spinning at once.
+ */
+export function markAcpTurnExecuting(...operations: Array<ReplyOperation | undefined>): void {
+  for (const operation of new Set(operations)) {
+    if (operation && !operation.result) {
+      markReplyOperationExecutionStarted(operation);
+    }
+  }
 }

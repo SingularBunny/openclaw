@@ -12,6 +12,7 @@ import { registerChatToolLabelsEnglish } from "../../i18n/locales/en-chat-tool-l
 import { resolveToolDisplayIcon } from "../../lib/chat/tool-display-icon.ts";
 import { t, registerEnglishCatalog } from "../../lib/reactive/i18n.ts";
 import type { SessionCreatedActor, SessionOwnerOption } from "../../lib/session-owner.ts";
+import { isChatAnsweredByAnother } from "../../pages/chat/chat-handoff-registry.ts";
 import {
   summarizeSidebarSessionAttention,
   type SidebarRecentSession,
@@ -99,6 +100,8 @@ export function SessionGlyph(props: {
   badge?: JSX.Element;
   ring?: "circle" | "pair";
   runVisibility?: SessionRunVisibility;
+  /** Fork: another model or ACP agent does the work; the run ring takes the info color. */
+  delegated?: boolean;
 }) {
   const label = () =>
     props.runningLabel ?? t(props.queued ? "sessionsView.statusQueued" : "sessionsView.activeRun");
@@ -109,6 +112,7 @@ export function SessionGlyph(props: {
         {
           "session-glyph--circular": props.circular,
           "session-glyph--running": props.running,
+          "session-glyph--delegated": props.running && props.delegated,
           "session-glyph--bare": props.content == null || props.content === false,
         },
       ]}
@@ -475,6 +479,8 @@ export function renderSessionLeadingState(props: {
   const ownRunActive = () => session().isRunVisuallyActive ?? session().hasActiveRun;
   const running = createMemo(() => ownRunActive() || subagentsWorking());
   const ownRunQueued = createMemo(() => ownRunActive() && session().status === "queued");
+  // Fork: the chat's own run is answered by a bound ACP agent or a handed-off model.
+  const delegated = createMemo(() => ownRunActive() && isChatAnsweredByAnother(session().key));
   const showRun = createMemo(
     () => running() && !props.trailingState && session().attention.kind !== "question",
   );
@@ -568,6 +574,7 @@ export function renderSessionLeadingState(props: {
         content={hasContent() ? content : undefined}
         running={showRun()}
         queued={ownRunQueued() && !subagentsWorking()}
+        delegated={delegated()}
         runningLabel={runningLabel()}
         runVisibility={props.runVisibility}
         circular={!hasIcon() && Boolean(channelAvatarUrl() || hasOwner())}

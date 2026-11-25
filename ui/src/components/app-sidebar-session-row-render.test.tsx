@@ -9,13 +9,17 @@ import { makeBootRoster } from "../app/bootstrap.test-support.ts";
 import { rosterActivityStore } from "../lib/agents/roster-activity-store.ts";
 import { createTestSessionCapability } from "../lib/sessions/session-capability.test-support.ts";
 import {
+  publishChatHandoffController,
+  type ChatHandoffController,
+} from "../pages/chat/chat-handoff-registry.ts";
+import "../test-helpers/app-sidebar-suite.ts";
+import {
   createContext,
   createGateway,
   createGatewayHarness,
   createSessions,
   mountSidebarContext,
 } from "../test-helpers/app-sidebar.ts";
-import "../test-helpers/app-sidebar-suite.ts";
 import { domProbe, allMutationObserverOptions } from "../test-helpers/dom-probe.ts";
 import { createTestGatewayClient } from "../test-helpers/gateway-client.ts";
 import { mountSolid } from "../test-helpers/mount-solid.ts";
@@ -322,6 +326,26 @@ it.each([false, null, undefined])(
     expect(glyph?.querySelector(".session-glyph__icon") !== null).toBe(icon !== false);
   },
 );
+
+// Fork: a chat answered by a bound ACP agent or a handed-off model spins in the info color.
+it.each([
+  ["a bound agent", { kind: "agent", agent: "junie" }, true],
+  ["its own model", undefined, false],
+] as const)("colors the run ring of a chat answered by %s", (_name, current, delegated) => {
+  const key = `agent:main:handoff-${delegated ? "agent" : "own"}`;
+  publishChatHandoffController({
+    sessionKey: key,
+    current: current ?? { kind: "model", model: "anthropic/claude-opus-4-6" },
+    previous: current ? { kind: "model", model: "anthropic/claude-opus-4-6" } : undefined,
+    info: undefined,
+    models: [],
+    agents: [],
+  } as unknown as ChatHandoffController);
+  const { dom } = mountRow({ key, hasActiveRun: true, status: "running" });
+  const glyph = dom.query(".session-glyph--running");
+  expect(glyph).not.toBeNull();
+  expect(glyph?.classList.contains("session-glyph--delegated")).toBe(delegated);
+});
 
 it.each(["owner", "icon"] as const)(
   "retains %s artwork and actions when live rows republish unchanged presentation",

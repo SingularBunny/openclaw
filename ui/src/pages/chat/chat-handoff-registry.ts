@@ -55,6 +55,15 @@ export function readChatHandoffController(sessionKey: string | undefined) {
   return sessionKey ? controllers.get(sessionKey) : undefined;
 }
 
+/**
+ * Someone other than the chat's own answerer answers it now: a bound ACP agent or a model it was
+ * handed to (the "<new> is answering" chip shows). Known for chats this tab has opened.
+ */
+export function isChatAnsweredByAnother(sessionKey: string | undefined): boolean {
+  const controller = readChatHandoffController(sessionKey);
+  return Boolean(controller?.current && controller.previous);
+}
+
 export function publishChatHandoffController(controller: ChatHandoffController): void {
   controllers.set(controller.sessionKey, controller);
   const signature = JSON.stringify([

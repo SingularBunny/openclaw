@@ -27,7 +27,7 @@ import { applyManagerRuntimeControls } from "./manager.runtime-controls.js";
 import type { ManagerRuntimeHandleCache } from "./manager.runtime-handle-cache.js";
 import { isAcpOwnerRepairRequired } from "./manager.runtime-owner.js";
 import { prepareFreshManagerRuntimeHandleRetry } from "./manager.runtime-resume-state.js";
-import { holdAcpTurnLiveness } from "./manager.turn-liveness.js";
+import { holdAcpTurnLiveness, markAcpTurnExecuting } from "./manager.turn-liveness.js";
 import { createAcpTurnModelRefResolver } from "./manager.turn-model.js";
 import { acpTurnInputHandlers, consumeAcpTurnStream } from "./manager.turn-stream.js";
 import {
@@ -244,6 +244,8 @@ export async function runManagerTurn(params: {
         // The turn runs under this operation (for a bound chat, one on the ACP session, not the
         // chat's). Its watchdog would stop a silent turn; the turn's own timeout bounds it instead.
         releaseTurnLiveness = holdAcpTurnLiveness(operation, sessionKey);
+        // Fork: the ACP session's row shows this turn as running, not queued.
+        markAcpTurnExecuting(operation);
         signal = executionSignal;
         assertSignalAdmission = resolveAdmittedRunActiveAssertion(input.admittedRunContext, signal);
         const { candidateBackends, describeBackendCandidate } = resolveBackendCandidatePlan({

@@ -37,7 +37,7 @@ import {
 } from "./manager.runtime-options-commands.js";
 import { runManagerStartupIdentityReconcile } from "./manager.startup-identity-reconcile.js";
 import { runManagerGetSessionStatus } from "./manager.status.js";
-import { holdAcpTurnLiveness } from "./manager.turn-liveness.js";
+import { holdAcpTurnLiveness, markAcpTurnExecuting } from "./manager.turn-liveness.js";
 import { runManagerTurn } from "./manager.turn-runner.js";
 import {
   DEFAULT_DEPS,
@@ -468,6 +468,9 @@ export class AcpSessionManager {
               target,
               async (isCurrentActor) => {
                 started = true;
+                // Fork: the caller's turn (a bound chat's) shows as running, not queued; the
+                // turn's own operation on the ACP session is marked in runManagerTurn.
+                markAcpTurnExecuting(inheritedOperation, _operation);
                 await runManagerTurn({
                   input: { ...input, signal: turnSignal },
                   ...target,
