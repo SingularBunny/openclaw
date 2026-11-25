@@ -142,3 +142,19 @@ describe("agent GitHub sandbox identity", () => {
     }
   });
 });
+
+describe("agents.entries.<id>.acp (fork)", () => {
+  it("accepts a default ACP spawn folder next to any runtime", () => {
+    const result = AgentsSchema.safeParse({
+      entries: { main: { workspace: "/w", cwd: "/c", acp: { cwd: "~/code/project" } } },
+    });
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data?.entries?.main?.acp).toEqual({ cwd: "~/code/project" });
+    }
+  });
+
+  it.each([{ cwd: "" }, { cwd: "   " }, { cwd: 1 }, { folder: "/x" }])("rejects acp %j", (acp) => {
+    expect(AgentsSchema.safeParse({ entries: { main: { acp } } }).success).toBe(false);
+  });
+});

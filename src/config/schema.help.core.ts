@@ -377,6 +377,10 @@ export const CORE_FIELD_HELP: Record<string, string> = {
     "Optional ACP session mode default for this agent (persistent or oneshot).",
   "agents.entries.*.runtime.acp.cwd":
     "Optional default working directory for this agent's ACP sessions.",
+  "agents.entries.*.acp":
+    "Defaults for ACP sessions this agent spawns with /acp spawn or sessions_spawn (runtime acp), whatever runtime the agent itself uses.",
+  "agents.entries.*.acp.cwd":
+    "Working folder for ACP sessions this agent spawns when no --cwd is given, for example the project's code folder; without it they start in the agent workspace. The folder must exist; an explicit --cwd still wins.",
   "agents.defaults.systemAgent":
     "Target settings for ambient OpenClaw system-agent and Custodian inference plus selected unscoped operator reads.",
   "agents.defaults.systemAgent.agentId":

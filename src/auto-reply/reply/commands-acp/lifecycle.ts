@@ -15,7 +15,10 @@ import { closeAdmittedRunDelegatedAuthority } from "../../../agents/admitted-run
 import { listAgentIds } from "../../../agents/agent-roster.js";
 import { resolveSpawnedWorkspaceInheritance } from "../../../agents/spawned-context.js";
 import { resolveAcpSpawnRuntimePolicyError } from "../../../agents/subagents/spawn/acp-spawn-policy.js";
-import { resolveRuntimeCwdForAcpSpawn } from "../../../agents/subagents/spawn/acp-spawn-runtime.js";
+import {
+  resolveConfiguredAcpSpawnCwd,
+  resolveRuntimeCwdForAcpSpawn,
+} from "../../../agents/subagents/spawn/acp-spawn-runtime.js";
 import {
   readChannelContextAdmissionEvidence,
   readChannelContextGatewayContextResolver,
@@ -135,17 +138,21 @@ export async function handleAcpSpawnAction(
     ? spawn.agentId
     : params.agentId;
   const sessionKey = `agent:${ownerAgentId}:acp:${randomUUID()}`;
+  // Fork: explicit --cwd > the owner's agents.entries.<id>.acp.cwd > workspace inheritance.
+  const configuredCwd = resolveConfiguredAcpSpawnCwd(params.cfg, ownerAgentId);
   const resolvedCwd = resolveSpawnedWorkspaceInheritance({
     config: params.cfg,
     targetAgentId: ownerAgentId,
     requesterSessionKey: params.sessionKey,
-    explicitWorkspaceDir: spawn.cwd,
+    explicitWorkspaceDir: normalizeOptionalString(spawn.cwd) ?? configuredCwd,
   });
   let runtimeCwd: string | undefined;
   try {
     runtimeCwd = await resolveRuntimeCwdForAcpSpawn({
       resolvedCwd,
       explicitCwd: spawn.cwd,
+      configuredCwd,
+      agentId: ownerAgentId,
     });
   } catch (error) {
     return acpCommandErrorReply(

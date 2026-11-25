@@ -398,6 +398,65 @@ describe("/acp command", () => {
     });
   });
 
+  describe("agents.entries.<id>.acp.cwd (fork)", () => {
+    function cfgWithAcpCwd(acpCwd?: string): OpenClawConfig {
+      const workspace = tempDirs.make("openclaw-main-workspace-");
+      return {
+        ...baseCfg,
+        agents: {
+          entries: {
+            main: { workspace, ...(acpCwd !== undefined ? { acp: { cwd: acpCwd } } : {}) },
+          },
+        },
+      };
+    }
+
+    it("starts a chat handoff spawn (--bind here, no --cwd) in the agent's ACP folder", async () => {
+      const code = tempDirs.make("openclaw-project-code-");
+      const result = await runCommand("/acp spawn junie --bind here", cfgWithAcpCwd(code));
+      expectReplyText(result, "Bound this conversation to");
+      expectMockCallFields(hoisted.initializeSessionMock, {
+        agentId: "main",
+        agent: "junie",
+        cwd: code,
+      });
+    });
+
+    it("lets an explicit --cwd win over the agent's ACP folder", async () => {
+      const code = tempDirs.make("openclaw-project-code-");
+      const explicit = tempDirs.make("openclaw-explicit-cwd-");
+      await runCommand(`/acp spawn junie --bind here --cwd ${explicit}`, cfgWithAcpCwd(code));
+      expectMockCallFields(hoisted.initializeSessionMock, { agent: "junie", cwd: explicit });
+    });
+
+    it("keeps the workspace inheritance when the agent has no ACP folder", async () => {
+      const cfg = cfgWithAcpCwd();
+      await runCommand("/acp spawn junie --bind here", cfg);
+      expectMockCallFields(hoisted.initializeSessionMock, {
+        agent: "junie",
+        cwd: cfg.agents?.entries?.main?.workspace,
+      });
+    });
+
+    it("refuses to spawn when the configured ACP folder is missing", async () => {
+      const missing = path.join(tempDirs.make("openclaw-acp-cwd-"), "absent");
+      const result = await runCommand("/acp spawn junie --bind here", cfgWithAcpCwd(missing));
+      expectReplyText(result, `ACP working folder ${missing}`, "agents.entries.main.acp.cwd");
+      expect(hoisted.initializeSessionMock).not.toHaveBeenCalled();
+    });
+
+    it("uses a configured target agent's ACP folder when spawning that agent", async () => {
+      const code = tempDirs.make("openclaw-project-code-");
+      const workspace = tempDirs.make("openclaw-codex-");
+      const cfg = {
+        ...baseCfg,
+        agents: { entries: { codex: { workspace, acp: { cwd: code } } } },
+      } satisfies OpenClawConfig;
+      await runCommand("/acp spawn codex", cfg);
+      expectMockCallFields(hoisted.initializeSessionMock, { agentId: "codex", cwd: code });
+    });
+  });
+
   it("persists ACP spawn labels to the target store without a gateway self-call", async () => {
     const params = createParams("/acp spawn codex --bind here --label inbox");
     params.storePath = "/tmp/requester-sessions.json";

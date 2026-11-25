@@ -87,6 +87,8 @@ export const FIELD_LABELS: Record<string, string> = {
   "agents.entries.*.runtime.acp.backend": "Agent ACP Backend",
   "agents.entries.*.runtime.acp.mode": "Agent ACP Mode",
   "agents.entries.*.runtime.acp.cwd": "Agent ACP Working Directory",
+  "agents.entries.*.acp": "Agent ACP Spawn Defaults",
+  "agents.entries.*.acp.cwd": "Agent ACP Spawn Working Directory",
   "agents.entries.*.thinkingDefault": "Agent Thinking Default",
   "agents.entries.*.reasoningDefault": "Agent Reasoning Default",
   "agents.entries.*.fastModeDefault": "Agent Fast Mode Default",

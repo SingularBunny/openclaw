@@ -43,6 +43,11 @@ process working directory. A distinct working directory requires an unsandboxed
 run; sandboxed runs reject it. When the directories differ, the system prompt
 identifies their separate roles so deliverables stay in the working directory.
 
+ACP sessions the agent spawns (`/acp spawn`, `sessions_spawn` with `runtime: "acp"`)
+do not use `cwd`: without `--cwd` they start in the workspace, or in
+`agents.entries.*.acp.cwd` when set (fork, see
+[Working folder of spawned sessions](/tools/acp-agents-setup#working-folder-of-spawned-sessions-fork)).
+
 ## `agents.defaults.repoRoot`
 
 Optional repository root shown in the system prompt's Runtime line. If unset, OpenClaw auto-detects by walking upward from the workspace.
