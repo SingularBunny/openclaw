@@ -103,6 +103,27 @@ describe("ACP permission prompt", () => {
         validateUrls: false,
       }),
     ).toBeUndefined();
+    // Junie's read outside the project: two Allow always scopes, no Deny always; the narrower one gives way.
+    const read = buildAcpPermissionQuestion({
+      request: {
+        ...request,
+        allowAllOffered: true,
+        options: [
+          { optionId: "once", name: "Allow once", kind: "allow_once" },
+          { optionId: "deny", name: "Deny", kind: "reject_once" },
+          { optionId: "file", name: 'Always allow ("/etc/os-release")', kind: "allow_always" },
+          { optionId: "dir", name: 'Always allow ("/etc/*")', kind: "allow_always" },
+        ],
+      },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(read.options?.map((option) => option.value)).toEqual([
+      "once",
+      "deny",
+      "dir",
+      "openclaw:allow-all",
+    ]);
     const three = buildAcpPermissionQuestion({
       request: { ...request, allowAllOffered: true, options: request.options.slice(0, 3) },
       agentLabel: "junie",

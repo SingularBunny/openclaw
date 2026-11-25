@@ -229,7 +229,7 @@ const ACP_PERMISSION_MAX_OPTIONS = 4;
 /**
  * Fork: the agent's options plus "Allow all in this chat", which switches the ACP session to allow every
  * later permission request (not decisions). A question holds at most four buttons and Junie offers four
- * (Allow once / Allow always / Deny / Deny always), so "Deny always" gives way to it; without room the
+ * (Allow once / Allow always / Deny / Deny always), so "Deny always" or a narrower "Allow always" gives way; without room the
  * agent's own options stay and the button is left out, as a question with five options fails outright.
  */
 function withAllowAllOption(
@@ -250,11 +250,19 @@ function withAllowAllOption(
   if (base.length <= room) {
     return [...base, allowAll];
   }
-  const rejectAlways = new Set(
-    request.options
-      .filter((option) => option.kind === "reject_always")
-      .map((option) => option.optionId),
-  );
-  const kept = base.filter((option) => !rejectAlways.has(option.value));
+  // Make room, least useful first: "Deny always", then all but the last of several "Allow always" scopes
+  // (Junie's file reads offer the file and its folder; the folder, offered last, is kept).
+  const allowAlways = request.options.filter((option) => option.kind === "allow_always");
+  const drop = [
+    ...request.options.filter((option) => option.kind === "reject_always"),
+    ...allowAlways.slice(0, -1),
+  ].map((option) => option.optionId);
+  let kept = base;
+  for (const optionId of drop) {
+    if (kept.length <= room) {
+      break;
+    }
+    kept = kept.filter((option) => option.value !== optionId);
+  }
   return kept.length <= room ? [...kept, allowAll] : base;
 }
