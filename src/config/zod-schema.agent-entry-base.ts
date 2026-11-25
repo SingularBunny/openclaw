@@ -132,4 +132,14 @@ export const AgentEntryBaseSchema = z.strictObject({
     .optional(),
   params: z.record(z.string(), z.unknown()).optional(),
   runtime: AgentRuntimeSchema,
+  /**
+   * Fork: ACP sessions this agent spawns (`/acp spawn`, `sessions_spawn` with runtime acp),
+   * whatever runtime the agent itself runs on.
+   */
+  acp: z
+    .strictObject({
+      /** Default working folder for spawned ACP sessions; an explicit `--cwd` still wins. */
+      cwd: z.string().trim().min(1).optional(),
+    })
+    .optional(),
 });

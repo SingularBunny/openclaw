@@ -207,6 +207,40 @@ Current-conversation binds do not require child-thread creation. They require an
 
 See [Configuration Reference](/gateway/configuration-reference).
 
+### Working folder of spawned sessions (fork)
+
+An ACP session started with `/acp spawn` or `sessions_spawn` (`runtime: "acp"`)
+without `--cwd` starts in the OpenClaw agent's workspace, the folder with its
+prompt and memory files. An agent whose code lives elsewhere can name the
+folder its ACP sessions start in:
+
+```json5
+{
+  agents: {
+    entries: {
+      myproject: {
+        workspace: "~/agents/myproject", // prompt and memory files
+        acp: { cwd: "~/code/myproject" }, // where spawned ACP agents work
+      },
+    },
+  },
+}
+```
+
+Precedence: an explicit `--cwd` (or `cwd` of `sessions_spawn`) wins, then the
+owner agent's `acp.cwd`, then the workspace. The owner is the OpenClaw agent
+the session belongs to: the spawned agent when it is a configured OpenClaw
+agent, otherwise the agent of the chat it is spawned from, so
+`/acp spawn junie --bind here` in a `myproject` chat starts Junie in
+`~/code/myproject`. This also covers handing a chat over to an ACP agent from
+the Control UI, which runs `/acp spawn <agent> --bind here`: every handoff
+starts the agent in the same folder again, while `/acp cwd` still changes the
+running session only. The setting works whatever runtime the agent itself uses
+(unlike `runtime.acp.cwd`, which applies to `runtime.type: "acp"` agents). The
+folder must exist: a missing one fails the spawn with a message naming the
+setting instead of starting the agent somewhere else. A sandboxed requester
+still spawns in its sandbox root.
+
 ## Repair existing bare-session histories
 
 ACPX isolates bare session names by OpenClaw owner. If a session reports
@@ -667,7 +701,9 @@ ACP session's working directory, its `readOutsideProject` rule); it does not
 ask for files inside it. If Junie asks for every file, the session's working
 directory is not the project it works in. Fix that first: start the session in
 the project (`/acp spawn junie --bind here --cwd /path/to/project`; without
-`--cwd` the session inherits the OpenClaw agent's workspace), or press **Allow always** once to add the shown pattern to Junie's
+`--cwd` the session starts in the OpenClaw agent's `acp.cwd`, see
+[Working folder of spawned sessions](#working-folder-of-spawned-sessions-fork),
+or else its workspace), or press **Allow always** once to add the shown pattern to Junie's
 allowlist, or add a `readOutsideProject` rule to `~/.junie/allowlist.json`.
 OpenClaw does not guess that a request of kind `other` is a read.
 

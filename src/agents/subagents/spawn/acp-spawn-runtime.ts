@@ -15,6 +15,8 @@ import {
   getSessionBindingService,
   type SessionBindingRecord,
 } from "../../../infra/outbound/session-binding-service.js";
+import { resolveUserPath } from "../../../utils.js";
+import { resolveAgentEntry } from "../../agent-scope-config.js";
 import { resolveAgentConfig } from "../../agent-scope.js";
 import { splitTrailingAuthProfile } from "../../model-ref-profile.js";
 import {
@@ -28,14 +30,54 @@ import { resolveSubagentThinkingOverride } from "./subagent-spawn-thinking.js";
 
 const ACP_RUNTIME_TIMEOUT_MAX_SECONDS = 24 * 60 * 60;
 
+/**
+ * Fork: the spawning agent's `agents.entries.<id>.acp.cwd`, the default working folder of the
+ * ACP sessions it spawns (for example the project's code folder instead of the agent's
+ * prompt/memory workspace). Precedence at spawn: explicit `--cwd` > this > workspace inheritance.
+ */
+export function resolveConfiguredAcpSpawnCwd(
+  cfg: OpenClawConfig,
+  agentId: string | undefined,
+): string | undefined {
+  if (!agentId) {
+    return undefined;
+  }
+  const configured = normalizeOptionalString(resolveAgentEntry(cfg, agentId)?.acp?.cwd);
+  return configured ? resolveUserPath(configured) : undefined;
+}
+
 export async function resolveRuntimeCwdForAcpSpawn(params: {
   resolvedCwd?: string;
   explicitCwd?: string;
+  /** Fork: the folder came from `agents.entries.<id>.acp.cwd`; a missing one is an error. */
+  configuredCwd?: string;
+  /** Agent id named in the configured-folder error. */
+  agentId?: string;
 }): Promise<string | undefined> {
   if (!params.resolvedCwd) {
     return undefined;
   }
   if (normalizeOptionalString(params.explicitCwd)) {
+    return params.resolvedCwd;
+  }
+  if (params.configuredCwd && params.resolvedCwd === params.configuredCwd) {
+    // Configured on purpose: starting the agent in another folder would hide the mistake.
+    try {
+      const stat = await fs.stat(params.configuredCwd);
+      if (!stat.isDirectory()) {
+        throw new Error(
+          `ACP working folder ${params.configuredCwd} (agents.entries.${params.agentId ?? "<id>"}.acp.cwd) is not a directory.`,
+        );
+      }
+    } catch (error) {
+      if (isMissingPathError(error)) {
+        throw new Error(
+          `ACP working folder ${params.configuredCwd} (agents.entries.${params.agentId ?? "<id>"}.acp.cwd) does not exist.`,
+          { cause: error },
+        );
+      }
+      throw error;
+    }
     return params.resolvedCwd;
   }
   try {

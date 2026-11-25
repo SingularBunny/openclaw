@@ -92,6 +92,7 @@ import {
   bindPreparedAcpThread,
   initializeAcpSpawnRuntime,
   resolveAcpSpawnRuntimeOptions,
+  resolveConfiguredAcpSpawnCwd,
   resolveRuntimeCwdForAcpSpawn,
   type AcpSpawnInitializedRuntime,
 } from "./acp-spawn-runtime.js";
@@ -360,17 +361,25 @@ export async function spawnAcpDirect(
   });
 
   const sessionKey = mintSpawnSessionKey({ targetAgentId: ownerAgentId, backend: "acp" });
+  const explicitCwd = senderRestricted ? requesterRoot : params.cwd;
+  // Fork: explicit cwd (or the sandbox root) > the owner's agents.entries.<id>.acp.cwd > inheritance.
+  // A sandbox-restricted sender never leaves its root, so the configured folder is ignored.
+  const configuredCwd = senderRestricted
+    ? undefined
+    : resolveConfiguredAcpSpawnCwd(cfg, ownerAgentId);
   const resolvedCwd = resolveSpawnedWorkspaceInheritance({
     config: cfg,
     targetAgentId: ownerAgentId,
     requesterSessionKey: ctx.agentSessionKey,
-    explicitWorkspaceDir: senderRestricted ? requesterRoot : params.cwd,
+    explicitWorkspaceDir: normalizeOptionalString(explicitCwd) ?? configuredCwd,
   });
   let runtimeCwd: string | undefined;
   try {
     runtimeCwd = await resolveRuntimeCwdForAcpSpawn({
       resolvedCwd,
-      explicitCwd: senderRestricted ? requesterRoot : params.cwd,
+      explicitCwd,
+      configuredCwd,
+      agentId: ownerAgentId,
     });
   } catch (error) {
     return buildAcpSpawnError("cwd_resolution_failed", formatErrorMessage(error));

@@ -461,6 +461,42 @@ describe("spawnAcpDirect", () => {
     },
   );
 
+  it.each([
+    { name: "uses the owner's acp.cwd without an explicit cwd", explicit: false, exists: true },
+    { name: "lets an explicit cwd win over acp.cwd", explicit: true, exists: true },
+    { name: "fails when the configured acp.cwd is missing", explicit: false, exists: false },
+  ])("$name (fork: agents.entries.<id>.acp.cwd)", async ({ explicit, exists }) => {
+    const workspace = await workspaceFixture("codex");
+    const code = path.join(workspace.workspaceRoot, "code");
+    const explicitCwd = path.join(workspace.workspaceRoot, "explicit");
+    if (exists) {
+      await fs.mkdir(code, { recursive: true });
+    }
+    await fs.mkdir(explicitCwd, { recursive: true });
+    configureAgents({ main: { workspace: workspace.mainWorkspace, acp: { cwd: code } } });
+    try {
+      const result = await spawn({ mode: "run", ...(explicit ? { cwd: explicitCwd } : {}) });
+      if (!exists) {
+        expect(result).toMatchObject({
+          status: "error",
+          errorCode: "cwd_resolution_failed",
+          error: expect.stringContaining("agents.entries.main.acp.cwd"),
+        });
+        expect(hoisted.initializeSessionMock).not.toHaveBeenCalled();
+        return;
+      }
+      const { childSessionKey } = expectAcceptedSpawn(result);
+      expectInitializeSessionFields({
+        agentId: "main",
+        agent: "codex",
+        cwd: explicit ? explicitCwd : code,
+        sessionKey: childSessionKey,
+      });
+    } finally {
+      await fs.rm(workspace.workspaceRoot, { recursive: true, force: true });
+    }
+  });
+
   it("resumes through the configured ACP owner and backend", async () => {
     configureAgents({ reviewer: acpAgent("codex", "fallback") });
     const resumeSessionId = "fixture-resume";
