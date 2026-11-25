@@ -8,6 +8,9 @@ import { describeAcpPermissionTitle } from "./acp-permission-prompt-unavailable.
 
 export const ACP_PERMISSION_QUESTION_ID = "permission";
 
+/** Fork: value of the "Allow all in this chat" button; never an ACP option id. */
+export const ACP_PERMISSION_ALLOW_ALL_VALUE = "openclaw:allow-all";
+
 /** Longer input than this goes to a chat message of its own before the buttons. */
 export const ACP_PERMISSION_INLINE_DETAIL_LIMIT = 600;
 const MAX_LOCATIONS = 5;
@@ -94,6 +97,22 @@ export function buildAcpPermissionQuestionOptions(
     used.add(label.toLowerCase());
     return { label, value: option.optionId, ...(description ? { description } : {}) };
   });
+}
+
+/**
+ * The allow option an "Allow all in this chat" answer selects for the request at hand: once if
+ * offered, else always. None for a decision or a request without an allow option.
+ */
+export function resolveAcpAllowAllOption(
+  options: readonly AcpPermissionPromptOption[],
+): AcpPermissionPromptOption | undefined {
+  if (isAcpDecisionRequest(options)) {
+    return undefined;
+  }
+  return (
+    options.find((option) => option.kind === "allow_once") ??
+    options.find((option) => option.kind === "allow_always")
+  );
 }
 
 function renderField(key: string, value: unknown): string | undefined {
@@ -200,6 +219,18 @@ export function buildAcpPermissionQuestion(params: {
       .join("\n"),
     isOther: false,
     isSecret: false,
-    options: buildAcpPermissionQuestionOptions(request.options),
+    options: [
+      ...buildAcpPermissionQuestionOptions(request.options),
+      // Fork: switches the ACP session to allow every later permission request (not decisions).
+      ...(request.allowAllOffered && !decision && resolveAcpAllowAllOption(request.options)
+        ? [
+            {
+              label: "Allow all in this chat",
+              value: ACP_PERMISSION_ALLOW_ALL_VALUE,
+              description: `Allow this and every later permission request of ${params.agentLabel} until you switch back to Ask by the composer or the agent is closed`,
+            },
+          ]
+        : []),
+    ],
   };
 }

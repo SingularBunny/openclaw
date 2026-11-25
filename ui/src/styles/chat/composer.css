@@ -4089,3 +4089,8 @@ html[dir="rtl"] .chat-attachments-preview .chat-attachment-loading__line > span 
 .chat-controls__effort-menu--access {
   max-height: min(400px, var(--auto-size-available-height, calc(100vh - 120px)));
 }
+
+/* Fork: a bound ACP agent allowed everything in this chat; the toggle shows it like Full Access. */
+.chat-controls__acp-permission-toggle--allow-all .chat-controls__permission-icon {
+  color: var(--warn);
+}

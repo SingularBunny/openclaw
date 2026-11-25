@@ -6,6 +6,7 @@
 import type { AcpPermissionDecision, AcpPermissionHandler } from "acpx/runtime";
 import type { AcpRuntimeTurnInput } from "../runtime-api.js";
 import type { AcpxPermissionMode } from "./config-schema.js";
+import { acpxPermissionModes, type AcpxSessionPermissionModes } from "./permission-modes.js";
 
 type PermissionPromptHandler = NonNullable<AcpRuntimeTurnInput["onPermissionPrompt"]>;
 type PermissionPromptRequest = Parameters<PermissionPromptHandler>[0];
@@ -119,9 +120,24 @@ function grantKey(request: AcpxPermissionRequest): string {
   ]);
 }
 
+/**
+ * The allow option "allow all" answers with: once if offered, else always. None for a decision
+ * (plan review, step limit) or a request with no allow option: those are still asked.
+ */
+function allowAllOption(request: AcpxPermissionRequest) {
+  if (isAcpxDecisionRequest(request)) {
+    return undefined;
+  }
+  return (
+    request.raw.options.find((option) => option.kind === "allow_once") ??
+    request.raw.options.find((option) => option.kind === "allow_always")
+  );
+}
+
 function toPromptRequest(request: AcpxPermissionRequest): PermissionPromptRequest {
   const { toolCall } = request.raw;
   return {
+    ...(allowAllOption(request) ? { allowAllOffered: true } : {}),
     toolCallId: toolCall.toolCallId,
     ...(toolCall.title ? { title: toolCall.title } : {}),
     ...(request.inferredKind ? { toolKind: request.inferredKind } : {}),
@@ -142,6 +158,8 @@ type BridgeParams = {
   sessionKey: string;
   prompt?: PermissionPromptHandler;
   grants: AcpxPermissionGrants;
+  /** Per-session "allow all"; the plugin's shared instance unless a test passes its own. */
+  modes?: AcpxSessionPermissionModes;
   log?: (message: string) => void;
 };
 
@@ -205,8 +223,40 @@ async function askOrRemember(
     );
     return REJECT;
   }
+  const modes = params.modes ?? acpxPermissionModes;
+  const allowAll = allowAllOption(request);
+  const allowAllDecision = (): AcpPermissionDecision => ({
+    outcome: "selected",
+    optionId: allowAll!.optionId,
+  });
+  if (allowAll && (await modes.isAllowAll(params.sessionKey).catch(() => false))) {
+    return allowAllDecision();
+  }
+  // Switching the session to allow-all while this question is open (or queued) answers it.
+  const switched = new AbortController();
+  const stopWatching = allowAll
+    ? modes.onAllowAll(params.sessionKey, () => switched.abort())
+    : () => {};
   try {
-    const decision = await params.prompt(toPromptRequest(request), { signal });
+    let decision: Awaited<ReturnType<PermissionPromptHandler>>;
+    try {
+      decision = await params.prompt(toPromptRequest(request), {
+        signal: AbortSignal.any([signal, switched.signal]),
+      });
+    } finally {
+      stopWatching();
+    }
+    if (decision.outcome === "rejected" && switched.signal.aborted && !signal.aborted && allowAll) {
+      return allowAllDecision();
+    }
+    if (decision.outcome === "selected" && decision.allowAll && allowAll) {
+      await modes.set(params.sessionKey, "allow-all").catch((error: unknown) => {
+        params.log?.(
+          `acpx: could not switch ${params.sessionKey} to allow all: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      });
+      return allowAllDecision();
+    }
     if (decision.outcome === "rejected") {
       params.log?.(`acpx: permission denied (${decision.reason}): ${decision.message}`);
       return REJECT;

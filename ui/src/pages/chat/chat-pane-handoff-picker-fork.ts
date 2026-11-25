@@ -2,6 +2,7 @@
 // the bound agent's own models, and re-sends a failed turn to the chosen target. Kept out of
 // chat-pane-session-controls.ts, an upstream file, so rebases touch only the wiring there.
 import { t } from "../../i18n/index.ts";
+import { buildChatAcpPermissionToggle } from "./chat-acp-permissions.ts";
 import { publishChatGroupController } from "./chat-group-registry.ts";
 import { createChatGroupController } from "./chat-group.ts";
 import { pickerHandoffModel } from "./chat-handoff-resend-target.ts";
@@ -103,6 +104,14 @@ export function createChatHandoffPicker(params: {
       : []),
   ];
   return {
+    /** Fork: Ask / Allow all for the bound agent's permission requests. */
+    acpPermissionToggle: (canWrite: boolean) =>
+      buildChatAcpPermissionToggle({
+        state,
+        sessionKey,
+        agentLabel: boundAgent?.kind === "agent" ? handoff.labelOf(boundAgent) : undefined,
+        canWrite: canWrite && ownsRoute(),
+      }),
     pickerProps: {
       modelPickerTargetGroups: pickerTargetGroups.length > 0 ? pickerTargetGroups : undefined,
       modelPickerTriggerLabel:

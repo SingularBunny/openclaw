@@ -43,6 +43,7 @@ import {
   withAcpxSessionOptions,
   withOpenClawModelRef,
 } from "./model-ref.js";
+import { acpxPermissionModes } from "./permission-modes.js";
 import {
   AcpxPermissionGrants,
   acpxAskSessionPermissions,
@@ -1282,6 +1283,8 @@ export class AcpxRuntime implements CompleteAcpRuntime {
 
   async close(input: Parameters<AcpRuntime["close"]>[0]): Promise<void> {
     await this.closeSession(input, "close");
+    // Fork: "allow all" belongs to this session; a closed session's key is never reused.
+    await acpxPermissionModes.clear(input.handle.sessionKey).catch(() => {});
   }
 
   private async closeSession(

@@ -15,6 +15,7 @@ import {
   scopedAgentParamsForSession,
 } from "../../lib/sessions/navigation.ts";
 import { areUiSessionKeysEquivalent } from "../../lib/sessions/session-key.ts";
+import type { ChatAcpPermissionToggleProps } from "./chat-acp-permissions.ts";
 import { buildChatClaudeModePicker } from "./chat-claude-mode-controls.ts";
 import { captureChatConnectionOwner } from "./chat-connection-owner.ts";
 import { projectChatFields } from "./chat-field-projection.ts";
@@ -159,6 +160,7 @@ export function renderChatPaneComposerControls(params: {
   };
   permissionPicker: ChatPermissionPickerProps;
   claudeModePicker?: ChatClaudeModePickerProps;
+  acpPermissionToggle?: ChatAcpPermissionToggleProps;
 } {
   const {
     state,
@@ -394,6 +396,8 @@ export function renderChatPaneComposerControls(params: {
             : Promise.resolve(false),
       },
     },
+    // Fork: Ask / Allow all for a bound ACP agent; same write access as the permission picker.
+    acpPermissionToggle: handoffPicker.acpPermissionToggle(permissionAccess.allowed),
     claudeModePicker: buildChatClaudeModePicker({
       state,
       selectedSession,

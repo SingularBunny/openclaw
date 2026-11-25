@@ -27,6 +27,7 @@ import type { HumanMentionInput } from "../../../lib/chat/human-mentions.ts";
 import type { PresentationBinding } from "../../../lib/presentation.ts";
 import type { ProviderUsageDisplayProps } from "../../../lib/provider-quota-summary.ts";
 import type { SessionToolOverrides } from "../../../lib/sessions/patch.ts";
+import type { ChatAcpPermissionToggleProps } from "../chat-acp-permissions.ts";
 import type { PaneOutboxRecovery } from "../chat-outbox-recovery.tsx";
 import type { ChatPaneModelControl } from "../chat-pane-model-control.tsx";
 import type { ChatRealtimeView } from "../chat-realtime.ts";
@@ -211,6 +212,8 @@ export type ChatComposerProps = ChatAttachmentControlsProps & {
   permissionPicker?: ChatPermissionPickerProps;
   /** Fork (F49): Claude Code permission mode picker, present for claude-cli sessions. */
   claudeModePicker?: ChatClaudeModePickerProps;
+  /** Fork: Ask / Allow all for the permission requests of a bound ACP agent. */
+  acpPermissionToggle?: ChatAcpPermissionToggleProps;
   /** Fork: the workbench plan mode toggle (aiwb-plan), present when the Gateway offers it. */
   onDraftChange: (next: string, mentions?: readonly HumanMention[]) => void;
   onHistoryKeydown?: (input: ChatInputHistoryKeyInput) => ChatInputHistoryKeyResult;

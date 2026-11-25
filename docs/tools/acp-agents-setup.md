@@ -689,6 +689,37 @@ the agent and the turn continues.
 - While the question waits, the turn keeps its watchdog hold, so the reply
   watchdog does not stop it for silence.
 
+**Allow all in this chat (fork).** A permission question (not a decision) also
+offers **Allow all in this chat**. It allows the action at hand and switches
+the bound ACP session to allow every later permission request of that agent
+without asking: writes, edits, commands, files outside the project. The
+composer of a chat bound to an ACP agent shows the same state as a
+**Permissions** toggle, **Ask** or **Allow all**; click it to switch back to
+Ask, or to turn Allow all on before the agent asks anything.
+
+- Only that ACP session: other chats, other agents and the plugin-wide
+  `permissionMode` stay as they are.
+- Decisions of the agent's own (plan review, step limit) and ACP forms are
+  still asked.
+- Switching to Allow all answers the question that is open and the ones
+  queued behind it.
+- The mode is stored with the ACP session in the plugin state
+  (`acp-permission-mode`), so it survives a Gateway restart. Closing the
+  session (`/acp close`, **Return to ...** after a handoff) clears it, and a new
+  `/acp spawn` starts in Ask.
+- Turns without a chat (cron, `openclaw agent`, `sessions_spawn` task turns)
+  are still denied at once.
+- The toggle appears only where questions reach the chat (`ask` with
+  `approve-reads`); it needs `operator.write`, the scope needed to press Allow on
+  each question. It does not need `operator.admin` like Claude's
+  `bypassPermissions`: Allow all only presses Allow for the user on requests the
+  agent sends to this chat, and the delegated file and terminal operations
+  stay in the session working directory.
+
+Gateway methods: `acpx.chat.permissions.get` (`{ sessionKey }`, returns
+`targetSessionKey`, `available`, `mode`) and `acpx.chat.permissions.set`
+(`{ sessionKey, mode: "ask" | "allow-all" }`), both with the chat's session key.
+
 Reads are still auto-approved by `approve-reads`, `approve-all` still approves
 everything without asking, and `deny-all` still denies without asking.
 

@@ -8,10 +8,12 @@ import { runAgentHarnessGatewayQuestion } from "../../agents/harness/gateway-que
 import { DEFAULT_EXEC_APPROVAL_TIMEOUT_MS } from "../../infra/exec-approvals-core.js";
 import type { ReplyPayload } from "../types.js";
 import {
+  ACP_PERMISSION_ALLOW_ALL_VALUE as ALLOW_ALL_VALUE,
   ACP_PERMISSION_QUESTION_ID as QUESTION_ID,
   buildAcpPermissionDetailMessage,
   buildAcpPermissionQuestion,
   formatAcpPermissionMinutes as minutes,
+  resolveAcpAllowAllOption,
 } from "./acp-permission-prompt-text.js";
 import {
   ACP_PERMISSION_STOP_ASKING_HINT as STOP_ASKING_HINT,
@@ -25,6 +27,7 @@ export {
   describeAcpPermissionOptionScope,
   isAcpDecisionRequest,
   renderAcpPermissionInput,
+  resolveAcpAllowAllOption,
 } from "./acp-permission-prompt-text.js";
 
 /** Unanswered permission questions deny like unanswered exec approvals (30 min). */
@@ -136,6 +139,12 @@ export function createAcpPermissionPromptHandler(
       const chosen = options.find(
         (option) => option.value === answer || option.label.toLowerCase() === answer?.toLowerCase(),
       );
+      // Fork: "Allow all in this chat" allows this request; the backend stops asking.
+      const allowAll =
+        chosen?.value === ALLOW_ALL_VALUE ? resolveAcpAllowAllOption(request.options) : undefined;
+      if (allowAll) {
+        return { outcome: "selected", optionId: allowAll.optionId, allowAll: true };
+      }
       const optionId = chosen?.value;
       if (optionId && request.options.some((option) => option.optionId === optionId)) {
         return { outcome: "selected", optionId };

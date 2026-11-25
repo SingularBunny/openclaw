@@ -77,6 +77,61 @@ describe("ACP permission prompt", () => {
     expect(question.header.length).toBeLessThanOrEqual(12);
   });
 
+  // Fork: "Allow all in this chat" when the backend can switch the session to allow all.
+  it("offers Allow all in this chat for a permission request the backend can allow all of", () => {
+    const question = buildAcpPermissionQuestion({
+      request: { ...request, allowAllOffered: true },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(question.options?.at(-1)).toEqual({
+      label: "Allow all in this chat",
+      value: "openclaw:allow-all",
+      description: expect.stringContaining("every later permission request of junie"),
+    });
+    const decision = buildAcpPermissionQuestion({
+      request: {
+        ...request,
+        allowAllOffered: true,
+        options: [
+          { optionId: "implement", name: "Implement", kind: "allow_once" },
+          { optionId: "stop", name: "Save the plan and stop", kind: "reject_once" },
+        ],
+      },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(decision.options?.map((option) => option.value)).toEqual(["implement", "stop"]);
+    const denyOnly = buildAcpPermissionQuestion({
+      request: { ...request, allowAllOffered: true, options: request.options.slice(2) },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(denyOnly.options?.map((option) => option.value)).toEqual(["reject-id", "never-id"]);
+  });
+
+  it.each([
+    ["the button", "openclaw:allow-all", "allow-id"],
+    ["its label typed", "allow all in this chat", "allow-id"],
+  ])(
+    "answers Allow all in this chat (%s) with an allow option",
+    async (_name, answer, optionId) => {
+      const { handler } = setup(async () => answered(answer));
+      await expect(handler({ ...request, allowAllOffered: true }, context())).resolves.toEqual({
+        outcome: "selected",
+        optionId,
+        allowAll: true,
+      });
+      const alwaysOnly = setup(async () => answered(answer)).handler;
+      await expect(
+        alwaysOnly(
+          { ...request, allowAllOffered: true, options: request.options.slice(1) },
+          context(),
+        ),
+      ).resolves.toEqual({ outcome: "selected", optionId: "always-id", allowAll: true });
+    },
+  );
+
   it("labels buttons by kind and moves the agent's scope wording to the description", () => {
     // The shape a JetBrains Junie read outside its project arrives in (vendor-neutral kinds).
     expect(

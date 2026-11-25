@@ -1,5 +1,6 @@
 import { Show } from "solid-js";
 import { PluginComposerControlActions } from "../../../plugins/control-ui-composer-actions.solid.tsx";
+import { ChatAcpPermissionToggle } from "./chat-acp-permission-toggle.tsx";
 import { ChatClaudeModePicker } from "./chat-claude-mode-picker.tsx";
 import { ComposerStatusLine } from "./chat-composer-status-line.tsx";
 import type { ChatComposerProps } from "./chat-composer-types.ts";
@@ -16,6 +17,9 @@ export function ComposerLeadControls(props: ComposerForkProps) {
       </Show>
       <Show when={props.composer.claudeModePicker}>
         {(picker) => <ChatClaudeModePicker {...picker()} />}
+      </Show>
+      <Show when={props.composer.acpPermissionToggle}>
+        {(toggle) => <ChatAcpPermissionToggle {...toggle()} />}
       </Show>
       <PluginComposerControlActions
         sessionKey={props.composer.sessionKey}

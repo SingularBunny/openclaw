@@ -53,6 +53,17 @@ const enModelControls = {
         "Handed off, but the declined reply stays in the history the next model reads: {reason}",
       refusalUnsupported: "this Gateway has no chat.refusal.handoff method.",
     },
+    // Fork: the composer toggle for a bound ACP agent's permission requests.
+    acpPermissions: {
+      label: "Permissions",
+      ask: "Ask",
+      allowAll: "Allow all",
+      askTitle:
+        "{agent} asks before each write, edit or command. Click to allow all of them in this chat until you switch back or the agent is closed.",
+      allowAllTitle:
+        "{agent} does not ask for permission in this chat; plan reviews and other decisions are still asked. Click to be asked again.",
+      failed: "Could not change the agent's permissions: {reason}",
+    },
     // Fork: group chat — members added with "Add to group chat" answer when a message names them.
     group: {
       title: "Group chat",

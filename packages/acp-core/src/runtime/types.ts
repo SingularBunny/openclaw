@@ -127,10 +127,20 @@ export type AcpPermissionPromptRequest = {
   /** Files the action touches (ACP `ToolCallLocation.path`), shown in the question. */
   locations?: string[];
   options: AcpPermissionPromptOption[];
+  /**
+   * Fork: the backend can switch this ACP session to allow every later permission request, so
+   * the question may offer "Allow all in this chat" (answered as `allowAll` on an allow option).
+   */
+  allowAllOffered?: boolean;
 };
 
 export type AcpPermissionPromptDecision =
-  | { outcome: "selected"; optionId: string }
+  | {
+      outcome: "selected";
+      optionId: string;
+      /** Fork: the user chose "Allow all in this chat"; `optionId` is the allow option used. */
+      allowAll?: true;
+    }
   | {
       outcome: "rejected";
       reason: "timeout" | "unavailable" | "cancelled";

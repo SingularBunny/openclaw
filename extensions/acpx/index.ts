@@ -11,9 +11,11 @@ import { createLazyRuntimeModule } from "openclaw/plugin-sdk/lazy-runtime";
 import type { OpenClawPluginApi } from "./runtime-api.js";
 import { registerChatAcpModels } from "./src/chat-acp-models.js";
 import { registerChatHandoff, type ChatHandoffRecord } from "./src/chat-handoff.js";
+import { registerChatPermissions } from "./src/chat-permissions.js";
 import { ACPX_NATIVE_AGENT_IDS } from "./src/config-schema.js";
 import { createAcpAgentHarness } from "./src/harness.js";
 import { isAcpxNativeAgentEnabled, listAcpxNativeAgents } from "./src/native-agents.js";
+import { acpxPermissionModes, type AcpxPermissionModeRecord } from "./src/permission-modes.js";
 import { registerPiSessionCatalog } from "./src/pi-session-catalog-plugin.js";
 import { createLazyAcpRuntimeProxy, type CompleteAcpRuntime } from "./src/runtime-proxy.js";
 
@@ -315,6 +317,14 @@ const plugin = {
     );
     // Fork: the bound ACP agent's models for the Control UI's model picker (`/acp model` by button).
     registerChatAcpModels(api);
+    // Fork: per ACP session "allow all" permission requests (question button, composer toggle).
+    acpxPermissionModes.bindStore(() =>
+      api.runtime.state.openKeyedStoreV2<AcpxPermissionModeRecord>({
+        namespace: "acp-permission-mode",
+        maxEntries: 10_000,
+      }),
+    );
+    registerChatPermissions(api);
   },
 };
 
