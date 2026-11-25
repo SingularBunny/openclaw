@@ -1,5 +1,6 @@
 import type { AcpPermissionPromptRequest } from "@openclaw/acp-core/runtime/types";
 import { describe, expect, it, vi } from "vitest";
+import { questionShapeError } from "../../gateway/question-validation.js";
 import { DEFAULT_EXEC_APPROVAL_TIMEOUT_MS } from "../../infra/exec-approvals-core.js";
 import { createUnavailableAcpPermissionPromptHandler } from "./acp-permission-prompt-unavailable.js";
 import {
@@ -89,6 +90,30 @@ describe("ACP permission prompt", () => {
       value: "openclaw:allow-all",
       description: expect.stringContaining("every later permission request of junie"),
     });
+    // A question holds at most four buttons: with Junie's four, Deny always gives way (five failed the question).
+    expect(question.options?.map((option) => option.value)).toEqual([
+      "allow-id",
+      "always-id",
+      "reject-id",
+      "openclaw:allow-all",
+    ]);
+    expect(
+      questionShapeError([{ questionId: "permission", options: question.options ?? [] } as never], {
+        allowPlainSecretQuestions: false,
+        validateUrls: false,
+      }),
+    ).toBeUndefined();
+    const three = buildAcpPermissionQuestion({
+      request: { ...request, allowAllOffered: true, options: request.options.slice(0, 3) },
+      agentLabel: "junie",
+      timeoutMs: ACP_PERMISSION_PROMPT_TIMEOUT_MS,
+    });
+    expect(three.options?.map((option) => option.value)).toEqual([
+      "allow-id",
+      "always-id",
+      "reject-id",
+      "openclaw:allow-all",
+    ]);
     const decision = buildAcpPermissionQuestion({
       request: {
         ...request,

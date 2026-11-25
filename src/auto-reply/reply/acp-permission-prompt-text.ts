@@ -219,18 +219,42 @@ export function buildAcpPermissionQuestion(params: {
       .join("\n"),
     isOther: false,
     isSecret: false,
-    options: [
-      ...buildAcpPermissionQuestionOptions(request.options),
-      // Fork: switches the ACP session to allow every later permission request (not decisions).
-      ...(request.allowAllOffered && !decision && resolveAcpAllowAllOption(request.options)
-        ? [
-            {
-              label: "Allow all in this chat",
-              value: ACP_PERMISSION_ALLOW_ALL_VALUE,
-              description: `Allow this and every later permission request of ${params.agentLabel} until you switch back to Ask by the composer or the agent is closed`,
-            },
-          ]
-        : []),
-    ],
+    options: withAllowAllOption(request, decision, params.agentLabel),
   };
+}
+
+/** A question shows at most this many buttons (gateway question validation). */
+const ACP_PERMISSION_MAX_OPTIONS = 4;
+
+/**
+ * Fork: the agent's options plus "Allow all in this chat", which switches the ACP session to allow every
+ * later permission request (not decisions). A question holds at most four buttons and Junie offers four
+ * (Allow once / Allow always / Deny / Deny always), so "Deny always" gives way to it; without room the
+ * agent's own options stay and the button is left out, as a question with five options fails outright.
+ */
+function withAllowAllOption(
+  request: AcpPermissionPromptRequest,
+  decision: boolean,
+  agentLabel: string,
+): Array<{ label: string; value: string; description?: string }> {
+  const base = buildAcpPermissionQuestionOptions(request.options);
+  if (!request.allowAllOffered || decision || !resolveAcpAllowAllOption(request.options)) {
+    return base;
+  }
+  const allowAll = {
+    label: "Allow all in this chat",
+    value: ACP_PERMISSION_ALLOW_ALL_VALUE,
+    description: `Allow this and every later permission request of ${agentLabel} until you switch back to Ask by the composer or the agent is closed`,
+  };
+  const room = ACP_PERMISSION_MAX_OPTIONS - 1;
+  if (base.length <= room) {
+    return [...base, allowAll];
+  }
+  const rejectAlways = new Set(
+    request.options
+      .filter((option) => option.kind === "reject_always")
+      .map((option) => option.optionId),
+  );
+  const kept = base.filter((option) => !rejectAlways.has(option.value));
+  return kept.length <= room ? [...kept, allowAll] : base;
 }
